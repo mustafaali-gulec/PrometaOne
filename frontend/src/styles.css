@@ -1,0 +1,163 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =====================================================================
+   PROMETA ONE — Tema değişkenleri
+===================================================================== */
+:root {
+  --paper: #ffffff;
+  --bg: #fafaf9;
+  --bg-alt: #f5f5f4;
+  --ink: #1c1917;
+  --ink-soft: #44403c;
+  --ink-mute: #78716c;
+  --line: #e7e5e4;
+  --line-soft: #f5f5f4;
+  --accent: #0f766e;
+  --positive: #15803d;
+  --negative: #b91c1c;
+  --warning: #ca8a04;
+  --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* RTL desteği */
+html[dir="rtl"] body {
+  font-family: "Inter", "Noto Sans Arabic", system-ui, sans-serif;
+}
+
+/* =====================================================================
+   Genel utility class'lar
+===================================================================== */
+.display { font-family: "Fraunces", Georgia, serif; }
+.mono    { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+.label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-mute);
+  font-weight: 500;
+}
+
+.card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #0a5651;
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--ink);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--bg-alt);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 3px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.nav-item:hover { background: var(--bg-alt); }
+.nav-item.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Grid (tablo) */
+table.grid {
+  width: 100%;
+  border-collapse: collapse;
+}
+table.grid th, table.grid td {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 13px;
+  border-bottom: 1px solid var(--line-soft);
+}
+table.grid th {
+  background: var(--bg-alt);
+  font-weight: 500;
+  color: var(--ink-mute);
+}
+table.grid .label-cell {
+  font-size: 13px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--ink-mute); }

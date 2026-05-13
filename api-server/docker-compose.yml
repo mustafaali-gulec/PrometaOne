@@ -1,0 +1,99 @@
+# =============================================================================
+# PROMETA ONE — Docker Compose
+# PostgreSQL 16 + API (Hono/Node) + Adminer (DB UI)
+#
+# Kullanım:
+#   1. .env.example → .env olarak kopyalayın, değerleri doldurun
+#   2. docker compose up -d
+#   3. İlk başlatmada migration ve seed:
+#      docker compose exec api npm run migrate
+#      docker compose exec api npm run seed
+#   4. Erişim:
+#      API:     http://localhost:3000/v1
+#      Adminer: http://localhost:8080 (server: postgres, user: prometa, db: prometa_one)
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: prometa-one-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-prometa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-prometa123}
+      POSTGRES_DB: ${POSTGRES_DB:-prometa_one}
+      TZ: Europe/Istanbul
+      PGTZ: Europe/Istanbul
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-prometa} -d ${POSTGRES_DB:-prometa_one}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - prometa-one
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: prometa-one-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      HOST: 0.0.0.0
+      DATABASE_URL: postgres://${POSTGRES_USER:-prometa}:${POSTGRES_PASSWORD:-prometa123}@postgres:5432/${POSTGRES_DB:-prometa_one}
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-long-random-string-min-32-chars-please}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-another-long-random-string-also-min-32-chars-please}
+      JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-15m}
+      JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES:-7d}
+      APP_URL: ${APP_URL:-http://localhost:5173}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
+      TCMB_API_KEY: ${TCMB_API_KEY:-}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-Prometa One <noreply@prometahr.com>}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      ENABLE_CRON: ${ENABLE_CRON:-true}
+      TZ: Europe/Istanbul
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - prometa-one
+
+  adminer:
+    image: adminer:4-standalone
+    container_name: prometa-one-adminer
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: dracula
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - prometa-one
+    profiles:
+      - tools
+
+networks:
+  prometa-one:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
