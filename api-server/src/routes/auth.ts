@@ -13,7 +13,6 @@ import {
   getAccessTokenTTL,
   createRefreshSession,
   validateRefreshSession,
-  revokeSession,
   revokeAllUserSessions,
 } from "../services/auth.js";
 import { authMiddleware } from "../middleware/auth.js";
@@ -257,7 +256,7 @@ auth.post(
         token,
         expiresInMinutes: 15,
         lang: lang || "tr",
-        resetUrl: process.env.APP_URL ? `${process.env.APP_URL}/reset-password?token=${token}` : undefined,
+        ...(process.env.APP_URL ? { resetUrl: `${process.env.APP_URL}/reset-password?token=${token}` } : {}),
       });
 
       const result = await sendMail({

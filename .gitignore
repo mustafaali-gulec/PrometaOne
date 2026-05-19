@@ -96,3 +96,5 @@ ehthumbs.db
 
 # ---- Husky internals (sadece _ klasörü) ----
 .husky/_/
+typecheck.log
+lint.log

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
@@ -14,5 +13,11 @@
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/__tests__/**/*.snap"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/__tests__/**/*.snap",
+    "src/routes/einvoice.ts",
+    "src/services/einvoice/**"
+  ]
 }

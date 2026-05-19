@@ -6,17 +6,6 @@ import nodemailer from "nodemailer";
 import { pool } from "../db.js";
 import { config } from "../config.js";
 
-interface InvoiceAlert {
-  invoiceNo: string | null;
-  counterparty: string;
-  dueDate: string;
-  total: number;
-  paidAmount: number;
-  remaining: number;
-  daysOverdue?: number;
-  daysToDue?: number;
-  type: "in" | "out";
-}
 
 interface DailyReportSummary {
   overdueCount: number;

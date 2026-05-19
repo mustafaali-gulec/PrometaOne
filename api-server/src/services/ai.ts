@@ -15,7 +15,7 @@ import type {
   CategoryPrediction,
   ConfidenceLevel,
   TrendDirection,
-  Category,
+
 } from "../types.js";
 
 interface PredictionResult {

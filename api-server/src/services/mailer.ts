@@ -171,7 +171,19 @@ export function buildPasswordResetEmail(opts: {
     },
   };
   
-  const T = i18n[lang] || i18n.tr!;  // Fallback: TR
+  interface PasswordResetTranslation {
+    subject: string;
+    greeting: string;
+    intro: string;
+    codeLabel: string;
+    expires: string;
+    linkLabel: string;
+    buttonText: string;
+    notRequested: string;
+    footer: string;
+    brand: string;
+  }
+  const T: PasswordResetTranslation = (i18n[lang] ?? i18n.tr) as unknown as PasswordResetTranslation;
   const expiresText = T.expires.replace("{mins}", String(opts.expiresInMinutes));
   
   const html = `<!DOCTYPE html>

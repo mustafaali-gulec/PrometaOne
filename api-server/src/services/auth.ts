@@ -2,7 +2,7 @@
  * Auth servisi: JWT üretme, password hashing.
  */
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import jwt, { type SignOptions } from "jsonwebtoken";
 import crypto from "node:crypto";
 import { config } from "../config.js";
 import { pool } from "../db.js";
@@ -23,21 +23,23 @@ export async function verifyPassword(plain: string, hash: string): Promise<boole
 }
 
 export function signAccessToken(payload: TokenPayload): string {
-  return jwt.sign(payload, config.JWT_SECRET, {
+  const options = {
     expiresIn: config.JWT_ACCESS_EXPIRES,
     issuer: "promet-cf",
-  });
+  } as SignOptions;
+  return jwt.sign(payload, config.JWT_SECRET, options);
 }
 
 export function signRefreshToken(payload: { sub: number; jti: string }): string {
-  return jwt.sign(payload, config.JWT_REFRESH_SECRET, {
+  const options = {
     expiresIn: config.JWT_REFRESH_EXPIRES,
     issuer: "promet-cf",
-  });
+  } as SignOptions;
+  return jwt.sign(payload, config.JWT_REFRESH_SECRET, options);
 }
 
 export function verifyRefreshToken(token: string): { sub: number; jti: string } {
-  return jwt.verify(token, config.JWT_REFRESH_SECRET) as { sub: number; jti: string };
+  return jwt.verify(token, config.JWT_REFRESH_SECRET) as unknown as { sub: number; jti: string };
 }
 
 /** Access token TTL (saniye) */

@@ -57,7 +57,7 @@ export async function fetchTCMBRates(
     throw new Error(`TCMB API hatası: ${response.status} ${response.statusText}`);
   }
 
-  const data: EVDSResponse = await response.json();
+  const data = (await response.json()) as EVDSResponse;
   if (!data.items?.length) {
     return [];
   }
