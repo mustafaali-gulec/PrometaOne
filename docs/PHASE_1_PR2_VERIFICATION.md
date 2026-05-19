@@ -47,3 +47,65 @@ $ curl http://localhost:3000/v1/notifications/unread-count \
 - [ ] Migration 009: einvoice_credentials.company_id TEXT/UUID → INTEGER düzeltme
 - [ ] `audit` middleware'i `ip` alanına `"unknown"` yazıyor, postgres `inet` tipi reddediyor (audit log silent fail)
 - [ ] `api-server/docker-compose.yml`'a `volumes: - ./:/app` ekle (dev'de canlı kod hot reload)
+
+---
+
+## Faz 1 / PR 3 — Görsel Doğrulama (2026-05-19)
+
+### Sonuç: ✅ Frontend modüler bell prod'da, App.jsx'e dokunulmadan
+
+**Test akışı:**
+1. http://localhost:5173/notifications-demo.html açıldı
+2. admin/admin123 ile login (sayfa POST /v1/auth/login çağırdı)
+3. Bell ikonu sağ üstte göründü, polling başladı (GET /v1/notifications)
+4. Manuel SQL ile test bildirimi eklendi:
+   ```sql
+   INSERT INTO notifications (id, recipient_user_id, kind, title, body)
+   VALUES ('demo-1', 5, '{"kind":"generic"}',
+           'Strangler Fig çalışıyor',
+           'Bu bildirim modüler bell üzerinden geliyor!');
+   ```
+5. Bell badge **"1"** olarak güncellendi
+6. Bell tıklandı → dropdown'da bildirim listelendi
+
+**Kanıtlanmış akış uçtan uca:**
+
+```
+[Tarayıcı]
+  → useNotifications hook (30sn polling)
+    → NotificationsApiClient.fetchForCurrentUser
+      → fetch('http://localhost:3000/v1/notifications', { Bearer token })
+        → [api-server Hono]
+          → authMiddleware (JWT validate)
+            → notificationsModule.router GET /
+              → FetchNotificationsForUserUseCase.execute({ recipientUserId: 5 })
+                → PgNotificationRepository.findByRecipient(5)
+                  → SELECT * FROM notifications WHERE recipient_user_id = $1
+                    → [PostgreSQL] → 1 row
+                  → row → Notification entity
+                → DTO mapper
+              → JSON response
+        ← {"notifications":[...], "unreadCount":1}
+      ← state update
+    ← render NotificationDropdown
+  ← görsel: badge "1" + dropdown listesi
+```
+
+**App.jsx ne durumda?**
+- 81.159 satır
+- 79804. satırda eski local NotificationBell **dokunulmadı**
+- main.jsx hâlâ App.jsx'i mount ediyor (root path)
+- /notifications-demo.html ayrı entry point — paralel yaşıyor
+
+**Strangler Fig commit serisi:**
+
+```
+6badc66 fix(frontend): inline tsconfig (Docker container '../tsconfig.base.json' bulamiyor)
+902e835 feat(frontend/notifications): demo sayfasi (Faz 1 / PR 3B)
+dda6c17 feat(frontend/notifications): bell + dropdown modulu (Faz 1 / PR 3A)
+138d9db docs(verification): Faz 1 / PR 2 production'da çalıştığı kanıtlandı
+23494ee fix(seed): align seed.sql with migration 002 schema
+e686864 feat(modules/notifications): infrastructure + routes + DI (Faz 1 / PR 2)
+e52ff3e feat(modules/notifications): domain + application iskelet (Faz 1 / PR 1)
+9347e59 refactor(api): strict TS errors cleared (Faz 0.5)
+```
