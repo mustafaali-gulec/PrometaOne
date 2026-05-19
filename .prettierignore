@@ -1,0 +1,47 @@
+# Build artefaktları
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+.turbo/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Bağımlılıklar
+node_modules/
+.pnpm-store/
+.yarn/
+
+# Lock dosyaları (Prettier dokunmasın)
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Üretilmiş dosyalar
+*.min.js
+*.min.css
+
+# Legacy — biçimlendirme yok (referans amaçlı duruyor)
+legacy/
+
+# ml-service Python (Prettier dokunmaz — Black/Ruff kullanacağız ileride)
+ml-service/
+
+# Eski dev frontend
+frontend/src/App.jsx
+frontend/src/styles.css
+frontend/public/
+
+# SQL dump'lar
+*.sql
+
+# Logs
+*.log
+logs/
+
+# Env (bilerek hariç)
+.env*
+!.env.example

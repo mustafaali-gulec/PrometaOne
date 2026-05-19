@@ -1,0 +1,67 @@
+# =============================================================================
+# Prometa One — .gitattributes
+# =============================================================================
+# LF line endings everywhere, text dosyaları kesin text olarak işaretle.
+# =============================================================================
+
+# Default — auto-detect ama LF
+* text=auto eol=lf
+
+# Source
+*.ts        text eol=lf
+*.tsx       text eol=lf
+*.js        text eol=lf
+*.jsx       text eol=lf
+*.mjs       text eol=lf
+*.cjs       text eol=lf
+*.py        text eol=lf
+
+# Config
+*.json      text eol=lf
+*.jsonc     text eol=lf
+*.yaml      text eol=lf
+*.yml       text eol=lf
+*.toml      text eol=lf
+.editorconfig text eol=lf
+.gitignore   text eol=lf
+.gitattributes text eol=lf
+.prettierrc* text eol=lf
+.prettierignore text eol=lf
+.eslintrc*   text eol=lf
+
+# Docs
+*.md        text eol=lf
+*.mdx       text eol=lf
+*.txt       text eol=lf
+
+# Web
+*.html      text eol=lf
+*.css       text eol=lf
+*.scss      text eol=lf
+*.svg       text eol=lf
+
+# Shell scripts
+*.sh        text eol=lf
+
+# Windows-only scripts MUST be CRLF
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+*.ps1       text eol=crlf
+
+# Binary — git diff dokunmasın
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.pdf       binary
+*.zip       binary
+*.gz        binary
+*.tar       binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.eot       binary
+*.otf       binary
+*.pkl       binary
+*.joblib    binary
