@@ -1,56 +1,210 @@
 /**
- * Notifications modülü — Public API + DI registration.
+ * Notifications modülü — Public API + DI composition root.
  *
  * Dış dünyaya açılan tek arayüz. ESLint kuralı ile internal'a doğrudan
- * erişim yasak. `app.ts` (composition root) sadece bu dosyadan import eder.
- *
- * NOT: Şu an Faz 1 / PR 1 — sadece domain + application + DTO + port'lar
- * ihraç ediliyor. Infrastructure (PgNotificationRepository,
- * NodemailerEmailService) + Hono route'ları henüz yok. Sonraki PR'larda.
+ * erişim yasak. api-server/src/index.ts (composition root) sadece
+ * `registerNotificationsModule`'u çağırır.
  */
+import type { Hono } from 'hono';
+import nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
+import type { Pool } from 'pg';
 
-// Domain (public types — diğer modüllerle paylaşılabilir)
-export { Notification } from './domain/entities/Notification.js';
-export type { NotificationProps } from './domain/entities/Notification.js';
-export type {
-  NotificationKind,
-  TaskDueSoonKind,
-  InvoiceOverdueKind,
-  ApprovalStaleKind,
-  TaxDeadlineWarningKind,
-  CheckDueSoonKind,
-  ScheduledReportKind,
-  GenericKind,
-} from './domain/valueObjects/NotificationKind.js';
-export { NOTIFICATION_KIND_VALUES } from './domain/valueObjects/NotificationKind.js';
-export {
-  buildNotificationContent,
-  type NotificationContent,
-} from './domain/services/NotificationFactory.js';
-
-// Application
-export type { NotificationDto } from './application/dto/NotificationDto.js';
-export { toNotificationDto } from './application/dto/NotificationDto.js';
-
-// Ports (concrete impl'ler infrastructure/'da olacak)
-export type { NotificationRepository } from './application/ports/NotificationRepository.js';
-export type { EmailService, SendEmailRequest } from './application/ports/EmailService.js';
-export type { IdGenerator } from './application/ports/IdGenerator.js';
-export { systemClock, type Clock } from './application/ports/Clock.js';
-
-// Use-cases
-export {
+import { systemClock, type Clock } from './application/ports/Clock.js';
+import {
+  CreateNotificationUseCase,
+  type CreateNotificationInput,
+} from './application/useCases/CreateNotification.js';
+import {
   FetchNotificationsForUserUseCase,
   type FetchNotificationsForUserInput,
   type FetchNotificationsForUserResult,
 } from './application/useCases/FetchNotificationsForUser.js';
-export {
+import {
   MarkNotificationAsReadUseCase,
-  NotificationNotFoundError,
   NotificationForbiddenError,
+  NotificationNotFoundError,
   type MarkNotificationAsReadInput,
 } from './application/useCases/MarkNotificationAsRead.js';
+import { Notification } from './domain/entities/Notification.js';
+import type { NotificationProps } from './domain/entities/Notification.js';
+import {
+  buildNotificationContent,
+  type NotificationContent,
+} from './domain/services/NotificationFactory.js';
+import {
+  NOTIFICATION_KIND_VALUES,
+  type ApprovalStaleKind,
+  type CheckDueSoonKind,
+  type GenericKind,
+  type InvoiceOverdueKind,
+  type NotificationKind,
+  type ScheduledReportKind,
+  type TaskDueSoonKind,
+  type TaxDeadlineWarningKind,
+} from './domain/valueObjects/NotificationKind.js';
+import {
+  toNotificationDto,
+  type NotificationDto,
+} from './application/dto/NotificationDto.js';
+import type {
+  EmailService,
+  SendEmailRequest,
+} from './application/ports/EmailService.js';
+import type { IdGenerator } from './application/ports/IdGenerator.js';
+import type { NotificationRepository } from './application/ports/NotificationRepository.js';
+import {
+  CronScheduler,
+  type CronJobDefinition,
+  type CronLogger,
+} from './infrastructure/cron/CronScheduler.js';
+import { NodemailerEmailService } from './infrastructure/email/NodemailerEmailService.js';
+import { uuidGenerator } from './infrastructure/ids/UuidGenerator.js';
+import { PgNotificationRepository } from './infrastructure/persistence/PgNotificationRepository.js';
+import { createNotificationsRouter } from './presentation/routes.js';
+
+// ===========================================================================
+// Public API re-exports
+// ===========================================================================
+export { Notification };
+export type { NotificationProps };
+export type {
+  ApprovalStaleKind,
+  CheckDueSoonKind,
+  GenericKind,
+  InvoiceOverdueKind,
+  NotificationKind,
+  ScheduledReportKind,
+  TaskDueSoonKind,
+  TaxDeadlineWarningKind,
+};
+export { NOTIFICATION_KIND_VALUES, buildNotificationContent };
+export type { NotificationContent };
+export { toNotificationDto };
+export type { NotificationDto };
+export type { EmailService, SendEmailRequest };
+export type { IdGenerator };
+export { systemClock };
+export type { Clock };
+export type { NotificationRepository };
 export {
+  FetchNotificationsForUserUseCase,
+  MarkNotificationAsReadUseCase,
   CreateNotificationUseCase,
-  type CreateNotificationInput,
-} from './application/useCases/CreateNotification.js';
+  NotificationForbiddenError,
+  NotificationNotFoundError,
+};
+export type {
+  FetchNotificationsForUserInput,
+  FetchNotificationsForUserResult,
+  MarkNotificationAsReadInput,
+  CreateNotificationInput,
+};
+
+// ===========================================================================
+// DI composition — registerNotificationsModule
+// ===========================================================================
+
+export interface NotificationsModuleConfig {
+  /** SMTP host. Boşsa email gönderilmez (no-op service). */
+  smtpHost: string | undefined;
+  smtpPort: number | undefined;
+  smtpSecure: boolean;
+  smtpUser: string | undefined;
+  smtpPass: string | undefined;
+  /** Gönderici. Örn: "Prometa One <noreply@prometa.local>" */
+  emailFrom: string;
+  /** Cron etkin mi? */
+  enableCron: boolean;
+}
+
+export interface NotificationsModuleDeps {
+  /** PostgreSQL pool — DI ile inject. */
+  pool: Pool;
+  /** Logger (opsiyonel). */
+  logger?: CronLogger;
+  /** Clock override (test için). Yoksa systemClock. */
+  clock?: Clock;
+  /** IdGenerator override (test için). Yoksa uuidGenerator. */
+  ids?: IdGenerator;
+  /** SMTP transporter override (test için). Yoksa nodemailer.createTransport(...). */
+  transporter?: Transporter;
+}
+
+export interface RegisteredNotificationsModule {
+  /** PR 2: route'lar otomatik mount edilmiş. */
+  router: Hono;
+  /** Cron scheduler — server start'ta `.start()`, shutdown'da `.stop()`. */
+  scheduler: CronScheduler;
+  /** Cron job'lar ve dış kullanım için use-case erişimi. */
+  useCases: {
+    fetch: FetchNotificationsForUserUseCase;
+    markAsRead: MarkNotificationAsReadUseCase;
+    create: CreateNotificationUseCase;
+  };
+}
+
+export function registerNotificationsModule(
+  cfg: NotificationsModuleConfig,
+  deps: NotificationsModuleDeps,
+): RegisteredNotificationsModule {
+  // 1. Infrastructure binding
+  const repo = new PgNotificationRepository(deps.pool);
+
+  const emailService = buildEmailService(cfg, deps);
+
+  const clock = deps.clock ?? systemClock;
+  const ids = deps.ids ?? uuidGenerator;
+
+  // 2. Use-cases
+  const fetch = new FetchNotificationsForUserUseCase(repo);
+  const markAsRead = new MarkNotificationAsReadUseCase(repo, clock);
+  const create = new CreateNotificationUseCase(repo, clock, ids, emailService);
+
+  // 3. Presentation
+  const router = createNotificationsRouter({
+    fetchUseCase: fetch,
+    markAsReadUseCase: markAsRead,
+    createUseCase: create,
+  });
+
+  // 4. Cron — PR 2'de iskelet boş; gerçek job'lar PR 3'te eklenecek
+  //    (eski legacy/backend/cronDaemon.js'in modernleştirilmiş hâli).
+  const cronJobs: CronJobDefinition[] = [];
+  const scheduler = new CronScheduler(cronJobs, deps.logger);
+
+  return {
+    router,
+    scheduler,
+    useCases: { fetch, markAsRead, create },
+  };
+}
+
+function buildEmailService(
+  cfg: NotificationsModuleConfig,
+  deps: NotificationsModuleDeps,
+): EmailService {
+  if (deps.transporter) {
+    return new NodemailerEmailService(deps.transporter, { from: cfg.emailFrom });
+  }
+  if (!cfg.smtpHost || !cfg.smtpUser || !cfg.smtpPass) {
+    // SMTP konfigüre değil — email'leri sessizce yutan no-op service.
+    return new NoopEmailService();
+  }
+  const transporter = nodemailer.createTransport({
+    host: cfg.smtpHost,
+    port: cfg.smtpPort ?? 587,
+    secure: cfg.smtpSecure ?? false,
+    auth: { user: cfg.smtpUser, pass: cfg.smtpPass },
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100,
+  });
+  return new NodemailerEmailService(transporter, { from: cfg.emailFrom });
+}
+
+class NoopEmailService implements EmailService {
+  async send(_req: SendEmailRequest): Promise<void> {
+    // Bilerek no-op. Email konfigüre edilmediğinde kullanılır.
+  }
+}
