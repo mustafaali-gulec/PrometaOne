@@ -1,0 +1,109 @@
+# =============================================================================
+# PROMETA ONE — Tam Stack Docker Compose
+# Frontend (Vite) + Backend (Node) + ML Service (FastAPI) + Adminer
+#
+# Kullanım:
+#   docker-compose up -d --build
+#
+# Erişim:
+#   Frontend:    http://localhost:5173
+#   Backend API: http://localhost:3000/v1
+#   ML Service:  http://localhost:8001
+#   Adminer:     http://localhost:8080
+# =============================================================================
+
+services:
+  # === Frontend (React + Vite) ===
+  frontend:
+    image: node:20-alpine
+    container_name: prometa-frontend
+    restart: unless-stopped
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_API_URL: http://localhost:3000
+      VITE_ML_URL: http://localhost:8001
+      TZ: Europe/Istanbul
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    networks:
+      - prometa
+    depends_on:
+      - backend
+
+  # === Backend (Node.js + cron + email) ===
+  backend:
+    image: node:20-alpine
+    container_name: prometa-backend
+    restart: unless-stopped
+    working_dir: /app
+    command: sh -c "npm install && npm start"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      APP_URL: http://localhost:5173
+      ML_SERVICE_URL: http://ml-service:8001
+      # E-posta (SMTP) — kendi değerlerinizi girin
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-Prometa One <noreply@prometa.local>}
+      # Cron
+      ENABLE_CRON: ${ENABLE_CRON:-true}
+      CRON_SCHEDULE: ${CRON_SCHEDULE:-0 9 * * *}
+      TZ: Europe/Istanbul
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - backend_node_modules:/app/node_modules
+      - prometa_data:/app/data
+    networks:
+      - prometa
+
+  # === ML Service (Python + FastAPI + scikit-learn) ===
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: prometa-ml
+    restart: unless-stopped
+    environment:
+      MODEL_DIR: /app/models_data
+      TZ: Europe/Istanbul
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./ml-service:/app
+      - ml_models:/app/models_data
+    networks:
+      - prometa
+
+  # === Adminer (PostgreSQL UI — opsiyonel, profil ile etkin) ===
+  adminer:
+    image: adminer:4-standalone
+    container_name: prometa-adminer
+    restart: unless-stopped
+    environment:
+      ADMINER_DESIGN: dracula
+      TZ: Europe/Istanbul
+    ports:
+      - "8080:8080"
+    networks:
+      - prometa
+    profiles:
+      - tools
+
+networks:
+  prometa:
+    driver: bridge
+
+volumes:
+  frontend_node_modules:
+  backend_node_modules:
+  ml_models:
+  prometa_data:

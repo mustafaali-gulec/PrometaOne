@@ -1,0 +1,98 @@
+# =============================================================================
+# Prometa One — .gitignore
+# =============================================================================
+
+# ---- Node / npm / pnpm / yarn ----
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+.yarn-integrity
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Build artefaktları ----
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+.turbo/
+.vite/
+.parcel-cache/
+*.tsbuildinfo
+
+# ---- Env / secrets ----
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+!.env.example
+
+# ---- IDE / editör ----
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Test / coverage ----
+coverage/
+.nyc_output/
+*.lcov
+playwright-report/
+test-results/
+
+# ---- Python (ml-service) ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+venv/
+.venv/
+env/
+
+# ---- Docker ----
+.docker/
+
+# ---- DB / data ----
+*.sqlite
+*.sqlite3
+*.db
+backup.sql
+dump.sql
+backend/data/
+api-server/data/
+prometa_data/
+
+# ---- ML models (büyük binary) ----
+ml-service/models_data/
+*.pkl
+*.joblib
+*.h5
+
+# ---- Logs ----
+logs/
+*.log
+
+# ---- OS / sistem ----
+.AppleDouble
+.LSOverride
+ehthumbs.db
+
+# ---- Husky internals (sadece _ klasörü) ----
+.husky/_/

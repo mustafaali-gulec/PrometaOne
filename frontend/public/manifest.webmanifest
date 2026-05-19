@@ -1,0 +1,43 @@
+{
+  "name": "Prometa One",
+  "short_name": "Prometa",
+  "description": "Prometa Bilgi Sistemleri - Finance & HR Platform",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#7c3aed",
+  "background_color": "#ffffff",
+  "lang": "tr-TR",
+  "categories": ["business", "productivity", "finance"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Self-Service",
+      "short_name": "Self-Servis",
+      "description": "Çalışan portalı",
+      "url": "/?view=self_service",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Bildirimler",
+      "short_name": "Bildirim",
+      "description": "Bildirimleri gör",
+      "url": "/?view=notifications",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

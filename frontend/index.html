@@ -2,17 +2,94 @@
 <html lang="tr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Prometa One — Finance & HR Platform</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0" />
+
+    <!-- PWA Meta -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Prometa One" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="Prometa One" />
+    <meta name="theme-color" content="#0891b2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b3d2e" media="(prefers-color-scheme: dark)" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- iOS Icons (fallback to standard PNG) -->
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-96x96.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-72x72.png" />
+
+    <title>Prometa One — Finance, HR, CRM & Projects</title>
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Fraunces:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
+
+    <style>
+      /* iOS safe-area desteği */
+      :root {
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-left: env(safe-area-inset-left, 0px);
+        --safe-right: env(safe-area-inset-right, 0px);
+      }
+      html, body {
+        overscroll-behavior-y: contain;
+        -webkit-tap-highlight-color: transparent;
+      }
+      /* Splash screen */
+      #pwa-splash {
+        position: fixed; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        flex-direction: column;
+        background: #0891b2;
+        z-index: 9999;
+        transition: opacity 0.3s ease-out;
+        color: #fff;
+      }
+      #pwa-splash.hidden { opacity: 0; pointer-events: none; }
+      #pwa-splash h1 { font-family: Inter, sans-serif; font-size: 28px; margin: 16px 0 8px; }
+      #pwa-splash p { font-family: Inter, sans-serif; font-size: 14px; opacity: 0.8; }
+      .pwa-spinner {
+        width: 40px; height: 40px;
+        border: 3px solid rgba(255,255,255,0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: pwa-spin 0.8s linear infinite;
+      }
+      @keyframes pwa-spin { to { transform: rotate(360deg); } }
+    </style>
   </head>
   <body>
+    <!-- Splash (App.jsx ready olduğunda kaldırılır) -->
+    <div id="pwa-splash">
+      <div class="pwa-spinner"></div>
+      <h1>Prometa One</h1>
+      <p>Yükleniyor…</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // App mount olunca splash kalksın
+      window.addEventListener("load", () => {
+        setTimeout(() => {
+          const s = document.getElementById("pwa-splash");
+          if (s) {
+            s.classList.add("hidden");
+            setTimeout(() => s.remove(), 300);
+          }
+        }, 500);
+      });
+    </script>
   </body>
 </html>
+

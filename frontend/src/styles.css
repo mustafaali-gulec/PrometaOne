@@ -3,161 +3,1037 @@
 @tailwind utilities;
 
 /* =====================================================================
-   PROMETA ONE — Tema değişkenleri
+   PROMETA ONE — Kurumsal Tema (v2)
+   ---------------------------------------------------------------------
+   Tasarım hedefi: SAP/Workday/Oracle Fusion kalitesinde kurumsal görünüm
+   - Daha refined renk paleti (kapalı yeşil aksanlı)
+   - Tutarlı tipografi hiyerarşisi
+   - Tablolarda doğru hizalama (sayılar sağa)
+   - Görsel hiyerarşi: header, section, row, cell ayrımı net
 ===================================================================== */
 :root {
+  /* === Yüzey Renkleri === */
   --paper: #ffffff;
-  --bg: #fafaf9;
-  --bg-alt: #f5f5f4;
+  --bg: #f7f7f5;
+  --bg-alt: #f1f0ec;
+  --bg-soft: #fafaf9;
+
+  /* === Metin === */
   --ink: #1c1917;
   --ink-soft: #44403c;
   --ink-mute: #78716c;
+  --ink-faint: #a8a29e;
+
+  /* === Çizgiler === */
   --line: #e7e5e4;
-  --line-soft: #f5f5f4;
-  --accent: #0f766e;
-  --positive: #15803d;
-  --negative: #b91c1c;
-  --warning: #ca8a04;
-  --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+  --line-soft: #f0efed;
+  --line-strong: #d6d3d1;
+
+  /* === Aksan (Kurumsal koyu yeşil) === */
+  --accent: #0a4d4a;
+  --accent-hover: #073a37;
+  --accent-soft: #e6f0ef;
+  --accent-mid: #136d68;
+  --accent-light: #c5d9d7;
+
+  /* === Semantik === */
+  --positive: #14532d;
+  --positive-soft: #dcfce7;
+  --negative: #991b1b;
+  --negative-soft: #fee2e2;
+  --warning: #92400e;
+  --warning-soft: #fef3c7;
+  --info: #1e40af;
+  --info-soft: #dbeafe;
+
+  /* === Gölge (çok subtle) === */
+  --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.03);
+  --shadow: 0 1px 3px rgba(28, 25, 23, 0.04), 0 1px 2px rgba(28, 25, 23, 0.03);
+  --shadow-md: 0 4px 6px rgba(28, 25, 23, 0.04), 0 2px 4px rgba(28, 25, 23, 0.03);
+  --shadow-lg: 0 10px 15px rgba(28, 25, 23, 0.06), 0 4px 6px rgba(28, 25, 23, 0.04);
+
+  /* === Radius === */
+  --radius-sm: 3px;
+  --radius: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* === Spacing === */
+  --gap-xs: 4px;
+  --gap-sm: 8px;
+  --gap: 12px;
+  --gap-md: 16px;
+  --gap-lg: 24px;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
+
+html { font-feature-settings: "ss01", "ss02", "cv01", "cv11"; }
 
 body {
   margin: 0;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--ink);
+  font-size: 13px;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
 }
 
-/* RTL desteği */
 html[dir="rtl"] body {
   font-family: "Inter", "Noto Sans Arabic", system-ui, sans-serif;
 }
 
 /* =====================================================================
-   Genel utility class'lar
+   Tipografi
 ===================================================================== */
-.display { font-family: "Fraunces", Georgia, serif; }
-.mono    { font-family: "JetBrains Mono", ui-monospace, monospace; }
-
-.label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ink-mute);
+.display {
+  font-family: "Fraunces", Georgia, serif;
   font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
 }
 
+.mono {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-feature-settings: "tnum", "zero";
+}
+
+.label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-mute);
+  font-weight: 600;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* =====================================================================
+   Kart
+===================================================================== */
 .card {
   background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
+.card-soft {
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+/* =====================================================================
+   Input / Form
+===================================================================== */
 .input {
   width: 100%;
-  padding: 8px 12px;
-  font-size: 14px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
   background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
   color: var(--ink);
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.12s, box-shadow 0.12s;
+  font-variant-numeric: tabular-nums;
 }
+.input:hover { border-color: var(--ink-faint); }
 .input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+  box-shadow: 0 0 0 3px rgba(10, 77, 74, 0.1);
+}
+.input:disabled {
+  background: var(--bg-alt);
+  color: var(--ink-mute);
+  cursor: not-allowed;
+}
+.input.text-right { text-align: right; }
+select.input {
+  cursor: pointer;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='none' stroke='%2378716c' stroke-width='1.5' d='M2 4l3 3 3-3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
+/* =====================================================================
+   Buton
+===================================================================== */
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  font-size: 13px;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 12px;
+  font-size: 12.5px;
   font-weight: 500;
-  border-radius: 4px;
+  border-radius: var(--radius);
   cursor: pointer;
-  border: none;
-  transition: all 0.15s;
+  border: 1px solid transparent;
+  transition: all 0.12s;
   white-space: nowrap;
+  text-decoration: none;
+  font-family: inherit;
 }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .btn-primary {
   background: var(--accent);
   color: #fff;
+  border-color: var(--accent);
 }
 .btn-primary:hover:not(:disabled) {
-  background: #0a5651;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
+
 .btn-ghost {
   background: transparent;
-  color: var(--ink);
+  color: var(--ink-soft);
 }
 .btn-ghost:hover:not(:disabled) {
   background: var(--bg-alt);
+  color: var(--ink);
 }
 
+.btn-outline {
+  background: var(--paper);
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+.btn-outline:hover:not(:disabled) {
+  background: var(--bg-alt);
+  border-color: var(--ink-faint);
+}
+
+.btn-danger {
+  background: var(--negative);
+  color: #fff;
+  border-color: var(--negative);
+}
+.btn-danger:hover:not(:disabled) {
+  background: #7f1d1d;
+}
+
+/* =====================================================================
+   Chip / Badge
+===================================================================== */
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  font-size: 11px;
+  gap: 3px;
+  padding: 2px 7px;
+  font-size: 10.5px;
   font-weight: 500;
   border-radius: 3px;
+  letter-spacing: 0.02em;
 }
 
+/* =====================================================================
+   Menü / Nav
+===================================================================== */
 .nav-item {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  font-size: 13px;
+  padding: 6px 10px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--ink-soft);
   cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.15s;
+  border-radius: var(--radius);
+  transition: all 0.12s;
   white-space: nowrap;
+  border: 1px solid transparent;
 }
-.nav-item:hover { background: var(--bg-alt); }
+.nav-item:hover {
+  background: var(--bg-alt);
+  color: var(--ink);
+}
 .nav-item.active {
-  background: var(--accent);
-  color: #fff;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
 }
 
-/* Grid (tablo) */
+/* =====================================================================
+   TABLO — Kurumsal grid (en kritik düzeltme)
+===================================================================== */
+/* =====================================================================
+   TABLO — Kurumsal grid (kalıcı hizalama)
+   ---------------------------------------------------------------------
+   KRİTİK: th ve td için BIREBIR AYNI padding/box kuralları
+   Aksi takdirde tarayıcı sütun genişliklerini farklı hesaplar.
+===================================================================== */
 table.grid {
   width: 100%;
-  border-collapse: collapse;
-}
-table.grid th, table.grid td {
-  padding: 8px 12px;
-  text-align: left;
-  font-size: 13px;
-  border-bottom: 1px solid var(--line-soft);
-}
-table.grid th {
-  background: var(--bg-alt);
-  font-weight: 500;
-  color: var(--ink-mute);
-}
-table.grid .label-cell {
-  font-size: 13px;
+  border-collapse: collapse;     /* separate yerine collapse — kenarlar netleşir */
+  border-spacing: 0;
+  font-size: 12.5px;
+  table-layout: auto;            /* İçeriğe göre, ama th/td birebir aynı padding */
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 10px; height: 10px; }
+/* Hem th hem td: aynı padding, aynı box-sizing */
+table.grid th,
+table.grid td {
+  padding: 8px 12px;
+  box-sizing: border-box;
+  vertical-align: middle;
+  line-height: 1.4;
+  text-align: right;             /* DEFAULT: sayılar sağa */
+}
+
+/* Başlık (thead) — sadece arka plan + font + border farklı, layout aynı */
+table.grid thead tr {
+  background: var(--bg-alt);
+}
+table.grid thead th {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-mute);
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+
+/* İlk sütun (etiket): th ve td birlikte sola yaslı */
+table.grid thead th:first-child,
+table.grid tbody td:first-child {
+  text-align: left;
+}
+
+/* Body satır border */
+table.grid tbody td {
+  border-bottom: 1px solid var(--line-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Label hücresi — etiket sütunu (zorla sola) */
+.label-cell {
+  text-align: left !important;
+  font-weight: 400;
+  color: var(--ink);
+}
+.label-cell.font-medium { font-weight: 500; }
+
+/* Sayı hücresi — KRİTİK: th ve td için aynı padding-right zorla */
+.num, td.num, th.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  white-space: nowrap;
+  padding-right: 12px !important;   /* Mevcut padding ile aynı! */
+  padding-left: 8px !important;
+}
+
+/* Sayı içindeki input (düzenlenebilir hücre) */
+.num input,
+td.num input {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 2px 4px;
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  transition: all 0.1s;
+  box-sizing: border-box;
+}
+.num input:hover,
+td.num input:hover {
+  background: var(--bg-soft);
+  border-color: var(--line);
+}
+.num input:focus,
+td.num input:focus {
+  background: var(--paper);
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(10, 77, 74, 0.1);
+}
+
+/* Hover satır vurgusu */
+table.grid tbody tr:hover {
+  background: var(--bg-soft);
+}
+table.grid tbody tr.section-head:hover {
+  background: var(--accent);
+}
+
+/* Section head — kategori başlığı */
+.section-head td,
+tr.section-head td {
+  background: var(--accent) !important;
+  color: #fff !important;
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 12px !important;
+  border-bottom: none;
+}
+
+/* Toplam satırı — vurgulu */
+tr.subtotal-row td,
+.subtotal-row td {
+  background: var(--bg-alt);
+  font-weight: 600;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+/* Toplam sütunu (son sütun) — vurgulu */
+table.grid thead th:last-child,
+table.grid tbody td:last-child {
+  background: var(--accent-soft);
+  font-weight: 600;
+  color: var(--ink);
+  border-left: 1px solid var(--accent-light);
+}
+table.grid thead th:last-child {
+  color: var(--accent);
+}
+
+/* Sıfır değer için faint görünüm */
+.num.zero { color: var(--ink-faint); }
+.num.negative { color: var(--negative); }
+.num.positive { color: var(--positive); }
+
+/* =====================================================================
+   Scrollbar
+===================================================================== */
+::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: var(--radius);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); }
+
+/* =====================================================================
+   Yardımcı sınıflar
+===================================================================== */
+.text-positive { color: var(--positive); }
+.text-negative { color: var(--negative); }
+.text-mute { color: var(--ink-mute); }
+.text-faint { color: var(--ink-faint); }
+.text-accent { color: var(--accent); }
+
+.bg-accent-soft { background: var(--accent-soft); }
+.bg-soft { background: var(--bg-soft); }
+
+.border-accent { border-color: var(--accent); }
+
+/* Divider */
+.divider {
+  height: 1px;
   background: var(--line);
+  margin: var(--gap) 0;
+}
+
+/* Kpi card (Dashboard) */
+.kpi-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.kpi-card:hover {
+  border-color: var(--ink-faint);
+  box-shadow: var(--shadow);
+}
+.kpi-card .kpi-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-mute);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.kpi-card .kpi-value {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.kpi-card .kpi-trend {
+  font-size: 11px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 25, 23, 0.5);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  backdrop-filter: blur(2px);
+}
+.modal-content {
+  background: var(--paper);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+  width: 100%;
+}
+
+/* RTL */
+html[dir="rtl"] table.grid thead th:first-child,
+html[dir="rtl"] table.grid tbody td:first-child {
+  text-align: right;
+}
+html[dir="rtl"] .num,
+html[dir="rtl"] td.num {
+  text-align: left !important;
+}
+
+/* Düzenlenebilir hücre */
+td.cell-edit {
+  padding: 0 !important;
+  position: relative;
+  text-align: right;
+  box-sizing: border-box;
+}
+td.cell-edit input {
+  width: 100%;
+  padding: 8px 12px;             /* Diğer td/th ile birebir aynı padding! */
+  text-align: right;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  background: transparent;
+  border: 1px solid transparent;
+  outline: none;
+  transition: all 0.1s;
+  box-sizing: border-box;
+}
+td.cell-edit input:hover {
+  background: var(--bg-soft);
+}
+td.cell-edit input:focus {
+  background: var(--paper);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* =====================================================================
+   MOBILE RESPONSIVE — Tablet ve telefon için optimize
+   ---------------------------------------------------------------------
+   Breakpoint'ler:
+   - <640px:  Telefon
+   - 641-1024px:  Tablet
+   - >1024px:  Desktop (default)
+===================================================================== */
+
+/* === TELEFON (640px altı) === */
+@media (max-width: 640px) {
+  body {
+    font-size: 13px;
+  }
+
+  /* Tablo: yatay scroll'a izin ver, font'u küçült */
+  table.grid {
+    font-size: 11.5px;
+  }
+  table.grid th,
+  table.grid td {
+    padding: 6px 8px;
+  }
+  .num, td.num, th.num {
+    padding-right: 8px !important;
+    padding-left: 6px !important;
+  }
+
+  /* Kart padding'leri düşür */
+  .card {
+    border-radius: 4px;
+  }
+
+  /* KPI kartı kompakt */
+  .kpi-card {
+    padding: 10px;
+  }
+  .kpi-card .kpi-value {
+    font-size: 17px;
+  }
+  .kpi-card .kpi-label {
+    font-size: 9.5px;
+  }
+
+  /* Modal — telefonda tam ekran */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .modal-content {
+    max-width: 100% !important;
+    max-height: 100vh !important;
+    border-radius: 12px 12px 0 0;
+    width: 100%;
+  }
+
+  /* Form grid'i tek kolon */
+  .form-grid-2,
+  .form-grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Buton padding azalt */
+  .btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  /* Display başlık küçült */
+  .display {
+    font-size: 90% !important;
+  }
+
+  /* Input minimum height (touch dostu) */
+  .input {
+    min-height: 36px;
+    font-size: 14px;     /* iOS zoom önlemek için */
+  }
+
+  /* TopBar'da bazı şeyleri gizle */
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* === TABLET (641-1024px) === */
+@media (min-width: 641px) and (max-width: 1024px) {
+  table.grid {
+    font-size: 12px;
+  }
+  table.grid th,
+  table.grid td {
+    padding: 7px 10px;
+  }
+  .num {
+    padding-right: 10px !important;
+  }
+
+  /* KPI kart 2 sütun */
+  .kpi-grid-tablet-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Modal max-width sınırlandır */
+  .modal-content {
+    max-width: 90vw !important;
+  }
+}
+
+/* === TÜM EKRANLAR İÇİN DOKUNMA İYİLEŞTİRMELERİ === */
+@media (hover: none) and (pointer: coarse) {
+  /* Dokunmatik cihazda hover'ı agresif yapma */
+  .btn:hover {
+    transform: none;
+  }
+  /* Buton minimum boyutu touch dostu */
+  .btn, .nav-item, button {
+    min-height: 32px;
+  }
+}
+
+/* === ORTAK SCROLL DAVRANIŞI === */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Tablo wrapper — yatay scroll için subtle gradient */
+.table-scroll-wrapper {
+  position: relative;
+  overflow-x: auto;
+}
+.table-scroll-wrapper::-webkit-scrollbar { height: 6px; }
+
+/* ============================================================================
+   MOBILE & PWA STYLES
+   ---------------------------------------------------------------------------
+   • Touch-friendly hit areas (min 44px iOS HIG)
+   • iOS safe-area support (notch, home indicator)
+   • Standalone (installed PWA) mode tweaks
+   • Better tap response, no 300ms delay
+============================================================================ */
+
+/* Touch target boyutu — küçük butonlar mobilde büyüsün */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  .btn,
+  a {
+    min-height: 36px;
+  }
+  input, select, textarea {
+    min-height: 38px;
+    font-size: 16px; /* iOS zoom önler */
+  }
+  /* Tablo dışı küçük chip'ler hariç */
+  .chip {
+    min-height: auto;
+  }
+}
+
+/* Standalone mode (yüklenmiş PWA) — safe area + status bar */
+@media all and (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  /* Sidebar üst padding'ini safe-area'ya göre ayarla */
+  .app-sidebar > div:first-child {
+    padding-top: calc(12px + env(safe-area-inset-top)) !important;
+  }
+}
+
+/* Mobile breakpoint < 768px */
+@media (max-width: 767px) {
+  /* Padding'leri sıkıştır */
+  .card { padding: 8px !important; }
+  .max-w-\[1400px\] {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    padding-top: 12px !important;
+  }
+  /* Üstte hamburger için yer aç */
+  .app-topbar {
+    padding-left: 56px !important;
+  }
+  /* Grid breakpoint düzeltmeleri */
+  .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .md\\:grid-cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .md\\:grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .md\\:grid-cols-5 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .md\\:grid-cols-6 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+
+  /* Modal full-screen mobilde */
+  .max-w-md, .max-w-lg, .max-w-xl, .max-w-2xl, .max-w-3xl, .max-w-4xl, .max-w-5xl {
+    max-width: 100% !important;
+    margin: 4px !important;
+  }
+
+  /* Tablolar yatay scrollable */
+  table { font-size: 11px; }
+  th, td { padding: 4px 6px !important; }
+
+  /* Touch hedefleri */
+  th[onclick], td[onclick] {
+    min-height: 36px;
+  }
+
+  /* Sticky bottom action area */
+  .modal-actions {
+    padding-bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+/* Pull-to-refresh disable (PWA'da gereksiz) */
+@media all and (display-mode: standalone) {
+  body {
+    overscroll-behavior-y: contain;
+  }
+}
+
+/* Tap highlight kaldır */
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Long-press menu disable on touch */
+.no-touch-select {
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+/* Backdrop overlay fade-in */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.mobile-backdrop {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Bottom nav (mobile alternatif) */
+.mobile-bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-around;
+  padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+  z-index: 9989;
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.08);
+}
+.mobile-bottom-nav-item {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 6px 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-mute);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  gap: 2px;
   border-radius: 4px;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--ink-mute); }
+.mobile-bottom-nav-item.active {
+  color: #0891b2;
+}
+.mobile-bottom-nav-item:active {
+  background: var(--bg-alt);
+}
+
+/* ============================================================================
+   TEMA VARYANTLARI
+   ---------------------------------------------------------------------------
+   data-theme attribute ile aktif olur (App.jsx → useEffect ile body'ye eklenir)
+   • classic (default, light) - Kurumsal koyu yeşil
+   • modern - Mavi-cyan aksanlı
+   • dark - Tam koyu mod
+   • midnight - Profesyonel gece modu (koyu lacivert)
+============================================================================ */
+
+/* === MODERN (Light, mavi aksan) === */
+[data-theme="modern"] {
+  --paper: #ffffff;
+  --bg: #f8fafc;
+  --bg-alt: #f1f5f9;
+  --bg-soft: #fafbfc;
+  --ink: #0f172a;
+  --ink-soft: #334155;
+  --ink-mute: #64748b;
+  --ink-faint: #94a3b8;
+  --line: #e2e8f0;
+  --line-soft: #f1f5f9;
+  --line-strong: #cbd5e1;
+  --accent: #0891b2;
+  --accent-hover: #0e7490;
+  --accent-soft: #cffafe;
+  --accent-mid: #06b6d4;
+  --accent-light: #a5f3fc;
+}
+
+/* === DARK MODE === */
+[data-theme="dark"] {
+  --paper: #1c1917;
+  --bg: #0c0a09;
+  --bg-alt: #292524;
+  --bg-soft: #1c1917;
+  --ink: #fafaf9;
+  --ink-soft: #e7e5e4;
+  --ink-mute: #a8a29e;
+  --ink-faint: #78716c;
+  --line: #44403c;
+  --line-soft: #292524;
+  --line-strong: #57534e;
+  --accent: #14b8a6;
+  --accent-hover: #0d9488;
+  --accent-soft: #134e4a;
+  --accent-mid: #2dd4bf;
+  --accent-light: #115e59;
+  --positive: #4ade80;
+  --positive-soft: #14532d;
+  --negative: #f87171;
+  --negative-soft: #7f1d1d;
+  --warning: #fbbf24;
+  --warning-soft: #78350f;
+  --info: #60a5fa;
+  --info-soft: #1e3a8a;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5), 0 4px 6px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* Dark mode'da bazı chip arka planları (light bg'leri) düzelt */
+[data-theme="dark"] [style*="background: #fef3c7"],
+[data-theme="dark"] [style*="background:#fef3c7"] {
+  background: rgba(202, 138, 4, 0.15) !important;
+}
+[data-theme="dark"] [style*="background: #dcfce7"],
+[data-theme="dark"] [style*="background:#dcfce7"] {
+  background: rgba(21, 128, 61, 0.15) !important;
+}
+[data-theme="dark"] [style*="background: #fee2e2"],
+[data-theme="dark"] [style*="background:#fee2e2"] {
+  background: rgba(185, 28, 28, 0.15) !important;
+}
+[data-theme="dark"] [style*="background: #dbeafe"],
+[data-theme="dark"] [style*="background:#dbeafe"] {
+  background: rgba(29, 78, 216, 0.15) !important;
+}
+[data-theme="dark"] [style*="background: #cffafe"],
+[data-theme="dark"] [style*="background:#cffafe"] {
+  background: rgba(8, 145, 178, 0.15) !important;
+}
+[data-theme="dark"] [style*="background: #ede9fe"],
+[data-theme="dark"] [style*="background:#ede9fe"] {
+  background: rgba(124, 58, 237, 0.15) !important;
+}
+[data-theme="dark"] [style*="background: #fed7aa"],
+[data-theme="dark"] [style*="background:#fed7aa"] {
+  background: rgba(234, 88, 12, 0.15) !important;
+}
+[data-theme="dark"] [style*="background: #f5f5f4"],
+[data-theme="dark"] [style*="background:#f5f5f4"] {
+  background: var(--bg-alt) !important;
+}
+[data-theme="dark"] [style*="background: #fff"],
+[data-theme="dark"] [style*="background:#fff"],
+[data-theme="dark"] [style*="background: #ffffff"],
+[data-theme="dark"] [style*="background:#ffffff"] {
+  background: var(--paper) !important;
+}
+
+/* Dark mode'da input/select arka planı */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--paper);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+/* === MIDNIGHT (Profesyonel Lacivert Gece) === */
+[data-theme="midnight"] {
+  --paper: #1e293b;
+  --bg: #0f172a;
+  --bg-alt: #334155;
+  --bg-soft: #1e293b;
+  --ink: #f1f5f9;
+  --ink-soft: #cbd5e1;
+  --ink-mute: #94a3b8;
+  --ink-faint: #64748b;
+  --line: #334155;
+  --line-soft: #1e293b;
+  --line-strong: #475569;
+  --accent: #38bdf8;
+  --accent-hover: #0ea5e9;
+  --accent-soft: #0c4a6e;
+  --accent-mid: #7dd3fc;
+  --accent-light: #075985;
+  --positive: #34d399;
+  --positive-soft: #064e3b;
+  --negative: #f87171;
+  --negative-soft: #7f1d1d;
+  --warning: #fbbf24;
+  --warning-soft: #78350f;
+  --info: #60a5fa;
+  --info-soft: #1e3a8a;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="midnight"] body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+[data-theme="midnight"] [style*="background: #fef3c7"],
+[data-theme="midnight"] [style*="background:#fef3c7"] {
+  background: rgba(202, 138, 4, 0.2) !important;
+}
+[data-theme="midnight"] [style*="background: #dcfce7"],
+[data-theme="midnight"] [style*="background:#dcfce7"] {
+  background: rgba(21, 128, 61, 0.2) !important;
+}
+[data-theme="midnight"] [style*="background: #fee2e2"],
+[data-theme="midnight"] [style*="background:#fee2e2"] {
+  background: rgba(185, 28, 28, 0.2) !important;
+}
+[data-theme="midnight"] [style*="background: #dbeafe"],
+[data-theme="midnight"] [style*="background:#dbeafe"] {
+  background: rgba(29, 78, 216, 0.2) !important;
+}
+[data-theme="midnight"] [style*="background: #cffafe"],
+[data-theme="midnight"] [style*="background:#cffafe"] {
+  background: rgba(8, 145, 178, 0.2) !important;
+}
+[data-theme="midnight"] [style*="background: #ede9fe"],
+[data-theme="midnight"] [style*="background:#ede9fe"] {
+  background: rgba(124, 58, 237, 0.2) !important;
+}
+[data-theme="midnight"] [style*="background: #fed7aa"],
+[data-theme="midnight"] [style*="background:#fed7aa"] {
+  background: rgba(234, 88, 12, 0.2) !important;
+}
+[data-theme="midnight"] [style*="background: #f5f5f4"],
+[data-theme="midnight"] [style*="background:#f5f5f4"] {
+  background: var(--bg-alt) !important;
+}
+[data-theme="midnight"] [style*="background: #fff"],
+[data-theme="midnight"] [style*="background:#fff"],
+[data-theme="midnight"] [style*="background: #ffffff"],
+[data-theme="midnight"] [style*="background:#ffffff"] {
+  background: var(--paper) !important;
+}
+
+[data-theme="midnight"] input,
+[data-theme="midnight"] select,
+[data-theme="midnight"] textarea {
+  background: var(--paper);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+/* Dark/midnight mode'larda renk skala ayarları */
+[data-theme="dark"] .text-gray-500,
+[data-theme="midnight"] .text-gray-500 { color: var(--ink-mute) !important; }
+[data-theme="dark"] .bg-white,
+[data-theme="midnight"] .bg-white { background: var(--paper) !important; }
+[data-theme="dark"] .bg-gray-50,
+[data-theme="midnight"] .bg-gray-50 { background: var(--bg) !important; }
+[data-theme="dark"] .bg-gray-100,
+[data-theme="midnight"] .bg-gray-100 { background: var(--bg-alt) !important; }
+
+/* Tema geçiş animasyonu — sadece tema değiştiğinde aktif */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease !important;
+}
+
+

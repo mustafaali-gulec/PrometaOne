@@ -1,0 +1,49 @@
+# =====================================================================
+# PROMETA ONE — DOCKER-COMPOSE'A EKLENECEK ML SERVİS BLOĞU
+# ---------------------------------------------------------------------
+# Mevcut docker-compose.yml dosyanıza aşağıdaki "ml-service" bloğunu
+# `services:` altına ekleyin. Ek olarak, eğer backend (Node.js) ML'e
+# erişecekse, backend servisine ML_SERVICE_URL ortam değişkenini ekleyin.
+# =====================================================================
+
+services:
+  # ... mevcut servisleriniz (frontend, backend, db, adminer) ...
+
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    image: prometa-ml-service:latest
+    container_name: prometa-ml-service
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    volumes:
+      # Model verisini persistent volume'da tut
+      - ml_models_data:/app/models_data
+    environment:
+      - ML_MODEL_DIR=/app/models_data
+      - PYTHONUNBUFFERED=1
+    networks:
+      - prometa-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # Backend (Node.js) — mevcut servise eklemeniz gereken env değişkeni:
+  # backend:
+  #   environment:
+  #     - ML_SERVICE_URL=http://ml-service:8001
+
+# Volume tanımına ekleyin:
+volumes:
+  ml_models_data:
+    driver: local
+
+# Network: zaten varsa kullanın, yoksa oluşturun
+networks:
+  prometa-net:
+    driver: bridge

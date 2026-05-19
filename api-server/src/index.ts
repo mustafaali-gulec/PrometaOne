@@ -18,6 +18,7 @@ import authRoutes from "./routes/auth.js";
 import companiesRoutes from "./routes/companies.js";
 import cellsRoutes from "./routes/cells.js";
 import invoicesRoutes from "./routes/invoices.js";
+import aiProxyRoutes from "./routes/ai-proxy.js";
 // import { einvoiceRoutes } from "./routes/einvoice.js";  // ⚠️ E-fatura entegrasyonu henüz aktif değil
 import {
   banks, kasa, transfers, fx, archives, audit, notifications, ai
@@ -102,6 +103,9 @@ v1.route("/companies", notifications);
 
 // AI predictions
 v1.route("/companies", ai);
+
+// AI Chat Proxy (Claude API'ye güvenli erişim)
+v1.route("/ai", aiProxyRoutes);
 
 // E-Fatura (Logo eLogo / QNB eFinans entegrasyonu) — henüz aktif değil
 // v1.route("/einvoice", einvoiceRoutes);
