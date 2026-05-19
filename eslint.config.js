@@ -1,16 +1,6 @@
 // =============================================================================
 // Prometa One — ESLint Flat Config (ESLint 9+)
 // =============================================================================
-// Bu config kök seviyede yaşar ve tüm workspace'leri kapsar.
-//
-// Katmanlı kurallar:
-//   - Tüm TS/TSX dosyalarda: typescript-eslint recommended-type-checked
-//   - Frontend src/modules/**: React + hooks + a11y + boundaries
-//   - api-server src/**: Node ortamı kuralları
-//   - legacy/**: tamamen ignore
-//   - App.jsx: gevşek mod (sadece syntax + no-undef)
-// =============================================================================
-
 import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
@@ -21,9 +11,7 @@ import importPlugin from 'eslint-plugin-import';
 import prettierConfig from 'eslint-config-prettier';
 
 export default [
-  // ---------------------------------------------------------------------------
-  // 0) Global ignore'lar
-  // ---------------------------------------------------------------------------
+  // 0) Global ignores
   {
     ignores: [
       '**/node_modules/**',
@@ -37,17 +25,19 @@ export default [
       'legacy/**',
       'ml-service/**',
       'frontend/public/**',
+      // Eski 81K satırlık monolith — Strangler Fig sırasında modul-modul
+      // cikarilacak, bitince silinecek. ESLint ona dokunmaz.
+      'frontend/src/App.jsx',
+      'frontend/src/main.jsx',
+      'frontend/src/api.js',
+      'frontend/src/utils/**',
     ],
   },
 
-  // ---------------------------------------------------------------------------
-  // 1) Tüm JS/TS dosyalar için ortak baseline
-  // ---------------------------------------------------------------------------
+  // 1) Baseline JS recommended
   js.configs.recommended,
 
-  // ---------------------------------------------------------------------------
-  // 2) TypeScript dosyaları — recommended + type-checked
-  // ---------------------------------------------------------------------------
+  // 2) TypeScript recommended-type-checked
   ...tseslint.configs.recommendedTypeChecked.map((conf) => ({
     ...conf,
     files: ['**/*.ts', '**/*.tsx'],
@@ -75,9 +65,7 @@ export default [
     },
   },
 
-  // ---------------------------------------------------------------------------
-  // 3) Frontend kuralları — React + hooks + a11y + import order
-  // ---------------------------------------------------------------------------
+  // 3) Frontend (React + a11y + import order)
   {
     files: ['frontend/src/**/*.{ts,tsx}'],
     languageOptions: {
@@ -100,7 +88,7 @@ export default [
       ...react.configs['jsx-runtime'].rules,
       ...reactHooks.configs.recommended.rules,
       ...jsxA11y.configs.recommended.rules,
-      'react/prop-types': 'off', // TS zaten kontrol ediyor
+      'react/prop-types': 'off',
       'import/order': [
         'error',
         {
@@ -116,13 +104,10 @@ export default [
           pathGroupsExcludedImportTypes: ['react'],
         },
       ],
-      'import/no-default-export': 'off', // React component'ları için kapalı
     },
   },
 
-  // ---------------------------------------------------------------------------
-  // 4) api-server kuralları — Node ortamı
-  // ---------------------------------------------------------------------------
+  // 4) api-server (Node env + import order)
   {
     files: ['api-server/src/**/*.ts'],
     languageOptions: {
@@ -152,9 +137,7 @@ export default [
     },
   },
 
-  // ---------------------------------------------------------------------------
-  // 5) Test dosyaları — daha gevşek
-  // ---------------------------------------------------------------------------
+  // 5) Test dosyalari (gevsek)
   {
     files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', '**/__tests__/**/*'],
     rules: {
@@ -164,43 +147,14 @@ export default [
     },
   },
 
-  // ---------------------------------------------------------------------------
-  // 6) Eski App.jsx + JS dosyaları — minimum kontrol
-  // ---------------------------------------------------------------------------
-  {
-    files: ['frontend/src/App.jsx', 'frontend/src/main.jsx', 'frontend/src/api.js', 'frontend/src/utils/**/*.js'],
-    languageOptions: {
-      globals: { ...globals.browser },
-      parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-        ecmaFeatures: { jsx: true },
-      },
-    },
-    rules: {
-      // Eski kod — sadece kritik hataları yakala
-      'no-undef': 'error',
-      'no-unused-vars': 'off', // 81K satırda binlerce false-positive var
-      'no-empty': 'off',
-      'no-constant-condition': 'off',
-    },
-  },
-
-  // ---------------------------------------------------------------------------
-  // 7) Config dosyaları (Node ortamı)
-  // ---------------------------------------------------------------------------
+  // 6) Config dosyalari (Node env)
   {
     files: ['*.config.{js,ts,cjs,mjs}', '**/*.config.{js,ts,cjs,mjs}'],
     languageOptions: {
       globals: { ...globals.node },
     },
-    rules: {
-      'import/no-default-export': 'off',
-    },
   },
 
-  // ---------------------------------------------------------------------------
-  // 8) Prettier ile çakışan kuralları KAPAT (her zaman EN SONDA)
-  // ---------------------------------------------------------------------------
+  // 7) Prettier — her zaman en sonda
   prettierConfig,
 ];
