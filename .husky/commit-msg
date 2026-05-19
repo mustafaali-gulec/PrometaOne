@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+
+# Prometa One — commit-msg hook
+# Conventional Commits kuralını zorlar (commitlint.config.cjs)
+
+npx --no -- commitlint --edit "$1"

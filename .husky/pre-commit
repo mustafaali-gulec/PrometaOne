@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+
+# Prometa One — pre-commit hook
+# Staged dosyaları formatlar + lint'ler (lint-staged kullanır)
+
+npx --no -- lint-staged
