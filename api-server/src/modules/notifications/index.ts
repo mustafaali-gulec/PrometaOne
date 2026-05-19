@@ -1,47 +1,56 @@
 /**
  * Notifications modülü — Public API + DI registration.
  *
- * Bu dosya bu modülün dış dünyaya açtığı tek arayüzdür.
- * `app.ts` (composition root) sadece `registerNotificationsModule`'u çağırır.
+ * Dış dünyaya açılan tek arayüz. ESLint kuralı ile internal'a doğrudan
+ * erişim yasak. `app.ts` (composition root) sadece bu dosyadan import eder.
  *
- * Internal dosyalara doğrudan erişim ESLint kuralıyla yasaklanmıştır.
+ * NOT: Şu an Faz 1 / PR 1 — sadece domain + application + DTO + port'lar
+ * ihraç ediliyor. Infrastructure (PgNotificationRepository,
+ * NodemailerEmailService) + Hono route'ları henüz yok. Sonraki PR'larda.
  */
 
-// Şu an iskelet — implementasyon hazır olunca açılacak.
+// Domain (public types — diğer modüllerle paylaşılabilir)
+export { Notification } from './domain/entities/Notification.js';
+export type { NotificationProps } from './domain/entities/Notification.js';
+export type {
+  NotificationKind,
+  TaskDueSoonKind,
+  InvoiceOverdueKind,
+  ApprovalStaleKind,
+  TaxDeadlineWarningKind,
+  CheckDueSoonKind,
+  ScheduledReportKind,
+  GenericKind,
+} from './domain/valueObjects/NotificationKind.js';
+export { NOTIFICATION_KIND_VALUES } from './domain/valueObjects/NotificationKind.js';
+export {
+  buildNotificationContent,
+  type NotificationContent,
+} from './domain/services/NotificationFactory.js';
 
-// import type { Hono } from 'hono';
-// import type { Pool } from 'pg';
-// import type { Logger } from '../../shared/logging';
+// Application
+export type { NotificationDto } from './application/dto/NotificationDto.js';
+export { toNotificationDto } from './application/dto/NotificationDto.js';
 
-// export function registerNotificationsModule(
-//   app: Hono,
-//   db: Pool,
-//   logger: Logger,
-// ): void {
-//   // 1. Infrastructure binding'leri
-//   const repo = new PgNotificationRepository(db);
-//   const email = new NodemailerEmailService(/* config */);
-//
-//   // 2. Use-case'leri kur
-//   const fetchNotifications = new FetchNotificationsUseCase(repo);
-//   const markAsRead = new MarkAsReadUseCase(repo);
-//
-//   // 3. Route'ları mount et
-//   app.route('/v1/notifications', createNotificationsRouter({
-//     fetchNotifications,
-//     markAsRead,
-//   }));
-//
-//   // 4. Cron job'ları başlat
-//   const scheduler = new CronScheduler(logger);
-//   scheduler.schedule('0 9 * * *', new CheckTaskDueSoonUseCase(repo, email));
-//   scheduler.schedule('0 9 * * *', new CheckOverdueInvoicesUseCase(repo, email));
-//   // ...
-//   scheduler.start();
-// }
+// Ports (concrete impl'ler infrastructure/'da olacak)
+export type { NotificationRepository } from './application/ports/NotificationRepository.js';
+export type { EmailService, SendEmailRequest } from './application/ports/EmailService.js';
+export type { IdGenerator } from './application/ports/IdGenerator.js';
+export { systemClock, type Clock } from './application/ports/Clock.js';
 
-// Public types (paylaşılması gerekiyorsa)
-// export type { Notification } from './domain/entities/Notification';
-// export type { NotificationKind } from './domain/valueObjects/NotificationKind';
-
-export {};
+// Use-cases
+export {
+  FetchNotificationsForUserUseCase,
+  type FetchNotificationsForUserInput,
+  type FetchNotificationsForUserResult,
+} from './application/useCases/FetchNotificationsForUser.js';
+export {
+  MarkNotificationAsReadUseCase,
+  NotificationNotFoundError,
+  NotificationForbiddenError,
+  type MarkNotificationAsReadInput,
+} from './application/useCases/MarkNotificationAsRead.js';
+export {
+  CreateNotificationUseCase,
+  type CreateNotificationInput,
+} from './application/useCases/CreateNotification.js';
