@@ -12,8 +12,8 @@ import { logger } from 'hono/logger';
 import { config } from './config.js';
 import { closePool, healthCheck, pool } from './db.js';
 import { errorHandler } from './middleware/error.js';
+import { registerAiModule } from './modules/ai/index.js';
 import { registerNotificationsModule } from './modules/notifications/index.js';
-import aiProxyRoutes from './routes/ai-proxy.js';
 import authRoutes from './routes/auth.js';
 import cellsRoutes from './routes/cells.js';
 import companiesRoutes from './routes/companies.js';
@@ -61,6 +61,10 @@ const notificationsModule = registerNotificationsModule(
     },
   },
 );
+
+const aiModule = registerAiModule({
+  anthropicApiKey: process.env['ANTHROPIC_API_KEY'],
+});
 
 // ============================================================================
 // Routes — /v1 prefix
@@ -113,6 +117,9 @@ v1.route('/companies', archives);
 // =======================================================================
 v1.route('/notifications', notificationsModule.router);
 
+// AI Asistan — YENİ modüler endpoint (Faz 2 / PR 1)
+v1.route('/ai', aiModule.router);
+
 // =======================================================================
 // Eski company-scoped notifications endpoint (Strangler Fig — kaldırılacak)
 // frontend henüz buraya çağrı yapıyor; PR 4'te silinecek.
@@ -121,7 +128,7 @@ v1.route('/companies', notifications);
 
 // AI
 v1.route('/companies', ai);
-v1.route('/ai', aiProxyRoutes);
+// Eski aiProxyRoutes kaldırıldı — yeni /v1/ai modüler endpoint ile değişti
 
 // Audit
 v1.route('/audit-logs', audit);
