@@ -1,20 +1,37 @@
 /**
  * Notifications modülü — Public API.
  *
- * Bu dosya, bu modülün dış dünyaya açtığı tek arayüzdür.
- * Başka modüller veya app/ kodu **sadece** buradan import edebilir.
- *
- * Internal dosyalara doğrudan erişim ESLint kuralıyla yasaklanmıştır.
+ * Dış dünyaya açılan tek arayüz. ESLint kuralı ile internal'a doğrudan
+ * erişim yasak. App.tsx (veya Strangler Fig sürecinde App.jsx adapter)
+ * sadece buradan import eder.
  */
 
-// Şu an iskelet — implementasyon hazır olunca açılacak.
-
-// Presentation (UI'ya açık)
-// export { NotificationBell } from './presentation/components/NotificationBell';
-// export { useNotifications } from './presentation/hooks/useNotifications';
-
 // Domain types (paylaşılması gerekiyorsa)
-// export type { Notification } from './domain/entities/Notification';
-// export type { NotificationKind } from './domain/valueObjects/NotificationKind';
+export type {
+  NotificationKind,
+  TaskDueSoonKind,
+  InvoiceOverdueKind,
+  ApprovalStaleKind,
+  TaxDeadlineWarningKind,
+  CheckDueSoonKind,
+  ScheduledReportKind,
+  GenericKind,
+} from './domain/valueObjects/NotificationKind';
+export { notificationKindIcon } from './domain/valueObjects/NotificationKind';
 
-export {};
+// Application types
+export type {
+  NotificationDto,
+  FetchNotificationsResult,
+} from './application/dto/NotificationDto';
+
+// Ports (concrete impl factory'leri için)
+export type { AuthTokenProvider } from './application/ports/AuthTokenProvider';
+export type { NotificationsApi } from './application/ports/NotificationsApi';
+
+// Infrastructure (concrete)
+export { NotificationsApiClient } from './infrastructure/api/NotificationsApiClient';
+
+// Presentation (UI)
+export { useNotifications, type UseNotificationsResult, type UseNotificationsOptions } from './presentation/hooks/useNotifications';
+export { NotificationBell, type NotificationBellProps } from './presentation/components/NotificationBell';
