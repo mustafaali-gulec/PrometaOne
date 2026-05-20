@@ -1,9 +1,10 @@
 /**
  * Auth modülü — Public API.
  *
- * Faz 3 / PR 2: domain + ports + infrastructure.
- * Use-cases + DI composition sonraki PR'da.
- * Bu PR runtime'a hiç dokunmuyor — mevcut routes/auth.ts hala aktif.
+ * Faz 3 / PR 3: domain + ports + infrastructure + use-cases + errors.
+ * DI composition + presentation routes sonraki PR'da (PR 4).
+ *
+ * Bu PR runtime'a hala dokunmuyor — routes/auth.ts aktif kalır.
  */
 
 // Domain
@@ -33,7 +34,58 @@ export type {
   CreateRefreshSessionInput,
   RefreshSessionStore,
 } from './application/ports/RefreshSessionStore.js';
+export type {
+  PasswordResetTokenRecord,
+  PasswordResetTokenStore,
+} from './application/ports/PasswordResetTokenStore.js';
+export type {
+  SendPasswordResetEmailInput,
+  PasswordResetEmailSender,
+  SupportedLang,
+} from './application/ports/PasswordResetEmailSender.js';
 export { systemClock, type Clock } from './application/ports/Clock.js';
+
+// Errors
+export {
+  InvalidCredentialsError,
+  AccountInactiveError,
+  CurrentPasswordMismatchError,
+  InvalidPasswordResetTokenError,
+  UserNotFoundError,
+} from './application/errors/AuthErrors.js';
+
+// DTOs
+export {
+  toPublicUserDto,
+  type PublicUserDto,
+  type LoginResponseDto,
+  type RefreshResponseDto,
+} from './application/dto/AuthDto.js';
+
+// Use-cases
+export {
+  LoginUseCase,
+  type LoginInput,
+  type LoginUseCaseDeps,
+} from './application/useCases/LoginUseCase.js';
+export { LogoutUseCase } from './application/useCases/LogoutUseCase.js';
+export {
+  RefreshTokenUseCase,
+  type RefreshTokenUseCaseDeps,
+} from './application/useCases/RefreshTokenUseCase.js';
+export { GetCurrentUserUseCase } from './application/useCases/GetCurrentUserUseCase.js';
+export {
+  ChangePasswordUseCase,
+  type ChangePasswordUseCaseDeps,
+} from './application/useCases/ChangePasswordUseCase.js';
+export {
+  RequestPasswordResetUseCase,
+  type RequestPasswordResetUseCaseDeps,
+} from './application/useCases/RequestPasswordResetUseCase.js';
+export {
+  ResetPasswordUseCase,
+  type ResetPasswordUseCaseDeps,
+} from './application/useCases/ResetPasswordUseCase.js';
 
 // Infrastructure (concrete impl'ler)
 export {
@@ -47,3 +99,4 @@ export {
 } from './infrastructure/jwt/JwtTokenIssuer.js';
 export { PgUserRepository } from './infrastructure/persistence/PgUserRepository.js';
 export { PgRefreshSessionStore } from './infrastructure/persistence/PgRefreshSessionStore.js';
+export { PgPasswordResetTokenStore } from './infrastructure/persistence/PgPasswordResetTokenStore.js';
