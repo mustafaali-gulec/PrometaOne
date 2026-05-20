@@ -8,6 +8,12 @@ import type { User } from '../../domain/entities/User.js';
 export interface UserRepository {
   findByUsername(username: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
+  /**
+   * Kullanıcı adı VEYA email ile bulur. Forgot-password akışında girdi
+   * tek bir alan olabilir (username veya email) — bu metot ikisini de denemeye
+   * gerek bırakmaz.
+   */
+  findByEmailOrUsername(input: string): Promise<User | null>;
   findById(id: number): Promise<User | null>;
   /** Kayıtlı hash'i çekmek için (login flow). User entity'sinde hash YOK. */
   findPasswordHashByUserId(userId: number): Promise<string | null>;

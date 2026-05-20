@@ -17,6 +17,14 @@ export interface SendPasswordResetEmailInput {
   lang?: SupportedLang | undefined;
 }
 
+export interface PasswordResetEmailSenderResult {
+  sent: boolean;
+  /** Provider mesaj ID'si (varsa) - log / debug icin. */
+  messageId?: string;
+  /** Hata mesaji (sent === false ise). */
+  error?: string;
+}
+
 export interface PasswordResetEmailSender {
-  send(input: SendPasswordResetEmailInput): Promise<void>;
+  send(input: SendPasswordResetEmailInput): Promise<PasswordResetEmailSenderResult>;
 }

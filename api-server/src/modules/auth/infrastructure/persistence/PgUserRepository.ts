@@ -2,7 +2,7 @@
  * PgUserRepository — UserRepository port'unun PostgreSQL implementasyonu.
  *
  * 'users' tablosunu okur/yazar. password_hash entity'de YOK (security);
- * findPasswordHashByUserId ayrı bir metot.
+ * findPasswordHashByUserId ayri bir metot.
  */
 import type { Pool } from 'pg';
 
@@ -38,6 +38,17 @@ export class PgUserRepository implements UserRepository {
       `SELECT id, username, full_name, email, role, active, created_at, last_login_at
        FROM users WHERE email = $1 LIMIT 1`,
       [email.toLowerCase()],
+    );
+    return rowToUser(r.rows[0]);
+  }
+
+  async findByEmailOrUsername(input: string): Promise<User | null> {
+    const r = await this.pool.query<UserRow>(
+      `SELECT id, username, full_name, email, role, active, created_at, last_login_at
+       FROM users
+       WHERE username = $1 OR LOWER(email) = LOWER($1)
+       LIMIT 1`,
+      [input],
     );
     return rowToUser(r.rows[0]);
   }

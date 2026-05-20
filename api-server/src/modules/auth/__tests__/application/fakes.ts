@@ -1,5 +1,5 @@
 /**
- * Test fixture'ları — in-memory implementasyonlar.
+ * Test fixture'lari — in-memory implementasyonlar.
  */
 import { User } from '../../domain/entities/User.js';
 import type { UserRole } from '../../domain/valueObjects/UserRole.js';
@@ -11,6 +11,7 @@ import type {
 } from '../../application/ports/PasswordResetTokenStore.js';
 import type {
   PasswordResetEmailSender,
+  PasswordResetEmailSenderResult,
   SendPasswordResetEmailInput,
 } from '../../application/ports/PasswordResetEmailSender.js';
 import type {
@@ -52,7 +53,7 @@ export class InMemoryUserRepo implements UserRepository {
       User.create({
         id,
         username: overrides.username ?? 'admin',
-        fullName: overrides.fullName ?? 'Sistem Yöneticisi',
+        fullName: overrides.fullName ?? 'Sistem Yoneticisi',
         email: overrides.email ?? 'admin@example.com',
         role: overrides.role ?? 'admin',
         active: overrides.active ?? true,
@@ -70,7 +71,16 @@ export class InMemoryUserRepo implements UserRepository {
     return this.users.find((u) => u.username === username) ?? null;
   }
   async findByEmail(email: string): Promise<User | null> {
-    return this.users.find((u) => u.email === email) ?? null;
+    const lower = email.toLowerCase();
+    return this.users.find((u) => u.email?.toLowerCase() === lower) ?? null;
+  }
+  async findByEmailOrUsername(input: string): Promise<User | null> {
+    const lower = input.toLowerCase();
+    return (
+      this.users.find(
+        (u) => u.username === input || (u.email !== null && u.email.toLowerCase() === lower),
+      ) ?? null
+    );
   }
   async findById(id: number): Promise<User | null> {
     return this.users.find((u) => u.id === id) ?? null;
@@ -89,7 +99,6 @@ export class InMemoryUserRepo implements UserRepository {
 }
 
 export class FakePasswordHasher implements PasswordHasher {
-  // "plain" -> "hash-of(plain)" deterministik
   async hash(p: Password): Promise<string> {
     return `hash-of(${p.value})`;
   }
@@ -114,7 +123,6 @@ export class FakeTokenIssuer implements TokenIssuer {
     return { token: `access:${payload.sub}:${payload.role}:refreshed`, ttlSeconds: 900 };
   }
   verifyRefreshToken(token: string): RefreshTokenPayload {
-    // 'refresh:<sub>:<jti>' formatı
     const match = /^refresh:(\d+):(.+)$/.exec(token);
     if (!match) throw new Error('Bozuk refresh token');
     const sub = match[1];
@@ -156,7 +164,7 @@ export class InMemoryRefreshSessionStore implements RefreshSessionStore {
 }
 
 export class InMemoryPasswordResetTokenStore implements PasswordResetTokenStore {
-  public records: PasswordResetTokenRecord[] = [];
+  public records: (PasswordResetTokenRecord & { emailSent: boolean })[] = [];
 
   async create(input: {
     userId: number;
@@ -172,6 +180,7 @@ export class InMemoryPasswordResetTokenStore implements PasswordResetTokenStore 
       usedAt: null,
       ip: input.ip ?? null,
       userAgent: input.userAgent ?? null,
+      emailSent: false,
     });
   }
   async findActive(token: string): Promise<PasswordResetTokenRecord | null> {
@@ -181,16 +190,31 @@ export class InMemoryPasswordResetTokenStore implements PasswordResetTokenStore 
       ) ?? null
     );
   }
+  async findByToken(token: string): Promise<PasswordResetTokenRecord | null> {
+    return this.records.find((r) => r.token === token) ?? null;
+  }
   async markUsed(token: string): Promise<void> {
     const r = this.records.find((x) => x.token === token);
     if (r) r.usedAt = new Date();
+  }
+  async revokeUnusedForUser(userId: number): Promise<void> {
+    for (const r of this.records) {
+      if (r.userId === userId && r.usedAt === null) r.usedAt = new Date();
+    }
+  }
+  async markEmailSent(token: string): Promise<void> {
+    const r = this.records.find((x) => x.token === token);
+    if (r) r.emailSent = true;
   }
 }
 
 export class FakeEmailSender implements PasswordResetEmailSender {
   public sent: SendPasswordResetEmailInput[] = [];
-  async send(input: SendPasswordResetEmailInput): Promise<void> {
+  public deliverResult: PasswordResetEmailSenderResult = { sent: true };
+
+  async send(input: SendPasswordResetEmailInput): Promise<PasswordResetEmailSenderResult> {
     this.sent.push(input);
+    return this.deliverResult;
   }
 }
 

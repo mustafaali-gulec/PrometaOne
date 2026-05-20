@@ -1,8 +1,8 @@
 /**
  * Prometa One API — Hono app entry point.
  *
- * Tüm route'ları mount eder, CORS / logger / error handler bağlar,
- * cron'u başlatır ve graceful shutdown handle eder.
+ * Tum route'lari mount eder, CORS / logger / error handler baglar,
+ * cron'u baslatir ve graceful shutdown handle eder.
  */
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
@@ -13,8 +13,8 @@ import { config } from './config.js';
 import { closePool, healthCheck, pool } from './db.js';
 import { errorHandler } from './middleware/error.js';
 import { registerAiModule } from './modules/ai/index.js';
+import { registerAuthModule } from './modules/auth/index.js';
 import { registerNotificationsModule } from './modules/notifications/index.js';
-import authRoutes from './routes/auth.js';
 import cellsRoutes from './routes/cells.js';
 import companiesRoutes from './routes/companies.js';
 import invoicesRoutes from './routes/invoices.js';
@@ -41,7 +41,7 @@ app.use(
 app.onError(errorHandler);
 
 // ============================================================================
-// Modüler kayıtlar (Strangler Fig)
+// Moduler kayitlar (Strangler Fig)
 // ============================================================================
 const notificationsModule = registerNotificationsModule(
   {
@@ -65,6 +65,27 @@ const notificationsModule = registerNotificationsModule(
 const aiModule = registerAiModule({
   anthropicApiKey: process.env['ANTHROPIC_API_KEY'],
 });
+
+const authModule = registerAuthModule(
+  {
+    jwt: {
+      accessSecret: config.JWT_SECRET,
+      refreshSecret: config.JWT_REFRESH_SECRET,
+      accessExpires: config.JWT_ACCESS_EXPIRES,
+      refreshExpires: config.JWT_REFRESH_EXPIRES,
+      issuer: 'promet-cf',
+    },
+    bcrypt: { rounds: config.BCRYPT_ROUNDS },
+    passwordReset: {
+      ttlMinutes: 15,
+      ...(process.env['APP_URL']
+        ? { resetUrlTemplate: `${process.env['APP_URL']}/reset-password?token={token}` }
+        : {}),
+    },
+    exposeDevTokens: config.isDevelopment,
+  },
+  { pool },
+);
 
 // ============================================================================
 // Routes — /v1 prefix
@@ -93,8 +114,8 @@ v1.get('/', (c) =>
   }),
 );
 
-// Auth
-v1.route('/auth', authRoutes);
+// Auth — YENI moduler endpoint (Faz 3 / PR 4 cutover)
+v1.route('/auth', authModule.router);
 
 // Companies + cells + invoices
 v1.route('/companies', companiesRoutes);
@@ -113,22 +134,21 @@ v1.route('/companies', fx);
 v1.route('/companies', archives);
 
 // =======================================================================
-// Bildirimler — YENİ modüler endpoint (/v1/notifications)
+// Bildirimler — YENI moduler endpoint (/v1/notifications)
 // =======================================================================
 v1.route('/notifications', notificationsModule.router);
 
-// AI Asistan — YENİ modüler endpoint (Faz 2 / PR 1)
+// AI Asistan — YENI moduler endpoint (Faz 2 / PR 1)
 v1.route('/ai', aiModule.router);
 
 // =======================================================================
-// Eski company-scoped notifications endpoint (Strangler Fig — kaldırılacak)
-// frontend henüz buraya çağrı yapıyor; PR 4'te silinecek.
+// Eski company-scoped notifications endpoint (Strangler Fig — kaldirilacak)
+// frontend henuz buraya cagri yapiyor; sonraki PR'da silinecek.
 // =======================================================================
 v1.route('/companies', notifications);
 
 // AI
 v1.route('/companies', ai);
-// Eski aiProxyRoutes kaldırıldı — yeni /v1/ai modüler endpoint ile değişti
 
 // Audit
 v1.route('/audit-logs', audit);
@@ -139,7 +159,7 @@ app.notFound((c) =>
   c.json(
     {
       error: 'not_found',
-      message: `Endpoint bulunamadı: ${c.req.method} ${c.req.path}`,
+      message: `Endpoint bulunamadi: ${c.req.method} ${c.req.path}`,
     },
     404,
   ),
@@ -149,22 +169,22 @@ app.notFound((c) =>
 // Server start
 // ============================================================================
 console.log(`
-╔═══════════════════════════════════════════════════════════════════╗
-║                  PROMETA ONE API · v2.0.0                         ║
-║              Finance & HR Platform Backend                        ║
-╠═══════════════════════════════════════════════════════════════════╣
-║  Mode      : ${config.NODE_ENV.padEnd(53)}║
-║  Host      : ${config.HOST.padEnd(53)}║
-║  Port      : ${String(config.PORT).padEnd(53)}║
-║  CORS      : ${config.corsOrigins.join(', ').substring(0, 53).padEnd(53)}║
-║  Cron      : ${(config.ENABLE_CRON ? 'enabled' : 'disabled').padEnd(53)}║
-╚═══════════════════════════════════════════════════════════════════╝
+========================================================================
+                  PROMETA ONE API . v2.0.0
+              Finance & HR Platform Backend
+------------------------------------------------------------------------
+  Mode      : ${config.NODE_ENV}
+  Host      : ${config.HOST}
+  Port      : ${config.PORT}
+  CORS      : ${config.corsOrigins.join(', ')}
+  Cron      : ${config.ENABLE_CRON ? 'enabled' : 'disabled'}
+========================================================================
 `);
 
 // Eski cron (services/cron.ts)
 startCron();
 
-// Yeni modüler cron scheduler (PR 2: iskelet boş; PR 3'te job'lar eklenir)
+// Yeni moduler cron scheduler
 if (config.ENABLE_CRON) {
   notificationsModule.scheduler.start();
 }
@@ -176,7 +196,7 @@ const server = serve(
     port: config.PORT,
   },
   (info) => {
-    console.log(`✓ API hazır — http://${info.address}:${info.port}/v1`);
+    console.log(`* API hazir — http://${info.address}:${info.port}/v1`);
     console.log(`  Health check: http://${info.address}:${info.port}/v1/health`);
   },
 );
@@ -185,12 +205,12 @@ const server = serve(
 // Graceful shutdown
 // ============================================================================
 async function shutdown(signal: string): Promise<void> {
-  console.log(`\n${signal} alındı — kapatılıyor...`);
+  console.log(`\n${signal} alindi — kapatiliyor...`);
   stopCron();
   notificationsModule.scheduler.stop();
-  server.close(() => console.log('✓ HTTP server kapandı'));
+  server.close(() => console.log('* HTTP server kapandi'));
   await closePool();
-  console.log('✓ DB pool kapandı');
+  console.log('* DB pool kapandi');
   process.exit(0);
 }
 
@@ -202,7 +222,7 @@ process.on('SIGINT', () => {
 });
 
 process.on('unhandledRejection', (reason: unknown) => {
-  console.error('⚠ Unhandled rejection:', reason);
+  console.error('! Unhandled rejection:', reason);
 });
 
 export default app;
