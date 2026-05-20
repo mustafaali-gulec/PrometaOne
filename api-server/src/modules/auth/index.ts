@@ -1,10 +1,9 @@
 /**
  * Auth modülü — Public API.
  *
- * Faz 3 / PR 1: sadece domain + ports. Use-case + infrastructure +
- * presentation sonraki PR'larda.
- *
- * Bu PR runtime'a hiç dokunmaz — mevcut routes/auth.ts hala aktif.
+ * Faz 3 / PR 2: domain + ports + infrastructure.
+ * Use-cases + DI composition sonraki PR'da.
+ * Bu PR runtime'a hiç dokunmuyor — mevcut routes/auth.ts hala aktif.
  */
 
 // Domain
@@ -31,6 +30,20 @@ export {
 } from './application/ports/TokenIssuer.js';
 export type {
   RefreshSession,
+  CreateRefreshSessionInput,
   RefreshSessionStore,
 } from './application/ports/RefreshSessionStore.js';
 export { systemClock, type Clock } from './application/ports/Clock.js';
+
+// Infrastructure (concrete impl'ler)
+export {
+  BcryptPasswordHasher,
+  type BcryptPasswordHasherConfig,
+} from './infrastructure/bcrypt/BcryptPasswordHasher.js';
+export {
+  JwtTokenIssuer,
+  type JwtTokenIssuerConfig,
+  sha256Hex,
+} from './infrastructure/jwt/JwtTokenIssuer.js';
+export { PgUserRepository } from './infrastructure/persistence/PgUserRepository.js';
+export { PgRefreshSessionStore } from './infrastructure/persistence/PgRefreshSessionStore.js';

@@ -1,15 +1,14 @@
 /**
  * RefreshSessionStore — refresh token oturumlarının kalıcılığı.
  *
- * Her refresh token (jti) DB'de bir kayda denktir. Logout veya rotation'da
- * silinir/işaretlenir. Bir refresh token sadece bir kez kullanılabilir
- * (rotation pattern).
+ * Güvenlik: token'ın KENDİSİ değil, SHA-256 hash'i DB'de saklanır.
+ * Validate sırasında store, sağlanan hash ile DB'deki hash'i karşılaştırır.
+ * Bu sayede DB sızıntısında token'lar aktive edilemez.
  */
 
 export interface RefreshSession {
   jti: string;
   userId: number;
-  /** Token'ın IP/UA gibi metadata'sı (audit için). */
   ip: string | null;
   userAgent: string | null;
   createdAt: Date;
@@ -17,16 +16,25 @@ export interface RefreshSession {
   revokedAt: Date | null;
 }
 
-export interface RefreshSessionStore {
-  create(input: {
-    jti: string;
-    userId: number;
-    ip?: string | undefined;
-    userAgent?: string | undefined;
-    expiresAt: Date;
-  }): Promise<void>;
+export interface CreateRefreshSessionInput {
+  jti: string;
+  userId: number;
+  /** SHA-256 hex hash'i; raw token store edilmez. */
+  refreshTokenHash: string;
+  ip?: string | undefined;
+  userAgent?: string | undefined;
+  expiresAt: Date;
+}
 
-  findActive(jti: string): Promise<RefreshSession | null>;
+export interface RefreshSessionStore {
+  create(input: CreateRefreshSessionInput): Promise<void>;
+
+  /**
+   * jti + token hash kombinasyonuyla aktif (revoked değil, expired değil)
+   * session bulur. Bulamazsa null.
+   */
+  findActiveWithHash(jti: string, refreshTokenHash: string): Promise<RefreshSession | null>;
+
   revoke(jti: string): Promise<void>;
   revokeAllForUser(userId: number): Promise<void>;
 }
