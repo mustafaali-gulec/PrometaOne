@@ -25,7 +25,7 @@ export default [
       'legacy/**',
       'ml-service/**',
       'frontend/public/**',
-      // Eski 81K satırlık monolith — Strangler Fig sırasında modul-modul
+      // Eski 81K satirlik monolith — Strangler Fig sirasinda modul-modul
       // cikarilacak, bitince silinecek. ESLint ona dokunmaz.
       'frontend/src/App.jsx',
       'frontend/src/main.jsx',
@@ -138,11 +138,14 @@ export default [
   },
 
   // 5) Test dosyalari (gevsek)
+  // node:test runner'in describe()/it() ifadeleri promise dondurur ama
+  // runner kendisi handle eder — bu yuzden no-floating-promises burada off.
   {
     files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', '**/__tests__/**/*'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-floating-promises': 'off',
       'no-console': 'off',
     },
   },

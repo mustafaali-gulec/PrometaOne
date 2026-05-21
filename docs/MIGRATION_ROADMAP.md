@@ -1,6 +1,6 @@
 # Prometa One — Migration Yol Haritası
 
-**Son güncelleme:** 2026-05-19 · **Faz:** 0 (Foundation) tamamlandı
+**Son güncelleme:** 2026-05-21 · **Faz:** 3 (Auth & Users) tamamlandı — Faz 4 (HR Core) sıradaki
 
 Bu dokümanın amacı: Strangler Fig migration'ının somut planı. Hangi modül hangi sırada çıkacak, her birinin tahmini büyüklüğü, risk seviyesi ve bağımlılıkları.
 
@@ -10,22 +10,22 @@ Bu dokümanın amacı: Strangler Fig migration'ının somut planı. Hangi modül
 
 ## Faz Tablosu
 
-| Faz | Ad | Hedef | Durum |
-|---|---|---|---|
-| **0** | Foundation | Tooling, standartlar, ADR'ler, modül iskeleti | ✅ Tamam |
-| **1** | First Module — Notifications | Eski cron+email → api-server modülü + frontend bell | 🟡 Sıradaki |
-| **2** | AI Widget + ML Proxy | App.jsx'teki AI asistan → modules/ai/ + api-server ai-proxy | ⏳ |
-| **3** | Auth & Users | Login, JWT, RBAC → modules/auth/ (frontend + backend) | ⏳ |
-| **4** | HR Core | Organizasyon, çalışanlar → modules/hr/ | ⏳ |
-| **5** | Finance — Bütçe & Kasa | Budget calendar + bank/kasa hücreleri | ⏳ |
-| **6** | Finance — E-Fatura | eLogo + UBL parser + TCMB | ⏳ |
-| **7** | Payroll | Türkiye bordro motoru (SGK/GV/DV/AR-Ge) | ⏳ |
-| **8** | Attendance & İzin | Puantaj + izin workflow | ⏳ |
-| **9** | Talep Sistemi | Avans/masraf/zimmet | ⏳ |
-| **10** | Projeler | Gantt, kaynak, risk, kapsam | ⏳ |
-| **11** | Self-Service Portal | Çalışan portalı | ⏳ |
-| **12** | Reports v3 + Dashboards | 8 hazır rapor + custom dashboard | ⏳ |
-| **Final** | Strangler Tamamlandı | `legacy/` silindi, `App.jsx` silindi | ⏳ |
+| Faz       | Ad                           | Hedef                                                       | Durum       |
+| --------- | ---------------------------- | ----------------------------------------------------------- | ----------- |
+| **0**     | Foundation                   | Tooling, standartlar, ADR'ler, modül iskeleti               | ✅ Tamam    |
+| **1**     | First Module — Notifications | Eski cron+email → api-server modülü + frontend bell         | ✅ Tamam    |
+| **2**     | AI Widget + ML Proxy         | App.jsx'teki AI asistan → modules/ai/ + api-server ai-proxy | ✅ Tamam    |
+| **3**     | Auth & Users                 | Login, JWT, RBAC → modules/auth/ (frontend + backend)       | ✅ Tamam    |
+| **4**     | HR Core                      | Organizasyon, çalışanlar, pozisyonlar → modules/hr/         | 🟡 Sıradaki |
+| **5**     | Finance — Bütçe & Kasa       | Budget calendar + bank/kasa hücreleri                       | ⏳          |
+| **6**     | Finance — E-Fatura           | eLogo + UBL parser + TCMB                                   | ⏳          |
+| **7**     | Payroll                      | Türkiye bordro motoru (SGK/GV/DV/AR-Ge)                     | ⏳          |
+| **8**     | Attendance & İzin            | Puantaj + izin workflow                                     | ⏳          |
+| **9**     | Talep Sistemi                | Avans/masraf/zimmet                                         | ⏳          |
+| **10**    | Projeler                     | Gantt, kaynak, risk, kapsam                                 | ⏳          |
+| **11**    | Self-Service Portal          | Çalışan portalı                                             | ⏳          |
+| **12**    | Reports v3 + Dashboards      | 8 hazır rapor + custom dashboard                            | ⏳          |
+| **Final** | Strangler Tamamlandı         | `legacy/` silindi, `App.jsx` silindi                        | ⏳          |
 
 Toplam tahmin: **12 ana faz**. Her faz 1-3 hafta (yoğunluğa göre).
 
@@ -112,7 +112,7 @@ App.jsx içinde:
 
 // Yeni:
 import { NotificationBell } from './modules/notifications';
-<NotificationBell />
+<NotificationBell />;
 ```
 
 ### Migration Adımları (PR olarak)
@@ -148,30 +148,303 @@ import { NotificationBell } from './modules/notifications';
 
 ---
 
+## Faz 4 — HR Core (DETAYLI PLAN)
+
+İlk gerçek "iş alanı" modülü. Faz 1-3 altyapı kanıtı (notifications, AI, auth) sundu — Faz 4 ilk gerçek **domain-rich** modül: organizasyon ağacı, çalışan sicili, pozisyon kütüphanesi. Tüm sonraki modüllerin (payroll, attendance, requests, projects) `Employee` entity'sine dayanacak olması bu fazı kritik yapar.
+
+### Hedef
+
+App.jsx'in satır 56752–70900 aralığındaki ~14.150 satırlık HR kodunu (`HRModule`, `OrganizationManager`, `OrgUnitNode`, `DepartmentNode`, `EmployeeNode`, `EmployeesList`, `PositionsList` + 3 form modal + işe alım ekranları) parçalı şekilde `modules/hr/` altına TS strict olarak taşı. App.jsx'in `data` prop'unda taşınan client-side state (`data.hrOrgUnits`, `data.hrEmployees`, `data.hrPositions`, `data.hrCandidates`, `data.hrApplications`) gerçek PostgreSQL tablolarına ve REST API'ya cutover edilir.
+
+**Kapsam:** Tüm HR sekmesi — Organizasyon + Personel + Pozisyonlar + **İşe Alım (recruitment)**. Faz 7 (Payroll) ve Faz 8 (Attendance) bu fazın `Employee` entity'sine bağlanacak.
+
+**Veri göçü:** Mevcut App.jsx `data.hr*` state'i sadece demo verisidir; production'da gerçek HR verisi yoktur. PR 5'te fresh schema ile başlanır, eski JSON aktarımı için import script'i yazılmaz.
+
+### Domain Modeli
+
+Mevcut App.jsx state'inden ters mühendislik:
+
+```
+Company (var — companies tablosu, Faz 0/Finance bootstrap'inden kalan)
+   │
+   └── OrgUnit  ← "Birim" / "Bölüm" (recursive parent_id ile ağaç)
+          │
+          └── Department
+                 │
+                 ├── Position (job title kütüphanesi)
+                 │       │
+                 │       └── Application (bir Candidate'in bu Position'a başvurusu)
+                 │              │
+                 │              └── RecruitmentStage geçişleri
+                 │                  (screening → interview → offer → hired/rejected)
+                 │
+                 └── Employee (Position'a atanır, opsiyonel User'a bağlanır;
+                               Application "hired" stage'ine geçtiğinde otomatik üretilebilir)
+
+Candidate (Application'lardan bağımsız havuz — bir kişi birden çok pozisyona başvurabilir)
+```
+
+"4-tier" ifadesi şu hiyerarşiyi karşılar: **Company → OrgUnit → Department → Employee** (Position ve Candidate çapraz kesen kütüphaneler). OrgUnit kendi içinde recursive olabilir (alt birim).
+
+### Kapsam
+
+#### Veritabanı (`api-server/migrations/012_hr.sql`)
+
+Yeni migration. Mevcut `companies` tablosu yeniden kullanılır.
+
+- `org_units` — `id, company_id FK, parent_id FK self, name, code, sort_order, active, created_*, updated_*`
+- `departments` — `id, company_id FK, org_unit_id FK NULL, name, code, manager_employee_id FK NULL (cycle önleyici), active, created_*, updated_*`
+- `positions` — `id, company_id FK, department_id FK NULL, title, description, status (open/closed/draft), headcount_target, min_salary, max_salary, created_*, updated_*`
+- `employees` — `id, company_id FK, user_id FK NULL UNIQUE (Faz 3'ün User'ına opsiyonel link), department_id FK, position_id FK NULL, employee_no UNIQUE per company, first_name, last_name, tc_kimlik UNIQUE per company NULL, email, phone, hire_date, termination_date NULL, status (active/probation/on_leave/terminated), employment_type (full_time/part_time/contract/intern), source_application_id FK NULL (işe alım izi), created_*, updated_*`
+- `candidates` — `id, company_id FK, first_name, last_name, email, phone NULL, source (referral/linkedin/jobboard/direct/agency/other), notes TEXT NULL, cv_url NULL, created_*, updated_*` (şirket-baz aday havuzu)
+- `applications` — `id, company_id FK, candidate_id FK, position_id FK, stage (new/screening/interview/offer/hired/rejected/withdrawn), stage_changed_at, stage_changed_by FK users, rejection_reason NULL, salary_expectation NULL, notes TEXT NULL, created_*, updated_*`
+- `application_stage_history` — `id, application_id FK, from_stage, to_stage, changed_by FK users, changed_at, note NULL` (audit trail)
+- Index: org_units(company_id, parent_id), departments(company_id, org_unit_id), employees(company_id, status), employees(user_id), candidates(company_id, email), applications(company_id, position_id, stage), applications(candidate_id)
+- Trigger: hiyerarşi cycle önleyici (org_units parent_id, departments manager); application stage geçişlerini `application_stage_history`'ye otomatik yazan trigger
+- Constraint: bir Candidate aynı Position'a iki kez aktif (stage != hired/rejected/withdrawn) başvuru yapamaz (partial unique index)
+- Seed data: tek bir varsayılan org_unit (root) per company (companies tablosuna yapılacak `companies_after_insert` trigger ile veya seed.sql'de)
+
+#### Backend (`api-server/src/modules/hr/`)
+
+1. **Domain**
+   - `entities/OrgUnit.ts` — ağaç davranışı (descendantsOf, isAncestorOf)
+   - `entities/Department.ts`
+   - `entities/Position.ts` — value object `PositionStatus` (open/closed/draft)
+   - `entities/Employee.ts` — durum makinesi (probation → active → on_leave → terminated)
+   - `entities/Candidate.ts` — aday havuzu kaydı
+   - `entities/Application.ts` — durum makinesi: new → screening → interview → offer → hired / rejected / withdrawn (her geçiş kısıtlı)
+   - `valueObjects/EmployeeNumber.ts` — şirket içi benzersizlik invariant'ı
+   - `valueObjects/TcKimlik.ts` — TC kimlik doğrulama algoritması (mod 10/11)
+   - `valueObjects/EmploymentType.ts`
+   - `valueObjects/PhoneNumber.ts` — TR format normalize
+   - `valueObjects/HireDate.ts`
+   - `valueObjects/CandidateSource.ts` — referral/linkedin/jobboard/direct/agency/other
+   - `valueObjects/RecruitmentStage.ts` — geçerli geçişleri bilen durum tipi
+   - `services/OrgTreeBuilder.ts` — flat liste → nested ağaç dönüşümü
+   - `services/EmployeeNumberGenerator.ts` — strateji interface'i (sıralı, prefix'li, vb.)
+   - `services/ApplicationStageTransitionPolicy.ts` — hangi stage'den hangisine geçilebilir
+   - `services/HireFromApplicationPolicy.ts` — "hired" stage'ine geçişin yan etkisi olarak Employee üretimi
+
+2. **Application**
+   - **OrgUnit:** `CreateOrgUnitUseCase`, `UpdateOrgUnitUseCase`, `MoveOrgUnitUseCase` (parent değişimi, cycle check), `ArchiveOrgUnitUseCase`, `ListOrgTreeForCompanyUseCase`
+   - **Department:** `CreateDepartmentUseCase`, `UpdateDepartmentUseCase`, `ArchiveDepartmentUseCase`, `AssignDepartmentManagerUseCase`
+   - **Position:** `CreatePositionUseCase`, `UpdatePositionUseCase`, `ClosePositionUseCase`, `ListPositionsUseCase`
+   - **Employee:** `HireEmployeeUseCase`, `UpdateEmployeeProfileUseCase`, `TransferEmployeeUseCase` (departman/pozisyon değişimi), `TerminateEmployeeUseCase`, `LinkEmployeeToUserUseCase`, `UnlinkEmployeeFromUserUseCase`, `ListEmployeesUseCase` (filter: status, department, position)
+   - **Candidate:** `RegisterCandidateUseCase`, `UpdateCandidateUseCase`, `ArchiveCandidateUseCase`, `ListCandidatesUseCase` (filter: source, q text search)
+   - **Application:** `SubmitApplicationUseCase` (Candidate + Position → Application), `MoveApplicationStageUseCase` (stage geçişi + history), `RejectApplicationUseCase`, `WithdrawApplicationUseCase`, `HireFromApplicationUseCase` (Application "hired" → Employee otomatik üretir, atomik), `ListApplicationsForPositionUseCase`, `ListApplicationsForCandidateUseCase`
+   - **Ports:** `OrgUnitRepository`, `DepartmentRepository`, `PositionRepository`, `EmployeeRepository`, `CandidateRepository`, `ApplicationRepository`, `ApplicationStageHistoryRepository`, `UserLookupPort` (auth modülünden User çekmek için anti-corruption layer), `Clock`, `AuditLogger`
+   - **DTO:** `OrgUnitDto`, `DepartmentDto`, `PositionDto`, `EmployeeDto`, `OrgTreeNodeDto`, `CandidateDto`, `ApplicationDto`, `ApplicationStageHistoryDto`
+   - **Errors:** `EmployeeNumberAlreadyExistsError`, `OrgCycleDetectedError`, `EmployeeAlreadyLinkedError`, `DepartmentHasActiveEmployeesError` (silmeden önce), `InvalidStageTransitionError`, `CandidateAlreadyAppliedToPositionError`, `PositionNotOpenError` (kapalı pozisyona başvuru)
+
+3. **Infrastructure**
+   - `persistence/PgOrgUnitRepository.ts` (testcontainers ile gerçek PG)
+   - `persistence/PgDepartmentRepository.ts`
+   - `persistence/PgPositionRepository.ts`
+   - `persistence/PgEmployeeRepository.ts`
+   - `persistence/PgCandidateRepository.ts`
+   - `persistence/PgApplicationRepository.ts`
+   - `persistence/PgApplicationStageHistoryRepository.ts`
+   - `auth/AuthUserLookupAdapter.ts` — auth modülünün `index.ts`'inden User bilgilerini çeker (anti-corruption)
+   - `audit/PgAuditLogger.ts` — paylaşılabilir, ileri fazlarda `shared/`'a çıkarılabilir
+
+4. **Presentation** (`presentation/routes.ts`)
+   - **Org:** `GET /v1/hr/org-tree?companyId=`
+   - **OrgUnit:** `POST /v1/hr/org-units`, `PATCH /v1/hr/org-units/:id`, `POST /v1/hr/org-units/:id/move`, `DELETE /v1/hr/org-units/:id`
+   - **Department:** `POST /v1/hr/departments`, `PATCH /v1/hr/departments/:id`, `DELETE /v1/hr/departments/:id`
+   - **Position:** `GET /v1/hr/positions?companyId=&status=`, `POST /v1/hr/positions`, `PATCH /v1/hr/positions/:id`, `POST /v1/hr/positions/:id/close`
+   - **Employee:** `GET /v1/hr/employees?companyId=&status=&departmentId=&q=`, `POST /v1/hr/employees`, `PATCH /v1/hr/employees/:id`, `POST /v1/hr/employees/:id/terminate`, `POST /v1/hr/employees/:id/link-user`, `DELETE /v1/hr/employees/:id/link-user`
+   - **Candidate:** `GET /v1/hr/candidates?companyId=&q=&source=`, `POST /v1/hr/candidates`, `PATCH /v1/hr/candidates/:id`, `DELETE /v1/hr/candidates/:id`
+   - **Application:** `GET /v1/hr/applications?companyId=&positionId=&candidateId=&stage=`, `POST /v1/hr/applications`, `POST /v1/hr/applications/:id/move-stage`, `POST /v1/hr/applications/:id/reject`, `POST /v1/hr/applications/:id/withdraw`, `POST /v1/hr/applications/:id/hire` (Employee'yi atomik üretir, döner)
+   - **Recruitment dashboard:** `GET /v1/hr/applications/funnel?companyId=&positionId=` (stage başına sayım)
+   - Tüm endpoint'ler `requireAuth` middleware'i + `requireCompanyAccess(companyId)` ile korunur
+   - RBAC: yazma işlemleri `admin` veya yeni `hr_manager` rolü. Yeni rol için **ADR-0005** (zorunlu, PR 1'de yazılır).
+
+5. **DI Composition**
+   - `index.ts`: `registerHrModule(app, db, logger, config, authModule)` — auth modülünün public API'sini alır
+
+#### Frontend (`frontend/src/modules/hr/`)
+
+1. **Domain** — backend ile uyumlu tipler (TcKimlik validator client-side de çalışır)
+2. **Application** — fetch + cache (React Query veya basit hook state)
+   - `useCases/fetchOrgTree.ts`, `useCases/hireEmployee.ts`, vb. (her backend use-case'inin client karşılığı)
+   - `useCases/submitApplication.ts`, `useCases/moveApplicationStage.ts`, `useCases/hireFromApplication.ts`
+3. **Infrastructure**
+   - `api/HrApiClient.ts` — fetch wrapper, auth header (Faz 3 token store'undan)
+4. **Presentation**
+   - `pages/HrPage.tsx` — eski `HRModule`'un yeni hâli, sol sidebar + sağ içerik aynı UX
+   - `pages/tabs/OrganizationTab.tsx` — eski `OrganizationManager`
+   - `pages/tabs/EmployeesTab.tsx` — eski `EmployeesList`
+   - `pages/tabs/PositionsTab.tsx` — eski `PositionsList`
+   - `pages/tabs/RecruitmentTab.tsx` — Position bazlı kanban: aday havuzu, başvurular, stage drag-drop
+   - `components/OrgTree.tsx` (eski OrgUnitNode + DepartmentNode + EmployeeNode'un kompozisyonu)
+   - `components/forms/OrgUnitForm.tsx` (eski OrgUnitFormModal)
+   - `components/forms/DepartmentForm.tsx`
+   - `components/forms/EmployeeForm.tsx`
+   - `components/forms/PositionForm.tsx`
+   - `components/forms/CandidateForm.tsx`
+   - `components/forms/ApplicationForm.tsx`
+   - `components/PositionCard.tsx`
+   - `components/RecruitmentFunnel.tsx` — stage başına sayım kartları
+   - `components/ApplicationKanban.tsx` — drag-drop ile stage geçişi
+   - `hooks/useOrgTree.ts`, `hooks/useEmployees.ts`, `hooks/usePositions.ts`, `hooks/useCandidates.ts`, `hooks/useApplications.ts`
+
+#### Migration Adapter (App.jsx)
+
+App.jsx → 56752-70900 satır aralığı:
+
+```jsx
+// Eski (~14.150 satır):
+// function HRModule({ data, session, ... }) { ... }
+// function OrganizationManager(...) { ... }
+// function EmployeesList(...) { ... }
+// function PositionsList(...) { ... }
+// + recruitment ekranları (aynı aralıkta)
+
+// Yeni (10-15 satır):
+import { HrPage } from './modules/hr';
+// Mevcut yere:
+{
+  activeTab === 'hr' && (
+    <HrPage companyId={session.activeCompanyId} session={session} lang={lang} />
+  );
+}
+```
+
+App.jsx'in genel `data` prop'undan `hrOrgUnits/hrDepartments/hrPositions/hrEmployees/hrCandidates/hrApplications` alanları **silinir** — modül kendi state'ini API'dan çeker. Mevcut state demo verisidir, gerçek HR verisi production'da yoktur; göç script'i yazılmaz.
+
+### Migration Adımları (PR olarak)
+
+1. **PR 1: ADR-0005 + Org/Department domain + DB migration** (`Faz 4 / PR 1`)
+   - `docs/adr/0005-hr-manager-role-and-employee-user-link.md` — yeni rol gerekçesi + Employee↔User opsiyonel bağlantı kararı
+   - `auth/domain/valueObjects/UserRole.ts`'e `hr_manager` eklenir + migration (ENUM ALTER)
+   - `api-server/migrations/012_hr.sql` (tüm tablolar — org_units, departments, positions, employees, candidates, applications, application_stage_history)
+   - `modules/hr/domain/` — sadece OrgUnit, Department, value object'ler ve OrgTreeBuilder
+   - `application/ports/{OrgUnitRepository, DepartmentRepository, Clock, AuditLogger}` + DTO + errors
+   - Domain unit testleri (node:test, hiç DB yok). Coverage domain %95+
+   - `app.ts`'e registerHrModule **henüz çağrılmaz** — sadece tip olarak yer açılır
+
+2. **PR 2: Position + Employee domain + application** (`Faz 4 / PR 2`)
+   - `domain/entities/Position.ts`, `Employee.ts`, ilgili value object'ler (TcKimlik, EmployeeNumber, EmploymentType, PhoneNumber, HireDate)
+   - `domain/services/EmployeeNumberGenerator.ts`
+   - **Application:** OrgUnit + Department + Position + Employee use-case'leri (~20 adet)
+   - `__tests__/application/fakes.ts` — in-memory fake repository'ler
+   - Her use-case için happy + 2-3 edge case. Coverage application %85+
+   - Hâlâ Hono'ya bağlanmaz
+
+3. **PR 3: Recruitment domain + application** (`Faz 4 / PR 3`)
+   - `domain/entities/Candidate.ts`, `Application.ts`
+   - `valueObjects/CandidateSource.ts`, `RecruitmentStage.ts`
+   - `domain/services/ApplicationStageTransitionPolicy.ts`, `HireFromApplicationPolicy.ts`
+   - **Application:** Candidate (4) + Application (8) use-case'leri
+   - `HireFromApplicationUseCase` atomik — application "hired" + employee oluştur tek transaction
+   - Fake'lerle testler. Coverage domain %95+ / application %85+
+
+4. **PR 4: Infrastructure + REST routes + DI** (`Faz 4 / PR 4`)
+   - 7 Pg\* repository (testcontainers ile gerçek PG)
+   - `AuthUserLookupAdapter`
+   - `presentation/routes.ts` — tüm endpoint'ler (Hono testClient contract testleri)
+   - `requireRole('hr_manager','admin')` middleware
+   - `registerHrModule` çağrısı `app.ts`'e eklenir
+   - Smoke: `curl /v1/hr/org-tree?companyId=1` → 200; bir Application "hired" stage'ine geçince Employee tablosunda satır oluştuğu doğrulanır
+
+5. **PR 5: Frontend HR Core (org/employee/position) + demo** (`Faz 4 / PR 5`)
+   - `modules/hr/` — Organization + Employees + Positions tab'leri ve tüm form'lar
+   - `frontend/src/hr-demo-entry.tsx` + `index-hr-demo.html` (Faz 1/2 pattern'i)
+   - Component testleri + form validation testleri
+   - App.jsx'e dokunulmaz
+
+6. **PR 6: Frontend Recruitment (kanban + funnel)** (`Faz 4 / PR 6`)
+   - RecruitmentTab.tsx + ApplicationKanban + RecruitmentFunnel + Candidate/Application form'ları
+   - Drag-drop stage geçişi (HTML5 native veya react-dnd — küçük scope)
+   - Demo sayfasına recruitment akışı eklenir
+
+7. **PR 7: App.jsx cutover** (`Faz 4 / PR 7`)
+   - 56752-70900 aralığındaki HR komponentleri silinir (~14.150 satır)
+   - `import { HrPage } from './modules/hr'` eklenir
+   - `data.hr*` referansları kaldırılır (data persistence layer'dan da)
+   - Production smoke: tüm 4 sekme açılır → ağaç + personel + pozisyon + işe alım çalışır
+
+8. **PR 8: Verification + dokümantasyon** (`Faz 4 / PR 8`)
+   - `docs/PHASE_4_VERIFICATION.md` (ekran görüntüleri + manuel doğrulama matrisi)
+   - MIGRATION_ROADMAP metrikleri güncellenir
+   - CHANGELOG güncellenir
+   - ARCHITECTURE.md'ye HR modülü örnek olarak eklenir
+
+### Riskler ve Önlemleri
+
+- **Risk:** TC Kimlik doğrulayıcısının yanlış implementasyonu (mod 10/11). **Önlem:** Domain testinde resmi test vektörleri kullanılır (NVI dokümantasyonundan); pozitif + negatif 20+ vaka.
+- **Risk:** Org ağacında cycle (A → B → A). **Önlem:** `MoveOrgUnitUseCase` içinde DB-level recursive CTE ile path check + DB trigger ile çift güvenlik.
+- **Risk:** `manager_employee_id` ↔ `department_id` arasında karşılıklı FK döngüsü. **Önlem:** Department oluşturulurken manager NULL, sonradan UPDATE; veya partial migration (DEFERRABLE constraint).
+- **Risk:** Employee ↔ User bağlantısı (Faz 3 ile sınır). **Önlem:** `LinkEmployeeToUserUseCase` zayıf bağlantı; auth modülü HR'ı bilmez, HR sadece `UserLookupPort` üzerinden okur. ADR-0005'te netleşir.
+- **Risk:** Recruitment stage geçiş tutarsızlığı (örn. "rejected" → "interview" geçişi). **Önlem:** `ApplicationStageTransitionPolicy` saf TS — tüm geçişler whitelisted; DB trigger ek koruma.
+- **Risk:** `HireFromApplicationUseCase` yarı tamamlanmış işlem (Application "hired" oldu ama Employee oluşamadı). **Önlem:** Tek DB transaction; PgApplicationRepository ile PgEmployeeRepository aynı transaction client'ı paylaşır (Unit of Work pattern).
+- **Risk:** PR 7 cutover'da büyük diff (~14.150 satır silme + import). **Önlem:** Önce App.jsx'te HR sekmesi conditional render olarak demo sayfasına yönlendirilir (mini PR), sonra silme PR'ı.
+- **Risk:** PR 1'deki ENUM ALTER (user_role'e hr_manager eklemek) Faz 3 testlerini bozabilir. **Önlem:** Auth modülü testleri PR 1 öncesi gözden geçirilir; UserRole.ts'in `isHrManager()` testi eklenir.
+
+### Test Beklentileri
+
+- `domain/`: %95+
+  - TcKimlik validator: 20+ pozitif/negatif vektör
+  - OrgTreeBuilder: 0, 1, çok seviyeli, dengesiz ağaç + cycle algılama
+  - Employee state machine: tüm geçişler + yasaklı geçişler
+  - ApplicationStageTransitionPolicy: tüm yasal + yasak geçişler tablosu
+  - HireFromApplicationPolicy: Application "hired" olduğunda Employee'nin doğru field map'lenmesi
+- `application/`: %85+
+  - Her use-case için happy + 2-3 edge (yetkisiz, cycle, çakışan employee_no, vb.)
+  - `HireFromApplicationUseCase`: pozisyon kapalı, candidate başka pozisyona zaten hired, employee_no çakışması
+- `infrastructure/persistence/`: testcontainers
+  - `application_stage_history` trigger'ının çalıştığı doğrulanır
+  - Atomik hire transaction'ın rollback'i (Employee oluşurken hata fırlatılırsa Application "hired" da geri alınır)
+- `presentation/`: Hono testClient — 401, 403, 200, 422 davranışları; rol bazlı erişim (`user` → 403, `hr_manager` → 200)
+- E2E (Playwright):
+  - "Org birim ekle → Departman ekle → Pozisyon aç → Çalışan işe al → ağaçta görün → çalışanı transfer et → eski departman 0 kişi, yeni departman 1 kişi"
+  - "Candidate ekle → Application gönder → kanban'da new → screening → interview → offer → hired → Employees sekmesinde otomatik görün"
+- Frontend component testleri: form validation (TC kimlik, telefon, hire_date), OrgTree render, ApplicationKanban drag-drop
+
+### Çıkış Kriterleri
+
+- [ ] 8 PR merge edildi
+- [ ] `npm run typecheck` temiz (0 error)
+- [ ] `npm run lint` temiz (boundary kuralları dahil)
+- [ ] `npm run test` geçer (coverage hedefleri tutar)
+- [ ] App.jsx satır sayısı ~67.000'e düştü (14.150 azaldı — `wc -l` ile doğrulandı)
+- [ ] `legacy/` etkilenmedi (HR zaten orada değildi)
+- [ ] `modules/hr/index.ts` public API kapsamı: HrPage, hr domain tipleri, useCases barrel
+- [ ] CHANGELOG güncellendi
+- [ ] PHASE_4_VERIFICATION.md eklendi (ekran görüntüleri + manuel doğrulama)
+- [ ] ADR-0005 yazıldı ve kabul edildi (hr_manager rolü + Employee↔User opsiyonel link)
+- [ ] `user_role` ENUM'una `hr_manager` eklendi, auth modülü testleri yeşil
+
+---
+
 ## Faz 2-12 — Yüksek Düzey Planlar
 
 (Sadece anahatlar — gerçek detayı her fazın başında bu dokümana eklenecek.)
 
 ### Faz 2 — AI Widget + ML Proxy
+
 - App.jsx'teki AI asistan widget → `frontend/src/modules/ai/`
 - `api-server/src/routes/ai-proxy.ts` → `api-server/src/modules/ai/`
 - Claude API çağrıları + ml-service köprüsü
 - Boyut: ~800 satır App.jsx kod → ~600 satır modüler TS
 
 ### Faz 3 — Auth & Users
+
 - Login, logout, JWT, password reset, RBAC
 - frontend/src/modules/auth/ + api-server/src/modules/auth/
 - Şu an api-server/src/routes/auth.ts'te var, modüler yapıya taşınacak
 - **Önemli:** Tüm gelecek modüller User entity'sine bağlı olacağı için bu erken olmalı
 
-### Faz 4 — HR Core
+### Faz 4 — HR Core _(detaylı plan yukarıda)_
+
 - 4-tier organizasyon (şirket→bölüm→departman→birim)
-- Çalışan CRUD
+- Çalışan CRUD + Recruitment
 - Pozisyon kütüphanesi
 - modules/hr/ (her iki tarafta)
 - Bağımlılık: Faz 3 (User)
 
 ### Faz 5 — Finance: Bütçe & Kasa
+
 - Budget calendar (12 ay × kategori matrisi)
 - Kasa & banka, transferler
 - Tahsilat/ödeme cell sistemi
@@ -179,6 +452,7 @@ import { NotificationBell } from './modules/notifications';
 - En kritik domain: Money value object, Currency, DateRange burada doğar
 
 ### Faz 6 — Finance: E-Fatura
+
 - eLogo SOAP integration
 - UBL parser
 - TCMB döviz kuru tarihçesi
@@ -187,6 +461,7 @@ import { NotificationBell } from './modules/notifications';
 - Bağımlılık: Faz 5 (Money, Currency)
 
 ### Faz 7 — Payroll
+
 - Türkiye bordro motoru
 - SGK, GV, DV, AR-Ge teşvik
 - Yıllık parametre versiyonlama (2024/2025/2026)
@@ -195,6 +470,7 @@ import { NotificationBell } from './modules/notifications';
 - Bağımlılık: Faz 4 (Employee), Faz 5 (Money)
 
 ### Faz 8 — Attendance & İzin
+
 - Toplu/takvimli puantaj
 - PDKS CSV import
 - 10 izin tipi workflow
@@ -202,12 +478,14 @@ import { NotificationBell } from './modules/notifications';
 - Bağımlılık: Faz 4 (Employee), Faz 7 (Payroll için bordro etkilemesi)
 
 ### Faz 9 — Talep Sistemi
+
 - Avans, masraf, zimmet
 - Approval workflow
 - modules/requests/
 - Bağımlılık: Faz 4 (Employee), Faz 7 (Avans → bordroya kesinti)
 
 ### Faz 10 — Projeler
+
 - Gantt + dependencies
 - Zaman takibi
 - Kaynak planlama
@@ -216,11 +494,13 @@ import { NotificationBell } from './modules/notifications';
 - Bağımlılık: Faz 4 (Employee — kaynak), Faz 5 (Money — bütçe)
 
 ### Faz 11 — Self-Service Portal
+
 - Çalışan tarafı UI (8 sekme)
 - modules/self-service/
 - Bağımlılık: Faz 8, Faz 9 (her şey portalda görünür)
 
 ### Faz 12 — Reports v3 + Dashboard Builder
+
 - 8 hazır rapor (Müşteri kar, Project P&L, vb.)
 - Excel multi-sheet export
 - Custom Dashboard Builder
@@ -243,11 +523,11 @@ import { NotificationBell } from './modules/notifications';
 
 Her PR'da güncellenecek:
 
-| Metrik | Faz 0 (şimdi) | Hedef (Final) |
-|---|---|---|
-| App.jsx satır sayısı | 81.159 | 0 |
-| Toplam TS/TSX dosya | 0 | ~400 |
-| Toplam test dosyası | 0 | ~200 |
-| Test coverage | 0% | %80+ |
-| `legacy/` dizini | mevcut | silinmiş |
-| Strict TypeScript hatası | bilinmiyor (henüz çalıştırılmadı) | 0 |
+| Metrik                   | Faz 0 (şimdi) | Faz 4 PR 1 sonrası | Hedef (Final) |
+| ------------------------ | ------------- | ------------------ | ------------- |
+| App.jsx satır sayısı     | 81.159        | 81.159             | 0             |
+| Toplam TS/TSX dosya      | 0             | ~120               | ~400          |
+| Toplam test dosyası      | 0             | ~50                | ~200          |
+| Test coverage            | 0%            | %50                | %80+          |
+| `legacy/` dizini         | mevcut        | mevcut             | silinmiş      |
+| Strict TypeScript hatası | bilinmiyor    | 0                  | 0             |

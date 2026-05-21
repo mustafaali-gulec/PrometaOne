@@ -4,14 +4,14 @@
  */
 
 // ============== Enums ==============
-export type UserRole = "viewer" | "editor" | "cfo" | "admin";
-export type CategorySection = "inflows" | "outflows" | "nonPnlOutflows" | "kasaCategories";
-export type CurrencyCode = "TRY" | "USD" | "EUR";
-export type FlowDirection = "in" | "out";
-export type EndpointType = "bank" | "kasa";
-export type InvoiceStatus = "open" | "partial" | "paid" | "overdue";
-export type ConfidenceLevel = "high" | "medium" | "low" | "very_low";
-export type TrendDirection = "increasing" | "decreasing" | "stable";
+export type UserRole = 'viewer' | 'editor' | 'hr_manager' | 'cfo' | 'admin';
+export type CategorySection = 'inflows' | 'outflows' | 'nonPnlOutflows' | 'kasaCategories';
+export type CurrencyCode = 'TRY' | 'USD' | 'EUR';
+export type FlowDirection = 'in' | 'out';
+export type EndpointType = 'bank' | 'kasa';
+export type InvoiceStatus = 'open' | 'partial' | 'paid' | 'overdue';
+export type ConfidenceLevel = 'high' | 'medium' | 'low' | 'very_low';
+export type TrendDirection = 'increasing' | 'decreasing' | 'stable';
 
 // ============== Auth ==============
 export interface LoginRequest {
@@ -321,11 +321,14 @@ export interface ErrorResponse {
 }
 
 // ============== Role hierarchy ==============
+// Faz 4 ADR-0005: hr_manager rolü eklendi. Hiyerarşi:
+//   viewer < editor < hr_manager < cfo < admin
 export const ROLE_LEVEL: Record<UserRole, number> = {
   viewer: 1,
   editor: 2,
-  cfo: 3,
-  admin: 4,
+  hr_manager: 3,
+  cfo: 4,
+  admin: 5,
 };
 
 export function canRole(role: UserRole, minRole: UserRole): boolean {
