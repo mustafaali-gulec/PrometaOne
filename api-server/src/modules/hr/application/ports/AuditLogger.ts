@@ -22,6 +22,8 @@ export interface AuditEntry {
   /** İsteğe bağlı IP / user-agent. */
   ipAddress?: string | null;
   userAgent?: string | null;
+  /** Aksiyonun gerçekleştiği zaman. Use-case clock.now() ile doldurur. */
+  at?: Date;
 }
 
 export interface AuditLogger {

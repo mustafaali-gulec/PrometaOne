@@ -146,6 +146,7 @@ export default [
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
+      '@typescript-eslint/require-await': 'off',
       'no-console': 'off',
     },
   },
