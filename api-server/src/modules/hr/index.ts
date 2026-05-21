@@ -3,7 +3,7 @@
  *
  * PR 1 (Faz 4): OrgUnit + Department domain + ports + DTO + errors
  * PR 2 (Faz 4): Position + Employee domain + 20 application use-case
- * PR 3 (Faz 4): Recruitment (Candidate + Application) — gelecek
+ * PR 3 (Faz 4): Recruitment (Candidate + Application) — bu PR
  * PR 4 (Faz 4): Infrastructure + REST routes + DI — gelecek
  *
  * `registerHrModule` henüz YOK — app.ts'e bağlanması PR 4'te.
@@ -23,6 +23,10 @@ export { Position } from './domain/entities/Position.js';
 export type { PositionProps } from './domain/entities/Position.js';
 export { Employee } from './domain/entities/Employee.js';
 export type { EmployeeProps } from './domain/entities/Employee.js';
+export { Candidate } from './domain/entities/Candidate.js';
+export type { CandidateProps } from './domain/entities/Candidate.js';
+export { Application } from './domain/entities/Application.js';
+export type { ApplicationProps } from './domain/entities/Application.js';
 
 // ---------------------------------------------------------------------------
 // Domain — value objects
@@ -55,6 +59,18 @@ export {
 export { TcKimlik, InvalidTcKimlikError } from './domain/valueObjects/TcKimlik.js';
 export { PhoneNumber, InvalidPhoneNumberError } from './domain/valueObjects/PhoneNumber.js';
 export { HireDate, InvalidHireDateError } from './domain/valueObjects/HireDate.js';
+export { ALL_CANDIDATE_SOURCES, isCandidateSource } from './domain/valueObjects/CandidateSource.js';
+export type { CandidateSource } from './domain/valueObjects/CandidateSource.js';
+export {
+  ACTIVE_STAGES,
+  allowedStageTransitions,
+  ALL_RECRUITMENT_STAGES,
+  InvalidStageTransitionError,
+  isStageTransitionAllowed,
+  isTerminalStage,
+  TERMINAL_STAGES,
+} from './domain/valueObjects/RecruitmentStage.js';
+export type { RecruitmentStage } from './domain/valueObjects/RecruitmentStage.js';
 
 // ---------------------------------------------------------------------------
 // Domain — services
@@ -63,6 +79,9 @@ export { OrgTreeBuilder, OrgTreeCycleError } from './domain/services/OrgTreeBuil
 export type { OrgUnitTreeNode } from './domain/services/OrgTreeBuilder.js';
 export { SequentialEmployeeNumberGenerator } from './domain/services/EmployeeNumberGenerator.js';
 export type { EmployeeNumberGenerator } from './domain/services/EmployeeNumberGenerator.js';
+export { ApplicationStageTransitionPolicy } from './domain/services/ApplicationStageTransitionPolicy.js';
+export { HireFromApplicationPolicy } from './domain/services/HireFromApplicationPolicy.js';
+export type { HireFromApplicationInput as HireFromApplicationPolicyInput } from './domain/services/HireFromApplicationPolicy.js';
 
 // ---------------------------------------------------------------------------
 // Application — ports
@@ -84,6 +103,19 @@ export type {
   NewEmployeeInput,
 } from './application/ports/EmployeeRepository.js';
 export type { UserLookupPort, HrUserSummary } from './application/ports/UserLookupPort.js';
+export type {
+  CandidateRepository,
+  NewCandidateInput,
+} from './application/ports/CandidateRepository.js';
+export type {
+  ApplicationRepository,
+  NewApplicationInput,
+} from './application/ports/ApplicationRepository.js';
+export type {
+  ApplicationStageHistoryRepository,
+  ApplicationStageHistoryEntry,
+  NewApplicationStageHistoryInput,
+} from './application/ports/ApplicationStageHistoryRepository.js';
 
 // ---------------------------------------------------------------------------
 // Application — DTO
@@ -98,6 +130,12 @@ export { toPositionDto } from './application/dto/PositionDto.js';
 export type { PositionDto } from './application/dto/PositionDto.js';
 export { toEmployeeDto } from './application/dto/EmployeeDto.js';
 export type { EmployeeDto } from './application/dto/EmployeeDto.js';
+export { toCandidateDto } from './application/dto/CandidateDto.js';
+export type { CandidateDto } from './application/dto/CandidateDto.js';
+export { toApplicationDto } from './application/dto/ApplicationDto.js';
+export type { ApplicationDto, RecruitmentFunnelDto } from './application/dto/ApplicationDto.js';
+export { toApplicationStageHistoryDto } from './application/dto/ApplicationStageHistoryDto.js';
+export type { ApplicationStageHistoryDto } from './application/dto/ApplicationStageHistoryDto.js';
 
 // ---------------------------------------------------------------------------
 // Application — errors
@@ -120,6 +158,12 @@ export {
   UserAlreadyLinkedToEmployeeError,
   UserNotFoundForLinkError,
   EmployeeAlreadyTerminatedError,
+  CandidateNotFoundError,
+  CandidateHasActiveApplicationsError,
+  ApplicationNotFoundError,
+  CandidateAlreadyAppliedToPositionError,
+  PositionNotOpenError,
+  ApplicationAlreadyTerminalError,
 } from './application/errors/HrErrors.js';
 
 // ---------------------------------------------------------------------------
@@ -172,3 +216,31 @@ export { UnlinkEmployeeFromUserUseCase } from './application/useCases/UnlinkEmpl
 export type { UnlinkEmployeeFromUserInput } from './application/useCases/UnlinkEmployeeFromUserUseCase.js';
 export { ListEmployeesUseCase } from './application/useCases/ListEmployeesUseCase.js';
 export type { ListEmployeesInput } from './application/useCases/ListEmployeesUseCase.js';
+
+// Candidate (Recruitment — PR 3)
+export { RegisterCandidateUseCase } from './application/useCases/RegisterCandidateUseCase.js';
+export type { RegisterCandidateInput } from './application/useCases/RegisterCandidateUseCase.js';
+export { UpdateCandidateUseCase } from './application/useCases/UpdateCandidateUseCase.js';
+export type { UpdateCandidateInput } from './application/useCases/UpdateCandidateUseCase.js';
+export { DeleteCandidateUseCase } from './application/useCases/DeleteCandidateUseCase.js';
+export type { DeleteCandidateInput } from './application/useCases/DeleteCandidateUseCase.js';
+export { ListCandidatesUseCase } from './application/useCases/ListCandidatesUseCase.js';
+export type { ListCandidatesInput } from './application/useCases/ListCandidatesUseCase.js';
+
+// Application (Recruitment — PR 3)
+export { SubmitApplicationUseCase } from './application/useCases/SubmitApplicationUseCase.js';
+export type { SubmitApplicationInput } from './application/useCases/SubmitApplicationUseCase.js';
+export { MoveApplicationStageUseCase } from './application/useCases/MoveApplicationStageUseCase.js';
+export type { MoveApplicationStageInput } from './application/useCases/MoveApplicationStageUseCase.js';
+export { RejectApplicationUseCase } from './application/useCases/RejectApplicationUseCase.js';
+export type { RejectApplicationInput } from './application/useCases/RejectApplicationUseCase.js';
+export { WithdrawApplicationUseCase } from './application/useCases/WithdrawApplicationUseCase.js';
+export type { WithdrawApplicationInput } from './application/useCases/WithdrawApplicationUseCase.js';
+export { HireFromApplicationUseCase } from './application/useCases/HireFromApplicationUseCase.js';
+export type { HireFromApplicationInput } from './application/useCases/HireFromApplicationUseCase.js';
+export { ListApplicationsForPositionUseCase } from './application/useCases/ListApplicationsForPositionUseCase.js';
+export type { ListApplicationsForPositionInput } from './application/useCases/ListApplicationsForPositionUseCase.js';
+export { ListApplicationsForCandidateUseCase } from './application/useCases/ListApplicationsForCandidateUseCase.js';
+export type { ListApplicationsForCandidateInput } from './application/useCases/ListApplicationsForCandidateUseCase.js';
+export { GetRecruitmentFunnelUseCase } from './application/useCases/GetRecruitmentFunnelUseCase.js';
+export type { GetRecruitmentFunnelInput } from './application/useCases/GetRecruitmentFunnelUseCase.js';

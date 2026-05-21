@@ -141,3 +141,55 @@ export class EmployeeAlreadyTerminatedError extends Error {
     this.name = 'EmployeeAlreadyTerminatedError';
   }
 }
+
+// ============================================================================
+// Candidate (Recruitment — PR 3)
+// ============================================================================
+export class CandidateNotFoundError extends Error {
+  constructor(candidateId: number) {
+    super(`Candidate bulunamadı (id=${candidateId})`);
+    this.name = 'CandidateNotFoundError';
+  }
+}
+
+export class CandidateHasActiveApplicationsError extends Error {
+  constructor(candidateId: number) {
+    super(`Candidate (id=${candidateId}) aktif başvurusu olduğu için silinemez`);
+    this.name = 'CandidateHasActiveApplicationsError';
+  }
+}
+
+// ============================================================================
+// Application (Recruitment — PR 3)
+// ============================================================================
+export class ApplicationNotFoundError extends Error {
+  constructor(applicationId: number) {
+    super(`Application bulunamadı (id=${applicationId})`);
+    this.name = 'ApplicationNotFoundError';
+  }
+}
+
+export class CandidateAlreadyAppliedToPositionError extends Error {
+  constructor(candidateId: number, positionId: number) {
+    super(
+      `Candidate (id=${candidateId}) bu Position'a (id=${positionId}) zaten aktif başvurusu var`,
+    );
+    this.name = 'CandidateAlreadyAppliedToPositionError';
+  }
+}
+
+export class PositionNotOpenError extends Error {
+  constructor(positionId: number) {
+    super(`Position (id=${positionId}) başvuruya açık değil (status open olmalı)`);
+    this.name = 'PositionNotOpenError';
+  }
+}
+
+export class ApplicationAlreadyTerminalError extends Error {
+  constructor(applicationId: number, stage: string) {
+    super(
+      `Application (id=${applicationId}) zaten terminal stage'de (${stage}), bu işlem uygulanamaz`,
+    );
+    this.name = 'ApplicationAlreadyTerminalError';
+  }
+}
