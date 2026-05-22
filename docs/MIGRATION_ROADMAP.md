@@ -1,6 +1,6 @@
 # Prometa One — Migration Yol Haritası
 
-**Son güncelleme:** 2026-05-21 · **Faz:** 3 (Auth & Users) tamamlandı — Faz 4 (HR Core) sıradaki
+**Son güncelleme:** 2026-05-22 · **Faz:** 4 (HR Core) tamamlandı (8/8 PR) — Faz 5 (Finance: Bütçe & Kasa) sıradaki
 
 Bu dokümanın amacı: Strangler Fig migration'ının somut planı. Hangi modül hangi sırada çıkacak, her birinin tahmini büyüklüğü, risk seviyesi ve bağımlılıkları.
 
