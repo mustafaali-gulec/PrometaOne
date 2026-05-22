@@ -68,6 +68,21 @@ export { useEmployees } from './presentation/hooks/useEmployees';
 export type { UseEmployeesOptions, UseEmployeesResult } from './presentation/hooks/useEmployees';
 export { usePositions } from './presentation/hooks/usePositions';
 export type { UsePositionsOptions, UsePositionsResult } from './presentation/hooks/usePositions';
+export { useCandidates } from './presentation/hooks/useCandidates';
+export type {
+  UseCandidatesOptions,
+  UseCandidatesResult,
+} from './presentation/hooks/useCandidates';
+export { useApplications } from './presentation/hooks/useApplications';
+export type {
+  UseApplicationsOptions,
+  UseApplicationsResult,
+} from './presentation/hooks/useApplications';
+export { useRecruitmentFunnel } from './presentation/hooks/useRecruitmentFunnel';
+export type {
+  UseRecruitmentFunnelOptions,
+  UseRecruitmentFunnelResult,
+} from './presentation/hooks/useRecruitmentFunnel';
 
 // ---------------------------------------------------------------------------
 // Components
@@ -78,6 +93,12 @@ export { EmployeesTable } from './presentation/components/EmployeesTable';
 export type { EmployeesTableProps } from './presentation/components/EmployeesTable';
 export { PositionsList } from './presentation/components/PositionsList';
 export type { PositionsListProps } from './presentation/components/PositionsList';
+export { RecruitmentFunnel } from './presentation/components/RecruitmentFunnel';
+export type { RecruitmentFunnelProps } from './presentation/components/RecruitmentFunnel';
+export { ApplicationKanban } from './presentation/components/ApplicationKanban';
+export type { ApplicationKanbanProps } from './presentation/components/ApplicationKanban';
+export { CandidateForm } from './presentation/components/CandidateForm';
+export type { CandidateFormProps, CandidateFormValues } from './presentation/components/CandidateForm';
 
 // ---------------------------------------------------------------------------
 // Demo (test/manuel doğrulama)

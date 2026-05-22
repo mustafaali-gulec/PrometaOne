@@ -11,12 +11,18 @@ import { useMemo, useState } from 'react';
 import { StaticAuthTokenProvider } from '../application/ports/AuthTokenProvider';
 import type { HrApi } from '../application/ports/HrApi';
 import { HrApiClient } from '../infrastructure/api/HrApiClient';
+import { ApplicationKanban } from '../presentation/components/ApplicationKanban';
+import { CandidateForm } from '../presentation/components/CandidateForm';
 import { EmployeesTable } from '../presentation/components/EmployeesTable';
 import { OrgTreeView } from '../presentation/components/OrgTreeView';
 import { PositionsList } from '../presentation/components/PositionsList';
+import { RecruitmentFunnel } from '../presentation/components/RecruitmentFunnel';
+import { useApplications } from '../presentation/hooks/useApplications';
+import { useCandidates } from '../presentation/hooks/useCandidates';
 import { useEmployees } from '../presentation/hooks/useEmployees';
 import { useOrgTree } from '../presentation/hooks/useOrgTree';
 import { usePositions } from '../presentation/hooks/usePositions';
+import { useRecruitmentFunnel } from '../presentation/hooks/useRecruitmentFunnel';
 
 export interface HrDemoPageProps {
   apiBaseUrl?: string;
@@ -26,7 +32,7 @@ export interface HrDemoPageProps {
   companyId?: number;
 }
 
-type Tab = 'org' | 'employees' | 'positions';
+type Tab = 'org' | 'employees' | 'positions' | 'recruitment';
 
 export function HrDemoPage({
   apiBaseUrl = 'http://localhost:3000',
@@ -67,12 +73,16 @@ export function HrDemoPage({
         <TabButton active={tab === 'positions'} onClick={() => setTab('positions')}>
           Pozisyonlar
         </TabButton>
+        <TabButton active={tab === 'recruitment'} onClick={() => setTab('recruitment')}>
+          İşe Alım
+        </TabButton>
       </nav>
 
       <main style={{ marginTop: 16 }}>
         {tab === 'org' ? <OrgTab api={api} companyId={companyId} /> : null}
         {tab === 'employees' ? <EmployeesTab api={api} companyId={companyId} /> : null}
         {tab === 'positions' ? <PositionsTab api={api} companyId={companyId} /> : null}
+        {tab === 'recruitment' ? <RecruitmentTab api={api} companyId={companyId} /> : null}
       </main>
     </div>
   );
@@ -130,6 +140,236 @@ function PositionsTab({ api, companyId }: { api: HrApi; companyId: number }): JS
       onReload={() => void refetch()}
     >
       <PositionsList positions={positions} loading={loading} />
+    </Section>
+  );
+}
+
+function RecruitmentTab({ api, companyId }: { api: HrApi; companyId: number }): JSX.Element {
+  const { positions } = usePositions(api, companyId, { status: 'open' });
+  const [positionId, setPositionId] = useState<number | null>(null);
+
+  // İlk açık pozisyonu otomatik seç
+  const effectivePositionId =
+    positionId ?? (positions.length > 0 ? positions[0]!.id : null);
+
+  return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      <RecruitmentFunnelSection
+        api={api}
+        companyId={companyId}
+        positionId={effectivePositionId}
+      />
+
+      <Section
+        title="Açık Pozisyon Başvuruları"
+        loading={false}
+        error={null}
+        onReload={() => {
+          /* alt section kendi refetch'ini çalıştırır */
+        }}
+        toolbar={
+          <select
+            value={effectivePositionId ?? ''}
+            onChange={(ev) =>
+              setPositionId(ev.target.value === '' ? null : Number(ev.target.value))
+            }
+            style={{
+              padding: '6px 8px',
+              border: '1px solid var(--line, #d1d5db)',
+              borderRadius: 4,
+              fontSize: 12,
+            }}
+          >
+            <option value="">— Pozisyon seçin —</option>
+            {positions.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.title}
+              </option>
+            ))}
+          </select>
+        }
+      >
+        {effectivePositionId === null ? (
+          <div style={{ padding: 12, fontStyle: 'italic', color: 'var(--ink-muted, #888)' }}>
+            Açık pozisyon yok veya seçilmedi.
+          </div>
+        ) : (
+          <KanbanForPosition api={api} companyId={companyId} positionId={effectivePositionId} />
+        )}
+      </Section>
+
+      <CandidatesSection api={api} companyId={companyId} />
+    </div>
+  );
+}
+
+function RecruitmentFunnelSection({
+  api,
+  companyId,
+  positionId,
+}: {
+  api: HrApi;
+  companyId: number;
+  positionId: number | null;
+}): JSX.Element {
+  const { funnel, loading, error, refetch } = useRecruitmentFunnel(api, companyId, {
+    ...(positionId !== null ? { positionId } : {}),
+  });
+  return (
+    <Section
+      title={positionId === null ? 'Huni (Tüm Şirket)' : 'Huni (Pozisyon Bazlı)'}
+      loading={loading}
+      error={error}
+      onReload={() => void refetch()}
+    >
+      <RecruitmentFunnel funnel={funnel} loading={loading} />
+    </Section>
+  );
+}
+
+function KanbanForPosition({
+  api,
+  companyId,
+  positionId,
+}: {
+  api: HrApi;
+  companyId: number;
+  positionId: number;
+}): JSX.Element {
+  const { applications, loading, error, refetch } = useApplications(api, companyId, {
+    positionId,
+  });
+
+  const onMoveStage = async (
+    applicationId: number,
+    newStage: 'new' | 'screening' | 'interview' | 'offer' | 'hired' | 'rejected' | 'withdrawn',
+  ): Promise<void> => {
+    await api.moveApplicationStage(applicationId, { companyId, newStage });
+    await refetch();
+  };
+
+  if (error !== null) {
+    return (
+      <div
+        style={{
+          padding: 12,
+          background: 'var(--danger-bg, #fef2f2)',
+          color: 'var(--danger, #b91c1c)',
+          border: '1px solid var(--danger, #fca5a5)',
+          borderRadius: 6,
+          fontSize: 13,
+        }}
+      >
+        {error}
+      </div>
+    );
+  }
+  return (
+    <ApplicationKanban applications={applications} loading={loading} onMoveStage={onMoveStage} />
+  );
+}
+
+function CandidatesSection({
+  api,
+  companyId,
+}: {
+  api: HrApi;
+  companyId: number;
+}): JSX.Element {
+  const { candidates, loading, error, refetch } = useCandidates(api, companyId);
+  const [formOpen, setFormOpen] = useState<boolean>(false);
+
+  const handleSubmit = async (values: {
+    firstName: string;
+    lastName: string;
+    email: string | null;
+    phone: string | null;
+    source: 'referral' | 'linkedin' | 'jobboard' | 'direct' | 'agency' | 'other';
+    cvUrl: string | null;
+    notes: string | null;
+  }): Promise<void> => {
+    await api.registerCandidate({ companyId, ...values });
+    setFormOpen(false);
+    await refetch();
+  };
+
+  return (
+    <Section
+      title={`Aday Havuzu (${candidates.length})`}
+      loading={loading}
+      error={error}
+      onReload={() => void refetch()}
+      toolbar={
+        <button
+          type="button"
+          onClick={() => setFormOpen((v) => !v)}
+          style={{
+            padding: '6px 12px',
+            border: 'none',
+            background: 'var(--accent, #0066cc)',
+            color: '#fff',
+            borderRadius: 4,
+            cursor: 'pointer',
+            fontSize: 12,
+          }}
+        >
+          {formOpen ? 'Kapat' : '+ Yeni Aday'}
+        </button>
+      }
+    >
+      {formOpen ? (
+        <div
+          style={{
+            background: 'var(--paper-2, #f9fafb)',
+            border: '1px solid var(--line, #e5e7eb)',
+            borderRadius: 8,
+            padding: 16,
+            marginBottom: 12,
+          }}
+        >
+          <CandidateForm onSubmit={handleSubmit} onCancel={() => setFormOpen(false)} />
+        </div>
+      ) : null}
+      {candidates.length === 0 ? (
+        <div style={{ padding: 12, fontStyle: 'italic', color: 'var(--ink-muted, #888)' }}>
+          Aday yok. Yukarıdan yeni aday ekleyin.
+        </div>
+      ) : (
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
+          {candidates.map((c) => (
+            <li
+              key={c.id}
+              style={{
+                background: 'var(--paper, #fff)',
+                border: '1px solid var(--line, #e5e7eb)',
+                borderRadius: 6,
+                padding: '8px 12px',
+                fontSize: 13,
+                display: 'flex',
+                gap: 12,
+                alignItems: 'center',
+              }}
+            >
+              <strong>{c.fullName}</strong>
+              <span style={{ color: 'var(--ink-muted, #6b7280)', fontSize: 12 }}>
+                {c.email ?? '—'}
+              </span>
+              <span
+                style={{
+                  fontSize: 10,
+                  padding: '2px 6px',
+                  borderRadius: 3,
+                  background: 'var(--paper-2, #f3f4f6)',
+                  color: 'var(--ink-muted, #6b7280)',
+                  marginLeft: 'auto',
+                }}
+              >
+                {c.source}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </Section>
   );
 }
