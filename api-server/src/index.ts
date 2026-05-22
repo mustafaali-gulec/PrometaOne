@@ -13,7 +13,8 @@ import { config } from './config.js';
 import { closePool, healthCheck, pool } from './db.js';
 import { errorHandler } from './middleware/error.js';
 import { registerAiModule } from './modules/ai/index.js';
-import { registerAuthModule } from './modules/auth/index.js';
+import { PgUserRepository, registerAuthModule } from './modules/auth/index.js';
+import { registerHrModule } from './modules/hr/index.js';
 import { registerNotificationsModule } from './modules/notifications/index.js';
 import cellsRoutes from './routes/cells.js';
 import companiesRoutes from './routes/companies.js';
@@ -88,6 +89,15 @@ const authModule = registerAuthModule(
 );
 
 // ============================================================================
+// HR modülü (Faz 4) — AuthUserLookupAdapter için ayrı bir PgUserRepository
+// instance'ı; auth modülünün internal'ına dokunmuyoruz (ADR-0005)
+// ============================================================================
+const hrModule = registerHrModule({
+  pool,
+  authUserRepository: new PgUserRepository(pool),
+});
+
+// ============================================================================
 // Routes — /v1 prefix
 // ============================================================================
 const v1 = new Hono();
@@ -116,6 +126,7 @@ v1.get('/', (c) =>
 
 // Auth — YENI moduler endpoint (Faz 3 / PR 4 cutover)
 v1.route('/auth', authModule.router);
+v1.route('/hr', hrModule.router);
 
 // Companies + cells + invoices
 v1.route('/companies', companiesRoutes);

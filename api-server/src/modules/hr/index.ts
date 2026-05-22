@@ -4,9 +4,9 @@
  * PR 1 (Faz 4): OrgUnit + Department domain + ports + DTO + errors
  * PR 2 (Faz 4): Position + Employee domain + 20 application use-case
  * PR 3 (Faz 4): Recruitment (Candidate + Application) — bu PR
- * PR 4 (Faz 4): Infrastructure + REST routes + DI — gelecek
+ * PR 4 (Faz 4): Infrastructure + REST routes + DI — bu PR
  *
- * `registerHrModule` henüz YOK — app.ts'e bağlanması PR 4'te.
+ * `registerHrModule` artık var — app.ts içinden çağrılır.
  *
  * Karar dokümanı: docs/adr/0005-hr-manager-role-and-employee-user-link.md
  * Migration plan: docs/MIGRATION_ROADMAP.md § Faz 4 — HR Core (DETAYLI PLAN)
@@ -244,3 +244,218 @@ export { ListApplicationsForCandidateUseCase } from './application/useCases/List
 export type { ListApplicationsForCandidateInput } from './application/useCases/ListApplicationsForCandidateUseCase.js';
 export { GetRecruitmentFunnelUseCase } from './application/useCases/GetRecruitmentFunnelUseCase.js';
 export type { GetRecruitmentFunnelInput } from './application/useCases/GetRecruitmentFunnelUseCase.js';
+
+// ---------------------------------------------------------------------------
+// Infrastructure (PR 4a)
+// ---------------------------------------------------------------------------
+export { PgOrgUnitRepository } from './infrastructure/persistence/PgOrgUnitRepository.js';
+export { PgDepartmentRepository } from './infrastructure/persistence/PgDepartmentRepository.js';
+export { PgPositionRepository } from './infrastructure/persistence/PgPositionRepository.js';
+export { PgEmployeeRepository } from './infrastructure/persistence/PgEmployeeRepository.js';
+export { PgCandidateRepository } from './infrastructure/persistence/PgCandidateRepository.js';
+export { PgApplicationRepository } from './infrastructure/persistence/PgApplicationRepository.js';
+export { PgApplicationStageHistoryRepository } from './infrastructure/persistence/PgApplicationStageHistoryRepository.js';
+export { PgAuditLogger } from './infrastructure/audit/PgAuditLogger.js';
+export { PgEmployeeNumberGenerator } from './infrastructure/sequences/PgEmployeeNumberGenerator.js';
+export type { PgEmployeeNumberGeneratorOptions } from './infrastructure/sequences/PgEmployeeNumberGenerator.js';
+export { AuthUserLookupAdapter } from './infrastructure/auth/AuthUserLookupAdapter.js';
+
+// ---------------------------------------------------------------------------
+// Presentation (PR 4b)
+// ---------------------------------------------------------------------------
+export { createHrRouter } from './presentation/routes.js';
+export type { HrRouterDeps } from './presentation/routes.js';
+export { mapHrError } from './presentation/errorMapping.js';
+
+// ===========================================================================
+// DI Composition — registerHrModule
+// ===========================================================================
+import type { Hono } from 'hono';
+import type { Pool } from 'pg';
+
+import type { UserRepository as AuthUserRepository } from '../auth/index.js';
+
+import { systemClock as _systemClock } from './application/ports/Clock.js';
+import { ArchiveDepartmentUseCase as _ArchiveDepartmentUseCase } from './application/useCases/ArchiveDepartmentUseCase.js';
+import { ArchiveOrgUnitUseCase as _ArchiveOrgUnitUseCase } from './application/useCases/ArchiveOrgUnitUseCase.js';
+import { AssignDepartmentManagerUseCase as _AssignDepartmentManagerUseCase } from './application/useCases/AssignDepartmentManagerUseCase.js';
+import { ClosePositionUseCase as _ClosePositionUseCase } from './application/useCases/ClosePositionUseCase.js';
+import { CreateDepartmentUseCase as _CreateDepartmentUseCase } from './application/useCases/CreateDepartmentUseCase.js';
+import { CreateOrgUnitUseCase as _CreateOrgUnitUseCase } from './application/useCases/CreateOrgUnitUseCase.js';
+import { CreatePositionUseCase as _CreatePositionUseCase } from './application/useCases/CreatePositionUseCase.js';
+import { DeleteCandidateUseCase as _DeleteCandidateUseCase } from './application/useCases/DeleteCandidateUseCase.js';
+import { GetRecruitmentFunnelUseCase as _GetRecruitmentFunnelUseCase } from './application/useCases/GetRecruitmentFunnelUseCase.js';
+import { HireEmployeeUseCase as _HireEmployeeUseCase } from './application/useCases/HireEmployeeUseCase.js';
+import { HireFromApplicationUseCase as _HireFromApplicationUseCase } from './application/useCases/HireFromApplicationUseCase.js';
+import { LinkEmployeeToUserUseCase as _LinkEmployeeToUserUseCase } from './application/useCases/LinkEmployeeToUserUseCase.js';
+import { ListApplicationsForCandidateUseCase as _ListApplicationsForCandidateUseCase } from './application/useCases/ListApplicationsForCandidateUseCase.js';
+import { ListApplicationsForPositionUseCase as _ListApplicationsForPositionUseCase } from './application/useCases/ListApplicationsForPositionUseCase.js';
+import { ListCandidatesUseCase as _ListCandidatesUseCase } from './application/useCases/ListCandidatesUseCase.js';
+import { ListEmployeesUseCase as _ListEmployeesUseCase } from './application/useCases/ListEmployeesUseCase.js';
+import { ListOrgTreeForCompanyUseCase as _ListOrgTreeForCompanyUseCase } from './application/useCases/ListOrgTreeForCompanyUseCase.js';
+import { ListPositionsUseCase as _ListPositionsUseCase } from './application/useCases/ListPositionsUseCase.js';
+import { MoveApplicationStageUseCase as _MoveApplicationStageUseCase } from './application/useCases/MoveApplicationStageUseCase.js';
+import { MoveOrgUnitUseCase as _MoveOrgUnitUseCase } from './application/useCases/MoveOrgUnitUseCase.js';
+import { RegisterCandidateUseCase as _RegisterCandidateUseCase } from './application/useCases/RegisterCandidateUseCase.js';
+import { RejectApplicationUseCase as _RejectApplicationUseCase } from './application/useCases/RejectApplicationUseCase.js';
+import { SubmitApplicationUseCase as _SubmitApplicationUseCase } from './application/useCases/SubmitApplicationUseCase.js';
+import { TerminateEmployeeUseCase as _TerminateEmployeeUseCase } from './application/useCases/TerminateEmployeeUseCase.js';
+import { TransferEmployeeUseCase as _TransferEmployeeUseCase } from './application/useCases/TransferEmployeeUseCase.js';
+import { UnlinkEmployeeFromUserUseCase as _UnlinkEmployeeFromUserUseCase } from './application/useCases/UnlinkEmployeeFromUserUseCase.js';
+import { UpdateCandidateUseCase as _UpdateCandidateUseCase } from './application/useCases/UpdateCandidateUseCase.js';
+import { UpdateDepartmentUseCase as _UpdateDepartmentUseCase } from './application/useCases/UpdateDepartmentUseCase.js';
+import { UpdateEmployeeProfileUseCase as _UpdateEmployeeProfileUseCase } from './application/useCases/UpdateEmployeeProfileUseCase.js';
+import { UpdateOrgUnitUseCase as _UpdateOrgUnitUseCase } from './application/useCases/UpdateOrgUnitUseCase.js';
+import { UpdatePositionUseCase as _UpdatePositionUseCase } from './application/useCases/UpdatePositionUseCase.js';
+import { WithdrawApplicationUseCase as _WithdrawApplicationUseCase } from './application/useCases/WithdrawApplicationUseCase.js';
+import { PgAuditLogger as _PgAuditLogger } from './infrastructure/audit/PgAuditLogger.js';
+import { AuthUserLookupAdapter as _AuthUserLookupAdapter } from './infrastructure/auth/AuthUserLookupAdapter.js';
+import { PgApplicationRepository as _PgApplicationRepository } from './infrastructure/persistence/PgApplicationRepository.js';
+import { PgApplicationStageHistoryRepository as _PgApplicationStageHistoryRepository } from './infrastructure/persistence/PgApplicationStageHistoryRepository.js';
+import { PgCandidateRepository as _PgCandidateRepository } from './infrastructure/persistence/PgCandidateRepository.js';
+import { PgDepartmentRepository as _PgDepartmentRepository } from './infrastructure/persistence/PgDepartmentRepository.js';
+import { PgEmployeeRepository as _PgEmployeeRepository } from './infrastructure/persistence/PgEmployeeRepository.js';
+import { PgOrgUnitRepository as _PgOrgUnitRepository } from './infrastructure/persistence/PgOrgUnitRepository.js';
+import { PgPositionRepository as _PgPositionRepository } from './infrastructure/persistence/PgPositionRepository.js';
+import { PgEmployeeNumberGenerator as _PgEmployeeNumberGenerator } from './infrastructure/sequences/PgEmployeeNumberGenerator.js';
+import { createHrRouter as _createHrRouter } from './presentation/routes.js';
+
+export interface HrModuleDeps {
+  pool: Pool;
+  authUserRepository: AuthUserRepository;
+  employeeNumberOptions?: { prefix?: string; width?: number };
+}
+
+export interface RegisteredHrModule {
+  router: Hono;
+}
+
+/**
+ * HR modülünü PostgreSQL persistence + REST router'ı ile birlikte hazırlar.
+ *
+ * Kullanım (app.ts'de):
+ *   const hr = registerHrModule({ pool, authUserRepository });
+ *   app.route("/v1/hr", hr.router);
+ */
+export function registerHrModule(deps: HrModuleDeps): RegisteredHrModule {
+  const orgUnits = new _PgOrgUnitRepository(deps.pool);
+  const employees = new _PgEmployeeRepository(deps.pool);
+  const departments = new _PgDepartmentRepository(deps.pool);
+  const positions = new _PgPositionRepository(deps.pool);
+  const candidates = new _PgCandidateRepository(deps.pool);
+  const stageHistory = new _PgApplicationStageHistoryRepository(deps.pool);
+  const applications = new _PgApplicationRepository(deps.pool);
+  const audit = new _PgAuditLogger(deps.pool);
+  const empNoGen = new _PgEmployeeNumberGenerator(deps.pool, deps.employeeNumberOptions ?? {});
+  const userLookup = new _AuthUserLookupAdapter(deps.authUserRepository);
+  const clock = _systemClock;
+
+  const createOrgUnit = new _CreateOrgUnitUseCase(orgUnits, clock, audit);
+  const updateOrgUnit = new _UpdateOrgUnitUseCase(orgUnits, clock, audit);
+  const moveOrgUnit = new _MoveOrgUnitUseCase(orgUnits, clock, audit);
+  const archiveOrgUnit = new _ArchiveOrgUnitUseCase(orgUnits, clock, audit);
+  const listOrgTree = new _ListOrgTreeForCompanyUseCase(orgUnits);
+
+  const createDepartment = new _CreateDepartmentUseCase(departments, orgUnits, clock, audit);
+  const updateDepartment = new _UpdateDepartmentUseCase(departments, orgUnits, clock, audit);
+  const archiveDepartment = new _ArchiveDepartmentUseCase(departments, clock, audit);
+  const assignDepartmentManager = new _AssignDepartmentManagerUseCase(
+    departments,
+    employees,
+    clock,
+    audit,
+  );
+
+  const createPosition = new _CreatePositionUseCase(positions, departments, clock, audit);
+  const updatePosition = new _UpdatePositionUseCase(positions, departments, clock, audit);
+  const closePosition = new _ClosePositionUseCase(positions, clock, audit);
+  const listPositions = new _ListPositionsUseCase(positions);
+
+  const hireEmployee = new _HireEmployeeUseCase(
+    employees,
+    departments,
+    positions,
+    userLookup,
+    empNoGen,
+    clock,
+    audit,
+  );
+  const updateEmployeeProfile = new _UpdateEmployeeProfileUseCase(employees, clock, audit);
+  const transferEmployee = new _TransferEmployeeUseCase(
+    employees,
+    departments,
+    positions,
+    clock,
+    audit,
+  );
+  const terminateEmployee = new _TerminateEmployeeUseCase(employees, clock, audit);
+  const linkEmployeeToUser = new _LinkEmployeeToUserUseCase(employees, userLookup, clock, audit);
+  const unlinkEmployeeFromUser = new _UnlinkEmployeeFromUserUseCase(employees, clock, audit);
+  const listEmployees = new _ListEmployeesUseCase(employees);
+
+  const registerCandidate = new _RegisterCandidateUseCase(candidates, clock, audit);
+  const updateCandidate = new _UpdateCandidateUseCase(candidates, clock, audit);
+  const deleteCandidate = new _DeleteCandidateUseCase(candidates, applications, clock, audit);
+  const listCandidates = new _ListCandidatesUseCase(candidates);
+
+  const submitApplication = new _SubmitApplicationUseCase(
+    applications,
+    candidates,
+    positions,
+    clock,
+    audit,
+  );
+  const moveApplicationStage = new _MoveApplicationStageUseCase(applications, clock, audit);
+  const rejectApplication = new _RejectApplicationUseCase(applications, clock, audit);
+  const withdrawApplication = new _WithdrawApplicationUseCase(applications, clock, audit);
+  const hireFromApplication = new _HireFromApplicationUseCase(
+    applications,
+    candidates,
+    departments,
+    employees,
+    empNoGen,
+    clock,
+    audit,
+  );
+  const listApplicationsForPosition = new _ListApplicationsForPositionUseCase(applications);
+  const listApplicationsForCandidate = new _ListApplicationsForCandidateUseCase(applications);
+  const getRecruitmentFunnel = new _GetRecruitmentFunnelUseCase(applications);
+
+  const router = _createHrRouter({
+    createOrgUnit,
+    updateOrgUnit,
+    moveOrgUnit,
+    archiveOrgUnit,
+    listOrgTree,
+    createDepartment,
+    updateDepartment,
+    archiveDepartment,
+    assignDepartmentManager,
+    createPosition,
+    updatePosition,
+    closePosition,
+    listPositions,
+    hireEmployee,
+    updateEmployeeProfile,
+    transferEmployee,
+    terminateEmployee,
+    linkEmployeeToUser,
+    unlinkEmployeeFromUser,
+    listEmployees,
+    registerCandidate,
+    updateCandidate,
+    deleteCandidate,
+    listCandidates,
+    submitApplication,
+    moveApplicationStage,
+    rejectApplication,
+    withdrawApplication,
+    hireFromApplication,
+    listApplicationsForPosition,
+    listApplicationsForCandidate,
+    getRecruitmentFunnel,
+  });
+
+  void stageHistory;
+  return { router };
+}
