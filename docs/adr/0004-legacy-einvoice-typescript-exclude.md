@@ -1,9 +1,11 @@
 # 0004 — E-Fatura Modülünü Geçici Olarak TypeScript Exclude'ya Al
 
-- **Status:** Accepted
-- **Date:** 2026-05-19
+- **Status:** Closed — Faz 6 cutover ile çözüldü (2026-06-01). İstisna kaldırıldı; bkz. ADR-0008.
+- **Date:** 2026-05-19 (kapanış: 2026-06-01)
 - **Deciders:** Mustafa
-- **Supersedes:** Kısmen ADR-0002 (strict her yerde) — istisna olarak işaretlenir.
+- **Supersedes:** Kısmen ADR-0002 (strict her yerde) — istisna olarak işaretlenmişti, artık geçerli değil.
+
+> **Kapanış notu (2026-06-01):** Faz 6 tamamlandı. E-fatura `api-server/src/modules/finance/einvoice/` altında strict olarak yeniden yazıldı, FX `modules/finance/fx/`'e taşındı. Legacy `src/routes/einvoice.ts`, `src/services/einvoice/*` ve `src/services/tcmb.ts` silindi; `tsconfig.json` exclude satırları kaldırıldı; `cron.ts`'teki TCMB job sökülüp `modules/finance/fx`'e devredildi. `tsc --noEmit` → 0 hata. Bu ADR'nin geçici istisnası tamamen ortadan kalktı; aşağıdaki bitiş checklist'inin tamamı işaretlendi.
 
 ## Context
 
@@ -87,14 +89,14 @@ Bu istisna **geçicidir**:
 
 ## Bitiş Koşulu — Checklist
 
-Bu ADR `Superseded` durumuna geçer ne zaman:
+Bu ADR `Closed` durumuna geçti (2026-06-01) — tüm koşullar sağlandı:
 
-- [ ] `api-server/src/modules/finance/einvoice/` modülü tamamlandı
-- [ ] Tüm endpoint'ler yeni modülden serve ediliyor
-- [ ] E2E testleri geçiyor (eLogo SOAP, UBL parser)
-- [ ] `api-server/tsconfig.json` `exclude` listesinden einvoice satırları silindi
-- [ ] `tsc --noEmit` 0 hata
-- [ ] Eski `src/routes/einvoice.ts` ve `src/services/einvoice/*` silindi
+- [x] `api-server/src/modules/finance/einvoice/` modülü tamamlandı (+ `modules/finance/fx/`)
+- [x] Tüm endpoint'ler yeni modülden serve ediliyor (`/v1/finance/einvoice/*`, `/v1/finance/fx/*`)
+- [x] Birim + integration testleri geçiyor (UBL parser, MockProvider, ELogoProvider, FX revaluation; testcontainers PgEInvoice)
+- [x] `api-server/tsconfig.json` `exclude` listesinden einvoice satırları silindi
+- [x] `tsc --noEmit` 0 hata
+- [x] Eski `src/routes/einvoice.ts`, `src/services/einvoice/*` ve `src/services/tcmb.ts` silindi; `cron.ts` TCMB job'ı `modules/finance/fx`'e devredildi
 
 ## References
 

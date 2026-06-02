@@ -4,14 +4,14 @@
  * Tablo: departments (012_hr.sql). hasActiveEmployees employees tablosunu
  * sorgular.
  */
-import type { Pool } from 'pg';
-
 import type {
   DepartmentRepository,
   NewDepartmentInput,
 } from '../../application/ports/DepartmentRepository.js';
 import { Department } from '../../domain/entities/Department.js';
 import { DepartmentCode } from '../../domain/valueObjects/DepartmentCode.js';
+
+import type { Queryable } from './Queryable.js';
 
 interface DepartmentRow {
   id: number;
@@ -29,7 +29,7 @@ const COLS =
   'id, company_id, org_unit_id, name, code, manager_employee_id, active, created_at, updated_at';
 
 export class PgDepartmentRepository implements DepartmentRepository {
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: Queryable) {}
 
   async insert(input: NewDepartmentInput): Promise<Department> {
     const r = await this.pool.query<DepartmentRow>(

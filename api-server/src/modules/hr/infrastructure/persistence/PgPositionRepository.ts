@@ -4,14 +4,14 @@
  * Tablo: positions (012_hr.sql). PG NUMERIC alanlar string olarak döner,
  * domain'e geçirmeden Number'a parse edilir.
  */
-import type { Pool } from 'pg';
-
 import type {
   NewPositionInput,
   PositionRepository,
 } from '../../application/ports/PositionRepository.js';
 import { Position } from '../../domain/entities/Position.js';
 import type { PositionStatus } from '../../domain/valueObjects/PositionStatus.js';
+
+import type { Queryable } from './Queryable.js';
 
 interface PositionRow {
   id: number;
@@ -31,7 +31,7 @@ const COLS =
   'id, company_id, department_id, title, description, status, headcount_target, min_salary, max_salary, created_at, updated_at';
 
 export class PgPositionRepository implements PositionRepository {
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: Queryable) {}
 
   async insert(input: NewPositionInput): Promise<Position> {
     const r = await this.pool.query<PositionRow>(

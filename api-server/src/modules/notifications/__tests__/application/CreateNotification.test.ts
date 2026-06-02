@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { Notification } from '../../domain/entities/Notification.js';
 import type { Clock } from '../../application/ports/Clock.js';
 import type { EmailService, SendEmailRequest } from '../../application/ports/EmailService.js';
 import type { IdGenerator } from '../../application/ports/IdGenerator.js';
 import type { NotificationRepository } from '../../application/ports/NotificationRepository.js';
 import { CreateNotificationUseCase } from '../../application/useCases/CreateNotification.js';
+import type { Notification } from '../../domain/entities/Notification.js';
 
 class InMemoryNotificationRepo implements NotificationRepository {
   public saved: Notification[] = [];
@@ -100,7 +100,7 @@ describe('CreateNotificationUseCase', () => {
     assert.equal(email.sent[0]!.html, '<p>hi</p>');
   });
 
-  it('title/body override factory\'i geçer', async () => {
+  it("title/body override factory'i geçer", async () => {
     const repo = new InMemoryNotificationRepo();
     const email = new FakeEmailService();
     const uc = new CreateNotificationUseCase(repo, fixedClock, new SequentialIds(), email);

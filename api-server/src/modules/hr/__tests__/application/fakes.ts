@@ -39,6 +39,10 @@ import type {
   NewPositionInput,
   PositionRepository,
 } from '../../application/ports/PositionRepository.js';
+import type {
+  HrTransactionalRepositories,
+  UnitOfWork,
+} from '../../application/ports/UnitOfWork.js';
 import type { HrUserSummary, UserLookupPort } from '../../application/ports/UserLookupPort.js';
 import { Application } from '../../domain/entities/Application.js';
 import { Candidate } from '../../domain/entities/Candidate.js';
@@ -155,6 +159,16 @@ export class InMemoryOrgUnitRepository implements OrgUnitRepository {
     this.store.set(unit.id, unit);
     if (unit.id >= this.nextId) this.nextId = unit.id + 1;
   }
+
+  /** UoW snapshot/restore — fakes'in mevcut state'ini kopyalar. */
+  __snapshot(): { store: Map<number, OrgUnit>; nextId: number } {
+    return { store: new Map(this.store), nextId: this.nextId };
+  }
+  __restore(snap: { store: Map<number, OrgUnit>; nextId: number }): void {
+    this.store.clear();
+    for (const [k, v] of snap.store) this.store.set(k, v);
+    this.nextId = snap.nextId;
+  }
 }
 
 // ============================================================================
@@ -225,6 +239,15 @@ export class InMemoryDepartmentRepository implements DepartmentRepository {
   seed(dept: Department): void {
     this.store.set(dept.id, dept);
     if (dept.id >= this.nextId) this.nextId = dept.id + 1;
+  }
+
+  __snapshot(): { store: Map<number, Department>; nextId: number } {
+    return { store: new Map(this.store), nextId: this.nextId };
+  }
+  __restore(snap: { store: Map<number, Department>; nextId: number }): void {
+    this.store.clear();
+    for (const [k, v] of snap.store) this.store.set(k, v);
+    this.nextId = snap.nextId;
   }
 }
 
@@ -299,6 +322,15 @@ export class InMemoryPositionRepository implements PositionRepository {
   seed(p: Position): void {
     this.store.set(p.id, p);
     if (p.id >= this.nextId) this.nextId = p.id + 1;
+  }
+
+  __snapshot(): { store: Map<number, Position>; nextId: number } {
+    return { store: new Map(this.store), nextId: this.nextId };
+  }
+  __restore(snap: { store: Map<number, Position>; nextId: number }): void {
+    this.store.clear();
+    for (const [k, v] of snap.store) this.store.set(k, v);
+    this.nextId = snap.nextId;
   }
 }
 
@@ -456,6 +488,15 @@ export class InMemoryEmployeeRepository implements EmployeeRepository {
     this.store.set(e.id, e);
     if (e.id >= this.nextId) this.nextId = e.id + 1;
   }
+
+  __snapshot(): { store: Map<number, Employee>; nextId: number } {
+    return { store: new Map(this.store), nextId: this.nextId };
+  }
+  __restore(snap: { store: Map<number, Employee>; nextId: number }): void {
+    this.store.clear();
+    for (const [k, v] of snap.store) this.store.set(k, v);
+    this.nextId = snap.nextId;
+  }
 }
 
 // ============================================================================
@@ -475,6 +516,65 @@ export class InMemoryUserLookup implements UserLookupPort {
 }
 
 // ============================================================================
+// UnitOfWork fake — production semantiğini in-memory'de taklit eder
+// ============================================================================
+/**
+ * InMemoryUnitOfWork — `UnitOfWork` portu için fake implementasyon.
+ *
+ * `withTransaction(fn)` her in-memory fake'in mevcut state'inin snapshot'ını
+ * alır, `fn`'i çalıştırır. `fn` throw ederse snapshot'lar geri yüklenir
+ * (rollback semantiği). Normal dönerse snapshot bırakılır (commit).
+ *
+ * Mevcut fake instance'ların referansını sarsın — yani `fn` içindeki
+ * `repos.X` ile `ctx.X` aynı fake'i gösterir. Bu, tüm okumaların ister
+ * uow içinden ister dışından yapılsın aynı veriyi görmesini sağlar.
+ */
+export class InMemoryUnitOfWork implements UnitOfWork {
+  constructor(
+    private readonly orgUnits: InMemoryOrgUnitRepository,
+    private readonly departments: InMemoryDepartmentRepository,
+    private readonly positions: InMemoryPositionRepository,
+    private readonly employees: InMemoryEmployeeRepository,
+    private readonly candidates: InMemoryCandidateRepository,
+    private readonly applications: InMemoryApplicationRepository,
+    private readonly applicationHistory: InMemoryApplicationStageHistoryRepository,
+  ) {}
+
+  async withTransaction<T>(fn: (repos: HrTransactionalRepositories) => Promise<T>): Promise<T> {
+    const snap = {
+      orgUnits: this.orgUnits.__snapshot(),
+      departments: this.departments.__snapshot(),
+      positions: this.positions.__snapshot(),
+      employees: this.employees.__snapshot(),
+      candidates: this.candidates.__snapshot(),
+      applications: this.applications.__snapshot(),
+      applicationHistory: this.applicationHistory.__snapshot(),
+    };
+    const repos: HrTransactionalRepositories = {
+      orgUnits: this.orgUnits,
+      departments: this.departments,
+      positions: this.positions,
+      employees: this.employees,
+      candidates: this.candidates,
+      applications: this.applications,
+      applicationHistory: this.applicationHistory,
+    };
+    try {
+      return await fn(repos);
+    } catch (err) {
+      this.orgUnits.__restore(snap.orgUnits);
+      this.departments.__restore(snap.departments);
+      this.positions.__restore(snap.positions);
+      this.employees.__restore(snap.employees);
+      this.candidates.__restore(snap.candidates);
+      this.applications.__restore(snap.applications);
+      this.applicationHistory.__restore(snap.applicationHistory);
+      throw err;
+    }
+  }
+}
+
+// ============================================================================
 // Yardımcı: hızlı bir HR test context'i kur
 // ============================================================================
 export interface FakeHrContext {
@@ -488,6 +588,7 @@ export interface FakeHrContext {
   applications: InMemoryApplicationRepository;
   stageHistory: InMemoryApplicationStageHistoryRepository;
   users: InMemoryUserLookup;
+  uow: InMemoryUnitOfWork;
 }
 
 export function makeFakeHrContext(now?: Date): FakeHrContext {
@@ -501,6 +602,15 @@ export function makeFakeHrContext(now?: Date): FakeHrContext {
   const stageHistory = new InMemoryApplicationStageHistoryRepository();
   const applications = new InMemoryApplicationRepository(clock, stageHistory);
   const users = new InMemoryUserLookup();
+  const uow = new InMemoryUnitOfWork(
+    orgUnits,
+    departments,
+    positions,
+    employees,
+    candidates,
+    applications,
+    stageHistory,
+  );
   return {
     clock,
     audit,
@@ -512,6 +622,7 @@ export function makeFakeHrContext(now?: Date): FakeHrContext {
     applications,
     stageHistory,
     users,
+    uow,
   };
 }
 
@@ -590,6 +701,15 @@ export class InMemoryCandidateRepository implements CandidateRepository {
     this.store.set(c.id, c);
     if (c.id >= this.nextId) this.nextId = c.id + 1;
   }
+
+  __snapshot(): { store: Map<number, Candidate>; nextId: number } {
+    return { store: new Map(this.store), nextId: this.nextId };
+  }
+  __restore(snap: { store: Map<number, Candidate>; nextId: number }): void {
+    this.store.clear();
+    for (const [k, v] of snap.store) this.store.set(k, v);
+    this.nextId = snap.nextId;
+  }
 }
 
 // ============================================================================
@@ -621,6 +741,15 @@ export class InMemoryApplicationStageHistoryRepository implements ApplicationSta
     };
     this.entries.push(entry);
     return Promise.resolve(entry);
+  }
+
+  __snapshot(): { entries: ApplicationStageHistoryEntry[]; nextId: number } {
+    return { entries: [...this.entries], nextId: this.nextId };
+  }
+  __restore(snap: { entries: ApplicationStageHistoryEntry[]; nextId: number }): void {
+    this.entries.length = 0;
+    for (const e of snap.entries) this.entries.push(e);
+    this.nextId = snap.nextId;
   }
 }
 
@@ -752,5 +881,14 @@ export class InMemoryApplicationRepository implements ApplicationRepository {
   seed(a: Application): void {
     this.store.set(a.id, a);
     if (a.id >= this.nextId) this.nextId = a.id + 1;
+  }
+
+  __snapshot(): { store: Map<number, Application>; nextId: number } {
+    return { store: new Map(this.store), nextId: this.nextId };
+  }
+  __restore(snap: { store: Map<number, Application>; nextId: number }): void {
+    this.store.clear();
+    for (const [k, v] of snap.store) this.store.set(k, v);
+    this.nextId = snap.nextId;
   }
 }

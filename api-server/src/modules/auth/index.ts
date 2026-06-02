@@ -7,8 +7,8 @@
  * Dis dunyaya acilan tek arayuz BURASIDIR. Use-case'leri direkt import etmek
  * ESLint kuraliyla yasak (internal'a dokunma).
  */
-import type { Pool } from 'pg';
 import type { Hono } from 'hono';
+import type { Pool } from 'pg';
 
 import { systemClock, type Clock } from './application/ports/Clock.js';
 import { ChangePasswordUseCase } from './application/useCases/ChangePasswordUseCase.js';
@@ -21,8 +21,8 @@ import { RequestPasswordResetUseCase } from './application/useCases/RequestPassw
 import { ResetPasswordUseCase } from './application/useCases/ResetPasswordUseCase.js';
 import { VerifyPasswordResetTokenUseCase } from './application/useCases/VerifyPasswordResetTokenUseCase.js';
 import { BcryptPasswordHasher } from './infrastructure/bcrypt/BcryptPasswordHasher.js';
-import { JwtTokenIssuer, sha256Hex } from './infrastructure/jwt/JwtTokenIssuer.js';
 import { NodemailerPasswordResetEmailSender } from './infrastructure/email/NodemailerPasswordResetEmailSender.js';
+import { JwtTokenIssuer, sha256Hex } from './infrastructure/jwt/JwtTokenIssuer.js';
 import { PgPasswordResetTokenStore } from './infrastructure/persistence/PgPasswordResetTokenStore.js';
 import { PgRefreshSessionStore } from './infrastructure/persistence/PgRefreshSessionStore.js';
 import { PgUserRepository } from './infrastructure/persistence/PgUserRepository.js';
@@ -37,11 +37,7 @@ export { User } from './domain/entities/User.js';
 export type { UserProps } from './domain/entities/User.js';
 export { Email, InvalidEmailError } from './domain/valueObjects/Email.js';
 export { Password, WeakPasswordError } from './domain/valueObjects/Password.js';
-export {
-  isAtLeast,
-  ALL_USER_ROLES,
-  type UserRole,
-} from './domain/valueObjects/UserRole.js';
+export { isAtLeast, ALL_USER_ROLES, type UserRole } from './domain/valueObjects/UserRole.js';
 
 // Application Ports
 export type { PasswordHasher } from './application/ports/PasswordHasher.js';
@@ -179,10 +175,7 @@ export interface AuthModule {
   };
 }
 
-export function registerAuthModule(
-  cfg: AuthModuleConfig,
-  deps: AuthModuleDeps,
-): AuthModule {
+export function registerAuthModule(cfg: AuthModuleConfig, deps: AuthModuleDeps): AuthModule {
   const clock = deps.clock ?? systemClock;
 
   const users = new PgUserRepository(deps.pool);

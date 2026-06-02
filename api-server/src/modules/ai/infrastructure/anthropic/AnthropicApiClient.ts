@@ -4,7 +4,6 @@
  * fetch ile Anthropic Messages API'ye çağrı.
  * Eski api-server/src/routes/ai-proxy.ts mantığının TS strict versiyonu.
  */
-import type { ChatRequest } from '../../domain/entities/ChatRequest.js';
 import {
   ClaudeApiNetworkError,
   ClaudeApiNotConfiguredError,
@@ -12,6 +11,7 @@ import {
   type ClaudeApi,
   type ClaudeApiResponse,
 } from '../../application/ports/ClaudeApi.js';
+import type { ChatRequest } from '../../domain/entities/ChatRequest.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';

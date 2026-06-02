@@ -6,9 +6,9 @@
  */
 import type { Pool } from 'pg';
 
+import type { UserRepository } from '../../application/ports/UserRepository.js';
 import { User } from '../../domain/entities/User.js';
 import type { UserRole } from '../../domain/valueObjects/UserRole.js';
-import type { UserRepository } from '../../application/ports/UserRepository.js';
 
 interface UserRow {
   id: number;
@@ -71,10 +71,10 @@ export class PgUserRepository implements UserRepository {
   }
 
   async updatePasswordHash(userId: number, newHash: string): Promise<void> {
-    await this.pool.query(
-      `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
-      [newHash, userId],
-    );
+    await this.pool.query(`UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`, [
+      newHash,
+      userId,
+    ]);
   }
 
   async save(user: User): Promise<void> {

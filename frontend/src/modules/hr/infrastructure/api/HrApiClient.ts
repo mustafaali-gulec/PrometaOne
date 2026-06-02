@@ -173,10 +173,9 @@ export class HrApiClient implements HrApi {
   }
 
   unlinkEmployeeFromUser(id: number, companyId: number): Promise<EmployeeDto> {
-    return this.request<EmployeeDto>(
-      `/v1/hr/employees/${id}/link-user?companyId=${companyId}`,
-      { method: 'DELETE' },
-    );
+    return this.request<EmployeeDto>(`/v1/hr/employees/${id}/link-user?companyId=${companyId}`, {
+      method: 'DELETE',
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -197,10 +196,9 @@ export class HrApiClient implements HrApi {
   }
 
   async deleteCandidate(id: number, companyId: number): Promise<void> {
-    await this.request<{ ok: boolean }>(
-      `/v1/hr/candidates/${id}?companyId=${companyId}`,
-      { method: 'DELETE' },
-    );
+    await this.request<{ ok: boolean }>(`/v1/hr/candidates/${id}?companyId=${companyId}`, {
+      method: 'DELETE',
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -279,21 +277,32 @@ export class HrApiClient implements HrApi {
       ...(bodyStr !== undefined ? { body: bodyStr } : {}),
     });
 
+    // happy-dom + bazı fetch implementasyonlarında Response body iki kez
+    // okunamaz (ReadableStream lock). Bu yüzden tek seferde text() okuyup
+    // sonra parse ediyoruz. Bu hem error hem success path'i tek geçişte
+    // halleder.
+    if (response.status === 204) {
+      return undefined as unknown as T;
+    }
+
+    const raw = await response.text();
+
     if (!response.ok) {
       let message = `HTTP ${response.status}`;
-      try {
-        const body = (await response.json()) as { message?: string };
-        if (body.message !== undefined) message = body.message;
-      } catch {
-        /* ignore */
+      if (raw.length > 0) {
+        try {
+          const body = JSON.parse(raw) as { message?: string };
+          if (body.message !== undefined) message = body.message;
+        } catch {
+          // raw JSON değil — fallback HTTP status mesajı
+        }
       }
       throw new Error(message);
     }
 
-    // DELETE bazen boş döner
-    if (response.status === 204) {
+    if (raw.length === 0) {
       return undefined as unknown as T;
     }
-    return (await response.json()) as T;
+    return JSON.parse(raw) as T;
   }
 }

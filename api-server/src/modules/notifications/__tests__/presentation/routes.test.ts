@@ -10,14 +10,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Notification } from '../../domain/entities/Notification.js';
 import type { Clock } from '../../application/ports/Clock.js';
+import type { EmailService } from '../../application/ports/EmailService.js';
+import type { IdGenerator } from '../../application/ports/IdGenerator.js';
 import type { NotificationRepository } from '../../application/ports/NotificationRepository.js';
 import { CreateNotificationUseCase } from '../../application/useCases/CreateNotification.js';
 import { FetchNotificationsForUserUseCase } from '../../application/useCases/FetchNotificationsForUser.js';
 import { MarkNotificationAsReadUseCase } from '../../application/useCases/MarkNotificationAsRead.js';
-import type { EmailService } from '../../application/ports/EmailService.js';
-import type { IdGenerator } from '../../application/ports/IdGenerator.js';
+import type { Notification } from '../../domain/entities/Notification.js';
 import { createNotificationsRouter } from '../../presentation/routes.js';
 
 class InMemoryRepo implements NotificationRepository {

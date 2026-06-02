@@ -8,7 +8,7 @@
  *
  * Immutable, doğrulama ile.
  */
-import { ChatMessage } from './ChatMessage.js';
+import type { ChatMessage } from './ChatMessage.js';
 
 export interface ChatRequestProps {
   messages: ReadonlyArray<ChatMessage>;

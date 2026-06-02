@@ -1,6 +1,6 @@
 # Prometa One — Migration Yol Haritası
 
-**Son güncelleme:** 2026-05-22 · **Faz:** 4 (HR Core) tamamlandı (8/8 PR) — Faz 5 (Finance: Bütçe & Kasa) sıradaki
+**Son güncelleme:** 2026-06-01 · **Faz:** 6 (Finance: E-Fatura & Döviz) tamamlandı (8/8 PR + ADR-0004 kapanışı + ADR-0008) — Faz 7 (Payroll) sıradaki
 
 Bu dokümanın amacı: Strangler Fig migration'ının somut planı. Hangi modül hangi sırada çıkacak, her birinin tahmini büyüklüğü, risk seviyesi ve bağımlılıkları.
 
@@ -16,10 +16,10 @@ Bu dokümanın amacı: Strangler Fig migration'ının somut planı. Hangi modül
 | **1**     | First Module — Notifications | Eski cron+email → api-server modülü + frontend bell         | ✅ Tamam    |
 | **2**     | AI Widget + ML Proxy         | App.jsx'teki AI asistan → modules/ai/ + api-server ai-proxy | ✅ Tamam    |
 | **3**     | Auth & Users                 | Login, JWT, RBAC → modules/auth/ (frontend + backend)       | ✅ Tamam    |
-| **4**     | HR Core                      | Organizasyon, çalışanlar, pozisyonlar → modules/hr/         | 🟡 Sıradaki |
-| **5**     | Finance — Bütçe & Kasa       | Budget calendar + bank/kasa hücreleri                       | ⏳          |
-| **6**     | Finance — E-Fatura           | eLogo + UBL parser + TCMB                                   | ⏳          |
-| **7**     | Payroll                      | Türkiye bordro motoru (SGK/GV/DV/AR-Ge)                     | ⏳          |
+| **4**     | HR Core                      | Organizasyon, çalışanlar, pozisyonlar → modules/hr/         | ✅ Tamam    |
+| **5**     | Finance — Bütçe & Kasa       | Budget calendar + bank/kasa hücreleri                       | ✅ Tamam    |
+| **6**     | Finance — E-Fatura & Döviz   | eLogo + UBL parser + TCMB/EVDS + UFRS 21 değerleme          | ✅ Tamam    |
+| **7**     | Payroll                      | Türkiye bordro motoru (SGK/GV/DV/AR-Ge)                     | 🟡 Sıradaki |
 | **8**     | Attendance & İzin            | Puantaj + izin workflow                                     | ⏳          |
 | **9**     | Talep Sistemi                | Avans/masraf/zimmet                                         | ⏳          |
 | **10**    | Projeler                     | Gantt, kaynak, risk, kapsam                                 | ⏳          |
@@ -451,14 +451,199 @@ App.jsx'in genel `data` prop'undan `hrOrgUnits/hrDepartments/hrPositions/hrEmplo
 - modules/finance/ (her iki tarafta)
 - En kritik domain: Money value object, Currency, DateRange burada doğar
 
-### Faz 6 — Finance: E-Fatura
+> **NOT — mevcut şema:** `categories`, `cells` (003), `banks/bank_accounts/kasa_accounts/kasa_entries/transfers` (004), `invoices/invoice_payments/v_invoice_status` (005) tabloları **zaten var**. Faz 5 yeni tablo eklemez (gerekirse küçük ALTER migration'lar); mevcut şemanın üstüne temiz DDD modülü kurar (Strangler Fig). UoW pattern (ADR-0006) burada yoğun kullanılır: invoice payment, transfer, commit-to-cells hepsi atomik.
 
-- eLogo SOAP integration
-- UBL parser
-- TCMB döviz kuru tarihçesi
-- Revaluation
-- modules/finance/einvoice/ (sub-module)
-- Bağımlılık: Faz 5 (Money, Currency)
+#### Detaylı PR Planı
+
+**PR 1 — Foundation (domain VO'ları + iskelet)**
+
+- `Money` (NUMERIC(20,2) tabanlı, integer-kuruş aritmetiği — float yok), `Currency` (TRY/USD/EUR), `KdvRate` (0–1, default 0.20), `FiscalYear`, `MonthIndex` (0–11), `FlowDirection` (in/out), `CategorySection` (inflows/outflows/nonPnlOutflows/kasaCategories)
+- `modules/finance/` Clean Architecture iskeleti (domain/application/infrastructure/presentation)
+- Money aritmetik servisi: KDV hesaplama (subtotal→kdv→total), allocation (yuvarlama artığı dağıtımı)
+- Domain testleri (Money kuruş aritmetiği + KDV + tüm VO validation)
+
+**PR 2 — Budget: Category + Cell**
+
+- `Category` entity (section, name, sortOrder), `Cell` entity (category×fiscalYear×monthIdx→Money value)
+- `BudgetMatrix` domain service (12×N matris kurma/okuma)
+- Use-case: CreateCategory, RenameCategory, ReorderCategories, ArchiveCategory, GetBudgetMatrix, SetCellValue, BulkSetCells
+- Repository port'ları + DTO + errors + in-memory fakes + use-case testleri
+
+**PR 3 — Cash: Bank/Kasa accounts + KasaEntry + Transfer**
+
+- `Bank` (sistem geneli), `BankAccount`, `KasaAccount`, `KasaEntry`, `Transfer` entity'leri
+- `CashPositionCalculator` domain service (openingBalance + entries/transfers → güncel bakiye, currency bazlı)
+- Use-case: CRUD bank/kasa account, RecordKasaEntry, CreateTransfer (atomik — UoW), ListTransfers, GetCashPosition
+- Multi-currency transfer kuralı (from/to currency + amount ayrı)
+
+**PR 4 — Invoice + Payment**
+
+- `Invoice` (AR/AP, KDV, paid_amount), `InvoicePayment` entity'leri
+- `InvoiceStatusPolicy` (open/partial/paid/overdue), `Money` ile remaining hesabı
+- Use-case: CreateInvoice, UpdateInvoice, RecordPayment (atomik — paid_amount + status), DeletePayment, ListInvoices (status filter), GetOverdueInvoices
+- Payment → bank/kasa account bağı (opsiyonel)
+
+**PR 5 — Commit-to-Cells (UoW yoğun)**
+
+- `CashflowCommitPolicy` domain service: kasa entry / transfer / invoice payment → ilgili Cell'e Money ekler
+- Use-case: CommitKasaEntryToCells, CommitTransferToCells, CommitInvoiceToCells, BulkCommitPending — hepsi `UnitOfWork.withTransaction` içinde (cell update + committed flag atomik)
+- FinanceTransactionalRepositories (UnitOfWork genişletme)
+
+**PR 6 — Infrastructure**
+
+- 8+ Pg\* repository (PgCategory, PgCell, PgBankAccount, PgKasaAccount, PgKasaEntry, PgTransfer, PgInvoice, PgInvoicePayment) — hepsi `Queryable`
+- PgFinanceUnitOfWork + REST routes (Hono + zod) + requireRole + DI + app.ts mount
+- testcontainers integration testleri (trigger doğrulama: invoice paid_amount, v_invoice_status)
+
+**PR 7 — Frontend**
+
+- DTO + FinanceApiClient + hooks (useBudgetMatrix, useCashPosition, useInvoices, useCategories)
+- Component: BudgetMatrix (düzenlenebilir 12×N grid), CashPositionCards, InvoicesTable, TransferForm, KasaEntryForm
+- Vitest + Testing Library + MSW testleri
+
+**PR 8 — Cutover + Verification**
+
+- App.jsx'teki eski finance kodu sil → FinanceDemoPage mount
+- PHASE_5_VERIFICATION.md + CHANGELOG + ADR-0007 (Money kuruş aritmetiği kararı)
+
+**Tahmini:** 8 PR, ~3-4 hafta. Money VO Faz 6/7/10'un temeli.
+
+### Faz 6 — Finance: E-Fatura _(detaylı plan aşağıda)_
+
+- eLogo SOAP integration + UBL-TR 2.1 parser + TCMB/EVDS döviz kuru + kur farkı (revaluation)
+- modules/finance/einvoice/ + modules/finance/fx/ (alt modüller)
+- Bağımlılık: Faz 5 (Money, Currency, UoW)
+
+---
+
+## Faz 6 — Finance: E-Fatura (DETAYLI PLAN)
+
+İlk **dış sistem entegrasyonu** ağırlıklı modül: GİB e-Fatura (eLogo/QNB eFinans entegratörü, SOAP), UBL-TR 2.1 XML parse, TCMB/EVDS döviz kuru tarihçesi ve UFRS 21 kur farkı değerleme. Faz 5'in `Money`/`Currency`/UoW altyapısı üzerine kurulur; gelen e-faturaları `invoices` tablosuna (Faz 5) atomik import eder.
+
+### Hedef
+
+`api-server/src/routes/einvoice.ts` + `src/services/einvoice/**` + `src/services/tcmb.ts` (toplam ~1.341 satır, **ADR-0004 ile TS-exclude'da**) legacy kodunu `modules/finance/einvoice/` ve `modules/finance/fx/` altına TS strict olarak yeniden yaz. App.jsx'teki `EInvoiceManager` (Faz 5 cutover'ında ölü kod olarak bırakıldı, ~53 referans) ve FX/revaluation görünümleri yeni modüle cutover edilir.
+
+**ADR-0004 kapanışı:** Bu faz merge edildiğinde `api-server/tsconfig.json`'daki `src/routes/einvoice.ts` + `src/services/einvoice/**` exclude satırları silinir; legacy dosyalar kaldırılır.
+
+### Kritik ön-koşul: migration düzeltmesi
+
+`009_einvoice.sql` **bozuk** — `einvoice_*` tablolarını `company_id UUID`, `users(id) UUID`, `invoices(id) UUID` ile tanımlıyor; oysa gerçek şemada bunlar `INT/SERIAL/BIGSERIAL`. Bu yüzden 009 bugün hiçbir ortamda uygulanamıyor (HR integration testlerinde de patlamıştı). Faz 6:
+
+- `009_einvoice.sql` **devre dışı bırakılır/yerine geçilir**: yeni `016_einvoice.sql` doğru INT FK tipleriyle (`company_id INT → companies(id)`, `created_by INT → users(id)`, `imported_invoice_id BIGINT → invoices(id)`) yazılır.
+- Tablolar: `einvoice_credentials` (AES-256-GCM şifreli config), `einvoice_invoices` (entegratör cache), `einvoice_sync_log`, `einvoice_party_mapping` (VKN → mevcut müşteri/tedarikçi eşleme).
+- `006_exchange_rates_revaluations.sql` **zaten INT tabanlı ve doğru** — olduğu gibi kullanılır (`exchange_rate_history`, `v_current_rates`, `revaluations`).
+
+### Domain modeli
+
+```
+EInvoiceCredential (şirket × provider, şifreli config)
+       │ provider: elogo | qnb_efinans | mock
+       ▼
+EInvoiceProvider (port)  ──SOAP──▶  GİB / entegratör
+       │ fetchInvoices / fetchInvoiceXml / testConnection
+       ▼
+EInvoice (cache kaydı)  ──parse(UBL-TR 2.1)──▶  EInvoice + EInvoiceLine[]
+       │ direction: incoming/outgoing, ETTN, VKN, tutarlar (Money)
+       ▼
+Import → invoices (Faz 5)  + PartyMapping (VKN → mevcut karşı taraf)  [UoW atomik]
+
+ExchangeRate (TCMB/EVDS)  ──▶  Revaluation (kur farkı: 646 kambiyo karı / 656 zararı)
+```
+
+### Kapsam
+
+#### Backend (`api-server/src/modules/finance/einvoice/` + `.../fx/`)
+
+1. **Domain**
+   - `valueObjects/Vkn.ts` — VKN (10 hane) / TCKN (11 hane) doğrulama algoritması
+   - `valueObjects/Ettn.ts` — GİB ETTN/UUID format
+   - `valueObjects/InvoiceDirection.ts` (incoming/outgoing)
+   - `valueObjects/EInvoiceScenario.ts` (TEMELFATURA/TICARIFATURA/EARSIVFATURA)
+   - `valueObjects/EInvoiceType.ts` (SATIS/IADE/TEVKIFAT/ISTISNA/...)
+   - `valueObjects/GibStatus.ts` · `valueObjects/ProviderType.ts`
+   - `entities/EInvoice.ts` + `entities/EInvoiceLine.ts` (tutarlar Faz 5 `Money`; subtotal/kdv/tevkifat/ÖTV/konaklama)
+   - `entities/EInvoiceCredential.ts` · `entities/PartyMapping.ts`
+   - `services/UblInvoiceParser.ts` — UBL-TR 2.1 XML → EInvoice (saf, fixture'larla test edilir)
+   - **fx:** `entities/ExchangeRate.ts` · `entities/Revaluation.ts` + `services/RevaluationCalculator.ts` (kur farkı gain/loss, hesap bazlı)
+   - `errors/EInvoiceErrors.ts` (CredentialNotFound, ProviderAuthError, UblParseError, AlreadyImported, PartyMappingMissing, ...)
+
+2. **Application**
+   - **EInvoice:** `SyncEInvoicesUseCase` (provider → cache, idempotent UNIQUE(company,uuid)), `ImportEInvoiceUseCase` (cache → `invoices`, party mapping, **UoW atomik**), `IgnoreEInvoiceUseCase`, `ListEInvoicesUseCase` (filter: direction/date/pending), `GetSyncLogUseCase`
+   - **Credential:** `SaveCredentialUseCase` (şifreli yaz), `TestConnectionUseCase`, `DeleteCredentialUseCase`
+   - **PartyMapping:** `MapPartyUseCase`, `ListUnmappedPartiesUseCase`
+   - **FX:** `FetchAndStoreRatesUseCase` (TCMB/EVDS), `GetCurrentRatesUseCase`, `GetRateAtUseCase`, `CreateRevaluationUseCase`, `PostRevaluationUseCase`
+   - **Ports:** `EInvoiceProvider`, `CredentialCipher`, `EInvoiceRepository`, `EInvoiceCredentialRepository`, `SyncLogRepository`, `PartyMappingRepository`, `ExchangeRateRepository`, `RevaluationRepository`, `RateProvider` (TCMB), `Clock`
+   - DTO + in-memory fakes
+
+3. **Infrastructure**
+   - `provider/ELogoProvider.ts` (SOAP — legacy `elogo.ts` modernize) + `provider/MockProvider.ts` (test/demo)
+   - `crypto/AesGcmCredentialCipher.ts` (AES-256-GCM — legacy `crypto.ts` modernize, key env'den)
+   - `parser/` — UblInvoiceParser zaten domain'de saf; XML kütüphanesi adapter'ı burada
+   - `rates/TcmbRateProvider.ts` (EVDS — legacy `tcmb.ts` modernize)
+   - `persistence/` — `PgEInvoiceCredentialRepository`, `PgEInvoiceRepository`, `PgSyncLogRepository`, `PgPartyMappingRepository`, `PgExchangeRateRepository`, `PgRevaluationRepository` (hepsi `Queryable`)
+
+4. **Presentation** (`presentation/routes.ts`)
+   - E-Fatura: `GET /v1/finance/einvoice` (filter), `POST /v1/finance/einvoice/sync`, `POST /v1/finance/einvoice/:id/import`, `POST /v1/finance/einvoice/:id/ignore`, `GET /v1/finance/einvoice/sync-log`
+   - Credential: `GET|PUT|DELETE /v1/finance/einvoice/credentials`, `POST /v1/finance/einvoice/credentials/test`
+   - FX: `GET /v1/finance/fx/rates`, `POST /v1/finance/fx/rates/fetch`, `GET|POST /v1/finance/fx/revaluations`, `POST /v1/finance/fx/revaluations/:id/post`
+   - Yazma → `requireRole('cfo')`
+
+5. **DI:** `registerEInvoiceModule(pool, config)` — AES key + provider config env'den; `index.ts`'e mount
+
+#### Frontend (`frontend/src/modules/finance/` genişletme)
+
+- `infrastructure/api/EInvoiceApiClient.ts` (einvoice + fx endpoint'leri)
+- Hook'lar: `useEInvoices`, `useSyncStatus`, `useExchangeRates`, `useRevaluations`
+- Component'ler: `EInvoiceInbox` (gelen/giden tablo + import butonu), `SyncPanel` (sync tetikle + log), `CredentialForm`, `ExchangeRatePanel`, `RevaluationView`
+- `FinanceDemoPage`'e "E-Fatura" + "Döviz/FX" sekmeleri (`FinanceTab` union genişler)
+- Vitest + MSW testleri
+
+#### Migration Adapter (App.jsx)
+
+- `EInvoiceManager` ve FX/revaluation görünümleri silinir; ilgili view'lar `FinanceDemoPage` (initialTab="einvoice"/"fx") veya yeni view'a bağlanır.
+- Faz 5'te ölü kod bırakılan `EInvoiceManager` burada gerçekten sökülür.
+
+### Migration Adımları (PR olarak)
+
+1. **PR 1 — Foundation: 016 migration + domain VO + crypto** — `016_einvoice.sql` (INT FK düzeltmesi), VO'lar (Vkn/Ettn/scenario/type/status/provider), `EInvoiceCredential` entity + `CredentialCipher` port + `AesGcmCredentialCipher`, domain testleri (VKN/TCKN doğrulama vektörleri + crypto round-trip).
+2. **PR 2 — UBL-TR parser** — `EInvoice`/`EInvoiceLine` entity + `UblInvoiceParser` (saf domain servisi); gerçek UBL-TR 2.1 XML fixture'larıyla kapsamlı test (SATIS/IADE/TEVKIFAT/ISTISNA, döviz, çok kalemli).
+3. **PR 3 — Provider port + eLogo SOAP + Mock** — `EInvoiceProvider` port, `ELogoProvider` (SOAP, legacy modernize), `MockProvider`. testConnection/fetch testleri (MockProvider ile).
+4. **PR 4 — FX alt modülü** — `ExchangeRate`/`Revaluation` domain + `RevaluationCalculator` + `TcmbRateProvider` (EVDS) + use-case'ler (rate fetch/store, revaluation create/post).
+5. **PR 5 — Application: sync + import** — SyncEInvoices, ImportEInvoice (UoW atomik), Ignore, ListEInvoices, credential & party-mapping use-case'leri + portlar + fakes + testler.
+6. **PR 6 — Infrastructure + REST + DI + integration** — 6 Pg repo + routes + `registerEInvoiceModule` + app.ts mount; testcontainers (016+006 migration, crypto round-trip, import atomikliği, sync idempotency). **ADR-0004 exclude'ı kaldır + legacy `einvoice.ts`/`services/einvoice/**`/`tcmb.ts` sil.\*\*
+7. **PR 7 — Frontend** — EInvoiceApiClient + hook'lar + component'ler + FinanceDemoPage sekmeleri + Vitest.
+8. **PR 8 — Cutover + Verification** — App.jsx'ten `EInvoiceManager`+FX görünümleri sil → yeni modül mount; **ADR-0008** (e-fatura provider soyutlaması + AES kimlik şifreleme + "extract-on-demand" notu: e-fatura dış SOAP/compliance profili nedeniyle ileride ayrı servise çıkarmaya en güçlü aday); `PHASE_6_VERIFICATION.md` + CHANGELOG + roadmap metrikleri + ADR-0004 "closed" işaretle.
+
+### Riskler ve Önlemleri
+
+- **Risk:** 009→016 migration tip değişimi mevcut veriyi bozar. **Önlem:** einvoice verisi production'da yok (demo); 009 hiç uygulanamadığı için temiz başlanır. 016 idempotent (`IF NOT EXISTS`).
+- **Risk:** SOAP entegrasyonu test edilemez (canlı GİB gerekir). **Önlem:** `MockProvider` + kaydedilmiş SOAP/XML fixture'ları; `ELogoProvider` ince adapter, mantık parser/domain'de.
+- **Risk:** UBL-TR parse kenar durumları (tevkifat, istisna, ÖTV, döviz faturası). **Önlem:** Gerçek XML örnekleriyle 20+ parser testi; tutarlar `Money` ile kuruş-kesin.
+- **Risk:** Kimlik bilgisi (entegratör şifresi) sızıntısı. **Önlem:** AES-256-GCM at-rest şifreleme; anahtar env'den; testlerde sahte anahtar; log'a asla plaintext yazılmaz.
+- **Risk:** Aynı faturanın iki kez import'u. **Önlem:** `UNIQUE(company_id, uuid)` + `imported_invoice_id` kontrolü + import UoW atomik.
+- **Risk:** TCMB/EVDS API erişimi/limit. **Önlem:** `exchange_rate_history` cache; `RateProvider` port'u mock'lanabilir.
+
+### Test Beklentileri
+
+- `domain/`: %95+ — VKN/TCKN vektörleri, UblInvoiceParser tüm senaryolar, RevaluationCalculator gain/loss.
+- `application/`: %85+ — sync idempotency, import atomik + party mapping eksik, revaluation post.
+- `infrastructure/`: testcontainers — crypto round-trip, import transaction rollback, sync UNIQUE.
+- `presentation/`: rol bazlı erişim + 200/401/403/422.
+- Frontend: client (MSW) + hook + component testleri.
+
+### Çıkış Kriterleri
+
+- [ ] 8 PR merge edildi
+- [ ] Backend `npm run typecheck` + `npm test` + `npm run test:integration` temiz/geçer
+- [ ] Frontend `npm run typecheck` + `npm test` geçer
+- [ ] `016_einvoice.sql` INT FK ile uygulanıyor; `009` devre dışı
+- [ ] ADR-0004 exclude satırları kaldırıldı; legacy `einvoice`/`tcmb` dosyaları silindi
+- [ ] App.jsx'ten `EInvoiceManager` + FX görünümleri silindi
+- [ ] ADR-0008 yazıldı (provider soyutlama + kimlik şifreleme + extract-on-demand)
+- [ ] PHASE_6_VERIFICATION.md + CHANGELOG + roadmap metrikleri güncellendi
+
+**Tahmini:** 8 PR, ~3-4 hafta. İlk dış-entegrasyon fazı; mikroservis "extract-on-demand" için en güçlü aday modül.
 
 ### Faz 7 — Payroll
 

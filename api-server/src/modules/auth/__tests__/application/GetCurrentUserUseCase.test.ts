@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import { UserNotFoundError } from '../../application/errors/AuthErrors.js';
 import { GetCurrentUserUseCase } from '../../application/useCases/GetCurrentUserUseCase.js';
+
 import { InMemoryUserRepo } from './fakes.js';
 
 describe('GetCurrentUserUseCase', () => {

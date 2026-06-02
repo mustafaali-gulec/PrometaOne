@@ -4,11 +4,11 @@
  * App.jsx satır 12386'daki eski AIAssistantWidget'in modüler karşılığı.
  * Mevcut kullanıcı, mesaj listesi, gönder kutusu, yenile, error banner.
  */
-import { Bot, Send, Trash2, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import type { AiAssistantApi } from '../../application/ports/AiAssistantApi';
+import { Bot, Send, Trash2, Sparkles } from 'lucide-react';
 
+import type { AiAssistantApi } from '../../application/ports/AiAssistantApi';
 import { useAiChat, type UseAiChatOptions } from '../hooks/useAiChat';
 
 export interface AiAssistantWidgetProps {
@@ -146,9 +146,7 @@ function ChatBubble({ role, content }: ChatBubbleProps) {
       <div
         className={`max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-line
           ${
-            isUser
-              ? 'bg-emerald-600 text-white'
-              : 'bg-white border border-slate-200 text-slate-800'
+            isUser ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-800'
           }`}
       >
         {content}

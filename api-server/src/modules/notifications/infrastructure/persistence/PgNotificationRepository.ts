@@ -7,10 +7,10 @@
  */
 import type { Pool } from 'pg';
 
+import type { NotificationRepository } from '../../application/ports/NotificationRepository.js';
 import { Notification } from '../../domain/entities/Notification.js';
 import type { NotificationProps } from '../../domain/entities/Notification.js';
 import type { NotificationKind } from '../../domain/valueObjects/NotificationKind.js';
-import type { NotificationRepository } from '../../application/ports/NotificationRepository.js';
 
 interface NotificationRow {
   id: string;

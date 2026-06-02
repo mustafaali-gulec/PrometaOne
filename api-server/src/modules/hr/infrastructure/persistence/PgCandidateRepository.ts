@@ -3,8 +3,6 @@
  *
  * Tablo: candidates (012_hr.sql).
  */
-import type { Pool } from 'pg';
-
 import type {
   CandidateRepository,
   NewCandidateInput,
@@ -12,6 +10,8 @@ import type {
 import { Candidate } from '../../domain/entities/Candidate.js';
 import type { CandidateSource } from '../../domain/valueObjects/CandidateSource.js';
 import { PhoneNumber } from '../../domain/valueObjects/PhoneNumber.js';
+
+import type { Queryable } from './Queryable.js';
 
 interface CandidateRow {
   id: number;
@@ -31,7 +31,7 @@ const COLS =
   'id, company_id, first_name, last_name, email, phone, source, cv_url, notes, created_at, updated_at';
 
 export class PgCandidateRepository implements CandidateRepository {
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: Queryable) {}
 
   async insert(input: NewCandidateInput): Promise<Candidate> {
     const r = await this.pool.query<CandidateRow>(

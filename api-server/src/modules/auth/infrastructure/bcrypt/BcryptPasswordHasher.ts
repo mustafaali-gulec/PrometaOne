@@ -5,8 +5,8 @@
  */
 import bcrypt from 'bcryptjs';
 
-import type { Password } from '../../domain/valueObjects/Password.js';
 import type { PasswordHasher } from '../../application/ports/PasswordHasher.js';
+import type { Password } from '../../domain/valueObjects/Password.js';
 
 export interface BcryptPasswordHasherConfig {
   /** bcrypt salt rounds, 8-15 arası. Default 10. */

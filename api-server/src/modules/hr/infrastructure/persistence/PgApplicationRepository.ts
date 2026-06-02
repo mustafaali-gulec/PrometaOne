@@ -4,8 +4,6 @@
  * Tablo: applications (012_hr.sql). Stage geçişlerini takip eden trigger
  * application_stage_history'yi otomatik doldurur.
  */
-import type { Pool } from 'pg';
-
 import type {
   ApplicationRepository,
   NewApplicationInput,
@@ -15,6 +13,8 @@ import {
   TERMINAL_STAGES,
   type RecruitmentStage,
 } from '../../domain/valueObjects/RecruitmentStage.js';
+
+import type { Queryable } from './Queryable.js';
 
 interface ApplicationRow {
   id: number;
@@ -38,7 +38,7 @@ const COLS =
 const TERMINAL_LIST = TERMINAL_STAGES.map((s) => `'${s}'`).join(',');
 
 export class PgApplicationRepository implements ApplicationRepository {
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: Queryable) {}
 
   async insert(input: NewApplicationInput): Promise<Application> {
     const r = await this.pool.query<ApplicationRow>(

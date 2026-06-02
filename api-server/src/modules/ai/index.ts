@@ -6,7 +6,7 @@
  */
 import type { Hono } from 'hono';
 
-import { ChatWithAssistantUseCase } from './application/useCases/ChatWithAssistantUseCase.js';
+import type { ChatMessageDto, ChatRequestDto, ChatResponseDto } from './application/dto/ChatDto.js';
 import {
   ClaudeApiNetworkError,
   ClaudeApiNotConfiguredError,
@@ -14,11 +14,7 @@ import {
   type ClaudeApi,
   type ClaudeApiResponse,
 } from './application/ports/ClaudeApi.js';
-import type {
-  ChatMessageDto,
-  ChatRequestDto,
-  ChatResponseDto,
-} from './application/dto/ChatDto.js';
+import { ChatWithAssistantUseCase } from './application/useCases/ChatWithAssistantUseCase.js';
 import { ChatMessage } from './domain/entities/ChatMessage.js';
 import type { ChatMessageProps } from './domain/entities/ChatMessage.js';
 import { ChatRequest } from './domain/entities/ChatRequest.js';
@@ -33,11 +29,7 @@ import { createAiRouter } from './presentation/routes.js';
 export { ChatMessage, ChatRequest };
 export type { ChatMessageProps, ChatRequestProps, ChatRole };
 export { ChatWithAssistantUseCase };
-export {
-  ClaudeApiNetworkError,
-  ClaudeApiNotConfiguredError,
-  ClaudeApiUpstreamError,
-};
+export { ClaudeApiNetworkError, ClaudeApiNotConfiguredError, ClaudeApiUpstreamError };
 export type { ClaudeApi, ClaudeApiResponse };
 export type { ChatMessageDto, ChatRequestDto, ChatResponseDto };
 export { AnthropicApiClient };
@@ -63,13 +55,9 @@ export interface RegisteredAiModule {
   };
 }
 
-export function registerAiModule(
-  cfg: AiModuleConfig,
-  deps: AiModuleDeps = {},
-): RegisteredAiModule {
+export function registerAiModule(cfg: AiModuleConfig, deps: AiModuleDeps = {}): RegisteredAiModule {
   const claudeApi =
-    deps.claudeApi ??
-    new AnthropicApiClient({ apiKey: cfg.anthropicApiKey ?? null });
+    deps.claudeApi ?? new AnthropicApiClient({ apiKey: cfg.anthropicApiKey ?? null });
 
   const chat = new ChatWithAssistantUseCase(claudeApi);
   const router = createAiRouter({ chatUseCase: chat });

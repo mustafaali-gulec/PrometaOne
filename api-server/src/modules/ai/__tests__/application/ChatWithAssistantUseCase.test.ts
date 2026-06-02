@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { ChatRequest } from '../../domain/entities/ChatRequest.js';
 import type { ClaudeApi, ClaudeApiResponse } from '../../application/ports/ClaudeApi.js';
 import { ChatWithAssistantUseCase } from '../../application/useCases/ChatWithAssistantUseCase.js';
+import type { ChatRequest } from '../../domain/entities/ChatRequest.js';
 
 class FakeClaudeApi implements ClaudeApi {
   public lastRequest: ChatRequest | null = null;
@@ -15,7 +15,7 @@ class FakeClaudeApi implements ClaudeApi {
 }
 
 describe('ChatWithAssistantUseCase', () => {
-  it('DTO\'yu Claude API\'ye iletir ve cevabı DTO olarak döner', async () => {
+  it("DTO'yu Claude API'ye iletir ve cevabı DTO olarak döner", async () => {
     const fakeApi = new FakeClaudeApi({
       content: 'Selam! Sana nasıl yardımcı olabilirim?',
       model: 'claude-sonnet-4-20250514',
@@ -60,9 +60,6 @@ describe('ChatWithAssistantUseCase', () => {
       }
     }
     const uc = new ChatWithAssistantUseCase(new FailingApi());
-    await assert.rejects(
-      uc.execute({ messages: [{ role: 'user', content: 'hi' }] }),
-      /upstream/,
-    );
+    await assert.rejects(uc.execute({ messages: [{ role: 'user', content: 'hi' }] }), /upstream/);
   });
 });

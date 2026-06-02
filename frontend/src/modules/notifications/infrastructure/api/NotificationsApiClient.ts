@@ -1,9 +1,9 @@
 /**
  * NotificationsApiClient — NotificationsApi'nin fetch implementasyonu.
  */
+import type { FetchNotificationsResult } from '../../application/dto/NotificationDto';
 import type { AuthTokenProvider } from '../../application/ports/AuthTokenProvider';
 import type { NotificationsApi } from '../../application/ports/NotificationsApi';
-import type { FetchNotificationsResult } from '../../application/dto/NotificationDto';
 
 export class NotificationsApiClient implements NotificationsApi {
   constructor(

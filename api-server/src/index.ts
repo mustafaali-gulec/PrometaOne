@@ -14,12 +14,14 @@ import { closePool, healthCheck, pool } from './db.js';
 import { errorHandler } from './middleware/error.js';
 import { registerAiModule } from './modules/ai/index.js';
 import { PgUserRepository, registerAuthModule } from './modules/auth/index.js';
+import { registerEInvoiceModule } from './modules/finance/einvoice/index.js';
+import { registerFinanceModule } from './modules/finance/index.js';
 import { registerHrModule } from './modules/hr/index.js';
 import { registerNotificationsModule } from './modules/notifications/index.js';
 import cellsRoutes from './routes/cells.js';
 import companiesRoutes from './routes/companies.js';
 import invoicesRoutes from './routes/invoices.js';
-import { banks, kasa, transfers, fx, archives, audit, notifications, ai } from './routes/misc.js';
+import { banks, kasa, transfers, archives, audit, notifications, ai } from './routes/misc.js';
 import { startCron, stopCron } from './services/cron.js';
 
 // ============================================================================
@@ -98,6 +100,12 @@ const hrModule = registerHrModule({
 });
 
 // ============================================================================
+// Finance modülü (Faz 5) — Bütçe & Kasa & Fatura, modüler /v1/finance
+// ============================================================================
+const financeModule = registerFinanceModule(pool);
+const einvoiceModule = registerEInvoiceModule(pool);
+
+// ============================================================================
 // Routes — /v1 prefix
 // ============================================================================
 const v1 = new Hono();
@@ -127,6 +135,8 @@ v1.get('/', (c) =>
 // Auth — YENI moduler endpoint (Faz 3 / PR 4 cutover)
 v1.route('/auth', authModule.router);
 v1.route('/hr', hrModule.router);
+v1.route('/finance', financeModule);
+v1.route('/finance', einvoiceModule); // e-fatura + fx (Faz 6) — aynı prefix, /einvoice/* ve /fx/* yolları
 
 // Companies + cells + invoices
 v1.route('/companies', companiesRoutes);
@@ -137,11 +147,9 @@ v1.route('/companies', invoicesRoutes);
 v1.route('/banks', banks);
 v1.route('/companies', banks);
 
-// Kasa + transfers + FX + archives
+// Kasa + transfers + archives (FX → modules/finance/einvoice fx router, Faz 6 PR 8)
 v1.route('/companies', kasa);
 v1.route('/companies', transfers);
-v1.route('/', fx);
-v1.route('/companies', fx);
 v1.route('/companies', archives);
 
 // =======================================================================

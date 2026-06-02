@@ -3,12 +3,13 @@
  *
  * Kendi başına state tutmaz; useNotifications hook'unu çağırır.
  */
-import { Bell } from 'lucide-react';
 import { useState } from 'react';
 
-import type { NotificationsApi } from '../../application/ports/NotificationsApi';
+import { Bell } from 'lucide-react';
 
+import type { NotificationsApi } from '../../application/ports/NotificationsApi';
 import { useNotifications } from '../hooks/useNotifications';
+
 import { NotificationDropdown } from './NotificationDropdown';
 
 export interface NotificationBellProps {
@@ -19,8 +20,7 @@ export interface NotificationBellProps {
 
 export function NotificationBell({ api, onNavigate }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
-  const { notifications, unreadCount, loading, error, refresh, markAsRead } =
-    useNotifications(api);
+  const { notifications, unreadCount, loading, error, refresh, markAsRead } = useNotifications(api);
 
   return (
     <div className="relative">

@@ -3,8 +3,8 @@
  * Authorization: Bearer <token> header'ını bekler.
  * Geçerliyse context'e auth bilgilerini ekler.
  */
-import { HTTPException } from 'hono/http-exception';
 import type { MiddlewareHandler } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 import jwt from 'jsonwebtoken';
 
 import { config } from '../config.js';
@@ -43,14 +43,19 @@ export const authMiddleware: MiddlewareHandler = async (c, next) => {
     throw new HTTPException(401, { message: 'Geçersiz token' });
   }
 
-  if (!payload || typeof payload !== 'object' || payload.sub === undefined || payload.sub === null) {
+  if (
+    !payload ||
+    typeof payload !== 'object' ||
+    payload.sub === undefined ||
+    payload.sub === null
+  ) {
     throw new HTTPException(401, { message: 'Token formatı geçersiz' });
   }
 
   c.set('auth', {
     userId: Number(payload.sub),
     username: payload.username ?? '',
-    role: (payload.role ?? 'viewer') as UserRole,
+    role: payload.role ?? 'viewer',
   });
 
   await next();

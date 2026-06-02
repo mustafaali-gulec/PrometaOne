@@ -13,11 +13,5 @@
     }
   },
   "include": ["src/**/*"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "**/__tests__/**/*.snap",
-    "src/routes/einvoice.ts",
-    "src/services/einvoice/**"
-  ]
+  "exclude": ["node_modules", "dist", "**/__tests__/**/*.snap"]
 }

@@ -1,19 +1,17 @@
 /**
  * Test fixture'lari — in-memory implementasyonlar.
  */
-import { User } from '../../domain/entities/User.js';
-import type { UserRole } from '../../domain/valueObjects/UserRole.js';
 import type { Clock } from '../../application/ports/Clock.js';
 import type { PasswordHasher } from '../../application/ports/PasswordHasher.js';
-import type {
-  PasswordResetTokenRecord,
-  PasswordResetTokenStore,
-} from '../../application/ports/PasswordResetTokenStore.js';
 import type {
   PasswordResetEmailSender,
   PasswordResetEmailSenderResult,
   SendPasswordResetEmailInput,
 } from '../../application/ports/PasswordResetEmailSender.js';
+import type {
+  PasswordResetTokenRecord,
+  PasswordResetTokenStore,
+} from '../../application/ports/PasswordResetTokenStore.js';
 import type {
   CreateRefreshSessionInput,
   RefreshSession,
@@ -25,8 +23,10 @@ import type {
   RefreshTokenPayload,
   TokenIssuer,
 } from '../../application/ports/TokenIssuer.js';
-import type { Password } from '../../domain/valueObjects/Password.js';
 import type { UserRepository } from '../../application/ports/UserRepository.js';
+import { User } from '../../domain/entities/User.js';
+import type { Password } from '../../domain/valueObjects/Password.js';
+import type { UserRole } from '../../domain/valueObjects/UserRole.js';
 
 export function fakeClock(at: string = '2026-05-19T12:00:00Z'): Clock {
   return { now: () => new Date(at) };

@@ -31,6 +31,12 @@ export default [
       'frontend/src/main.jsx',
       'frontend/src/api.js',
       'frontend/src/utils/**',
+      // Legacy backend katmani — yeni mimari api-server/src/modules/ altinda.
+      // Bu route/service dosyalari kademeli olarak modullere tasinacak ve
+      // silinecek (Strangler Fig). Tip-aware lint yeni modul koduna uygulanir.
+      'api-server/src/routes/**',
+      'api-server/src/services/**',
+      'api-server/scripts/**',
     ],
   },
 
@@ -156,6 +162,21 @@ export default [
     files: ['*.config.{js,ts,cjs,mjs}', '**/*.config.{js,ts,cjs,mjs}'],
     languageOptions: {
       globals: { ...globals.node },
+    },
+  },
+
+  // 6b) Tooling + e2e — TS build project'ine dahil degil (tsconfig include disi).
+  // Type-aware parser bu dosyalari cozemiyor; tip-aware lint'i kapatiyoruz.
+  {
+    files: [
+      '**/*.config.{ts,mts,cts}',
+      'frontend/e2e/**/*.{ts,tsx}',
+      'frontend/playwright.config.ts',
+    ],
+    ...tseslint.configs.disableTypeChecked,
+    languageOptions: {
+      globals: { ...globals.node },
+      parserOptions: { projectService: false, project: false },
     },
   },
 

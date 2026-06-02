@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Notification } from '../../domain/entities/Notification.js';
 import type { Clock } from '../../application/ports/Clock.js';
 import type { NotificationRepository } from '../../application/ports/NotificationRepository.js';
 import {
@@ -9,6 +8,7 @@ import {
   NotificationForbiddenError,
   NotificationNotFoundError,
 } from '../../application/useCases/MarkNotificationAsRead.js';
+import { Notification } from '../../domain/entities/Notification.js';
 
 class InMemoryRepo implements NotificationRepository {
   constructor(public store: Notification[] = []) {}

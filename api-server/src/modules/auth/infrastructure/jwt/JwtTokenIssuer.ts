@@ -82,7 +82,7 @@ export class JwtTokenIssuer implements TokenIssuer {
       ) {
         throw new InvalidTokenError('Refresh token payload geçersiz');
       }
-      const p = payload as { sub: unknown; jti: unknown };
+      const p = payload;
       if (typeof p.sub !== 'number' || typeof p.jti !== 'string') {
         throw new InvalidTokenError('Refresh token alanları geçersiz tipte');
       }

@@ -63,10 +63,9 @@ function makeTools(): Tools {
     reject: new RejectApplicationUseCase(ctx.applications, ctx.clock, ctx.audit),
     withdraw: new WithdrawApplicationUseCase(ctx.applications, ctx.clock, ctx.audit),
     hire: new HireFromApplicationUseCase(
-      ctx.applications,
+      ctx.uow,
       ctx.candidates,
       ctx.departments,
-      ctx.employees,
       empNoGen,
       ctx.clock,
       ctx.audit,

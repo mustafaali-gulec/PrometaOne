@@ -7,7 +7,6 @@
 import { useEffect, useState } from 'react';
 
 import type { AuthTokenProvider } from '../application/ports/AuthTokenProvider';
-
 import { NotificationsApiClient } from '../infrastructure/api/NotificationsApiClient';
 import { NotificationBell } from '../presentation/components/NotificationBell';
 
@@ -48,7 +47,7 @@ export function NotificationsDemoPage({ apiBaseUrl }: NotificationsDemoPageProps
             Prometa One — Notifications Modülü Demo
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Strangler Fig: App.jsx'e dokunmadan yeni modülü test eder.
+            Strangler Fig: App.jsx&apos;e dokunmadan yeni modülü test eder.
           </p>
         </div>
         {token !== null && <NotificationBell api={api} />}
@@ -114,7 +113,7 @@ function LoginForm({ apiBaseUrl, onLogin }: LoginFormProps) {
   };
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={(e) => void submit(e)} className="space-y-4">
       <h2 className="text-base font-semibold text-slate-800">Login</h2>
       <div className="grid grid-cols-2 gap-4">
         <label className="block text-sm">
@@ -176,14 +175,13 @@ function LoggedInPanel({ user, onLogout }: LoggedInPanelProps) {
       </div>
       {user !== null && (
         <p className="text-sm text-slate-700">
-          {user.fullName ?? user.username}{' '}
-          <span className="text-slate-400">({user.role})</span>
+          {user.fullName ?? user.username} <span className="text-slate-400">({user.role})</span>
         </p>
       )}
       <p className="text-sm text-slate-600">
-        Sağ üstteki <strong>bell ikonuna</strong> tıkla. Backend boş cevap dönerse
-        "Henüz bildirim yok" göreceksin. Demo'da elle bildirim eklemek için Adminer
-        veya SQL ile <code>notifications</code> tablosuna kayıt at.
+        Sağ üstteki <strong>bell ikonuna</strong> tıkla. Backend boş cevap dönerse &quot;Henüz
+        bildirim yok&quot; göreceksin. Demo&apos;da elle bildirim eklemek için Adminer veya SQL ile{' '}
+        <code>notifications</code> tablosuna kayıt at.
       </p>
     </div>
   );
@@ -195,21 +193,20 @@ function ArchitectureNotes() {
       <h3 className="text-sm font-semibold text-emerald-900">Mimari notlar</h3>
       <ul className="mt-3 space-y-2 list-disc pl-5">
         <li>
-          Bu sayfa <code>frontend/notifications-demo.html</code> entry'sinden
-          çağrılıyor. <code>App.jsx</code>'e hiç dokunmadık.
+          Bu sayfa <code>frontend/notifications-demo.html</code> entry&apos;sinden çağrılıyor.{' '}
+          <code>App.jsx</code>&apos;e hiç dokunmadık.
         </li>
         <li>
-          Bell <code>frontend/src/modules/notifications/</code> altındaki
-          SOLID-katmanlı modülden geliyor.
+          Bell <code>frontend/src/modules/notifications/</code> altındaki SOLID-katmanlı modülden
+          geliyor.
         </li>
         <li>
-          Backend <code>/v1/notifications</code> endpoint'i ile gerçek HTTP
-          üzerinden konuşuyor (port 3000).
+          Backend <code>/v1/notifications</code> endpoint&apos;i ile gerçek HTTP üzerinden konuşuyor
+          (port 3000).
         </li>
         <li>
-          Faz 1'in sonunda App.jsx'in 79804. satırındaki eski local{' '}
-          <code>NotificationBell</code> silinecek ve üst-bar'a bu modüler bell
-          yerleşecek.
+          Faz 1&apos;in sonunda App.jsx&apos;in 79804. satırındaki eski local{' '}
+          <code>NotificationBell</code> silinecek ve üst-bar&apos;a bu modüler bell yerleşecek.
         </li>
       </ul>
     </section>

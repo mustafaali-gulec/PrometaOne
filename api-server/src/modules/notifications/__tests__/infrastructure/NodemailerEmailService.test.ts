@@ -17,8 +17,7 @@ describe('NodemailerEmailService', () => {
     transporter.sendMail = (async (msg: unknown) => {
       captured = msg;
       return { messageId: 'm-1' };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    }) as any;
+    }) as unknown as typeof transporter.sendMail;
 
     await service.send({
       to: 'a@b.com',

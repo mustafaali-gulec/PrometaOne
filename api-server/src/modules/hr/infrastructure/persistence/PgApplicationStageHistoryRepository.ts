@@ -7,14 +7,14 @@
  * satır ekler. Use-case'lerin explicit record() çağrısı için manuel insert
  * de destekleniyor (uzun vadede paralel yazılım için).
  */
-import type { Pool } from 'pg';
-
 import type {
   ApplicationStageHistoryEntry,
   ApplicationStageHistoryRepository,
   NewApplicationStageHistoryInput,
 } from '../../application/ports/ApplicationStageHistoryRepository.js';
 import type { RecruitmentStage } from '../../domain/valueObjects/RecruitmentStage.js';
+
+import type { Queryable } from './Queryable.js';
 
 interface HistoryRow {
   id: number;
@@ -29,7 +29,7 @@ interface HistoryRow {
 const COLS = 'id, application_id, from_stage, to_stage, changed_by, changed_at, note';
 
 export class PgApplicationStageHistoryRepository implements ApplicationStageHistoryRepository {
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: Queryable) {}
 
   async findByApplication(
     applicationId: number,

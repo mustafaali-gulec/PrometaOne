@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { LogoutUseCase } from '../../application/useCases/LogoutUseCase.js';
+
 import { InMemoryRefreshSessionStore } from './fakes.js';
 
 describe('LogoutUseCase', () => {
-  it('refresh session\'ı revoke eder', async () => {
+  it("refresh session'ı revoke eder", async () => {
     const sessions = new InMemoryRefreshSessionStore();
     await sessions.create({
       jti: 'jti-1',

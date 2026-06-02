@@ -4,14 +4,14 @@
  * Tablo: org_units (012_hr.sql).
  * Multi-tenant: tüm sorgular companyId ile sınırlanır.
  */
-import type { Pool } from 'pg';
-
 import type {
   NewOrgUnitInput,
   OrgUnitRepository,
 } from '../../application/ports/OrgUnitRepository.js';
 import { OrgUnit } from '../../domain/entities/OrgUnit.js';
 import { OrgUnitCode } from '../../domain/valueObjects/OrgUnitCode.js';
+
+import type { Queryable } from './Queryable.js';
 
 interface OrgUnitRow {
   id: number;
@@ -28,7 +28,7 @@ interface OrgUnitRow {
 const COLS = 'id, company_id, parent_id, name, code, sort_order, active, created_at, updated_at';
 
 export class PgOrgUnitRepository implements OrgUnitRepository {
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: Queryable) {}
 
   async insert(input: NewOrgUnitInput): Promise<OrgUnit> {
     const r = await this.pool.query<OrgUnitRow>(

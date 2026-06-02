@@ -10,8 +10,6 @@
  *
  * PG hata kodu '23505' use-case'lere yansıtılır; use-case tipli error'a çevirir.
  */
-import type { Pool } from 'pg';
-
 import type {
   EmployeeRepository,
   NewEmployeeInput,
@@ -23,6 +21,8 @@ import type { EmploymentType } from '../../domain/valueObjects/EmploymentType.js
 import { HireDate } from '../../domain/valueObjects/HireDate.js';
 import { PhoneNumber } from '../../domain/valueObjects/PhoneNumber.js';
 import { TcKimlik } from '../../domain/valueObjects/TcKimlik.js';
+
+import type { Queryable } from './Queryable.js';
 
 interface EmployeeRow {
   id: number;
@@ -51,7 +51,7 @@ const COLS =
   'source_application_id, created_at, updated_at';
 
 export class PgEmployeeRepository implements EmployeeRepository {
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: Queryable) {}
 
   async insert(input: NewEmployeeInput): Promise<Employee> {
     const r = await this.pool.query<EmployeeRow>(

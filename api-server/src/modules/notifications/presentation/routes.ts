@@ -12,13 +12,12 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 
 import { authMiddleware } from '../../../middleware/auth.js';
-
+import type { CreateNotificationUseCase } from '../application/useCases/CreateNotification.js';
+import type { FetchNotificationsForUserUseCase } from '../application/useCases/FetchNotificationsForUser.js';
 import {
   NotificationForbiddenError,
   NotificationNotFoundError,
 } from '../application/useCases/MarkNotificationAsRead.js';
-import type { CreateNotificationUseCase } from '../application/useCases/CreateNotification.js';
-import type { FetchNotificationsForUserUseCase } from '../application/useCases/FetchNotificationsForUser.js';
 import type { MarkNotificationAsReadUseCase } from '../application/useCases/MarkNotificationAsRead.js';
 
 export interface NotificationsRouterDeps {

@@ -9,13 +9,10 @@
  * 5. Tüm refresh session'ları revoke (güvenlik: eski oturumlar geçersiz)
  */
 import { Password } from '../../domain/valueObjects/Password.js';
+import { CurrentPasswordMismatchError, InvalidCredentialsError } from '../errors/AuthErrors.js';
 import type { PasswordHasher } from '../ports/PasswordHasher.js';
 import type { RefreshSessionStore } from '../ports/RefreshSessionStore.js';
 import type { UserRepository } from '../ports/UserRepository.js';
-import {
-  CurrentPasswordMismatchError,
-  InvalidCredentialsError,
-} from '../errors/AuthErrors.js';
 
 export interface ChangePasswordUseCaseDeps {
   users: UserRepository;

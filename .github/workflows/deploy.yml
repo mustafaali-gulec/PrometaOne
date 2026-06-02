@@ -1,0 +1,55 @@
+name: Deploy (self-hosted · local Docker)
+
+# Otomatik deploy: master/main'e push olunca PC'ndeki self-hosted runner
+# build + test yapar, ardından docker-compose ile servisleri ayağa kaldırır.
+# Manuel tetikleme için Actions sekmesinden "Run workflow" da kullanılabilir.
+
+on:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-local
+  cancel-in-progress: true
+
+jobs:
+  build-test-deploy:
+    name: Build · Test · Deploy
+    runs-on: [self-hosted]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Deploy (docker compose up)
+        run: docker compose up -d --build
+
+      - name: Servis durumu
+        run: docker compose ps
+
+      - name: İşlem logu yaz
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p deploy
+          echo "$(date '+%Y-%m-%d %H:%M:%S') | commit=${GITHUB_SHA::8} | branch=${GITHUB_REF_NAME} | sonuc=${{ job.status }}" >> deploy/deploy-history.log
+          echo "Son deploy kaydı:"
+          tail -n 1 deploy/deploy-history.log

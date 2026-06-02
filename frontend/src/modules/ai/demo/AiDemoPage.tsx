@@ -7,7 +7,6 @@
 import { useEffect, useState } from 'react';
 
 import type { AuthTokenProvider } from '../application/ports/AuthTokenProvider';
-
 import { AiAssistantApiClient } from '../infrastructure/api/AiAssistantApiClient';
 import { AiAssistantWidget } from '../presentation/components/AiAssistantWidget';
 
@@ -40,11 +39,10 @@ export function AiDemoPage({ apiBaseUrl }: AiDemoPageProps) {
   return (
     <main className="max-w-4xl mx-auto px-6 py-10 space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-slate-900">
-          Prometa One — AI Asistan Modülü Demo
-        </h1>
+        <h1 className="text-2xl font-bold text-slate-900">Prometa One — AI Asistan Modülü Demo</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Strangler Fig: App.jsx'in 12386. satırındaki eski AIAssistantWidget yerinde, yeni modüler widget burada.
+          Strangler Fig: App.jsx&apos;in 12386. satırındaki eski AIAssistantWidget yerinde, yeni
+          modüler widget burada.
         </p>
       </header>
 
@@ -127,7 +125,7 @@ function LoginForm({ apiBaseUrl, onLogin }: LoginFormProps) {
   };
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={(e) => void submit(e)} className="space-y-4">
       <h2 className="text-base font-semibold text-slate-800">Login</h2>
       <div className="grid grid-cols-2 gap-4">
         <label className="block text-sm">
@@ -175,19 +173,19 @@ function ArchitectureNotes() {
       <h3 className="font-semibold text-emerald-900">Mimari notlar</h3>
       <ul className="mt-3 space-y-1.5 list-disc pl-5">
         <li>
-          Bu sayfa <code>frontend/ai-demo.html</code> entry'sinden çağrılıyor. <code>App.jsx</code>'e
-          dokunulmadı.
+          Bu sayfa <code>frontend/ai-demo.html</code> entry&apos;sinden çağrılıyor.{' '}
+          <code>App.jsx</code>&apos;e dokunulmadı.
         </li>
         <li>
           Widget <code>frontend/src/modules/ai/</code> altındaki SOLID-katmanlı modülden geliyor.
         </li>
         <li>
-          Backend <code>/v1/ai/chat</code> endpoint'i ile gerçek HTTP üzerinden konuşuyor; backend
-          modülünün use-case'i Claude API'ye iletiyor.
+          Backend <code>/v1/ai/chat</code> endpoint&apos;i ile gerçek HTTP üzerinden konuşuyor;
+          backend modülünün use-case&apos;i Claude API&apos;ye iletiyor.
         </li>
         <li>
-          ANTHROPIC_API_KEY eklenmemişse "AI servisi yapılandırılmamış" mesajı görürsün — bu doğru
-          davranış (ClaudeApiNotConfiguredError).
+          ANTHROPIC_API_KEY eklenmemişse &quot;AI servisi yapılandırılmamış&quot; mesajı görürsün —
+          bu doğru davranış (ClaudeApiNotConfiguredError).
         </li>
       </ul>
     </section>

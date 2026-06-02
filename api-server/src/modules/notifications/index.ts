@@ -10,7 +10,11 @@ import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import type { Pool } from 'pg';
 
+import { toNotificationDto, type NotificationDto } from './application/dto/NotificationDto.js';
 import { systemClock, type Clock } from './application/ports/Clock.js';
+import type { EmailService, SendEmailRequest } from './application/ports/EmailService.js';
+import type { IdGenerator } from './application/ports/IdGenerator.js';
+import type { NotificationRepository } from './application/ports/NotificationRepository.js';
 import {
   CreateNotificationUseCase,
   type CreateNotificationInput,
@@ -43,16 +47,6 @@ import {
   type TaskDueSoonKind,
   type TaxDeadlineWarningKind,
 } from './domain/valueObjects/NotificationKind.js';
-import {
-  toNotificationDto,
-  type NotificationDto,
-} from './application/dto/NotificationDto.js';
-import type {
-  EmailService,
-  SendEmailRequest,
-} from './application/ports/EmailService.js';
-import type { IdGenerator } from './application/ports/IdGenerator.js';
-import type { NotificationRepository } from './application/ports/NotificationRepository.js';
 import {
   CronScheduler,
   type CronJobDefinition,

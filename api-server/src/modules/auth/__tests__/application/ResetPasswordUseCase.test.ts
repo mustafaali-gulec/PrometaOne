@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { InvalidPasswordResetTokenError } from '../../application/errors/AuthErrors.js';
-import { WeakPasswordError } from '../../domain/valueObjects/Password.js';
 import { ResetPasswordUseCase } from '../../application/useCases/ResetPasswordUseCase.js';
+import { WeakPasswordError } from '../../domain/valueObjects/Password.js';
 
 import {
   FakePasswordHasher,
@@ -41,7 +41,7 @@ async function build() {
 }
 
 describe('ResetPasswordUseCase', () => {
-  it('happy path: hash güncellenir, token markUsed, session\'lar revoke', async () => {
+  it("happy path: hash güncellenir, token markUsed, session'lar revoke", async () => {
     const { useCase, users, tokens, sessions } = await build();
     await useCase.execute({ token: 'valid-token', newPassword: 'newpass123' });
     assert.equal(await users.findPasswordHashByUserId(1), 'hash-of(newpass123)');

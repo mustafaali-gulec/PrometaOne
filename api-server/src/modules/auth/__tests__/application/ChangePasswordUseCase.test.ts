@@ -5,14 +5,10 @@ import {
   CurrentPasswordMismatchError,
   InvalidCredentialsError,
 } from '../../application/errors/AuthErrors.js';
-import { WeakPasswordError } from '../../domain/valueObjects/Password.js';
 import { ChangePasswordUseCase } from '../../application/useCases/ChangePasswordUseCase.js';
+import { WeakPasswordError } from '../../domain/valueObjects/Password.js';
 
-import {
-  FakePasswordHasher,
-  InMemoryRefreshSessionStore,
-  InMemoryUserRepo,
-} from './fakes.js';
+import { FakePasswordHasher, InMemoryRefreshSessionStore, InMemoryUserRepo } from './fakes.js';
 
 function build(opts: { passwordHash?: string } = {}) {
   const users = InMemoryUserRepo.withSeed({
@@ -37,7 +33,7 @@ function build(opts: { passwordHash?: string } = {}) {
 }
 
 describe('ChangePasswordUseCase', () => {
-  it('happy path: hash güncellenir, tüm session\'lar revoke edilir', async () => {
+  it("happy path: hash güncellenir, tüm session'lar revoke edilir", async () => {
     const { useCase, users, sessions } = build();
     await useCase.execute({
       userId: 1,

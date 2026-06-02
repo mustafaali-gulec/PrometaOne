@@ -116,6 +116,7 @@ export type {
   ApplicationStageHistoryEntry,
   NewApplicationStageHistoryInput,
 } from './application/ports/ApplicationStageHistoryRepository.js';
+export type { HrTransactionalRepositories, UnitOfWork } from './application/ports/UnitOfWork.js';
 
 // ---------------------------------------------------------------------------
 // Application — DTO
@@ -259,6 +260,8 @@ export { PgAuditLogger } from './infrastructure/audit/PgAuditLogger.js';
 export { PgEmployeeNumberGenerator } from './infrastructure/sequences/PgEmployeeNumberGenerator.js';
 export type { PgEmployeeNumberGeneratorOptions } from './infrastructure/sequences/PgEmployeeNumberGenerator.js';
 export { AuthUserLookupAdapter } from './infrastructure/auth/AuthUserLookupAdapter.js';
+export { PgUnitOfWork } from './infrastructure/unitOfWork/PgUnitOfWork.js';
+export type { Queryable } from './infrastructure/persistence/Queryable.js';
 
 // ---------------------------------------------------------------------------
 // Presentation (PR 4b)
@@ -318,6 +321,7 @@ import { PgEmployeeRepository as _PgEmployeeRepository } from './infrastructure/
 import { PgOrgUnitRepository as _PgOrgUnitRepository } from './infrastructure/persistence/PgOrgUnitRepository.js';
 import { PgPositionRepository as _PgPositionRepository } from './infrastructure/persistence/PgPositionRepository.js';
 import { PgEmployeeNumberGenerator as _PgEmployeeNumberGenerator } from './infrastructure/sequences/PgEmployeeNumberGenerator.js';
+import { PgUnitOfWork as _PgUnitOfWork } from './infrastructure/unitOfWork/PgUnitOfWork.js';
 import { createHrRouter as _createHrRouter } from './presentation/routes.js';
 
 export interface HrModuleDeps {
@@ -348,6 +352,7 @@ export function registerHrModule(deps: HrModuleDeps): RegisteredHrModule {
   const audit = new _PgAuditLogger(deps.pool);
   const empNoGen = new _PgEmployeeNumberGenerator(deps.pool, deps.employeeNumberOptions ?? {});
   const userLookup = new _AuthUserLookupAdapter(deps.authUserRepository);
+  const uow = new _PgUnitOfWork(deps.pool);
   const clock = _systemClock;
 
   const createOrgUnit = new _CreateOrgUnitUseCase(orgUnits, clock, audit);
@@ -409,10 +414,9 @@ export function registerHrModule(deps: HrModuleDeps): RegisteredHrModule {
   const rejectApplication = new _RejectApplicationUseCase(applications, clock, audit);
   const withdrawApplication = new _WithdrawApplicationUseCase(applications, clock, audit);
   const hireFromApplication = new _HireFromApplicationUseCase(
-    applications,
+    uow,
     candidates,
     departments,
-    employees,
     empNoGen,
     clock,
     audit,

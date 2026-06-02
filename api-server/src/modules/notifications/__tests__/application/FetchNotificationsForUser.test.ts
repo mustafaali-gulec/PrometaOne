@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Notification } from '../../domain/entities/Notification.js';
 import type { NotificationRepository } from '../../application/ports/NotificationRepository.js';
 import { FetchNotificationsForUserUseCase } from '../../application/useCases/FetchNotificationsForUser.js';
+import { Notification } from '../../domain/entities/Notification.js';
 
 class InMemoryRepo implements NotificationRepository {
   constructor(public store: Notification[] = []) {}
@@ -59,10 +59,7 @@ describe('FetchNotificationsForUserUseCase', () => {
   });
 
   it('unreadOnly: true ile sadece okunmamışlar gelir', async () => {
-    const repo = new InMemoryRepo([
-      makeNotif('n-1', 42, false),
-      makeNotif('n-2', 42, true),
-    ]);
+    const repo = new InMemoryRepo([makeNotif('n-1', 42, false), makeNotif('n-2', 42, true)]);
     const uc = new FetchNotificationsForUserUseCase(repo);
 
     const result = await uc.execute({ recipientUserId: 42, unreadOnly: true });

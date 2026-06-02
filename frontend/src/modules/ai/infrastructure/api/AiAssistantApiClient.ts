@@ -1,9 +1,9 @@
 /**
  * AiAssistantApiClient — backend POST /v1/ai/chat ile konuşur.
  */
-import type { AuthTokenProvider } from '../../application/ports/AuthTokenProvider';
-import type { AiAssistantApi } from '../../application/ports/AiAssistantApi';
 import type { ChatRequestDto, ChatResponseDto } from '../../application/dto/ChatDto';
+import type { AiAssistantApi } from '../../application/ports/AiAssistantApi';
+import type { AuthTokenProvider } from '../../application/ports/AuthTokenProvider';
 
 export class AiAssistantApiClient implements AiAssistantApi {
   constructor(
