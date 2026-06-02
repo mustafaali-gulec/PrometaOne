@@ -18,6 +18,14 @@ jobs:
     name: Build · Test · Deploy
     runs-on: [self-hosted]
 
+    # Windows self-hosted runner'da varsayilan shell 'pwsh'tir; bu makinede pwsh
+    # kurulu degil (yalniz Windows PowerShell + bash var). Tum run adimlarini
+    # Git bash ile calistir — aksi halde lint/typecheck/test "pwsh not found"
+    # ile aninda patlar.
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,6 +49,19 @@ jobs:
 
       - name: Deploy (docker compose up)
         run: docker compose up -d --build
+
+      - name: Migrate DB
+        run: |
+          # api saglikli olana kadar bekle, sonra migration'lari calistir (idempotent)
+          for i in $(seq 1 30); do
+            if docker compose exec -T api curl -fsS http://localhost:3000/v1/health >/dev/null 2>&1; then
+              echo "API hazir."
+              break
+            fi
+            echo "API bekleniyor ($i/30)..."
+            sleep 2
+          done
+          docker compose exec -T api npm run migrate
 
       - name: Servis durumu
         run: docker compose ps
