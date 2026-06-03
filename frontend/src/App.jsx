@@ -13493,257 +13493,590 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
 // SelfServicePortal — calisan self-servis portali (Faz 11 v1).
 // Calisan KENDI verilerini gorur: izin, talep (avans/masraf/zimmet), bordro, profil.
 // Savunmaci erisim (optional chaining + fallback) — eksik/farkli alanlar cokme yaratmaz.
-function ssMoney(n) {
-  return (Number(n) || 0).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function ssDate(d) {
-  if (!d) return "—";
-  const dt = new Date(d);
-  return isNaN(dt.getTime()) ? String(d) : dt.toLocaleDateString("tr-TR");
-}
-const SS_REQUEST_KIND = { advance: "Avans", expense: "Masraf", asset: "Zimmet", leave: "İzin" };
-const SS_STATUS = {
-  pending: { label: "Beklemede", color: "#b45309", bg: "#fef3c7" },
-  approved: { label: "Onaylandı", color: "#15803d", bg: "#dcfce7" },
-  rejected: { label: "Reddedildi", color: "#b91c1c", bg: "#fee2e2" },
-  paid: { label: "Ödendi", color: "#0f766e", bg: "#ccfbf1" },
-};
-function SsStatus({ status }) {
-  const s = SS_STATUS[status] || { label: status || "—", color: "var(--ink-mute)", bg: "var(--bg-alt)" };
+// ===========================================================================
+// SELF-SERVICE PORTAL (Faz 11) — Faz 4 cutover (8e5533b) ile yanlislikla silinen
+// orijinal islevsel surum geri getirildi (8e5533b^ kaynak). PayrollSlipModal +
+// SelfServicePortal/Home/Leaves/LeaveRequestModal/Payslips/Attendance/Requests/
+// RequestModal/Profile. Bagimliliklar mevcut App.jsx ile dogrulandi.
+// ===========================================================================
+function PayrollSlipModal({ slip, lang, onClose }) {
+  const monthName = new Date(slip.period.year, slip.period.month - 1).toLocaleString(LANGUAGES[lang]?.locale || "tr-TR", { month: "long" });
+
   return (
-    <span className="chip" style={{ background: s.bg, color: s.color, fontWeight: 600 }}>{s.label}</span>
+    <Modal title={`📄 ${slip.employee.firstName} ${slip.employee.lastName} — ${monthName} ${slip.period.year}`}
+      icon={Receipt} maxWidth="max-w-3xl" onClose={onClose}>
+      <div className="space-y-3" style={{ fontSize: 12 }}>
+        {/* Üst bilgi şeridi */}
+        <div className="card p-3" style={{ background: "var(--bg)" }}>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+            <div>
+              <div style={{ color: "var(--ink-mute)" }}>{lang === "en" ? "Period" : "Dönem"}</div>
+              <div className="font-bold">{monthName} {slip.period.year}</div>
+            </div>
+            <div>
+              <div style={{ color: "var(--ink-mute)" }}>{lang === "en" ? "Work Days" : "Çalışılan Gün"}</div>
+              <div className="font-bold">{slip.period.workdaysPerMonth}</div>
+            </div>
+            <div>
+              <div style={{ color: "var(--ink-mute)" }}>{lang === "en" ? "Org Unit" : "Org Birim"}</div>
+              <div className="font-bold" style={{ fontSize: 11 }}>{slip.context?.orgUnit || "—"}</div>
+            </div>
+            <div>
+              <div style={{ color: "var(--ink-mute)" }}>SGK İşyeri</div>
+              <div className="font-bold mono" style={{ fontSize: 10.5 }}>{slip.context?.sgkWorkplaceCode || "—"}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Slip satırları */}
+        <div className="card overflow-hidden">
+          {slip.breakdown.map((row, idx) => {
+            if (row.row === "header") {
+              return (
+                <div key={idx} style={{
+                  padding: "6px 12px",
+                  background: "var(--bg)",
+                  fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
+                  color: "var(--ink-mute)",
+                  borderTop: idx > 0 ? "1px solid var(--line)" : "none",
+                  borderBottom: "1px solid var(--line)",
+                }}>
+                  {row.label}
+                </div>
+              );
+            }
+            if (row.row === "net") {
+              return (
+                <div key={idx} className="flex justify-between" style={{
+                  padding: "10px 12px",
+                  background: "var(--accent-soft)",
+                  borderTop: "2px solid var(--accent)",
+                  borderBottom: "2px solid var(--accent)",
+                }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "var(--accent)" }}>💰 {row.label}</span>
+                  <span className="mono" style={{ fontSize: 16, fontWeight: 700, color: "var(--accent)" }}>{fmtTL(row.amount)} ₺</span>
+                </div>
+              );
+            }
+            if (row.row === "total") {
+              return (
+                <div key={idx} className="flex justify-between" style={{
+                  padding: "8px 12px",
+                  background: "#fef9c3", fontWeight: 700,
+                  borderTop: "1px solid #ca8a04",
+                }}>
+                  <span style={{ color: "#854d0e" }}>{row.label}</span>
+                  <span className="mono" style={{ color: "#854d0e", fontSize: 13 }}>{fmtTL(row.amount)} ₺</span>
+                </div>
+              );
+            }
+            if (row.row === "subtotal") {
+              return (
+                <div key={idx} className="flex justify-between" style={{
+                  padding: "6px 12px",
+                  background: "var(--bg)", fontWeight: 600,
+                  borderTop: "1px dashed var(--line)",
+                  fontSize: 11.5,
+                }}>
+                  <span>{row.label}</span>
+                  <span className="mono">{fmtTL(row.amount)} ₺</span>
+                </div>
+              );
+            }
+            if (row.row === "info" || row.row === "info_positive") {
+              return (
+                <div key={idx} className="flex justify-between" style={{
+                  padding: "4px 12px",
+                  fontSize: 10.5,
+                  color: row.row === "info_positive" ? "var(--positive)" : "var(--ink-mute)",
+                  background: row.warning ? "#fef3c7" : "transparent",
+                }}>
+                  <span>{row.label}</span>
+                  <span className="mono">{fmtTL(row.amount)} ₺</span>
+                </div>
+              );
+            }
+            if (row.row === "incentive") {
+              return (
+                <div key={idx} className="flex justify-between" style={{
+                  padding: "4px 12px",
+                  fontSize: 11,
+                  color: "var(--positive)", fontWeight: 600,
+                  background: "#dcfce7",
+                }}>
+                  <span>{row.label}</span>
+                  <span className="mono">{fmtTL(row.amount)} ₺</span>
+                </div>
+              );
+            }
+            // income, deduction, employer
+            const isDeduction = row.row === "deduction";
+            const isIncome = row.row === "income";
+            return (
+              <div key={idx} className="flex justify-between" style={{
+                padding: "5px 12px",
+                fontSize: 11.5,
+              }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {isIncome && <span style={{ color: "var(--positive)", fontWeight: 700 }}>+</span>}
+                  {isDeduction && <span style={{ color: "var(--negative)", fontWeight: 700 }}>-</span>}
+                  {row.code && <span className="mono" style={{ fontSize: 9.5, color: "var(--ink-mute)", padding: "0 4px", background: "var(--bg)", borderRadius: 2 }}>{row.code}</span>}
+                  <span>{row.label}</span>
+                  {row.exemptAmount > 0 && (
+                    <span style={{ fontSize: 9, color: "var(--positive)" }}>
+                      (✓ {fmtTL(row.exemptAmount)} istisna)
+                    </span>
+                  )}
+                </span>
+                <span className="mono" style={{
+                  fontWeight: 600,
+                  color: isDeduction ? "var(--negative)" : "var(--ink)",
+                }}>
+                  {isDeduction ? "-" : ""}{fmtTL(row.amount)} ₺
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Kümülatif matrahlar */}
+        <div className="card p-3" style={{ background: "var(--bg)" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+            📊 {lang === "en" ? "Bases (info)" : "Matrahlar (bilgi)"}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+            <div>
+              <div style={{ color: "var(--ink-mute)" }}>SGK Matrahı</div>
+              <div className="mono font-bold">{fmtTL(slip.bases.sgkBaseCapped)} ₺</div>
+              {slip.bases.sgkCappedAtCeiling && <div style={{ fontSize: 9, color: "var(--warning)" }}>(Tavan uygulandı)</div>}
+            </div>
+            <div>
+              <div style={{ color: "var(--ink-mute)" }}>GV Matrahı (bu ay)</div>
+              <div className="mono font-bold">{fmtTL(slip.bases.gvBase)} ₺</div>
+            </div>
+            <div>
+              <div style={{ color: "var(--ink-mute)" }}>GV Kümülatif</div>
+              <div className="mono font-bold">{fmtTL(slip.bases.gvCumulative)} ₺</div>
+            </div>
+            <div>
+              <div style={{ color: "var(--ink-mute)" }}>DV Matrahı</div>
+              <div className="mono font-bold">{fmtTL(slip.bases.dvBase)} ₺</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
-const SS_LEAVE_TYPE = { annual: "Yıllık İzin", unpaid: "Ücretsiz İzin", sick: "Hastalık (Rapor)", excuse: "Mazeret" };
-function ssLeaveDays(start, end) {
-  const s = new Date(start), e = new Date(end);
-  if (isNaN(s.getTime()) || isNaN(e.getTime()) || e < s) return 0;
-  return Math.floor((e - s) / 86400000) + 1;
-}
+/* =====================================================================
+   DEVAM / İZİN YÖNETİMİ (AttendanceManager)
+   ---------------------------------------------------------------------
+   • Toplu Puantaj — aylık çalışan × bileşen matrisi (bordro besler)
+   • İzin Bakiyeleri — yıllık izin takibi
+   • Takvimli Puantaj (Adım 2'de eklenecek)
+   • İzin Talepleri (Adım 2'de eklenecek)
+===================================================================== */
 
-function SelfServicePortal({ session, data, employee, canAccessAdmin, onSwitchToAdmin, onLogout, onChange, notify, logAudit }) {
-  const [tab, setTab] = useState("home");
-  const [leaveForm, setLeaveForm] = useState(false);
-  const [reqForm, setReqForm] = useState(false);
-  const empId = employee?.id;
-  const name = employee
-    ? `${employee.firstName || ""} ${employee.lastName || ""}`.trim() || (session?.fullName || session?.username)
-    : (session?.fullName || session?.username || "Çalışan");
+function SelfServicePortal({ session, data, employee, users, canAccessAdmin, onSwitchToAdmin, onLogout, onChange, logAudit, notify, lang, changeLang }) {
+  const [view, setView] = useState("home"); // home | leaves | payslips | attendance | profile
 
-  // Çalışan kaydı yoksa erişilebilir bilgi yok — bilgilendir.
+  // Çalışan bağlanmamışsa uyarı göster
   if (!employee) {
     return (
-      <div className="max-w-3xl mx-auto px-6 py-10">
-        <div className="card p-6" style={{ boxShadow: "var(--shadow)" }}>
-          <h1 className="display" style={{ fontSize: 24, marginBottom: 8 }}>Self-Servis Portalı</h1>
-          <p style={{ color: "var(--ink-mute)", marginBottom: 16 }}>
-            <strong>{name}</strong> — Kullanıcınıza bağlı bir çalışan kaydı bulunamadı.
-            Self-servis verilerini görebilmek için İK ekibinin hesabınızı bir çalışana
-            bağlaması gerekir.
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "var(--bg)" }}>
+        <div className="card p-6 max-w-md text-center">
+          <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>
+            {lang === "en" ? "Account not linked to employee" : "Hesap çalışana bağlanmamış"}
+          </h2>
+          <p style={{ fontSize: 12, color: "var(--ink-mute)", marginBottom: 16 }}>
+            {lang === "en"
+              ? "Your user account is not linked to any employee record. Please contact HR."
+              : "Kullanıcı hesabınız bir çalışan kaydına bağlı değil. Lütfen İK ile iletişime geçin."}
           </p>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2 justify-center">
             {canAccessAdmin && (
-              <button onClick={onSwitchToAdmin} className="btn btn-primary">Yönetim paneline dön</button>
+              <button onClick={onSwitchToAdmin} className="btn btn-primary text-xs">
+                ← {lang === "en" ? "Back to Admin" : "Yönetime Dön"}
+              </button>
             )}
-            <button onClick={onLogout} className="btn btn-ghost">Çıkış yap</button>
+            <button onClick={onLogout} className="btn btn-ghost text-xs">
+              {lang === "en" ? "Logout" : "Çıkış"}
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
-  const leaveRequests = (data?.hrLeaveRequests || [])
-    .filter(r => r.employeeId === empId)
-    .sort((a, b) => new Date(b.startDate || 0) - new Date(a.startDate || 0));
-  const requests = getEmployeeRequests(empId, null, data);
-  const assets = getEmployeeAssets(empId, data);
-  const dept = getEmployeeDepartment(employee, data);
-  const jobTitle = getEmployeeJobTitle(employee, data);
-  const slips = (data?.hrPayrollRuns || [])
-    .map(run => {
-      const slip = (run.results || []).find(r => r.employee?.id === empId);
-      return slip ? { period: run.period, slip } : null;
-    })
-    .filter(Boolean)
-    .sort((a, b) => (b.period?.year - a.period?.year) || (b.period?.month - a.period?.month));
-
-  const submitLeave = async (form) => {
-    const newReq = {
-      id: "lv_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
-      employeeId: empId,
-      leaveType: form.leaveType,
-      startDate: form.startDate,
-      endDate: form.endDate,
-      days: ssLeaveDays(form.startDate, form.endDate),
-      reason: form.reason || "",
-      status: "pending",
-      requestedBy: session?.username,
-      requestedAt: new Date().toISOString(),
-    };
-    await onChange?.({ ...data, hrLeaveRequests: [...(data?.hrLeaveRequests || []), newReq] });
-    logAudit?.("self_leave_request", { employeeId: empId, leaveType: form.leaveType, days: newReq.days });
-    notify?.("İzin talebiniz oluşturuldu (onay bekliyor)");
-    setLeaveForm(false);
-  };
-
-  const submitRequest = async (form) => {
-    const newReq = {
-      id: "req_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
-      employeeId: empId,
-      kind: form.kind,
-      amount: Number(form.amount) || 0,
-      ...(form.kind === "advance" ? { installments: Number(form.installments) || 1 } : {}),
-      ...(form.kind === "expense" ? { category: form.category || "" } : {}),
-      description: form.description || "",
-      status: "pending",
-      requestedBy: session?.username,
-      requestedAt: new Date().toISOString(),
-    };
-    await onChange?.({ ...data, hrRequests: [...(data?.hrRequests || []), newReq] });
-    logAudit?.("self_request", { employeeId: empId, kind: form.kind, amount: newReq.amount });
-    notify?.((form.kind === "advance" ? "Avans" : "Masraf") + " talebiniz oluşturuldu (onay bekliyor)");
-    setReqForm(false);
-  };
-
-  const pendingLeaves = leaveRequests.filter(r => (r.status || "pending") === "pending").length;
-  const pendingRequests = requests.filter(r => (r.status || "pending") === "pending").length;
-  const lastSlip = slips[0];
-
-  const TABS = [
-    { id: "home", label: "Ana Sayfa" },
-    { id: "leaves", label: `İzinler${leaveRequests.length ? ` (${leaveRequests.length})` : ""}` },
-    { id: "requests", label: `Talepler${requests.length ? ` (${requests.length})` : ""}` },
-    { id: "payroll", label: "Bordro" },
-    { id: "profile", label: "Profil" },
+  const tabs = [
+    { id: "home",       icon: LayoutDashboard, label: { tr: "Ana Sayfa",     en: "Home",       de: "Startseite",     ar: "الرئيسية" } },
+    { id: "leaves",     icon: Bell,            label: { tr: "İzinlerim",     en: "My Leaves",  de: "Meine Urlaube", ar: "إجازاتي" } },
+    { id: "advances",   icon: Wallet,          label: { tr: "Avans",          en: "Advances",  de: "Vorschüsse",     ar: "السلف" } },
+    { id: "expenses",   icon: Receipt,         label: { tr: "Masraflar",      en: "Expenses",  de: "Auslagen",       ar: "المصاريف" } },
+    { id: "assets",     icon: Briefcase,       label: { tr: "Zimmetler",      en: "Assets",    de: "Inventar",       ar: "الأصول" } },
+    { id: "payslips",   icon: FileText,        label: { tr: "Bordrolarım",   en: "My Payslips",de: "Meine Gehälter", ar: "رواتبي" } },
+    { id: "attendance", icon: Calendar,        label: { tr: "Puantajım",     en: "Attendance", de: "Anwesenheit",    ar: "حضوري" } },
+    { id: "profile",    icon: UserCheck,       label: { tr: "Profilim",      en: "My Profile", de: "Mein Profil",    ar: "ملفي" } },
   ];
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
-      <header className="flex items-center justify-between flex-wrap gap-3 mb-5">
-        <div>
-          <h1 className="display" style={{ fontSize: 24, margin: 0 }}>Self-Servis Portalı</h1>
-          <p style={{ color: "var(--ink-mute)", fontSize: 13, marginTop: 2 }}>
-            Hoş geldiniz, <strong>{name}</strong>
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {canAccessAdmin && (
-            <button onClick={onSwitchToAdmin} className="btn btn-ghost">Yönetime dön</button>
-          )}
-          <button onClick={onLogout} className="btn btn-ghost">Çıkış</button>
-        </div>
-      </header>
-
-      <nav className="flex gap-1 flex-wrap mb-4" style={{ borderBottom: "1px solid var(--line)" }}>
-        {TABS.map(t => (
-          <button key={t.id} className="nav-item" onClick={() => setTab(t.id)}
-            style={{ borderBottom: tab === t.id ? "2px solid var(--accent)" : "2px solid transparent", fontWeight: tab === t.id ? 600 : 400 }}>
-            {t.label}
-          </button>
-        ))}
-      </nav>
-
-      {tab === "home" && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <SsCard label="Bekleyen İzin" value={pendingLeaves} />
-          <SsCard label="Bekleyen Talep" value={pendingRequests} />
-          <SsCard label="Aktif Zimmet" value={assets.length} />
-          <SsCard label="Son Net Maaş" value={lastSlip ? `${ssMoney(lastSlip.slip?.netSalary ?? lastSlip.slip?.net ?? 0)} ₺` : "—"} />
-        </div>
-      )}
-
-      {tab === "leaves" && (
-        <div className="grid gap-3">
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button className="btn btn-primary" onClick={() => setLeaveForm(v => !v)}>
-              {leaveForm ? "Kapat" : "+ İzin Talebi"}
-            </button>
-          </div>
-          {leaveForm && <LeaveRequestForm onSubmit={submitLeave} onCancel={() => setLeaveForm(false)} />}
-          <SsTable
-            headers={["Tür", "Başlangıç", "Bitiş", "Gün", "Durum"]}
-            rows={leaveRequests}
-            empty="İzin talebiniz yok. Yukarıdan yeni talep oluşturun."
-            render={(r, i) => (
-              <tr key={r.id || i}>
-                <td className="label-cell">{SS_LEAVE_TYPE[r.leaveType] || r.leaveType || r.type || "İzin"}</td>
-                <td className="label-cell mono">{ssDate(r.startDate)}</td>
-                <td className="label-cell mono">{ssDate(r.endDate)}</td>
-                <td>{r.days ?? r.dayCount ?? "—"}</td>
-                <td><SsStatus status={r.status || "pending"} /></td>
-              </tr>
-            )}
-          />
-        </div>
-      )}
-
-      {tab === "requests" && (
-        <div className="grid gap-4">
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button className="btn btn-primary" onClick={() => setReqForm(v => !v)}>
-              {reqForm ? "Kapat" : "+ Avans / Masraf Talebi"}
-            </button>
-          </div>
-          {reqForm && <RequestForm onSubmit={submitRequest} onCancel={() => setReqForm(false)} />}
-          <SsTable
-            headers={["Tür", "Tutar", "Tarih", "Durum"]}
-            rows={requests}
-            empty="Talebiniz yok. Yukarıdan avans/masraf talebi oluşturun."
-            render={(r, i) => (
-              <tr key={r.id || i}>
-                <td className="label-cell">{SS_REQUEST_KIND[r.kind] || r.kind || "—"}</td>
-                <td className="num mono">{r.amount != null ? `${ssMoney(r.amount)} ₺` : "—"}</td>
-                <td className="label-cell mono">{ssDate(r.requestedAt)}</td>
-                <td><SsStatus status={r.status || "pending"} /></td>
-              </tr>
-            )}
-          />
-          <section>
-            <h3 style={{ fontSize: 14, margin: "0 0 8px" }}>Zimmetlerim ({assets.length})</h3>
-            <SsTable
-              headers={["Varlık", "Kod / Seri", "Teslim"]}
-              rows={assets}
-              empty="Üzerinize zimmetli varlık yok."
-              render={(a, i) => (
-                <tr key={a.id || i}>
-                  <td className="label-cell">{a.name || a.assetName || "—"}</td>
-                  <td className="label-cell mono">{a.code || a.serialNo || "—"}</td>
-                  <td className="label-cell mono">{ssDate(a.assignedAt || a.assignedDate)}</td>
-                </tr>
+    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
+      {/* Üst Bar */}
+      <div style={{
+        background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)",
+        color: "#fff",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+      }}>
+        <div className="max-w-[1200px] mx-auto px-4 py-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-3">
+              <div style={{
+                width: 38, height: 38, borderRadius: 8,
+                background: "rgba(255,255,255,0.2)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontWeight: 700, fontSize: 14,
+              }}>
+                {(employee.firstName?.[0] || "?")}{(employee.lastName?.[0] || "")}
+              </div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700 }}>{employee.firstName} {employee.lastName}</div>
+                <div style={{ fontSize: 10.5, opacity: 0.9 }}>
+                  🏅 {lang === "en" ? "Self-Service Portal" : "Self-Servis Portal"}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <select value={lang} onChange={e => changeLang(e.target.value)}
+                style={{
+                  background: "rgba(255,255,255,0.15)",
+                  color: "#fff", border: "1px solid rgba(255,255,255,0.3)",
+                  padding: "4px 8px", borderRadius: 6, fontSize: 11,
+                }}>
+                {Object.entries(LANGUAGES).map(([code, l]) => (
+                  <option key={code} value={code} style={{ color: "#000" }}>{l.flag} {l.label}</option>
+                ))}
+              </select>
+              {/* Bildirimler */}
+              <NotificationBell session={session} data={data} onChange={onChange} lang={lang} compact={true}
+                onNavigate={(link) => {
+                  if (link?.type === "request") {
+                    // Talep tipine göre uygun sekmeye git
+                    const req = (data?.hrRequests || []).find(r => r.id === link.id);
+                    if (req?.kind === "advance") setView("advances");
+                    else if (req?.kind === "expense") setView("expenses");
+                    else if (req?.kind === "asset") setView("assets");
+                  } else if (link?.type === "leave") {
+                    setView("leaves");
+                  }
+                }}/>
+              {canAccessAdmin && (
+                <button onClick={onSwitchToAdmin}
+                  style={{
+                    background: "rgba(255,255,255,0.15)",
+                    color: "#fff", border: "1px solid rgba(255,255,255,0.3)",
+                    padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                  title={lang === "en" ? "Admin View" : "Yönetim Görünümü"}>
+                  ⚙️ {lang === "en" ? "Admin" : "Yönetim"}
+                </button>
               )}
-            />
-          </section>
+              <button onClick={onLogout}
+                style={{
+                  background: "rgba(255,255,255,0.15)",
+                  color: "#fff", border: "1px solid rgba(255,255,255,0.3)",
+                  padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                  cursor: "pointer",
+                }}>
+                <LogOut size={11} style={{ display: "inline" }}/> {lang === "en" ? "Logout" : "Çıkış"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sekmeler */}
+      <div style={{ background: "var(--paper)", borderBottom: "1px solid var(--line)" }}>
+        <div className="max-w-[1200px] mx-auto px-4">
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {tabs.map(tab => {
+              const active = view === tab.id;
+              return (
+                <button key={tab.id} onClick={() => setView(tab.id)}
+                  className="flex items-center gap-1.5 transition-all flex-shrink-0"
+                  style={{
+                    padding: "10px 14px", fontSize: 12.5,
+                    fontWeight: active ? 700 : 500,
+                    color: active ? "#7c3aed" : "var(--ink-mute)",
+                    borderBottom: active ? "3px solid #7c3aed" : "3px solid transparent",
+                    marginBottom: -1,
+                  }}>
+                  <tab.icon size={13} strokeWidth={active ? 2.5 : 1.5}/>
+                  {tab.label[lang] || tab.label.tr}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* İçerik */}
+      <div className="max-w-[1200px] mx-auto px-4 py-4">
+        {view === "home" && (
+          <SelfServiceHome employee={employee} data={data} lang={lang} setView={setView}/>
+        )}
+        {view === "advances" && (
+          <SelfServiceRequests session={session} employee={employee} data={data} users={users}
+            kind="advance"
+            onChange={onChange} logAudit={logAudit} notify={notify} lang={lang}/>
+        )}
+        {view === "expenses" && (
+          <SelfServiceRequests session={session} employee={employee} data={data} users={users}
+            kind="expense"
+            onChange={onChange} logAudit={logAudit} notify={notify} lang={lang}/>
+        )}
+        {view === "assets" && (
+          <SelfServiceRequests session={session} employee={employee} data={data} users={users}
+            kind="asset"
+            onChange={onChange} logAudit={logAudit} notify={notify} lang={lang}/>
+        )}
+        {view === "leaves" && (
+          <SelfServiceLeaves session={session} employee={employee} data={data} users={users}
+            onChange={onChange} logAudit={logAudit} notify={notify} lang={lang}/>
+        )}
+        {view === "payslips" && (
+          <SelfServicePayslips employee={employee} data={data} lang={lang}/>
+        )}
+        {view === "attendance" && (
+          <SelfServiceAttendance employee={employee} data={data} lang={lang}/>
+        )}
+        {view === "profile" && (
+          <SelfServiceProfile session={session} employee={employee} data={data}
+            onChange={onChange} logAudit={logAudit} notify={notify} lang={lang}/>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Ana Sayfa (Karşılama + Özet) ---------- */
+function SelfServiceHome({ employee, data, lang, setView }) {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
+  const ctx = useMemo(() => getEmployeePayrollContext(employee, data), [employee, data]);
+  const balance = useMemo(() => calculateLeaveBalance(employee, data, year), [employee, data, year]);
+  const benefits = useMemo(() => getEmployeeBenefits(employee.id, data), [employee, data]);
+
+  // Bekleyen izin talepleri
+  const myRequests = useMemo(() => {
+    return (data?.hrLeaveRequests || []).filter(r => r.employeeId === employee.id);
+  }, [data?.hrLeaveRequests, employee.id]);
+  const pendingRequests = myRequests.filter(r => r.status === "pending");
+
+  // Son bordrolar
+  const recentPayslips = useMemo(() => {
+    const slips = [];
+    (data?.hrPayrollRuns || []).forEach(run => {
+      const slip = (run.results || []).find(r => r.employee?.id === employee.id);
+      if (slip) slips.push({ run, slip });
+    });
+    return slips.sort((a, b) => {
+      const ay = a.run.period?.year || 0, am = a.run.period?.month || 0;
+      const by = b.run.period?.year || 0, bm = b.run.period?.month || 0;
+      return (by - ay) || (bm - am);
+    }).slice(0, 3);
+  }, [data?.hrPayrollRuns, employee.id]);
+
+  const monthName = today.toLocaleString(LANGUAGES[lang]?.locale || "tr-TR", { month: "long" });
+  const greeting = today.getHours() < 12 ? (lang === "en" ? "Good morning" : "Günaydın")
+                  : today.getHours() < 18 ? (lang === "en" ? "Good afternoon" : "İyi günler")
+                  : (lang === "en" ? "Good evening" : "İyi akşamlar");
+
+  return (
+    <div className="space-y-4">
+      {/* Karşılama */}
+      <div className="card p-4" style={{
+        background: "linear-gradient(135deg, #ddd6fe 0%, #fae8ff 100%)",
+        border: "1px solid #c4b5fd",
+      }}>
+        <div style={{ fontSize: 13, color: "#7c3aed", fontWeight: 600 }}>
+          👋 {greeting},
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: "#5b21b6", marginTop: 2 }}>
+          {employee.firstName}!
+        </div>
+        {ctx?.jobTitle && (
+          <div style={{ fontSize: 11.5, color: "var(--ink-mute)", marginTop: 4 }}>
+            {ctx.jobTitle.title}
+            {ctx.department && ` · ${ctx.department.name}`}
+            {ctx.orgUnit && ` · ${ctx.orgUnit.name}`}
+          </div>
+        )}
+      </div>
+
+      {/* KPI Kartları */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* İzin Bakiyesi */}
+        <button onClick={() => setView("leaves")} className="card p-3 text-left transition-all hover:shadow-md"
+          style={{ borderLeft: "4px solid #0891b2", cursor: "pointer" }}>
+          <div style={{ fontSize: 10.5, color: "var(--ink-mute)", marginBottom: 4 }}>
+            🏖️ {lang === "en" ? "Annual Leave" : "Yıllık İzin"}
+          </div>
+          <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: "#0891b2" }}>
+            {balance.remaining}
+          </div>
+          <div style={{ fontSize: 9.5, color: "var(--ink-mute)" }}>
+            {lang === "en" ? `of ${balance.entitled} remaining` : `${balance.entitled}'den kalan`}
+          </div>
+        </button>
+
+        {/* Bekleyen Talep */}
+        {pendingRequests.length > 0 && (
+          <button onClick={() => setView("leaves")} className="card p-3 text-left transition-all hover:shadow-md"
+            style={{ borderLeft: "4px solid #ca8a04", cursor: "pointer" }}>
+            <div style={{ fontSize: 10.5, color: "var(--ink-mute)", marginBottom: 4 }}>
+              ⏳ {lang === "en" ? "Pending Requests" : "Bekleyen Talepler"}
+            </div>
+            <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: "#ca8a04" }}>
+              {pendingRequests.length}
+            </div>
+            <div style={{ fontSize: 9.5, color: "var(--ink-mute)" }}>
+              {lang === "en" ? "awaiting approval" : "onay bekliyor"}
+            </div>
+          </button>
+        )}
+
+        {/* Brüt Maaş */}
+        <div className="card p-3" style={{ borderLeft: "4px solid var(--accent)" }}>
+          <div style={{ fontSize: 10.5, color: "var(--ink-mute)", marginBottom: 4 }}>
+            💰 {lang === "en" ? "Gross Salary" : "Brüt Maaş"}
+          </div>
+          <div className="mono" style={{ fontSize: 17, fontWeight: 700, color: "var(--accent)" }}>
+            {fmtTL(employee.brutSalary || 0)} ₺
+          </div>
+          <div style={{ fontSize: 9.5, color: "var(--ink-mute)" }}>/ay</div>
+        </div>
+
+        {/* Yan Haklar */}
+        <button onClick={() => setView("profile")} className="card p-3 text-left transition-all hover:shadow-md"
+          style={{ borderLeft: "4px solid #ec4899", cursor: "pointer" }}>
+          <div style={{ fontSize: 10.5, color: "var(--ink-mute)", marginBottom: 4 }}>
+            🎁 {lang === "en" ? "Benefits" : "Yan Haklar"}
+          </div>
+          <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: "#ec4899" }}>
+            {benefits.length}
+          </div>
+          <div style={{ fontSize: 9.5, color: "var(--ink-mute)" }}>
+            {lang === "en" ? "active contracts" : "aktif sözleşme"}
+          </div>
+        </button>
+      </div>
+
+      {/* Hızlı Aksiyonlar */}
+      <div className="card p-4">
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
+          ⚡ {lang === "en" ? "Quick Actions" : "Hızlı İşlemler"}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+          <button onClick={() => setView("leaves")} className="card p-3 text-center transition-all hover:shadow-md"
+            style={{ background: "#0891b215", cursor: "pointer" }}>
+            <div style={{ fontSize: 22 }}>🏖️</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#0891b2", marginTop: 4 }}>
+              {lang === "en" ? "Leave" : "İzin"}
+            </div>
+          </button>
+          <button onClick={() => setView("advances")} className="card p-3 text-center transition-all hover:shadow-md"
+            style={{ background: "#ca8a0415", cursor: "pointer" }}>
+            <div style={{ fontSize: 22 }}>💰</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#ca8a04", marginTop: 4 }}>
+              {lang === "en" ? "Advance" : "Avans"}
+            </div>
+          </button>
+          <button onClick={() => setView("expenses")} className="card p-3 text-center transition-all hover:shadow-md"
+            style={{ background: "#16a34a15", cursor: "pointer" }}>
+            <div style={{ fontSize: 22 }}>💵</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#16a34a", marginTop: 4 }}>
+              {lang === "en" ? "Expense" : "Masraf"}
+            </div>
+          </button>
+          <button onClick={() => setView("assets")} className="card p-3 text-center transition-all hover:shadow-md"
+            style={{ background: "#7c3aed15", cursor: "pointer" }}>
+            <div style={{ fontSize: 22 }}>📦</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#7c3aed", marginTop: 4 }}>
+              {lang === "en" ? "Asset" : "Zimmet"}
+            </div>
+          </button>
+          <button onClick={() => setView("payslips")} className="card p-3 text-center transition-all hover:shadow-md"
+            style={{ background: "#a855f715", cursor: "pointer" }}>
+            <div style={{ fontSize: 22 }}>📄</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#a855f7", marginTop: 4 }}>
+              {lang === "en" ? "Payslips" : "Bordro"}
+            </div>
+          </button>
+          <button onClick={() => setView("attendance")} className="card p-3 text-center transition-all hover:shadow-md"
+            style={{ background: "#15803d15", cursor: "pointer" }}>
+            <div style={{ fontSize: 22 }}>📅</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#15803d", marginTop: 4 }}>
+              {lang === "en" ? "Attendance" : "Puantaj"}
+            </div>
+          </button>
+          <button onClick={() => setView("profile")} className="card p-3 text-center transition-all hover:shadow-md"
+            style={{ background: "#475569" + "15", cursor: "pointer" }}>
+            <div style={{ fontSize: 22 }}>👤</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", marginTop: 4 }}>
+              {lang === "en" ? "Profile" : "Profil"}
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Son Bordrolar */}
+      {recentPayslips.length > 0 && (
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div style={{ fontSize: 13, fontWeight: 700 }}>
+              📄 {lang === "en" ? "Recent Payslips" : "Son Bordrolar"}
+            </div>
+            <button onClick={() => setView("payslips")} className="text-xs"
+              style={{ color: "#7c3aed", fontWeight: 600 }}>
+              {lang === "en" ? "View All →" : "Tümü →"}
+            </button>
+          </div>
+          <div className="space-y-2">
+            {recentPayslips.map(({ run, slip }) => {
+              const mName = new Date(run.period.year, run.period.month - 1).toLocaleString(LANGUAGES[lang]?.locale || "tr-TR", { month: "long" });
+              return (
+                <div key={run.id} className="flex items-center justify-between p-2 rounded" style={{ background: "var(--bg)" }}>
+                  <div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600 }}>{mName} {run.period.year}</div>
+                    <div style={{ fontSize: 10, color: "var(--ink-mute)" }}>
+                      {lang === "en" ? "Gross" : "Brüt"}: <span className="mono">{fmtTL(slip.totals.gross)}</span>
+                    </div>
+                  </div>
+                  <div className="mono" style={{ fontSize: 14, fontWeight: 700, color: "var(--positive)" }}>
+                    {fmtTL(slip.totals.net)} ₺
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {tab === "payroll" && (
-        <SsTable
-          headers={["Dönem", "Brüt", "Kesinti", "Net"]}
-          rows={slips}
-          empty="Bordro kaydınız yok."
-          render={(s, i) => (
-            <tr key={i}>
-              <td className="label-cell mono">{s.period ? `${s.period.year}/${String(s.period.month).padStart(2, "0")}` : "—"}</td>
-              <td className="num mono">{ssMoney(s.slip?.grossSalary ?? s.slip?.gross ?? 0)} ₺</td>
-              <td className="num mono">{ssMoney(s.slip?.totalDeductions ?? s.slip?.deductionsTotal ?? 0)} ₺</td>
-              <td className="num mono" style={{ fontWeight: 600 }}>{ssMoney(s.slip?.netSalary ?? s.slip?.net ?? 0)} ₺</td>
-            </tr>
-          )}
-        />
-      )}
-
-      {tab === "profile" && (
-        <div className="card p-5" style={{ boxShadow: "var(--shadow)" }}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
-            <SsField label="Ad Soyad" value={name} />
-            <SsField label="Sicil No" value={employee.employeeNo || employee.employeeNumber || "—"} />
-            <SsField label="Departman" value={dept?.name || "—"} />
-            <SsField label="Pozisyon" value={jobTitle?.title || jobTitle?.name || "—"} />
-            <SsField label="E-posta" value={employee.email || session?.email || "—"} />
-            <SsField label="Telefon" value={employee.phone || "—"} />
-            <SsField label="İşe Giriş" value={ssDate(employee.hireDate)} />
-            <SsField label="Durum" value={employee.status || "—"} />
+      {/* Bekleyen Talep Uyarısı */}
+      {pendingRequests.length > 0 && (
+        <div className="card p-3" style={{ background: "#fef3c7", border: "1px solid #ca8a04" }}>
+          <div style={{ fontSize: 12, color: "#854d0e" }}>
+            <b>⏳ {lang === "en" ? "Pending Requests" : "Bekleyen Talepler"}</b>
+            <div style={{ marginTop: 4, fontSize: 11 }}>
+              {pendingRequests.length} {lang === "en" ? "leave request(s) awaiting approval" : "izin talebi onay bekliyor"}.
+              <button onClick={() => setView("leaves")} style={{ marginLeft: 8, textDecoration: "underline", fontWeight: 600 }}>
+                {lang === "en" ? "View details" : "Detayları gör"} →
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -13751,148 +14084,1560 @@ function SelfServicePortal({ session, data, employee, canAccessAdmin, onSwitchTo
   );
 }
 
-function SsCard({ label, value }) {
+/* ---------- İzinlerim ---------- */
+function SelfServiceLeaves({ session, employee, data, users = [], onChange, logAudit, notify, lang }) {
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [newRequest, setNewRequest] = useState(null);
+  const today = new Date();
+  const year = today.getFullYear();
+
+  const myRequests = useMemo(() => {
+    return (data?.hrLeaveRequests || [])
+      .filter(r => r.employeeId === employee.id)
+      .sort((a, b) => new Date(b.requestedAt || 0) - new Date(a.requestedAt || 0));
+  }, [data?.hrLeaveRequests, employee.id]);
+
+  const balance = useMemo(() => calculateLeaveBalance(employee, data, year), [employee, data, year]);
+
+  // İzin gün sayısı hesabı
+  const calculateLeaveDays = (startDate, endDate, includeWeekends) => {
+    if (!startDate || !endDate) return 0;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (end < start) return 0;
+    let count = 0;
+    const cursor = new Date(start);
+    while (cursor <= end) {
+      const dateStr = cursor.toISOString().slice(0, 10);
+      if (includeWeekends || (!isWeekend(dateStr) && !isPublicHoliday(dateStr))) count++;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return count;
+  };
+
+  const saveRequest = async (draft) => {
+    if (!draft.startDate || !draft.endDate || !draft.leaveType) {
+      notify(lang === "en" ? "Required fields missing" : "Zorunlu alanlar eksik", "err");
+      return;
+    }
+    const totalDays = calculateLeaveDays(draft.startDate, draft.endDate, draft.includeWeekends);
+    const item = {
+      ...draft,
+      employeeId: employee.id,
+      id: "lr_" + Date.now() + "_" + Math.random().toString(36).slice(2, 5),
+      totalDays,
+      status: "pending",
+      requestedAt: new Date().toISOString(),
+      requestedBy: session.username,
+      requestedBySelf: true,
+    };
+    const next = [...(data?.hrLeaveRequests || []), item];
+
+    // Yöneticilere bildirim
+    let nextNotifications = data?.hrNotifications || [];
+    const mgrUserId = getEmployeeManagerUserId(employee, data);
+    const recipients = [];
+    if (mgrUserId && mgrUserId !== session.username) recipients.push(mgrUserId);
+    const hrMgrs = getHrManagerUserIds(users);
+    hrMgrs.forEach(uid => { if (uid !== session.username && !recipients.includes(uid)) recipients.push(uid); });
+
+    const lt = LEAVE_TYPES[item.leaveType.replace("leave_", "")] || LEAVE_TYPES.annual;
+    recipients.forEach(uid => {
+      nextNotifications = createNotification(nextNotifications, {
+        recipientUserId: uid,
+        kind: "leave_pending",
+        title: `⏳ ${lang === "en" ? "New leave request" : "Yeni izin talebi"}`,
+        body: `${employee.firstName} ${employee.lastName} · ${lt.icon} ${lt.labels[lang] || lt.labels.tr} · ${item.startDate} → ${item.endDate} (${totalDays} ${lang === "en" ? "days" : "gün"})`,
+        link: { type: "leave", id: item.id },
+        createdBy: session.username,
+        meta: { leaveType: item.leaveType, days: totalDays },
+      });
+    });
+
+    await onChange({ ...data, hrLeaveRequests: next, hrNotifications: nextNotifications });
+    await logAudit && logAudit("leave_request_create_self", { id: item.id, type: item.leaveType, days: totalDays });
+    notify(lang === "en" ? "Request submitted!" : "Talep gönderildi!");
+    setShowNewModal(false);
+    setNewRequest(null);
+  };
+
+  const cancelRequest = async (request) => {
+    if (!confirm(lang === "en" ? "Cancel this request?" : "Bu talebi iptal edilsin mi?")) return;
+    let nextDays = data?.hrAttendanceDays || [];
+    if (request.status === "approved" && request.attendanceDayIds?.length) {
+      nextDays = nextDays.filter(d => !request.attendanceDayIds.includes(d.id) || d.source !== "leave_request");
+    }
+    const updated = {
+      ...request,
+      status: "cancelled",
+      cancelledAt: new Date().toISOString(),
+      cancelledBy: session.username,
+    };
+    const next = (data?.hrLeaveRequests || []).map(r => r.id === request.id ? updated : r);
+    await onChange({ ...data, hrLeaveRequests: next, hrAttendanceDays: nextDays });
+    await logAudit && logAudit("leave_request_cancel_self", { id: request.id });
+    notify(lang === "en" ? "Cancelled" : "İptal edildi");
+  };
+
   return (
-    <div className="card p-4" style={{ boxShadow: "var(--shadow)" }}>
-      <div className="label" style={{ marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 600 }}>{value}</div>
+    <div className="space-y-3">
+      {/* Bakiye Kartı */}
+      <div className="card p-4" style={{
+        background: "linear-gradient(135deg, #cffafe 0%, #e0f2fe 100%)",
+        border: "1px solid #0891b2",
+      }}>
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <div style={{ fontSize: 13, color: "#0891b2", fontWeight: 700 }}>
+              🏖️ {lang === "en" ? "Annual Leave Balance" : "Yıllık İzin Bakiyem"} ({year})
+            </div>
+            <div className="grid grid-cols-3 gap-4 mt-3">
+              <div>
+                <div style={{ fontSize: 10, color: "var(--ink-mute)" }}>{lang === "en" ? "Entitled" : "Hak Edilen"}</div>
+                <div className="mono" style={{ fontSize: 24, fontWeight: 700 }}>{balance.entitled}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: "var(--ink-mute)" }}>{lang === "en" ? "Used" : "Kullanılan"}</div>
+                <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: "#7c3aed" }}>{balance.used}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: "var(--ink-mute)" }}>{lang === "en" ? "Remaining" : "Kalan"}</div>
+                <div className="mono" style={{ fontSize: 24, fontWeight: 700, color: "var(--positive)" }}>{balance.remaining}</div>
+              </div>
+            </div>
+            {/* Progress bar */}
+            <div style={{
+              width: "100%", height: 8, borderRadius: 4,
+              background: "rgba(255,255,255,0.6)", overflow: "hidden", marginTop: 12,
+            }}>
+              <div style={{
+                width: `${balance.entitled > 0 ? Math.min(100, (balance.used / balance.entitled) * 100) : 0}%`,
+                height: "100%",
+                background: "linear-gradient(90deg, #0891b2 0%, #7c3aed 100%)",
+              }}/>
+            </div>
+          </div>
+          <button onClick={() => {
+            setNewRequest({
+              leaveType: "annual",
+              startDate: "",
+              endDate: "",
+              reason: "",
+              includeWeekends: false,
+            });
+            setShowNewModal(true);
+          }} className="btn btn-primary text-xs" style={{ background: "#0891b2", color: "#fff", padding: "8px 14px" }}>
+            <Plus size={11}/> {lang === "en" ? "New Request" : "Yeni Talep"}
+          </button>
+        </div>
+      </div>
+
+      {/* Taleplerim */}
+      {myRequests.length === 0 ? (
+        <EmptyState icon={Bell}
+          title={lang === "en" ? "No leave requests" : "İzin talebim yok"}
+          message={lang === "en" ? "Click 'New Request' to create one" : "'Yeni Talep' ile başlayın"}/>
+      ) : (
+        <div className="space-y-2">
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-mute)", padding: "0 4px" }}>
+            📋 {lang === "en" ? "My Requests" : "Taleplerim"} ({myRequests.length})
+          </div>
+          {myRequests.map(req => {
+            const lt = LEAVE_TYPES[req.leaveType.replace("leave_", "")] || LEAVE_TYPES.annual;
+            const isPending = req.status === "pending";
+            const isApproved = req.status === "approved";
+            const isRejected = req.status === "rejected";
+            const isCancelled = req.status === "cancelled";
+            const statusColor = isApproved ? "#15803d" : isPending ? "#ca8a04" : isRejected ? "#b91c1c" : "#737373";
+            const statusBg = isApproved ? "#dcfce7" : isPending ? "#fef3c7" : isRejected ? "#fee2e2" : "#f5f5f4";
+            const statusLabel = isApproved ? (lang === "en" ? "APPROVED" : "ONAYLI")
+                              : isPending ? (lang === "en" ? "PENDING" : "BEKLİYOR")
+                              : isRejected ? (lang === "en" ? "REJECTED" : "REDDEDİLDİ")
+                              : (lang === "en" ? "CANCELLED" : "İPTAL");
+
+            return (
+              <div key={req.id} className="card p-3" style={{ borderLeft: `4px solid ${statusColor}` }}>
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span style={{ fontSize: 16 }}>{lt.icon}</span>
+                      <span className="chip" style={{
+                        background: lt.color + "20", color: lt.color,
+                        padding: "1px 6px", fontSize: 11, fontWeight: 600,
+                      }}>
+                        {lt.labels[lang] || lt.labels.tr}
+                      </span>
+                      <span className="chip" style={{
+                        background: statusBg, color: statusColor,
+                        padding: "1px 6px", fontSize: 10, fontWeight: 700,
+                        border: `1px solid ${statusColor}40`,
+                      }}>
+                        {statusLabel}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 mt-2 text-xs" style={{ color: "var(--ink-mute)" }}>
+                      <span>📆 <b>{req.startDate}</b> → <b>{req.endDate}</b></span>
+                      <span className="chip" style={{ background: "var(--accent-soft)", color: "var(--accent)", padding: "1px 6px", fontWeight: 700 }}>
+                        {req.totalDays} {lang === "en" ? "days" : "gün"}
+                      </span>
+                    </div>
+
+                    {req.reason && (
+                      <div className="mt-2" style={{ fontSize: 11, color: "var(--ink-soft)" }}>
+                        💬 {req.reason}
+                      </div>
+                    )}
+
+                    {isApproved && req.approverNote && (
+                      <div className="card p-2 mt-2" style={{ background: "#dcfce7", fontSize: 10.5, color: "#15803d" }}>
+                        <b>✓ {lang === "en" ? "Approver" : "Onay"}:</b> {req.approverNote}
+                      </div>
+                    )}
+
+                    {isRejected && req.rejectionReason && (
+                      <div className="card p-2 mt-2" style={{ background: "#fee2e2", fontSize: 10.5, color: "#b91c1c" }}>
+                        <b>✗ {lang === "en" ? "Reason" : "Sebep"}:</b> {req.rejectionReason}
+                      </div>
+                    )}
+                  </div>
+
+                  {(isPending || isApproved) && (
+                    <button onClick={() => cancelRequest(req)} className="text-xs px-2 py-1 rounded"
+                      style={{ background: "var(--bg-alt)", color: "var(--ink-mute)", fontWeight: 600 }}>
+                      ⊘ {lang === "en" ? "Cancel" : "İptal"}
+                    </button>
+                  )}
+                </div>
+
+                {/* Yorum thread'i */}
+                <div className="mt-2" style={{ borderTop: "1px solid var(--line-soft)", paddingTop: 8 }}>
+                  <CommentThread
+                    parentType="leave"
+                    parentId={req.id}
+                    parentOwnerEmployeeId={req.employeeId}
+                    session={session}
+                    users={users}
+                    data={data}
+                    onChange={onChange}
+                    lang={lang}
+                    compactMode={true}/>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Yeni Talep Modal */}
+      {showNewModal && newRequest && (
+        <SelfServiceLeaveRequestModal
+          draft={newRequest}
+          setDraft={setNewRequest}
+          employee={employee}
+          data={data}
+          lang={lang}
+          balance={balance}
+          year={year}
+          onClose={() => { setShowNewModal(false); setNewRequest(null); }}
+          onSave={() => saveRequest(newRequest)}
+          calculateLeaveDays={calculateLeaveDays}/>
+      )}
     </div>
   );
 }
-function SsField({ label, value }) {
+
+/* ---------- Self-Service İzin Talep Modal ---------- */
+function SelfServiceLeaveRequestModal({ draft, setDraft, employee, data, lang, balance, year, onClose, onSave, calculateLeaveDays }) {
+  const totalDays = useMemo(() => calculateLeaveDays(draft.startDate, draft.endDate, draft.includeWeekends),
+    [draft.startDate, draft.endDate, draft.includeWeekends]);
+
+  const isAnnual = draft.leaveType === "annual";
+  const exceedsBalance = isAnnual && balance && totalDays > balance.remaining;
+
   return (
-    <div>
-      <div className="label" style={{ marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 14 }}>{value}</div>
-    </div>
-  );
-}
-function SsTable({ headers, rows, render, empty }) {
-  if (!rows || rows.length === 0) {
-    return <div className="card p-4 text-sm" style={{ color: "var(--ink-mute)" }}>{empty}</div>;
-  }
-  return (
-    <div className="card overflow-x-auto" style={{ boxShadow: "var(--shadow)" }}>
-      <table className="grid" style={{ minWidth: 480 }}>
-        <thead>
-          <tr>
-            {headers.map((h, i) => (
-              <th key={i} className={i === 0 ? "label-cell" : undefined}>{h}</th>
+    <Modal
+      title={`🏖️ ${lang === "en" ? "New Leave Request" : "Yeni İzin Talebi"}`}
+      icon={Bell} maxWidth="max-w-lg"
+      onClose={onClose} onSave={onSave}
+      saveLabel={lang === "en" ? "Submit Request" : "Talebi Gönder"}>
+      <div className="space-y-3">
+        {/* İzin tipi */}
+        <div>
+          <div className="label mb-1">{lang === "en" ? "Leave Type" : "İzin Tipi"} *</div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-1">
+            {Object.entries(LEAVE_TYPES).filter(([k]) => k !== "absent").map(([k, lt]) => (
+              <button key={k} type="button"
+                onClick={() => setDraft({ ...draft, leaveType: k })}
+                className="text-xs p-2 rounded text-left"
+                style={{
+                  background: draft.leaveType === k ? lt.color : "var(--bg)",
+                  color: draft.leaveType === k ? "#fff" : lt.color,
+                  border: `1px solid ${lt.color}40`,
+                  fontWeight: 600,
+                }}>
+                {lt.icon} {lt.labels[lang] || lt.labels.tr}
+              </button>
             ))}
-          </tr>
-        </thead>
-        <tbody>{rows.map((r, i) => render(r, i))}</tbody>
-      </table>
+          </div>
+        </div>
+
+        {/* Tarihler */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <div className="label mb-1">{lang === "en" ? "Start Date" : "Başlangıç"} *</div>
+            <input type="date" className="input w-full"
+              value={draft.startDate || ""}
+              onChange={e => setDraft({ ...draft, startDate: e.target.value })}/>
+          </div>
+          <div>
+            <div className="label mb-1">{lang === "en" ? "End Date" : "Bitiş"} *</div>
+            <input type="date" className="input w-full"
+              value={draft.endDate || ""}
+              onChange={e => setDraft({ ...draft, endDate: e.target.value })}/>
+          </div>
+        </div>
+
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={!!draft.includeWeekends}
+            onChange={e => setDraft({ ...draft, includeWeekends: e.target.checked })}/>
+          <span style={{ fontSize: 11.5 }}>
+            {lang === "en" ? "Include weekends/holidays" : "Hafta sonu ve tatilleri dahil et"}
+          </span>
+        </label>
+
+        {/* Sebep */}
+        <div>
+          <div className="label mb-1">{lang === "en" ? "Reason / Notes" : "Sebep / Notlar"}</div>
+          <textarea className="input w-full" rows="3" style={{ fontSize: 11.5 }}
+            value={draft.reason || ""}
+            placeholder={lang === "en" ? "Why are you requesting this leave?" : "İzin sebebinizi açıklayın..."}
+            onChange={e => setDraft({ ...draft, reason: e.target.value })}/>
+        </div>
+
+        {/* Özet */}
+        {draft.startDate && draft.endDate && totalDays > 0 && (
+          <div className="card p-3" style={{
+            background: exceedsBalance ? "#fee2e2" : "#cffafe",
+            border: `1px solid ${exceedsBalance ? "#b91c1c" : "#0891b2"}`,
+          }}>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: exceedsBalance ? "#b91c1c" : "#0891b2" }}>
+                  📊 {lang === "en" ? "Request Summary" : "Talep Özeti"}
+                </div>
+                <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: exceedsBalance ? "#b91c1c" : "#0891b2" }}>
+                  {totalDays} {lang === "en" ? "days" : "gün"}
+                </div>
+              </div>
+              {isAnnual && balance && (
+                <div className="text-xs text-right">
+                  <div style={{ color: "var(--ink-mute)" }}>{lang === "en" ? "After this request" : "Bu talepten sonra kalan"}:</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: exceedsBalance ? "#b91c1c" : "var(--positive)" }} className="mono">
+                    {balance.remaining - totalDays}
+                  </div>
+                  {exceedsBalance && (
+                    <div style={{ fontSize: 10, color: "#b91c1c", fontWeight: 700, marginTop: 2 }}>
+                      ⚠ {lang === "en" ? "Insufficient balance!" : "Yetersiz bakiye!"}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="card p-2 text-xs" style={{ background: "var(--bg-alt)", color: "var(--ink-mute)" }}>
+          ℹ️ {lang === "en"
+            ? "After submission, HR will review your request. You'll be notified once approved or rejected."
+            : "Talebiniz gönderildikten sonra İK tarafından incelenecek. Onay/Red sonucu burada görünecek."}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------- Bordrolarım ---------- */
+function SelfServicePayslips({ employee, data, lang }) {
+  const [selectedSlip, setSelectedSlip] = useState(null);
+
+  const mySlips = useMemo(() => {
+    const slips = [];
+    (data?.hrPayrollRuns || []).forEach(run => {
+      const slip = (run.results || []).find(r => r.employee?.id === employee.id);
+      if (slip) slips.push({ run, slip });
+    });
+    return slips.sort((a, b) => {
+      const ay = a.run.period?.year || 0, am = a.run.period?.month || 0;
+      const by = b.run.period?.year || 0, bm = b.run.period?.month || 0;
+      return (by - ay) || (bm - am);
+    });
+  }, [data?.hrPayrollRuns, employee.id]);
+
+  // Yıllık özet
+  const yearlySummary = useMemo(() => {
+    const map = {};
+    mySlips.forEach(({ run, slip }) => {
+      const y = run.period?.year;
+      if (!y) return;
+      if (!map[y]) map[y] = { year: y, gross: 0, net: 0, tax: 0, sgk: 0, count: 0 };
+      map[y].gross += slip.totals.gross || 0;
+      map[y].net += slip.totals.net || 0;
+      map[y].tax += slip.taxes.incomeTax || 0;
+      map[y].sgk += (slip.taxes.sgkEmployee || 0) + (slip.taxes.unempEmployee || 0);
+      map[y].count++;
+    });
+    return Object.values(map).sort((a, b) => b.year - a.year);
+  }, [mySlips]);
+
+  return (
+    <div className="space-y-3">
+      <div className="card p-3" style={{ background: "linear-gradient(135deg, #ddd6fe 0%, #fae8ff 100%)" }}>
+        <div style={{ fontSize: 12, color: "#7c3aed", fontWeight: 700 }}>
+          📄 {lang === "en" ? "My Payslips" : "Bordrolarım"}
+        </div>
+        <div style={{ fontSize: 11, color: "var(--ink-mute)", marginTop: 4 }}>
+          {lang === "en"
+            ? "View your monthly payslips with detailed breakdown of income, deductions and net pay."
+            : "Aylık bordrolarımı gelir, kesinti ve net detayıyla görüntüle."}
+        </div>
+      </div>
+
+      {/* Yıllık özet */}
+      {yearlySummary.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {yearlySummary.map(y => (
+            <div key={y.year} className="card p-3" style={{ borderLeft: "4px solid #7c3aed" }}>
+              <div className="flex items-center justify-between mb-2">
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{y.year}</div>
+                <span className="chip" style={{ background: "var(--accent-soft)", color: "var(--accent)", padding: "1px 6px", fontWeight: 600, fontSize: 10 }}>
+                  {y.count} {lang === "en" ? "months" : "ay"}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <div style={{ color: "var(--ink-mute)", fontSize: 9.5 }}>{lang === "en" ? "Total Gross" : "Toplam Brüt"}</div>
+                  <div className="mono font-bold">{fmtTL(y.gross)} ₺</div>
+                </div>
+                <div>
+                  <div style={{ color: "var(--ink-mute)", fontSize: 9.5 }}>{lang === "en" ? "Total Net" : "Toplam Net"}</div>
+                  <div className="mono font-bold" style={{ color: "var(--positive)" }}>{fmtTL(y.net)} ₺</div>
+                </div>
+                <div>
+                  <div style={{ color: "var(--ink-mute)", fontSize: 9.5 }}>{lang === "en" ? "Income Tax" : "Gelir Vergisi"}</div>
+                  <div className="mono" style={{ fontSize: 11, color: "var(--negative)" }}>-{fmtTL(y.tax)}</div>
+                </div>
+                <div>
+                  <div style={{ color: "var(--ink-mute)", fontSize: 9.5 }}>SGK</div>
+                  <div className="mono" style={{ fontSize: 11, color: "var(--negative)" }}>-{fmtTL(y.sgk)}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Slip listesi */}
+      {mySlips.length === 0 ? (
+        <EmptyState icon={Receipt}
+          title={lang === "en" ? "No payslips yet" : "Henüz bordro yok"}
+          message={lang === "en" ? "Your payslips will appear here once payroll is run" : "Bordro çalıştırıldığında burada görünecek"}/>
+      ) : (
+        <div className="space-y-2">
+          {mySlips.map(({ run, slip }) => {
+            const mName = new Date(run.period.year, run.period.month - 1).toLocaleString(LANGUAGES[lang]?.locale || "tr-TR", { month: "long" });
+            const isConfirmed = run.status === "confirmed";
+            return (
+              <div key={run.id} className="card p-3 transition-all hover:shadow-md"
+                style={{ borderLeft: `4px solid ${isConfirmed ? "#15803d" : "#ca8a04"}`, cursor: "pointer" }}
+                onClick={() => setSelectedSlip(slip)}>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-3">
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 8,
+                      background: "linear-gradient(135deg, #ddd6fe 0%, #fae8ff 100%)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 18,
+                    }}>📄</div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{mName} {run.period.year}</div>
+                      <div style={{ fontSize: 10, color: "var(--ink-mute)" }}>
+                        {isConfirmed ? `✓ ${lang === "en" ? "Confirmed" : "Onaylı"}` : `📝 ${lang === "en" ? "Draft" : "Taslak"}`}
+                        {" · "}
+                        {lang === "en" ? "Work days" : "Çalışılan gün"}: <span className="mono">{slip.period?.workdaysPerMonth}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div style={{ fontSize: 10, color: "var(--ink-mute)" }}>{lang === "en" ? "Net Pay" : "Net Maaş"}</div>
+                    <div className="mono" style={{ fontSize: 17, fontWeight: 700, color: "var(--positive)" }}>
+                      {fmtTL(slip.totals.net)} ₺
+                    </div>
+                    <div style={{ fontSize: 9.5, color: "var(--ink-mute)" }}>
+                      {lang === "en" ? "from" : "brüt"}: <span className="mono">{fmtTL(slip.totals.gross)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Slip Modal */}
+      {selectedSlip && (
+        <PayrollSlipModal slip={selectedSlip} lang={lang} onClose={() => setSelectedSlip(null)}/>
+      )}
     </div>
   );
 }
 
-function LeaveRequestForm({ onSubmit, onCancel }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const [leaveType, setLeaveType] = useState("annual");
-  const [startDate, setStartDate] = useState(today);
-  const [endDate, setEndDate] = useState(today);
-  const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
-  const days = ssLeaveDays(startDate, endDate);
-  const submit = async (ev) => {
-    ev.preventDefault();
-    if (days < 1) { setErr("Bitiş tarihi başlangıçtan önce olamaz."); return; }
-    setBusy(true); setErr(null);
-    try {
-      await onSubmit({ leaveType, startDate, endDate, reason });
-    } catch (e) {
-      setErr(e?.message || "Talep oluşturulamadı");
-      setBusy(false);
+/* ---------- Puantajım (read-only takvim) ---------- */
+function SelfServiceAttendance({ employee, data, lang }) {
+  const today = new Date();
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth() + 1);
+
+  const totalDays = daysInMonth(year, month);
+  const monthName = new Date(year, month - 1).toLocaleString(LANGUAGES[lang]?.locale || "tr-TR", { month: "long" });
+
+  // Aylık özet
+  const summary = useMemo(() => summarizeDaysToSheet(employee.id, year, month, data?.hrAttendanceDays || []),
+    [employee.id, year, month, data?.hrAttendanceDays]);
+
+  // Mevcut sheet (varsa)
+  const sheet = useMemo(() => (data?.hrAttendanceSheets || []).find(s =>
+    s.employeeId === employee.id && s.year === year && s.month === month
+  ), [employee.id, year, month, data?.hrAttendanceSheets]);
+
+  const allDays = data?.hrAttendanceDays || [];
+  const getCellData = (dateStr) => allDays.find(d => d.employeeId === employee.id && d.date === dateStr);
+
+  const getDayCellStyle = (cellData, dateStr) => {
+    if (!cellData) {
+      if (isPublicHoliday(dateStr)) return { background: "#fee2e240", color: "#dc2626" };
+      if (isWeekend(dateStr)) return { background: "#f5f5f4", color: "#737373" };
+      return { background: "transparent" };
+    }
+    switch (cellData.dayType) {
+      case "work":          return { background: cellData.workedHours > 0 ? "#dcfce780" : "transparent", color: "#15803d" };
+      case "half_day":      return { background: "#fef3c780", color: "#854d0e" };
+      case "weekend":       return { background: cellData.workedHours > 0 ? "#ddd6fe80" : "#f5f5f4", color: cellData.workedHours > 0 ? "#7c3aed" : "#737373" };
+      case "holiday":       return { background: cellData.workedHours > 0 ? "#fce7f380" : "#fee2e240", color: cellData.workedHours > 0 ? "#db2777" : "#dc2626" };
+      case "leave_annual":  return { background: "#cffafe", color: "#0891b2" };
+      case "leave_sick":    return { background: "#fee2e2", color: "#dc2626" };
+      case "leave_unpaid":  return { background: "#f5f5f4", color: "#737373" };
+      case "business_trip": return { background: "#dcfce7", color: "#16a34a" };
+      case "absent":        return { background: "#fef2f2", color: "#b91c1c" };
+      default:              return { background: cellData.dayType?.startsWith("leave_") ? "#fae8ff" : "transparent", color: "#a21caf" };
     }
   };
+
+  const getCellContent = (cellData, dateStr) => {
+    if (!cellData) {
+      if (isPublicHoliday(dateStr)) return "🎉";
+      if (isWeekend(dateStr)) return "·";
+      return "";
+    }
+    if (cellData.dayType === "work" || cellData.dayType === "half_day") {
+      if (cellData.workedHours > 0) return cellData.workedHours.toFixed(1);
+      return cellData.dayType === "half_day" ? "½" : "·";
+    }
+    if (cellData.dayType === "weekend" || cellData.dayType === "holiday") {
+      if (cellData.workedHours > 0) return cellData.workedHours.toFixed(1);
+      return cellData.dayType === "weekend" ? "🏠" : "🎉";
+    }
+    const lt = LEAVE_TYPES[cellData.dayType?.replace("leave_", "")];
+    if (lt) return lt.icon;
+    if (cellData.dayType === "absent") return "❌";
+    if (cellData.dayType === "business_trip") return "✈️";
+    return "?";
+  };
+
   return (
-    <form onSubmit={submit} className="card p-4" style={{ display: "grid", gap: 10, background: "var(--bg-alt)" }}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <label className="block text-sm"><span className="label">İzin Türü</span>
-          <select className="input mt-1" value={leaveType} onChange={e => setLeaveType(e.target.value)}>
-            <option value="annual">Yıllık İzin</option>
-            <option value="unpaid">Ücretsiz İzin</option>
-            <option value="sick">Hastalık (Rapor)</option>
-            <option value="excuse">Mazeret</option>
+    <div className="space-y-3">
+      <div className="card p-3" style={{ background: "linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%)" }}>
+        <div style={{ fontSize: 12, color: "#15803d", fontWeight: 700 }}>
+          📅 {lang === "en" ? "My Attendance" : "Puantajım"}
+        </div>
+        <div style={{ fontSize: 11, color: "var(--ink-mute)", marginTop: 4 }}>
+          {lang === "en"
+            ? "Read-only view of your monthly attendance. Contact HR for corrections."
+            : "Aylık puantajım (sadece görüntüleme). Düzeltme için İK ile iletişime geçin."}
+        </div>
+      </div>
+
+      {/* Dönem seç */}
+      <div className="card p-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span style={{ fontSize: 11, fontWeight: 600 }}>{lang === "en" ? "Period" : "Dönem"}:</span>
+          <select className="input text-xs" value={year} onChange={e => setYear(parseInt(e.target.value))} style={{ width: 90 }}>
+            {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-        </label>
-        <label className="block text-sm"><span className="label">Toplam Gün</span>
-          <input className="input mt-1 num" value={days} readOnly/>
-        </label>
-        <label className="block text-sm"><span className="label">Başlangıç</span>
-          <input type="date" className="input mt-1" value={startDate} onChange={e => setStartDate(e.target.value)}/>
-        </label>
-        <label className="block text-sm"><span className="label">Bitiş</span>
-          <input type="date" className="input mt-1" value={endDate} onChange={e => setEndDate(e.target.value)}/>
-        </label>
+          <select className="input text-xs" value={month} onChange={e => setMonth(parseInt(e.target.value))} style={{ width: 130 }}>
+            {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+              <option key={m} value={m}>
+                {new Date(year, m - 1).toLocaleString(LANGUAGES[lang]?.locale || "tr-TR", { month: "long" })}
+              </option>
+            ))}
+          </select>
+          {sheet && (
+            <span className="chip ml-auto" style={{
+              background: ATTENDANCE_STATUS[sheet.status]?.color + "20",
+              color: ATTENDANCE_STATUS[sheet.status]?.color,
+              padding: "2px 8px", fontSize: 10, fontWeight: 700,
+            }}>
+              {ATTENDANCE_STATUS[sheet.status]?.labels[lang] || sheet.status}
+            </span>
+          )}
+        </div>
       </div>
-      <label className="block text-sm"><span className="label">Açıklama</span>
-        <input className="input mt-1" value={reason} onChange={e => setReason(e.target.value)} placeholder="Opsiyonel"/>
-      </label>
-      {err && <p style={{ color: "var(--negative)", fontSize: 12, margin: 0 }}>{err}</p>}
-      <div style={{ display: "flex", gap: 8 }}>
-        <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? "Gönderiliyor…" : "Talep Gönder"}</button>
-        <button type="button" className="btn btn-ghost" onClick={onCancel}>Vazgeç</button>
+
+      {/* KPI'lar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="card p-2 text-center" style={{ background: "#15803d10" }}>
+          <div style={{ fontSize: 9.5, color: "var(--ink-mute)" }}>💼 {lang === "en" ? "Worked Days" : "Çalışılan"}</div>
+          <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: "#15803d" }}>{summary.workedDays}</div>
+        </div>
+        <div className="card p-2 text-center" style={{ background: "#0891b210" }}>
+          <div style={{ fontSize: 9.5, color: "var(--ink-mute)" }}>⏰ {lang === "en" ? "Hours" : "Saat"}</div>
+          <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: "#0891b2" }}>{summary.workedHoursTotal.toFixed(1)}</div>
+        </div>
+        <div className="card p-2 text-center" style={{ background: "#7c3aed10" }}>
+          <div style={{ fontSize: 9.5, color: "var(--ink-mute)" }}>📈 {lang === "en" ? "Overtime" : "Fazla Mesai"}</div>
+          <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: "#7c3aed" }}>
+            {(summary.overtimeNormalHours + summary.overtimeWeekendHours + summary.overtimeHolidayHours).toFixed(1)}
+          </div>
+        </div>
+        <div className="card p-2 text-center" style={{ background: "#0891b210" }}>
+          <div style={{ fontSize: 9.5, color: "var(--ink-mute)" }}>🏖️ {lang === "en" ? "Annual" : "Yıllık"}</div>
+          <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: "#0891b2" }}>{summary.leaveAnnualDays}</div>
+        </div>
       </div>
-    </form>
+
+      {/* Takvim Grid */}
+      <div className="card overflow-x-auto">
+        <div className="grid grid-cols-7 gap-1 p-3">
+          {[lang === "en" ? "Mon" : "Pzt", lang === "en" ? "Tue" : "Sal", lang === "en" ? "Wed" : "Çar", lang === "en" ? "Thu" : "Per", lang === "en" ? "Fri" : "Cum", lang === "en" ? "Sat" : "Cmt", lang === "en" ? "Sun" : "Paz"].map(d => (
+            <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: "var(--ink-mute)", padding: "4px 0" }}>{d}</div>
+          ))}
+          {/* Ayın ilk gününün haftadaki yeri için boşluk */}
+          {(() => {
+            const firstDay = new Date(year, month - 1, 1);
+            let dow = firstDay.getDay();
+            dow = dow === 0 ? 6 : dow - 1; // Pazar=0 → 6, Pazartesi=1 → 0
+            return Array.from({ length: dow }).map((_, i) => <div key={`pad-${i}`}/>);
+          })()}
+          {Array.from({ length: totalDays }, (_, i) => i + 1).map(day => {
+            const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+            const cellData = getCellData(dateStr);
+            const cellStyle = getDayCellStyle(cellData, dateStr);
+            const content = getCellContent(cellData, dateStr);
+            return (
+              <div key={day} style={{
+                ...cellStyle,
+                aspectRatio: "1",
+                display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center",
+                borderRadius: 6,
+                border: "1px solid var(--line-soft)",
+                position: "relative",
+                fontSize: 12, fontWeight: 600,
+              }} title={`${dateStr}${cellData ? ` — ${cellData.dayType} — ${cellData.workedHours || 0}h` : ""}${cellData?.notes ? `\n${cellData.notes}` : ""}`}>
+                <div style={{ position: "absolute", top: 2, left: 4, fontSize: 9, opacity: 0.6, fontWeight: 600 }}>
+                  {day}
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, marginTop: 6 }}>{content}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="card p-2 flex flex-wrap gap-1.5" style={{ fontSize: 9.5 }}>
+        <span className="chip" style={{ background: "#dcfce7", color: "#15803d", padding: "1px 6px" }}>✓ {lang === "en" ? "Worked" : "Çalıştı"}</span>
+        <span className="chip" style={{ background: "#cffafe", color: "#0891b2", padding: "1px 6px" }}>🏖️ {lang === "en" ? "Annual" : "Yıllık"}</span>
+        <span className="chip" style={{ background: "#fee2e2", color: "#dc2626", padding: "1px 6px" }}>🤒 {lang === "en" ? "Sick" : "Raporlu"}</span>
+        <span className="chip" style={{ background: "#f5f5f4", color: "#737373", padding: "1px 6px" }}>🏠 {lang === "en" ? "Weekend" : "Hafta Tatili"}</span>
+        <span className="chip" style={{ background: "#fee2e240", color: "#dc2626", padding: "1px 6px" }}>🎉 {lang === "en" ? "Holiday" : "Resmi Tatil"}</span>
+        <span className="chip" style={{ background: "#dcfce7", color: "#16a34a", padding: "1px 6px" }}>✈️ {lang === "en" ? "Travel" : "Görevli"}</span>
+      </div>
+    </div>
   );
 }
 
-function RequestForm({ onSubmit, onCancel }) {
-  const [kind, setKind] = useState("advance");
-  const [amount, setAmount] = useState("");
-  const [installments, setInstallments] = useState("1");
-  const [category, setCategory] = useState("");
-  const [description, setDescription] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
-  const submit = async (ev) => {
-    ev.preventDefault();
-    if (!(Number(amount) > 0)) { setErr("Tutar sıfırdan büyük olmalı."); return; }
-    setBusy(true); setErr(null);
-    try {
-      await onSubmit({ kind, amount, installments, category, description });
-    } catch (e) {
-      setErr(e?.message || "Talep oluşturulamadı");
-      setBusy(false);
+/* ---------- Profilim ---------- */
+/* =====================================================================
+   TALEPLER YÖNETİMİ (RequestsManager)
+   ---------------------------------------------------------------------
+   3 talep tipi (avans/masraf/zimmet) için unified yönetim
+   • Tip bazlı sekme + durum filtreleri
+   • Yeni talep ekleme (yönetici de oluşturabilir)
+   • Onay/Red/Ödeme/Teslim akışı
+   • Avans → bordroya otomatik taksit yansıtma
+===================================================================== */
+function SelfServiceRequests({ session, employee, data, kind, users = [], onChange, logAudit, notify, lang }) {
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [newRequest, setNewRequest] = useState(null);
+
+  const kindInfo = REQUEST_KINDS[kind];
+
+  const myRequests = useMemo(() => {
+    return (data?.hrRequests || [])
+      .filter(r => r.kind === kind && r.employeeId === employee.id)
+      .sort((a, b) => new Date(b.requestedAt || 0) - new Date(a.requestedAt || 0));
+  }, [data?.hrRequests, employee.id, kind]);
+
+  // Aktif (kullanılmakta olan) zimmetler — sadece asset view'da
+  const myActiveAssets = useMemo(() => {
+    if (kind !== "asset") return [];
+    return getEmployeeAssets(employee.id, data);
+  }, [data, employee.id, kind]);
+
+  // KPI'lar
+  const stats = useMemo(() => {
+    const pending = myRequests.filter(r => r.status === "pending").length;
+    const approved = myRequests.filter(r => r.status === "approved").length;
+    const paid = myRequests.filter(r => r.status === "paid").length;
+    const delivered = myRequests.filter(r => r.status === "delivered").length;
+    const totalAmount = myRequests.filter(r => r.status === "approved" || r.status === "paid").reduce((s, r) => s + (Number(r.amount) || 0), 0);
+    return { pending, approved, paid, delivered, totalAmount, total: myRequests.length };
+  }, [myRequests]);
+
+  // Kullanılan/kalan avans (sadece advance için)
+  const advanceSummary = useMemo(() => {
+    if (kind !== "advance") return null;
+    const activeAdvances = myRequests.filter(r => r.status === "approved" || r.status === "paid");
+    let totalAdvance = 0, totalDeducted = 0, totalRemaining = 0;
+    activeAdvances.forEach(a => {
+      const info = getAdvanceRemaining(a, data);
+      if (info) {
+        totalAdvance += info.totalAmount;
+        totalDeducted += info.paidAmount;
+        totalRemaining += info.remaining;
+      }
+    });
+    return { totalAdvance, totalDeducted, totalRemaining };
+  }, [myRequests, data, kind]);
+
+  const calculateLeaveDays = (s, e, w) => 0; // placeholder
+
+  const saveRequest = async (draft) => {
+    if (!draft.reason && kind !== "asset") {
+      notify(lang === "en" ? "Reason required" : "Sebep zorunlu", "err");
+      return;
     }
+    if (kindInfo.requiresAmount && (!draft.amount || draft.amount <= 0)) {
+      notify(lang === "en" ? "Amount required" : "Tutar zorunlu", "err");
+      return;
+    }
+    const item = {
+      ...draft,
+      kind,
+      employeeId: employee.id,
+      id: "req_" + Date.now() + "_" + Math.random().toString(36).slice(2, 5),
+      status: "pending",
+      requestedAt: new Date().toISOString(),
+      requestedBy: session.username,
+      requestedBySelf: true,
+    };
+    const next = [...(data?.hrRequests || []), item];
+
+    // Yöneticilere bildirim
+    let nextNotifications = data?.hrNotifications || [];
+    const mgrUserId = getEmployeeManagerUserId(employee, data);
+    const recipients = [];
+    if (mgrUserId && mgrUserId !== session.username) recipients.push(mgrUserId);
+    const hrMgrs = getHrManagerUserIds(users);
+    hrMgrs.forEach(uid => { if (uid !== session.username && !recipients.includes(uid)) recipients.push(uid); });
+
+    recipients.forEach(uid => {
+      nextNotifications = createNotification(nextNotifications, {
+        recipientUserId: uid,
+        kind: "request_pending",
+        title: `⏳ ${lang === "en" ? "New" : "Yeni"} ${kindInfo.labels[lang] || kindInfo.labels.tr}`,
+        body: `${employee.firstName} ${employee.lastName}${item.amount > 0 ? ` · ${fmtTL(item.amount)} ₺` : ""}${item.reason ? ` · ${item.reason.slice(0, 60)}` : ""}`,
+        link: { type: "request", id: item.id },
+        createdBy: session.username,
+        meta: { kind, amount: item.amount },
+      });
+    });
+
+    await onChange({ ...data, hrRequests: next, hrNotifications: nextNotifications });
+    await logAudit && logAudit(`request_${kind}_create_self`, { id: item.id, amount: item.amount });
+    notify(lang === "en" ? "Request submitted!" : "Talep gönderildi!");
+    setShowNewModal(false);
+    setNewRequest(null);
   };
+
+  const cancelRequest = async (request) => {
+    if (!confirm(lang === "en" ? "Cancel this request?" : "Bu talebi iptal edilsin mi?")) return;
+    const updated = {
+      ...request,
+      status: "cancelled",
+      cancelledAt: new Date().toISOString(),
+      cancelledBy: session.username,
+    };
+    const next = (data?.hrRequests || []).map(r => r.id === request.id ? updated : r);
+    await onChange({ ...data, hrRequests: next });
+    notify(lang === "en" ? "Cancelled" : "İptal edildi");
+  };
+
+  // Yeni talep başlatma
+  const startNew = () => {
+    const baseDraft = {
+      kind,
+      employeeId: employee.id,
+      amount: 0,
+      currency: "TRY",
+      reason: "",
+      notes: "",
+    };
+    if (kind === "advance") {
+      baseDraft.installments = 1;
+      baseDraft.payrollMonth = new Date().toISOString().slice(0, 7);
+    } else if (kind === "expense") {
+      baseDraft.expenseCategory = "travel";
+      baseDraft.receiptDate = new Date().toISOString().slice(0, 10);
+      baseDraft.vendorName = "";
+      baseDraft.vatAmount = 0;
+    } else if (kind === "asset") {
+      baseDraft.assetType = "laptop";
+      baseDraft.assetBrand = "";
+      baseDraft.assetModel = "";
+      baseDraft.assetSerial = "";
+      baseDraft.assignmentDate = new Date().toISOString().slice(0, 10);
+    }
+    setNewRequest(baseDraft);
+    setShowNewModal(true);
+  };
+
   return (
-    <form onSubmit={submit} className="card p-4" style={{ display: "grid", gap: 10, background: "var(--bg-alt)" }}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <label className="block text-sm"><span className="label">Talep Türü</span>
-          <select className="input mt-1" value={kind} onChange={e => setKind(e.target.value)}>
-            <option value="advance">Avans</option>
-            <option value="expense">Masraf</option>
-          </select>
-        </label>
-        <label className="block text-sm"><span className="label">Tutar (₺)</span>
-          <input type="number" className="input mt-1 num" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00"/>
-        </label>
-        {kind === "advance" && (
-          <label className="block text-sm"><span className="label">Taksit Sayısı</span>
-            <input type="number" min="1" className="input mt-1 num" value={installments} onChange={e => setInstallments(e.target.value)}/>
-          </label>
-        )}
-        {kind === "expense" && (
-          <label className="block text-sm"><span className="label">Kategori</span>
-            <input className="input mt-1" value={category} onChange={e => setCategory(e.target.value)} placeholder="Örn: Yol, Yemek"/>
-          </label>
-        )}
+    <div className="space-y-3">
+      {/* Header banner */}
+      <div className="card p-4" style={{
+        background: `linear-gradient(135deg, ${kindInfo.color}30 0%, ${kindInfo.color}15 100%)`,
+        border: `1px solid ${kindInfo.color}40`,
+      }}>
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <div style={{ fontSize: 13, color: kindInfo.color, fontWeight: 700 }}>
+              {kindInfo.icon} {kindInfo.labels[lang] || kindInfo.labels.tr}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--ink-mute)", marginTop: 4 }}>
+              {kindInfo.description[lang] || kindInfo.description.tr}
+            </div>
+
+            {/* Avans özeti */}
+            {kind === "advance" && advanceSummary && advanceSummary.totalAdvance > 0 && (
+              <div className="grid grid-cols-3 gap-4 mt-3">
+                <div>
+                  <div style={{ fontSize: 10, color: "var(--ink-mute)" }}>{lang === "en" ? "Total Advance" : "Toplam Avans"}</div>
+                  <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: kindInfo.color }}>{fmtTL(advanceSummary.totalAdvance)} ₺</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: "var(--ink-mute)" }}>{lang === "en" ? "Deducted" : "Kesilen"}</div>
+                  <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: "#15803d" }}>{fmtTL(advanceSummary.totalDeducted)} ₺</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: "var(--ink-mute)" }}>{lang === "en" ? "Remaining" : "Kalan"}</div>
+                  <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: "#dc2626" }}>{fmtTL(advanceSummary.totalRemaining)} ₺</div>
+                </div>
+              </div>
+            )}
+
+            {/* Aktif zimmetler */}
+            {kind === "asset" && myActiveAssets.length > 0 && (
+              <div className="mt-3">
+                <div style={{ fontSize: 11, color: "var(--ink-mute)", marginBottom: 6 }}>
+                  📦 {lang === "en" ? "Currently assigned to you" : "Mevcut zimmetleriniz"}: <b>{myActiveAssets.length}</b>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {myActiveAssets.map(a => (
+                    <span key={a.id} className="chip" style={{
+                      background: ASSET_TYPES[a.type]?.color + "20",
+                      color: ASSET_TYPES[a.type]?.color,
+                      padding: "2px 8px", fontSize: 10, fontWeight: 600,
+                    }}>
+                      {ASSET_TYPES[a.type]?.icon} {a.brand} {a.model}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <button onClick={startNew} className="btn btn-primary text-xs flex-shrink-0"
+            style={{ background: kindInfo.color, color: "#fff", padding: "8px 14px" }}>
+            <Plus size={11}/> {lang === "en" ? "New Request" : "Yeni Talep"}
+          </button>
+        </div>
       </div>
-      <label className="block text-sm"><span className="label">Açıklama</span>
-        <input className="input mt-1" value={description} onChange={e => setDescription(e.target.value)} placeholder="Opsiyonel"/>
-      </label>
-      {err && <p style={{ color: "var(--negative)", fontSize: 12, margin: 0 }}>{err}</p>}
-      <div style={{ display: "flex", gap: 8 }}>
-        <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? "Gönderiliyor…" : "Talep Gönder"}</button>
-        <button type="button" className="btn btn-ghost" onClick={onCancel}>Vazgeç</button>
+
+      {/* KPI */}
+      <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+        <div className="card p-2 text-center" style={{ background: "#fef3c7" }}>
+          <div style={{ fontSize: 10, color: "#854d0e" }}>⏳ {lang === "en" ? "Pending" : "Bekleyen"}</div>
+          <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: "#854d0e" }}>{stats.pending}</div>
+        </div>
+        <div className="card p-2 text-center" style={{ background: "#dcfce7" }}>
+          <div style={{ fontSize: 10, color: "#15803d" }}>✓ {lang === "en" ? "Approved" : "Onaylı"}</div>
+          <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: "#15803d" }}>{stats.approved}</div>
+        </div>
+        {kind === "asset" ? (
+          <div className="card p-2 text-center" style={{ background: "#ddd6fe" }}>
+            <div style={{ fontSize: 10, color: "#7c3aed" }}>📦 {lang === "en" ? "Delivered" : "Teslim"}</div>
+            <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: "#7c3aed" }}>{stats.delivered}</div>
+          </div>
+        ) : (
+          <div className="card p-2 text-center" style={{ background: "#cffafe" }}>
+            <div style={{ fontSize: 10, color: "#0891b2" }}>💸 {lang === "en" ? "Paid" : "Ödendi"}</div>
+            <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: "#0891b2" }}>{stats.paid}</div>
+          </div>
+        )}
+        <div className="card p-2 text-center" style={{ background: "var(--bg-alt)" }}>
+          <div style={{ fontSize: 10, color: "var(--ink-mute)" }}>📋 {lang === "en" ? "Total" : "Toplam"}</div>
+          <div className="mono" style={{ fontSize: 18, fontWeight: 700 }}>{stats.total}</div>
+        </div>
       </div>
-    </form>
+
+      {/* Liste */}
+      {myRequests.length === 0 ? (
+        <EmptyState icon={ClipboardList}
+          title={lang === "en" ? `No ${kindInfo.labels.en.toLowerCase()} yet` : `Henüz ${(kindInfo.labels.tr || "").toLowerCase()} yok`}
+          message={lang === "en" ? "Click 'New Request' to create one" : "'Yeni Talep' ile başlayın"}/>
+      ) : (
+        <div className="space-y-2">
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-mute)", padding: "0 4px" }}>
+            📋 {lang === "en" ? "My Requests" : "Taleplerim"} ({myRequests.length})
+          </div>
+          {myRequests.map(req => {
+            const statusInfo = REQUEST_STATUS[req.status] || REQUEST_STATUS.pending;
+            const isPending = req.status === "pending";
+            const isApproved = req.status === "approved";
+            const advInfo = kind === "advance" && (isApproved || req.status === "paid") ? getAdvanceRemaining(req, data) : null;
+
+            return (
+              <div key={req.id} className="card p-3" style={{ borderLeft: `4px solid ${statusInfo.color}` }}>
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="chip" style={{
+                        background: statusInfo.color + "20", color: statusInfo.color,
+                        padding: "1px 6px", fontSize: 10, fontWeight: 700,
+                        border: `1px solid ${statusInfo.color}40`,
+                      }}>
+                        {statusInfo.icon} {(statusInfo.labels[lang] || statusInfo.labels.tr).toUpperCase()}
+                      </span>
+                      {kind === "expense" && req.expenseCategory && EXPENSE_CATEGORIES[req.expenseCategory] && (
+                        <span className="chip" style={{
+                          background: EXPENSE_CATEGORIES[req.expenseCategory].color + "20",
+                          color: EXPENSE_CATEGORIES[req.expenseCategory].color,
+                          padding: "1px 6px", fontSize: 10, fontWeight: 600,
+                        }}>
+                          {EXPENSE_CATEGORIES[req.expenseCategory].icon} {EXPENSE_CATEGORIES[req.expenseCategory].labels[lang] || req.expenseCategory}
+                        </span>
+                      )}
+                      {kind === "asset" && req.assetType && ASSET_TYPES[req.assetType] && (
+                        <span className="chip" style={{
+                          background: ASSET_TYPES[req.assetType].color + "20",
+                          color: ASSET_TYPES[req.assetType].color,
+                          padding: "1px 6px", fontSize: 10, fontWeight: 600,
+                        }}>
+                          {ASSET_TYPES[req.assetType].icon} {ASSET_TYPES[req.assetType].labels[lang] || req.assetType}
+                        </span>
+                      )}
+                    </div>
+
+                    {req.amount > 0 && (
+                      <div className="mono mt-2" style={{ fontSize: 17, fontWeight: 700, color: kindInfo.color }}>
+                        {fmtTL(req.amount)} {req.currency || "₺"}
+                        {kind === "advance" && req.installments > 1 && (
+                          <span style={{ fontSize: 11, color: "var(--ink-mute)", marginLeft: 8, fontWeight: 500 }}>
+                            ({req.installments}× {fmtTL(req.amount / req.installments)})
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {kind === "asset" && req.assetBrand && (
+                      <div className="mt-2" style={{ fontSize: 12 }}>
+                        <b>{req.assetBrand}</b>
+                        {req.assetModel && ` ${req.assetModel}`}
+                        {req.assetSerial && <span className="mono ml-2" style={{ fontSize: 10, color: "var(--ink-mute)" }}>#{req.assetSerial}</span>}
+                      </div>
+                    )}
+
+                    {advInfo && advInfo.deductedMonths > 0 && (
+                      <div className="card p-2 mt-2 text-xs" style={{ background: "#fef3c7", color: "#854d0e" }}>
+                        📊 {advInfo.deductedMonths}/{advInfo.installments} {lang === "en" ? "deducted" : "kesildi"} —{" "}
+                        {lang === "en" ? "Remaining" : "Kalan"}: <b className="mono">{fmtTL(advInfo.remaining)} ₺</b>
+                      </div>
+                    )}
+
+                    <div className="text-xs mt-2" style={{ color: "var(--ink-mute)" }}>
+                      {kind === "advance" && req.payrollMonth && <span>📅 {req.payrollMonth}</span>}
+                      {kind === "expense" && req.receiptDate && (
+                        <span>🧾 {req.receiptDate}{req.vendorName && ` · ${req.vendorName}`}</span>
+                      )}
+                      {kind === "asset" && req.assignmentDate && <span>📅 {req.assignmentDate}</span>}
+                    </div>
+
+                    {req.reason && (
+                      <div className="mt-2" style={{ fontSize: 11, color: "var(--ink-soft)" }}>
+                        💬 {req.reason}
+                      </div>
+                    )}
+
+                    {isApproved && req.approverNote && (
+                      <div className="card p-2 mt-2" style={{ background: "#dcfce7", fontSize: 10.5, color: "#15803d" }}>
+                        <b>✓ {lang === "en" ? "Approver" : "Onay"}:</b> {req.approverNote}
+                      </div>
+                    )}
+                    {req.status === "rejected" && req.rejectionReason && (
+                      <div className="card p-2 mt-2" style={{ background: "#fee2e2", fontSize: 10.5, color: "#b91c1c" }}>
+                        <b>✗ {lang === "en" ? "Reason" : "Sebep"}:</b> {req.rejectionReason}
+                      </div>
+                    )}
+                  </div>
+
+                  {(isPending) && (
+                    <button onClick={() => cancelRequest(req)} className="text-xs px-2 py-1 rounded"
+                      style={{ background: "var(--bg-alt)", color: "var(--ink-mute)", fontWeight: 600 }}>
+                      ⊘ {lang === "en" ? "Cancel" : "İptal"}
+                    </button>
+                  )}
+                </div>
+
+                {/* Yorum thread'i */}
+                <div className="mt-2" style={{ borderTop: "1px solid var(--line-soft)", paddingTop: 8 }}>
+                  <CommentThread
+                    parentType="request"
+                    parentId={req.id}
+                    parentOwnerEmployeeId={req.employeeId}
+                    session={session}
+                    users={users}
+                    data={data}
+                    onChange={onChange}
+                    lang={lang}
+                    compactMode={true}/>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Yeni Talep Modal */}
+      {showNewModal && newRequest && (
+        <SelfServiceRequestModal
+          draft={newRequest}
+          setDraft={setNewRequest}
+          employee={employee}
+          data={data}
+          kind={kind}
+          lang={lang}
+          onClose={() => { setShowNewModal(false); setNewRequest(null); }}
+          onSave={() => saveRequest(newRequest)}/>
+      )}
+    </div>
   );
 }
+
+/* ---------- Self-Service Talep Modal (sadeleştirilmiş - kendi adına) ---------- */
+function SelfServiceRequestModal({ draft, setDraft, employee, data, kind, lang, onClose, onSave }) {
+  const kindInfo = REQUEST_KINDS[kind];
+
+  return (
+    <Modal
+      title={`${kindInfo.icon} ${lang === "en" ? "New" : "Yeni"} ${kindInfo.labels[lang] || kindInfo.labels.tr}`}
+      icon={ClipboardList} maxWidth="max-w-lg"
+      onClose={onClose} onSave={onSave}
+      saveLabel={lang === "en" ? "Submit" : "Gönder"}>
+      <div className="space-y-3">
+        {/* Tutar (avans/masraf) */}
+        {kindInfo.requiresAmount && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="label mb-1">{lang === "en" ? "Amount" : "Tutar"} *</div>
+              <input type="number" step="0.01" className="input w-full mono text-right"
+                value={draft.amount || ""}
+                placeholder="0.00"
+                onChange={e => setDraft({ ...draft, amount: parseFloat(e.target.value) || 0 })}/>
+            </div>
+            <div>
+              <div className="label mb-1">{lang === "en" ? "Currency" : "Para"}</div>
+              <select className="input w-full" value={draft.currency || "TRY"}
+                onChange={e => setDraft({ ...draft, currency: e.target.value })}>
+                <option value="TRY">₺ TRY</option>
+                <option value="USD">$ USD</option>
+                <option value="EUR">€ EUR</option>
+                <option value="GBP">£ GBP</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* AVANS detay */}
+        {kind === "advance" && (
+          <>
+            <div className="card p-3" style={{ background: "#fef3c7", border: "1px solid #ca8a04" }}>
+              <div style={{ fontSize: 11, color: "#854d0e" }}>
+                💡 {lang === "en"
+                  ? "Once approved, the advance will be deducted from your payroll in equal installments."
+                  : "Onaylanırsa avans, bordrodan eşit taksitlerle otomatik kesilecek."}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="label mb-1">{lang === "en" ? "Installments (months)" : "Taksit (ay)"} *</div>
+                <input type="number" min="1" max="36" className="input w-full mono text-center"
+                  value={draft.installments || 1}
+                  onChange={e => setDraft({ ...draft, installments: parseInt(e.target.value) || 1 })}/>
+              </div>
+              <div>
+                <div className="label mb-1">{lang === "en" ? "Start Month" : "Başlangıç Ayı"} *</div>
+                <input type="month" className="input w-full mono"
+                  value={draft.payrollMonth || ""}
+                  onChange={e => setDraft({ ...draft, payrollMonth: e.target.value })}/>
+              </div>
+            </div>
+            {draft.amount > 0 && draft.installments > 0 && (
+              <div className="card p-2 text-xs" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
+                <b>📊 {lang === "en" ? "Monthly deduction" : "Aylık kesinti"}:</b>{" "}
+                <span className="mono font-bold">{fmtTL(draft.amount / draft.installments)} ₺</span>
+                <span style={{ color: "var(--ink-mute)" }}> × {draft.installments} {lang === "en" ? "months" : "ay"}</span>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* MASRAF detay */}
+        {kind === "expense" && (
+          <>
+            <div>
+              <div className="label mb-1">{lang === "en" ? "Category" : "Kategori"} *</div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-1">
+                {Object.entries(EXPENSE_CATEGORIES).map(([k, ec]) => (
+                  <button key={k} type="button"
+                    onClick={() => setDraft({ ...draft, expenseCategory: k })}
+                    className="text-xs p-2 rounded text-left"
+                    style={{
+                      background: draft.expenseCategory === k ? ec.color : "var(--bg)",
+                      color: draft.expenseCategory === k ? "#fff" : ec.color,
+                      border: `1px solid ${ec.color}40`,
+                      fontWeight: 600,
+                    }}>
+                    {ec.icon} {ec.labels[lang] || ec.labels.tr}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="label mb-1">{lang === "en" ? "Receipt Date" : "Belge Tarihi"} *</div>
+                <input type="date" className="input w-full"
+                  value={draft.receiptDate || ""}
+                  onChange={e => setDraft({ ...draft, receiptDate: e.target.value })}/>
+              </div>
+              <div>
+                <div className="label mb-1">{lang === "en" ? "Vendor" : "Sağlayıcı"}</div>
+                <input className="input w-full"
+                  placeholder={lang === "en" ? "e.g. THY, Shell..." : "Örn: THY, Shell..."}
+                  value={draft.vendorName || ""}
+                  onChange={e => setDraft({ ...draft, vendorName: e.target.value })}/>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="label mb-1">{lang === "en" ? "VAT" : "KDV"}</div>
+                <input type="number" step="0.01" className="input w-full mono text-right"
+                  value={draft.vatAmount || ""}
+                  onChange={e => setDraft({ ...draft, vatAmount: parseFloat(e.target.value) || 0 })}/>
+              </div>
+              <div>
+                <div className="label mb-1">{lang === "en" ? "Receipt URL" : "Belge URL"}</div>
+                <input className="input w-full" placeholder="https://..."
+                  value={draft.receiptUrl || ""}
+                  onChange={e => setDraft({ ...draft, receiptUrl: e.target.value })}/>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ZİMMET detay */}
+        {kind === "asset" && (
+          <>
+            <div>
+              <div className="label mb-1">{lang === "en" ? "Asset Type" : "Zimmet Tipi"} *</div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-1">
+                {Object.entries(ASSET_TYPES).map(([k, at]) => (
+                  <button key={k} type="button"
+                    onClick={() => setDraft({ ...draft, assetType: k })}
+                    className="text-xs p-2 rounded text-left"
+                    style={{
+                      background: draft.assetType === k ? at.color : "var(--bg)",
+                      color: draft.assetType === k ? "#fff" : at.color,
+                      border: `1px solid ${at.color}40`,
+                      fontWeight: 600,
+                    }}>
+                    {at.icon} {at.labels[lang] || at.labels.tr}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="label mb-1">{lang === "en" ? "Brand (optional)" : "Marka (opsiyonel)"}</div>
+                <input className="input w-full"
+                  placeholder={draft.assetType === "laptop" ? "Apple / Lenovo..." : ""}
+                  value={draft.assetBrand || ""}
+                  onChange={e => setDraft({ ...draft, assetBrand: e.target.value })}/>
+              </div>
+              <div>
+                <div className="label mb-1">{lang === "en" ? "Model (optional)" : "Model (opsiyonel)"}</div>
+                <input className="input w-full"
+                  value={draft.assetModel || ""}
+                  onChange={e => setDraft({ ...draft, assetModel: e.target.value })}/>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Sebep */}
+        <div>
+          <div className="label mb-1">{lang === "en" ? "Reason / Purpose" : "Sebep / Amaç"} *</div>
+          <textarea className="input w-full" rows="3" style={{ fontSize: 11.5 }}
+            value={draft.reason || ""}
+            placeholder={
+              kind === "advance" ? (lang === "en" ? "Why do you need this advance?" : "Avans sebebinizi açıklayın...") :
+              kind === "expense" ? (lang === "en" ? "Describe the expense..." : "Masrafı açıklayın...") :
+              (lang === "en" ? "Why do you need this asset?" : "Bu zimmete neden ihtiyacınız var?")
+            }
+            onChange={e => setDraft({ ...draft, reason: e.target.value })}/>
+        </div>
+
+        {/* Notlar */}
+        <div>
+          <div className="label mb-1">{lang === "en" ? "Notes (optional)" : "Notlar (opsiyonel)"}</div>
+          <textarea className="input w-full" rows="2" style={{ fontSize: 11.5 }}
+            value={draft.notes || ""}
+            onChange={e => setDraft({ ...draft, notes: e.target.value })}/>
+        </div>
+
+        <div className="card p-2 text-xs" style={{ background: "var(--bg-alt)", color: "var(--ink-mute)" }}>
+          ℹ️ {lang === "en"
+            ? "After submission, HR/manager will review your request. You'll see the result here."
+            : "Talebiniz gönderildikten sonra İK/yöneticiniz inceleyecek. Sonuç burada görünecek."}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function SelfServiceProfile({ session, employee, data, onChange, logAudit, notify, lang }) {
+  const [draft, setDraft] = useState({
+    phone: employee.phone || "",
+    emergencyContact: employee.emergencyContact || { name: "", relation: "", phone: "" },
+    iban: employee.iban || { bankName: "", number: "" },
+    address: employee.address || { city: "", district: "", full: "", postalCode: "" },
+  });
+  const [editing, setEditing] = useState(false);
+
+  const ctx = useMemo(() => getEmployeePayrollContext(employee, data), [employee, data]);
+  const benefits = useMemo(() => getEmployeeBenefits(employee.id, data), [employee, data]);
+
+  const saveProfile = async () => {
+    const updated = {
+      ...employee,
+      phone: draft.phone,
+      emergencyContact: draft.emergencyContact,
+      iban: draft.iban,
+      address: draft.address,
+    };
+    const nextEmps = (data?.hrEmployees || []).map(e => e.id === employee.id ? updated : e);
+    await onChange({ ...data, hrEmployees: nextEmps });
+    await logAudit && logAudit("self_service_profile_update", { employeeId: employee.id });
+    notify(lang === "en" ? "Profile updated" : "Profil güncellendi");
+    setEditing(false);
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Kart Header */}
+      <div className="card p-4">
+        <div className="flex items-start gap-4 flex-wrap">
+          <div style={{
+            width: 70, height: 70, borderRadius: 12,
+            background: "linear-gradient(135deg, #ddd6fe 0%, #fae8ff 100%)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 26, fontWeight: 700, color: "#7c3aed",
+            flexShrink: 0,
+          }}>
+            {(employee.firstName?.[0] || "?")}{(employee.lastName?.[0] || "")}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{employee.firstName} {employee.lastName}</div>
+            {ctx?.jobTitle && (
+              <div style={{ fontSize: 12, color: "var(--accent)", fontWeight: 600, marginTop: 2 }}>
+                {ctx.jobTitle.title}
+              </div>
+            )}
+            {ctx?.department && (
+              <div style={{ fontSize: 11, color: "var(--ink-mute)", marginTop: 2 }}>
+                {ctx.department.name}
+                {ctx.orgUnit && ` · ${ctx.orgUnit.name}`}
+              </div>
+            )}
+            <div className="flex items-center gap-2 mt-2 text-xs">
+              {employee.startDate && (
+                <span className="chip" style={{ background: "var(--bg-alt)", padding: "1px 6px" }}>
+                  📅 {employee.startDate}
+                </span>
+              )}
+              {employee.tcNo && (
+                <span className="chip" style={{ background: "var(--bg-alt)", padding: "1px 6px" }}>
+                  TC: <span className="mono">{employee.tcNo}</span>
+                </span>
+              )}
+              {employee.sgkNo && (
+                <span className="chip" style={{ background: "var(--bg-alt)", padding: "1px 6px" }}>
+                  SGK: <span className="mono">{employee.sgkNo}</span>
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* İletişim (Düzenlenebilir) */}
+      <div className="card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div style={{ fontSize: 13, fontWeight: 700 }}>
+            📞 {lang === "en" ? "Contact Info" : "İletişim Bilgileri"}
+          </div>
+          {!editing ? (
+            <button onClick={() => setEditing(true)} className="text-xs px-2 py-1 rounded"
+              style={{ background: "var(--accent-soft)", color: "var(--accent)", fontWeight: 600 }}>
+              <Edit3 size={10} style={{ display: "inline" }}/> {lang === "en" ? "Edit" : "Düzenle"}
+            </button>
+          ) : (
+            <div className="flex items-center gap-1">
+              <button onClick={() => { setEditing(false); setDraft({
+                phone: employee.phone || "",
+                emergencyContact: employee.emergencyContact || { name: "", relation: "", phone: "" },
+                iban: employee.iban || { bankName: "", number: "" },
+                address: employee.address || { city: "", district: "", full: "", postalCode: "" },
+              }); }} className="text-xs px-2 py-1 rounded"
+                style={{ background: "var(--bg-alt)", color: "var(--ink-mute)", fontWeight: 600 }}>
+                {lang === "en" ? "Cancel" : "İptal"}
+              </button>
+              <button onClick={saveProfile} className="text-xs px-2 py-1 rounded"
+                style={{ background: "#15803d", color: "#fff", fontWeight: 700 }}>
+                ✓ {lang === "en" ? "Save" : "Kaydet"}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <div className="label mb-1">{lang === "en" ? "Email" : "E-posta"}</div>
+            <div className="card p-2" style={{ background: "var(--bg)" }}>
+              <div style={{ fontSize: 12 }}>{employee.email || "—"}</div>
+              <div style={{ fontSize: 9, color: "var(--ink-mute)" }}>
+                {lang === "en" ? "Contact HR to change" : "Değişiklik için İK ile iletişime geçin"}
+              </div>
+            </div>
+          </div>
+          <div>
+            <div className="label mb-1">{lang === "en" ? "Phone" : "Telefon"}</div>
+            {editing ? (
+              <input className="input w-full mono" placeholder="+90 5XX XXX XX XX"
+                value={draft.phone}
+                onChange={e => setDraft({ ...draft, phone: e.target.value })}/>
+            ) : (
+              <div className="card p-2" style={{ background: "var(--bg)" }}>
+                <div style={{ fontSize: 12 }} className="mono">{employee.phone || "—"}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Acil Durum */}
+        <div className="mt-3">
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-mute)", marginBottom: 6 }}>
+            🆘 {lang === "en" ? "Emergency Contact" : "Acil Durum İletişim"}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            {editing ? (
+              <>
+                <input className="input" placeholder={lang === "en" ? "Name" : "Ad Soyad"} style={{ fontSize: 11.5 }}
+                  value={draft.emergencyContact.name}
+                  onChange={e => setDraft({ ...draft, emergencyContact: { ...draft.emergencyContact, name: e.target.value } })}/>
+                <input className="input" placeholder={lang === "en" ? "Relation" : "Yakınlık"} style={{ fontSize: 11.5 }}
+                  value={draft.emergencyContact.relation}
+                  onChange={e => setDraft({ ...draft, emergencyContact: { ...draft.emergencyContact, relation: e.target.value } })}/>
+                <input className="input mono" placeholder="+90 5XX XXX XX XX" style={{ fontSize: 11.5 }}
+                  value={draft.emergencyContact.phone}
+                  onChange={e => setDraft({ ...draft, emergencyContact: { ...draft.emergencyContact, phone: e.target.value } })}/>
+              </>
+            ) : (
+              <>
+                <div className="card p-2" style={{ background: "var(--bg)", fontSize: 11.5 }}>{employee.emergencyContact?.name || "—"}</div>
+                <div className="card p-2" style={{ background: "var(--bg)", fontSize: 11.5 }}>{employee.emergencyContact?.relation || "—"}</div>
+                <div className="card p-2" style={{ background: "var(--bg)", fontSize: 11.5 }} className="mono">{employee.emergencyContact?.phone || "—"}</div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Banka */}
+        <div className="mt-3">
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-mute)", marginBottom: 6 }}>
+            🏦 {lang === "en" ? "Bank Account" : "Banka Hesabı"}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {editing ? (
+              <>
+                <input className="input" placeholder={lang === "en" ? "Bank Name" : "Banka"} style={{ fontSize: 11.5 }}
+                  value={draft.iban.bankName}
+                  onChange={e => setDraft({ ...draft, iban: { ...draft.iban, bankName: e.target.value } })}/>
+                <input className="input mono" placeholder="TR00..." style={{ fontSize: 11.5 }}
+                  value={draft.iban.number}
+                  onChange={e => setDraft({ ...draft, iban: { ...draft.iban, number: e.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g, "") } })}/>
+              </>
+            ) : (
+              <>
+                <div className="card p-2" style={{ background: "var(--bg)", fontSize: 11.5 }}>{employee.iban?.bankName || "—"}</div>
+                <div className="card p-2" style={{ background: "var(--bg)", fontSize: 11 }} className="mono">{employee.iban?.number || "—"}</div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Adres */}
+        <div className="mt-3">
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-mute)", marginBottom: 6 }}>
+            🏠 {lang === "en" ? "Address" : "Adres"}
+          </div>
+          {editing ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <input className="input" placeholder={lang === "en" ? "City" : "İl"} style={{ fontSize: 11.5 }}
+                  value={draft.address.city}
+                  onChange={e => setDraft({ ...draft, address: { ...draft.address, city: e.target.value } })}/>
+                <input className="input" placeholder={lang === "en" ? "District" : "İlçe"} style={{ fontSize: 11.5 }}
+                  value={draft.address.district}
+                  onChange={e => setDraft({ ...draft, address: { ...draft.address, district: e.target.value } })}/>
+              </div>
+              <textarea className="input w-full" rows="2" placeholder={lang === "en" ? "Full Address" : "Açık Adres"} style={{ fontSize: 11.5 }}
+                value={draft.address.full}
+                onChange={e => setDraft({ ...draft, address: { ...draft.address, full: e.target.value } })}/>
+            </div>
+          ) : (
+            <div className="card p-2" style={{ background: "var(--bg)", fontSize: 11.5 }}>
+              {employee.address?.full || `${employee.address?.city || ""} ${employee.address?.district || ""}`.trim() || "—"}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Push Bildirim Tercihleri */}
+      <PushPreferencesPanel session={session} data={data} onChange={onChange} lang={lang} notify={notify}/>
+
+      {/* E-posta Bildirim Tercihleri */}
+      <EmailPreferencesPanel session={session} employee={employee} data={data} onChange={onChange} lang={lang} notify={notify}/>
+
+      {/* Yan Haklarım */}
+      <div className="card p-4">
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+          🎁 {lang === "en" ? "My Benefits" : "Yan Haklarım"}
+          <span className="chip ml-2" style={{ background: "var(--accent-soft)", color: "var(--accent)", fontSize: 10, padding: "1px 6px", fontWeight: 700 }}>
+            {benefits.length}
+          </span>
+        </div>
+        {benefits.length === 0 ? (
+          <div style={{ fontSize: 11, color: "var(--ink-mute)", padding: 8 }}>
+            {lang === "en" ? "No active benefit contracts" : "Aktif yan hak sözleşmesi yok"}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {benefits.map(b => {
+              const bt = BENEFIT_TYPES[b.type] || BENEFIT_TYPES.other;
+              const covered = (b.coveredEmployeeIds || []).length || 1;
+              const perPerson = b.premiumType === "per_employee"
+                ? (Number(b.premiumMonthly) || 0)
+                : ((Number(b.premiumMonthly) || 0) / covered);
+              return (
+                <div key={b.id} className="card p-3" style={{ borderLeft: `4px solid ${bt.color}`, background: bt.color + "08" }}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span style={{ fontSize: 18 }}>{bt.icon}</span>
+                    <div style={{ fontSize: 12, fontWeight: 700 }}>{b.name}</div>
+                  </div>
+                  <div style={{ fontSize: 10.5, color: "var(--ink-mute)" }}>
+                    {bt.labels[lang] || bt.labels.tr}
+                    {b.providerName && ` · ${b.providerName}`}
+                  </div>
+                  <div className="mono mt-2" style={{ fontSize: 13, fontWeight: 700, color: bt.color }}>
+                    {fmtTL(perPerson)} ₺ / {lang === "en" ? "mo" : "ay"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Bordro Bilgisi */}
+      {ctx && (
+        <div className="card p-4">
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
+            💼 {lang === "en" ? "Employment Info" : "İşe Ait Bilgiler"}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+            <div>
+              <div style={{ color: "var(--ink-mute)" }}>{lang === "en" ? "Position" : "Pozisyon"}</div>
+              <div style={{ fontWeight: 600 }}>{ctx.jobTitle?.title || "—"}</div>
+            </div>
+            <div>
+              <div style={{ color: "var(--ink-mute)" }}>{lang === "en" ? "Department" : "Departman"}</div>
+              <div style={{ fontWeight: 600 }}>{ctx.department?.name || "—"}</div>
+            </div>
+            <div>
+              <div style={{ color: "var(--ink-mute)" }}>{lang === "en" ? "Tenure" : "Kıdem"}</div>
+              <div style={{ fontWeight: 600 }}>{ctx.personal?.tenure?.toFixed(1)} {lang === "en" ? "years" : "yıl"}</div>
+            </div>
+            <div>
+              <div style={{ color: "var(--ink-mute)" }}>{lang === "en" ? "Annual Leave Right" : "Yıllık İzin Hakkı"}</div>
+              <div style={{ fontWeight: 600 }}>{ctx.personal?.annualLeaveDays} {lang === "en" ? "days/yr" : "gün/yıl"}</div>
+            </div>
+            <div>
+              <div style={{ color: "var(--ink-mute)" }}>{lang === "en" ? "Gross Salary" : "Brüt Maaş"}</div>
+              <div className="mono" style={{ fontWeight: 600, color: "var(--accent)" }}>{fmtTL(employee.brutSalary || 0)} ₺</div>
+            </div>
+            {ctx.incentive?.benefitsFromIncentive && (
+              <div>
+                <div style={{ color: "var(--ink-mute)" }}>{lang === "en" ? "R&D Incentive" : "Ar-Ge Teşviki"}</div>
+                <div style={{ fontWeight: 600, color: "#16a34a" }}>✓ %{ctx.incentive.gvStopajRate} GV</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* =====================================================================
+   /ORGANIZATION
+===================================================================== */
+
+/* =====================================================================
+   RECRUITMENT — İŞE ALIM YÖNETİMİ
+   ---------------------------------------------------------------------
+   4 alt-bölüm: Genel Bakış, Pozisyonlar, Adaylar, Pipeline, Mülakatlar
+===================================================================== */
 
 function TopBar({ session, onLogout, view, setView, data, onChangeData, canAct, lang, changeLang, theme, changeTheme, linkedEmployee, onSwitchToSelfService }) {
   const [mobileOpen, setMobileOpen] = useState(false);
