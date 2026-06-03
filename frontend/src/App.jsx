@@ -13489,6 +13489,35 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
 }
 
 /* ===================================================================== */
+// SelfServicePortal — calisan self-servis gorunumu.
+// Not: tam 8-sekmeli portal henuz uygulanmadi; bu guvenli placeholder, eski
+// "SelfServicePortal is not defined" cokmesini engeller ve kullaniciyi yonetime
+// dondurur. view === "self_service" oldugunda render edilir.
+function SelfServicePortal({ session, employee, canAccessAdmin, onSwitchToAdmin, onLogout }) {
+  const name = employee?.firstName
+    ? `${employee.firstName} ${employee.lastName || ""}`.trim()
+    : (session?.fullName || session?.username || "Çalışan");
+  return (
+    <div className="max-w-3xl mx-auto px-6 py-10">
+      <div className="card p-6" style={{ boxShadow: "var(--shadow)" }}>
+        <h1 className="display" style={{ fontSize: 26, marginBottom: 8 }}>Self-Servis Portalı</h1>
+        <p style={{ color: "var(--ink-mute)", marginBottom: 20 }}>
+          Hoş geldiniz, <strong>{name}</strong>. Self-servis modülü (izin, avans, masraf,
+          bordro, puantaj) yakında burada olacak.
+        </p>
+        <div style={{ display: "flex", gap: 8 }}>
+          {canAccessAdmin && (
+            <button onClick={onSwitchToAdmin} className="btn btn-primary">
+              Yönetim paneline dön
+            </button>
+          )}
+          <button onClick={onLogout} className="btn btn-ghost">Çıkış yap</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TopBar({ session, onLogout, view, setView, data, onChangeData, canAct, lang, changeLang, theme, changeTheme, linkedEmployee, onSwitchToSelfService }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [companyMenuOpen, setCompanyMenuOpen] = useState(false);
