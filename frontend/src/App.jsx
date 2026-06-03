@@ -12395,17 +12395,6 @@ export default function App() {
         </div>
       </div>
       {toast && <Toast {...toast} />}
-      {/* AI Asistan — tüm view'lerde gözükür */}
-      <AIAssistantWidget
-        data={effectiveData} session={session}
-        users={users} audit={audit}
-      />
-      {/* Mobil AI Floating Widget — sağ alt köşe, mobile only */}
-      <MobileAIFloatingWidget
-        data={effectiveData}
-        lang={lang}
-        onNavigate={(id) => setView(id)}
-      />
     </div>
   );
 }
