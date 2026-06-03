@@ -11920,7 +11920,8 @@ export default function App() {
 
       if (!u) { u = DEFAULT_USERS; await S.set("promet:users", u); }
       setData(d); setUsers(u); setAudit(a);
-      if (sess) setSession(sess);
+      // Oturum otomatik geri yuklenmez — uygulama her acilista LOGIN ekraninda baslar.
+      // (sess yalnizca dil tercihini okumak icin asagida kullanilir.)
 
       // ====== DİL TERCİHİ YÜKLEME ======
       // Öncelik sırası: 1) Kullanıcı kendi preferredLanguage 2) Saklanmış global tercih 3) Tarayıcı dili 4) TR
