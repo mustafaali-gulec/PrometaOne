@@ -12422,6 +12422,35 @@ function Theme() {
         --warning: #b45309;
         --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.04);
       }
+      /* TEMA: App.jsx'in kendi paleti (--ink/--paper/... yalniz burada tanimli)
+         icin tema override'lari. JS <html data-theme="..."> set eder; bu bloklar
+         :root'tan sonra geldigi icin ayni-element/esit-specificity'de kazanir. */
+      [data-theme="modern"] {
+        --bg: #f1f5f9; --bg-alt: #e2e8f0; --paper: #ffffff;
+        --ink: #0f172a; --ink-soft: #334155; --ink-mute: #64748b;
+        --line: #cbd5e1; --line-soft: #e2e8f0;
+        --accent: #0891b2; --accent-soft: #cffafe;
+        --positive: #0f766e; --negative: #dc2626; --warning: #d97706;
+        --shadow: 0 1px 2px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.07);
+      }
+      [data-theme="dark"] {
+        color-scheme: dark;
+        --bg: #1c1917; --bg-alt: #292524; --paper: #292524;
+        --ink: #f5f5f4; --ink-soft: #d6d3d1; --ink-mute: #a8a29e;
+        --line: #44403c; --line-soft: #3a3633;
+        --accent: #2dd4bf; --accent-soft: #134e4a;
+        --positive: #34d399; --negative: #f87171; --warning: #fbbf24;
+        --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.5);
+      }
+      [data-theme="midnight"] {
+        color-scheme: dark;
+        --bg: #0f172a; --bg-alt: #1e293b; --paper: #1e293b;
+        --ink: #f1f5f9; --ink-soft: #cbd5e1; --ink-mute: #94a3b8;
+        --line: #334155; --line-soft: #2a3647;
+        --accent: #38bdf8; --accent-soft: #0c4a6e;
+        --positive: #34d399; --negative: #f87171; --warning: #fbbf24;
+        --shadow: 0 1px 2px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.6);
+      }
       body { font-family: 'Söhne', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; color: var(--ink); }
       .display { font-family: 'Fraunces','Cormorant Garamond','Playfair Display',Georgia,serif; font-weight: 400; letter-spacing: -0.02em; }
       .mono { font-family: 'JetBrains Mono','IBM Plex Mono',ui-monospace,'SF Mono',monospace; }
