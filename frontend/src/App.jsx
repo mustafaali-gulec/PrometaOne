@@ -3814,9 +3814,16 @@ const RESOURCES = {
   "hr.interviews":       { module: "HR", label: "Mülakatlar",         actions: ["view","create","update","delete"], legacyPerm: "manage_interviews" },
   "hr.payroll":          { module: "HR", label: "Bordro (Yakında)",   actions: ["view","create","update","delete","export"], legacyPerm: null },
 
+  // Muhasebe & Analiz modülleri
+  "accounting.coa":      { module: "Muhasebe", label: "Hesap Planı / Muhasebe", actions: ["view","create","update","delete","export"], legacyPerm: "manage_categories" },
+  "accounting.journal":  { module: "Muhasebe", label: "Yevmiye Fişleri",  actions: ["view","create","update","delete","export"], legacyPerm: "view_accounting" },
+  "accounting.parties":  { module: "Muhasebe", label: "Cari Yönetimi (Cari/Tedarikçi)", actions: ["view","create","update","delete","export"], legacyPerm: "view_accounting" },
+  "accounting.budget":   { module: "Muhasebe", label: "Bütçe",          actions: ["view","create","update","delete","export"], legacyPerm: "view_budget" },
+
   // Sistem modülleri
   "system.users":        { module: "Sistem", label: "Kullanıcılar",    actions: ["view","create","update","delete"], legacyPerm: "manage_users" },
   "system.roles":        { module: "Sistem", label: "Roller ve İzinler", actions: ["view","create","update","delete"], legacyPerm: "manage_roles" },
+  "system.approvals":    { module: "Sistem", label: "Onaylar",         actions: ["view","create","update","delete"], legacyPerm: "view_approvals" },
   "system.audit":        { module: "Sistem", label: "Denetim Kayıtları", actions: ["view","export"],            legacyPerm: "view_audit" },
   "system.companies":    { module: "Sistem", label: "Şirketler",       actions: ["view","create","update","delete"], legacyPerm: "manage_companies" },
   "system.settings":     { module: "Sistem", label: "Genel Ayarlar",   actions: ["view","update"],              legacyPerm: "system_settings" },
