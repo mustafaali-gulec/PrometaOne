@@ -43209,7 +43209,7 @@ function ApprovalRulesManager({ data, session, lang, onChange, logAudit, notify 
               <th>{lang === "en" ? "Min Amount" : "Min Tutar"}</th>
               <th className="label-cell">{lang === "en" ? "Approver Roles" : "Onaylayıcı Roller"}</th>
               <th className="label-cell">{lang === "en" ? "Status" : "Durum"}</th>
-              <th style={{ minWidth: 100 }}>{lang === "en" ? "Actions" : "İşlem"}</th>
+              <th className="label-cell" style={{ minWidth: 100 }}>{lang === "en" ? "Actions" : "İşlem"}</th>
             </tr>
           </thead>
           <tbody>
@@ -52880,7 +52880,7 @@ function TasksListView({ tasks, lang, users, session, onClickTask, onEdit, onDel
               <th className="label-cell">{lang === "en" ? "Assigner" : "Atayan"}</th>
               <th>{lang === "en" ? "Due Date" : "Vade"}</th>
               <th>💬</th>
-              <th style={{ minWidth: 100 }}>{lang === "en" ? "Actions" : "İşlem"}</th>
+              <th className="label-cell" style={{ minWidth: 100 }}>{lang === "en" ? "Actions" : "İşlem"}</th>
             </tr>
           </thead>
           <tbody>
