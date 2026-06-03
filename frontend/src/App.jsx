@@ -13490,31 +13490,238 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
 }
 
 /* ===================================================================== */
-// SelfServicePortal — calisan self-servis gorunumu.
-// Not: tam 8-sekmeli portal henuz uygulanmadi; bu guvenli placeholder, eski
-// "SelfServicePortal is not defined" cokmesini engeller ve kullaniciyi yonetime
-// dondurur. view === "self_service" oldugunda render edilir.
-function SelfServicePortal({ session, employee, canAccessAdmin, onSwitchToAdmin, onLogout }) {
-  const name = employee?.firstName
-    ? `${employee.firstName} ${employee.lastName || ""}`.trim()
-    : (session?.fullName || session?.username || "Çalışan");
+// SelfServicePortal — calisan self-servis portali (Faz 11 v1).
+// Calisan KENDI verilerini gorur: izin, talep (avans/masraf/zimmet), bordro, profil.
+// Savunmaci erisim (optional chaining + fallback) — eksik/farkli alanlar cokme yaratmaz.
+function ssMoney(n) {
+  return (Number(n) || 0).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function ssDate(d) {
+  if (!d) return "—";
+  const dt = new Date(d);
+  return isNaN(dt.getTime()) ? String(d) : dt.toLocaleDateString("tr-TR");
+}
+const SS_REQUEST_KIND = { advance: "Avans", expense: "Masraf", asset: "Zimmet", leave: "İzin" };
+const SS_STATUS = {
+  pending: { label: "Beklemede", color: "#b45309", bg: "#fef3c7" },
+  approved: { label: "Onaylandı", color: "#15803d", bg: "#dcfce7" },
+  rejected: { label: "Reddedildi", color: "#b91c1c", bg: "#fee2e2" },
+  paid: { label: "Ödendi", color: "#0f766e", bg: "#ccfbf1" },
+};
+function SsStatus({ status }) {
+  const s = SS_STATUS[status] || { label: status || "—", color: "var(--ink-mute)", bg: "var(--bg-alt)" };
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
-      <div className="card p-6" style={{ boxShadow: "var(--shadow)" }}>
-        <h1 className="display" style={{ fontSize: 26, marginBottom: 8 }}>Self-Servis Portalı</h1>
-        <p style={{ color: "var(--ink-mute)", marginBottom: 20 }}>
-          Hoş geldiniz, <strong>{name}</strong>. Self-servis modülü (izin, avans, masraf,
-          bordro, puantaj) yakında burada olacak.
-        </p>
-        <div style={{ display: "flex", gap: 8 }}>
-          {canAccessAdmin && (
-            <button onClick={onSwitchToAdmin} className="btn btn-primary">
-              Yönetim paneline dön
-            </button>
-          )}
-          <button onClick={onLogout} className="btn btn-ghost">Çıkış yap</button>
+    <span className="chip" style={{ background: s.bg, color: s.color, fontWeight: 600 }}>{s.label}</span>
+  );
+}
+
+function SelfServicePortal({ session, data, employee, canAccessAdmin, onSwitchToAdmin, onLogout }) {
+  const [tab, setTab] = useState("home");
+  const empId = employee?.id;
+  const name = employee
+    ? `${employee.firstName || ""} ${employee.lastName || ""}`.trim() || (session?.fullName || session?.username)
+    : (session?.fullName || session?.username || "Çalışan");
+
+  // Çalışan kaydı yoksa erişilebilir bilgi yok — bilgilendir.
+  if (!employee) {
+    return (
+      <div className="max-w-3xl mx-auto px-6 py-10">
+        <div className="card p-6" style={{ boxShadow: "var(--shadow)" }}>
+          <h1 className="display" style={{ fontSize: 24, marginBottom: 8 }}>Self-Servis Portalı</h1>
+          <p style={{ color: "var(--ink-mute)", marginBottom: 16 }}>
+            <strong>{name}</strong> — Kullanıcınıza bağlı bir çalışan kaydı bulunamadı.
+            Self-servis verilerini görebilmek için İK ekibinin hesabınızı bir çalışana
+            bağlaması gerekir.
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            {canAccessAdmin && (
+              <button onClick={onSwitchToAdmin} className="btn btn-primary">Yönetim paneline dön</button>
+            )}
+            <button onClick={onLogout} className="btn btn-ghost">Çıkış yap</button>
+          </div>
         </div>
       </div>
+    );
+  }
+
+  const leaveRequests = (data?.hrLeaveRequests || [])
+    .filter(r => r.employeeId === empId)
+    .sort((a, b) => new Date(b.startDate || 0) - new Date(a.startDate || 0));
+  const requests = getEmployeeRequests(empId, null, data);
+  const assets = getEmployeeAssets(empId, data);
+  const dept = getEmployeeDepartment(employee, data);
+  const jobTitle = getEmployeeJobTitle(employee, data);
+  const slips = (data?.hrPayrollRuns || [])
+    .map(run => {
+      const slip = (run.results || []).find(r => r.employee?.id === empId);
+      return slip ? { period: run.period, slip } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => (b.period?.year - a.period?.year) || (b.period?.month - a.period?.month));
+
+  const pendingLeaves = leaveRequests.filter(r => (r.status || "pending") === "pending").length;
+  const pendingRequests = requests.filter(r => (r.status || "pending") === "pending").length;
+  const lastSlip = slips[0];
+
+  const TABS = [
+    { id: "home", label: "Ana Sayfa" },
+    { id: "leaves", label: `İzinler${leaveRequests.length ? ` (${leaveRequests.length})` : ""}` },
+    { id: "requests", label: `Talepler${requests.length ? ` (${requests.length})` : ""}` },
+    { id: "payroll", label: "Bordro" },
+    { id: "profile", label: "Profil" },
+  ];
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+      <header className="flex items-center justify-between flex-wrap gap-3 mb-5">
+        <div>
+          <h1 className="display" style={{ fontSize: 24, margin: 0 }}>Self-Servis Portalı</h1>
+          <p style={{ color: "var(--ink-mute)", fontSize: 13, marginTop: 2 }}>
+            Hoş geldiniz, <strong>{name}</strong>
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {canAccessAdmin && (
+            <button onClick={onSwitchToAdmin} className="btn btn-ghost">Yönetime dön</button>
+          )}
+          <button onClick={onLogout} className="btn btn-ghost">Çıkış</button>
+        </div>
+      </header>
+
+      <nav className="flex gap-1 flex-wrap mb-4" style={{ borderBottom: "1px solid var(--line)" }}>
+        {TABS.map(t => (
+          <button key={t.id} className="nav-item" onClick={() => setTab(t.id)}
+            style={{ borderBottom: tab === t.id ? "2px solid var(--accent)" : "2px solid transparent", fontWeight: tab === t.id ? 600 : 400 }}>
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
+      {tab === "home" && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <SsCard label="Bekleyen İzin" value={pendingLeaves} />
+          <SsCard label="Bekleyen Talep" value={pendingRequests} />
+          <SsCard label="Aktif Zimmet" value={assets.length} />
+          <SsCard label="Son Net Maaş" value={lastSlip ? `${ssMoney(lastSlip.slip?.netSalary ?? lastSlip.slip?.net ?? 0)} ₺` : "—"} />
+        </div>
+      )}
+
+      {tab === "leaves" && (
+        <SsTable
+          headers={["Tür", "Başlangıç", "Bitiş", "Gün", "Durum"]}
+          rows={leaveRequests}
+          empty="İzin talebiniz yok."
+          render={(r, i) => (
+            <tr key={r.id || i}>
+              <td className="label-cell">{r.leaveType || r.type || "İzin"}</td>
+              <td className="label-cell mono">{ssDate(r.startDate)}</td>
+              <td className="label-cell mono">{ssDate(r.endDate)}</td>
+              <td>{r.days ?? r.dayCount ?? "—"}</td>
+              <td><SsStatus status={r.status || "pending"} /></td>
+            </tr>
+          )}
+        />
+      )}
+
+      {tab === "requests" && (
+        <div className="grid gap-4">
+          <SsTable
+            headers={["Tür", "Tutar", "Tarih", "Durum"]}
+            rows={requests}
+            empty="Talebiniz yok (avans/masraf/zimmet)."
+            render={(r, i) => (
+              <tr key={r.id || i}>
+                <td className="label-cell">{SS_REQUEST_KIND[r.kind] || r.kind || "—"}</td>
+                <td className="num mono">{r.amount != null ? `${ssMoney(r.amount)} ₺` : "—"}</td>
+                <td className="label-cell mono">{ssDate(r.requestedAt)}</td>
+                <td><SsStatus status={r.status || "pending"} /></td>
+              </tr>
+            )}
+          />
+          <section>
+            <h3 style={{ fontSize: 14, margin: "0 0 8px" }}>Zimmetlerim ({assets.length})</h3>
+            <SsTable
+              headers={["Varlık", "Kod / Seri", "Teslim"]}
+              rows={assets}
+              empty="Üzerinize zimmetli varlık yok."
+              render={(a, i) => (
+                <tr key={a.id || i}>
+                  <td className="label-cell">{a.name || a.assetName || "—"}</td>
+                  <td className="label-cell mono">{a.code || a.serialNo || "—"}</td>
+                  <td className="label-cell mono">{ssDate(a.assignedAt || a.assignedDate)}</td>
+                </tr>
+              )}
+            />
+          </section>
+        </div>
+      )}
+
+      {tab === "payroll" && (
+        <SsTable
+          headers={["Dönem", "Brüt", "Kesinti", "Net"]}
+          rows={slips}
+          empty="Bordro kaydınız yok."
+          render={(s, i) => (
+            <tr key={i}>
+              <td className="label-cell mono">{s.period ? `${s.period.year}/${String(s.period.month).padStart(2, "0")}` : "—"}</td>
+              <td className="num mono">{ssMoney(s.slip?.grossSalary ?? s.slip?.gross ?? 0)} ₺</td>
+              <td className="num mono">{ssMoney(s.slip?.totalDeductions ?? s.slip?.deductionsTotal ?? 0)} ₺</td>
+              <td className="num mono" style={{ fontWeight: 600 }}>{ssMoney(s.slip?.netSalary ?? s.slip?.net ?? 0)} ₺</td>
+            </tr>
+          )}
+        />
+      )}
+
+      {tab === "profile" && (
+        <div className="card p-5" style={{ boxShadow: "var(--shadow)" }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
+            <SsField label="Ad Soyad" value={name} />
+            <SsField label="Sicil No" value={employee.employeeNo || employee.employeeNumber || "—"} />
+            <SsField label="Departman" value={dept?.name || "—"} />
+            <SsField label="Pozisyon" value={jobTitle?.title || jobTitle?.name || "—"} />
+            <SsField label="E-posta" value={employee.email || session?.email || "—"} />
+            <SsField label="Telefon" value={employee.phone || "—"} />
+            <SsField label="İşe Giriş" value={ssDate(employee.hireDate)} />
+            <SsField label="Durum" value={employee.status || "—"} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SsCard({ label, value }) {
+  return (
+    <div className="card p-4" style={{ boxShadow: "var(--shadow)" }}>
+      <div className="label" style={{ marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 600 }}>{value}</div>
+    </div>
+  );
+}
+function SsField({ label, value }) {
+  return (
+    <div>
+      <div className="label" style={{ marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 14 }}>{value}</div>
+    </div>
+  );
+}
+function SsTable({ headers, rows, render, empty }) {
+  if (!rows || rows.length === 0) {
+    return <div className="card p-4 text-sm" style={{ color: "var(--ink-mute)" }}>{empty}</div>;
+  }
+  return (
+    <div className="card overflow-x-auto" style={{ boxShadow: "var(--shadow)" }}>
+      <table className="grid" style={{ minWidth: 480 }}>
+        <thead>
+          <tr>
+            {headers.map((h, i) => (
+              <th key={i} className={i === 0 ? "label-cell" : undefined}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>{rows.map((r, i) => render(r, i))}</tbody>
+      </table>
     </div>
   );
 }
