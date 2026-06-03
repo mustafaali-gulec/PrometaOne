@@ -38147,12 +38147,18 @@ function BanksManager({ data, session, canAct, lang, onChange, logAudit, notify 
             </div>
             <div>
               <div className="label mb-1">{lang === "en" ? "Accounting Code" : lang === "de" ? "Buchhaltungskonto" : lang === "ar" ? "رمز الحساب المحاسبي" : "Muhasebe Hesap Kodu"}</div>
-              <input className="input mono" value={accountDraft.accountingCode || ""}
-                onChange={e => setAccountDraft({ ...accountDraft, accountingCode: e.target.value })}
-                placeholder={lang === "en" ? "e.g. 102.01" : "Örn: 102.01"}
-                maxLength="40"/>
+              <select className="input mono" value={accountDraft.accountingCode || ""}
+                onChange={e => setAccountDraft({ ...accountDraft, accountingCode: e.target.value })}>
+                <option value="">{lang === "en" ? "— Select from chart of accounts —" : lang === "de" ? "— Aus Kontenplan wählen —" : lang === "ar" ? "— اختر من دليل الحسابات —" : "— Hesap planından seçin —"}</option>
+                {(data.accChartOfAccounts || [])
+                  .filter(a => a.active !== false && a.allowTransaction !== false && a.code)
+                  .sort((a, b) => String(a.code).localeCompare(String(b.code), undefined, { numeric: true }))
+                  .map(a => (
+                    <option key={a.code} value={a.code}>{a.code} — {a.name}</option>
+                  ))}
+              </select>
               <p className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>
-                {lang === "en" ? "Linked general-ledger account code (Chart of Accounts)" : lang === "de" ? "Verknüpfter Hauptbuchkontocode" : lang === "ar" ? "رمز حساب دفتر الأستاذ المرتبط" : "Bağlantılı muhasebe (büyük defter) hesap kodu — Tek Düzen Hesap Planı"}
+                {lang === "en" ? "Linked general-ledger account (from Chart of Accounts)" : lang === "de" ? "Verknüpftes Hauptbuchkonto (aus Kontenplan)" : lang === "ar" ? "حساب دفتر الأستاذ المرتبط (من دليل الحسابات)" : "Hesap planından bağlantılı büyük defter hesabı (Tek Düzen Hesap Planı)"}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
