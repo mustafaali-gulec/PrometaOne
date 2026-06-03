@@ -20,13 +20,13 @@ f6b4270 feat(modules/hr): recruitment domain + 12 use-case + atomik hire   (Faz 
 
 ## Otomatik doğrulamalar
 
-| Kontrol | Durum |
-|---|---|
+| Kontrol                     | Durum             |
+| --------------------------- | ----------------- |
 | Backend `npm run typecheck` | ✅ Temiz (0 hata) |
-| Backend `npm test` | ✅ 489 / 489 pass |
-| Frontend `npx tsc --noEmit` | ✅ Temiz |
-| Backend HR modülü ESLint | ✅ 0 hata |
-| Frontend HR modülü ESLint | ✅ 0 hata |
+| Backend `npm test`          | ✅ 489 / 489 pass |
+| Frontend `npx tsc --noEmit` | ✅ Temiz          |
+| Backend HR modülü ESLint    | ✅ 0 hata         |
+| Frontend HR modülü ESLint   | ✅ 0 hata         |
 
 ## Domain test kapsamı
 
@@ -50,14 +50,14 @@ f6b4270 feat(modules/hr): recruitment domain + 12 use-case + atomik hire   (Faz 
 
 ## Application use-case test kapsamı
 
-| Modül | Use-case sayısı | Test dosyası | Vakalar |
-|---|---|---|---|
-| OrgUnit | 5 | OrgUnitUseCases.test.ts | 13 |
-| Department | 4 | DepartmentUseCases.test.ts | 11 |
-| Position | 4 | PositionUseCases.test.ts | 13 |
-| Employee | 7 | EmployeeUseCases.test.ts | 21 |
-| Candidate | 4 | CandidateUseCases.test.ts | 10 |
-| Application | 8 | ApplicationUseCases.test.ts | 22 |
+| Modül       | Use-case sayısı | Test dosyası                | Vakalar |
+| ----------- | --------------- | --------------------------- | ------- |
+| OrgUnit     | 5               | OrgUnitUseCases.test.ts     | 13      |
+| Department  | 4               | DepartmentUseCases.test.ts  | 11      |
+| Position    | 4               | PositionUseCases.test.ts    | 13      |
+| Employee    | 7               | EmployeeUseCases.test.ts    | 21      |
+| Candidate   | 4               | CandidateUseCases.test.ts   | 10      |
+| Application | 8               | ApplicationUseCases.test.ts | 22      |
 
 **Atomik HireFromApplication testi:** "Employee insert hata fırlatırsa Application 'hired' rollback olur" (fake'lerde manuel rollback; gerçek PG'de DB transaction → PR 4a'da insert sırası: önce stage update, sonra employee insert; rollback yapamayanlar PR 4-bis kapsamına alınır).
 
@@ -110,21 +110,21 @@ Hepsi `authMiddleware` ile korunur; yazma işlemleri `requireRole('hr_manager')`
 
 ## App.jsx cutover sonuçları
 
-| Metrik | Faz 0 öncesi | PR 7 sonrası |
-|---|---|---|
-| `frontend/src/App.jsx` satır sayısı | 81.159 | 66.966 |
-| Azalma | — | **−14.193 satır** |
-| Eski HR component'leri (HRModule, OrganizationManager, EmployeesList, PositionsList, 3 form modal, 4 node) | mevcut | tamamen silindi |
-| `data.hr*` state alanları | aktif | kullanılmıyor (modül kendi API'sini çağırır) |
+| Metrik                                                                                                     | Faz 0 öncesi | PR 7 sonrası                                 |
+| ---------------------------------------------------------------------------------------------------------- | ------------ | -------------------------------------------- |
+| `frontend/src/App.jsx` satır sayısı                                                                        | 81.159       | 66.966                                       |
+| Azalma                                                                                                     | —            | **−14.193 satır**                            |
+| Eski HR component'leri (HRModule, OrganizationManager, EmployeesList, PositionsList, 3 form modal, 4 node) | mevcut       | tamamen silindi                              |
+| `data.hr*` state alanları                                                                                  | aktif        | kullanılmıyor (modül kendi API'sini çağırır) |
 
 ## Bilinen kısıtlar / sonraki fazlara devredilenler
 
-1. **Integration testleri (testcontainers).** Pg* repository'ler için entegrasyon testleri yazılmadı. Tüm repository sözleşmeleri in-memory fake'lerle doğrulandı. Gerçek PG'de smoke test manuel.
-2. **Atomik HireFromApplication rollback.** Şu an manuel try/catch ile Application'ı geri yazıyor; gerçek bir Unit of Work / DB transaction port'u yok. Fake testte doğrulandı ama production'da çok nadir bir edge'de inconsistency riski var. PR 4-bis veya Faz 5 Unit of Work pattern getirir.
+1. **Integration testleri (testcontainers).** ✅ **Çözüldü (Faz 4-bis):** 8 `Pg*Repository` + `PgEmployeeNumberGenerator` için testcontainers entegrasyon testleri eklendi (`__tests__/integration/*.itest.ts`).
+2. **Atomik HireFromApplication rollback.** ✅ **Çözüldü (Faz 4-bis / ADR-0006):** gerçek Unit of Work port'u (`application/ports/UnitOfWork.ts`) + `PgUnitOfWork` eklendi; `HireFromApplication.atomic.itest.ts` ile BEGIN/COMMIT/ROLLBACK atomikliği doğrulandı.
 3. **`data.hr*` state cleanup.** App.jsx'in genel `data` prop'unda hâlâ boş `hrOrgUnits/hrEmployees/...` alanları olabilir. Bunlar bir sonraki temizlik PR'ında silinir.
 4. **HrDemoPage → HrPage upgrade.** Şu an demo sayfası doğrudan App.jsx'e mount edildi (Strangler Fig hızlı çıkış); ileride App.jsx'in tema/sidebar/breadcrumb pattern'iyle entegre, ayrı bir `HrPage` üretilir.
-5. **Frontend testleri.** Component testleri (Testing Library) henüz yazılmadı. Hooks ve API client testleri sonraki PR.
-6. **E2E (Playwright) akışı.** "Org birim ekle → Departman ekle → Pozisyon aç → Aday başvur → kanban'da hired'a sürükle → Employees'te otomatik görün" planlı ama bu fazda yazılmadı.
+5. **Frontend testleri.** ✅ **Çözüldü (Faz 4-bis):** `HrApiClient` + 6 component (EmployeesTable, OrgTreeView, PositionsList, RecruitmentFunnel, ApplicationKanban, CandidateForm) + 6 hook testi (Vitest + Testing Library + MSW) eklendi.
+6. **E2E (Playwright) akışı.** 🟡 **Kısmen:** `frontend/e2e/hr-recruitment-flow.spec.ts` + `playwright.config.ts` yazıldı; ancak henüz CI'da otomatik koşmuyor (manuel/nightly — `webServer` bloğu açılmalı).
 
 ## ADR-0005 zorunlu çıktıları
 

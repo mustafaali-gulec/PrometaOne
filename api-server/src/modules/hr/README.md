@@ -150,8 +150,9 @@ v1.route('/hr', hrModule.router);
   `UserLookupPort` üzerinden okur. `AuthUserLookupAdapter` HrUserSummary
   minimal view döner.
 - **Atomik HireFromApplication:** Application 'hired' transition + Employee
-  INSERT aynı use-case içinde. Fake repository'lerde manuel rollback;
-  gerçek PG'de DB transaction (ileri PR — Unit of Work pattern).
+  INSERT aynı use-case içinde, gerçek PG'de tek transaction (Unit of Work
+  pattern — `application/ports/UnitOfWork.ts` + `PgUnitOfWork`, ADR-0006).
+  `HireFromApplication.atomic.itest.ts` ile ROLLBACK atomikliği doğrulandı.
 - **Multi-tenant:** tüm repository sorguları `companyId` ile sınırlı.
   Cross-company erişim 403.
 

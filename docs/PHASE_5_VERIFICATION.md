@@ -132,9 +132,9 @@ Seçilen strateji: **tam cutover** (HR PR 7 deseni). Legacy finance UI bileşenl
 
 ## Bilinen kısıtlar
 
-1. **Frontend `vite build` sandbox/kullanıcı ortamında vite eksik** — kod kaynaklı değil; `npm install` ile çözülür.
+1. **Frontend `vite build`** — ✅ **Çözüldü (2026-06-02):** kullanıcı makinesinde üretim derlemesi başarılı (2336 modül dönüştürüldü, `dist/` üretildi, ~8.7s). Kod sorunu yoktu; tek pürüz npm workspace `.bin/vite` shim'inin yerel yola işaret etmesiydi (vite kökte hoist'li — `node node_modules/vite/bin/vite.js build` ile derlenir).
 2. **Yeni finance modülü ağırlıklı görüntüleme odaklı** — bütçe matrisi/kasa pozisyonu/fatura listesi görüntüleniyor; yaratma/düzenleme formları (kategori ekle, kasa hareketi gir, fatura oluştur) sonraki fazda eklenir. REST uçları (`POST /cells`, `/kasa-entries`, `/invoices` vb.) ve FinanceApiClient metodları hazır.
-3. **e-Fatura / FX revaluation** yeni modülde yok; cutover'da bu görünümler kaldırıldı, legacy bileşenler ölü kod olarak duruyor (temizlik sonraki PR).
+3. **e-Fatura / FX revaluation** — ✅ **Çözüldü (Faz 6):** `modules/finance/einvoice` + `modules/finance/fx` eklendi; App.jsx'teki legacy `EInvoiceManager` + `FxRevaluationView` cutover'da silindi (bkz. CHANGELOG Faz 6, −1.223 satır).
 4. **Çoklu para birimi bütçe** — `cells` tablosunda currency kolonu yok; bütçe şirketin ana biriminde (TRY varsayılan) planlanıyor (bkz. `Cell.ts` / `PgCellRepository.ts` notu).
 5. **Money 2-ondalık varsayımı** — JPY (0 ondalık) / BHD (3 ondalık) gibi para birimleri için `MINOR_PER_MAJOR` currency'den türetilmeli (ADR-0007 Consequences).
 
