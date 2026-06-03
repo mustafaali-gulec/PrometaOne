@@ -43209,7 +43209,7 @@ function ApprovalRulesManager({ data, session, lang, onChange, logAudit, notify 
               <th>{lang === "en" ? "Min Amount" : "Min Tutar"}</th>
               <th className="label-cell">{lang === "en" ? "Approver Roles" : "Onaylayıcı Roller"}</th>
               <th className="label-cell">{lang === "en" ? "Status" : "Durum"}</th>
-              <th className="label-cell" style={{ minWidth: 100 }}>{lang === "en" ? "Actions" : "İşlem"}</th>
+              <th className="label-cell" style={{ width: 96, textAlign: "left" }}>{lang === "en" ? "Actions" : "İşlem"}</th>
             </tr>
           </thead>
           <tbody>
@@ -43250,8 +43250,8 @@ function ApprovalRulesManager({ data, session, lang, onChange, logAudit, notify 
                       {rule.isActive ? (lang === "en" ? "ACTIVE" : "AKTİF") : (lang === "en" ? "INACTIVE" : "PASİF")}
                     </span>
                   </td>
-                  <td className="label-cell">
-                    <div className="flex gap-1">
+                  <td className="label-cell" style={{ width: 96, textAlign: "left" }}>
+                    <div className="flex gap-1" style={{ justifyContent: "flex-start", margin: 0 }}>
                       <button onClick={() => setEditing(rule)}
                         style={{ padding: "3px 6px", background: "var(--bg-alt)", borderRadius: 3, fontSize: 10, border: "none", cursor: "pointer" }}>
                         <Edit3 size={10}/>
