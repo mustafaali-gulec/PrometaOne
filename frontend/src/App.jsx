@@ -13515,8 +13515,17 @@ function SsStatus({ status }) {
   );
 }
 
-function SelfServicePortal({ session, data, employee, canAccessAdmin, onSwitchToAdmin, onLogout }) {
+const SS_LEAVE_TYPE = { annual: "Yıllık İzin", unpaid: "Ücretsiz İzin", sick: "Hastalık (Rapor)", excuse: "Mazeret" };
+function ssLeaveDays(start, end) {
+  const s = new Date(start), e = new Date(end);
+  if (isNaN(s.getTime()) || isNaN(e.getTime()) || e < s) return 0;
+  return Math.floor((e - s) / 86400000) + 1;
+}
+
+function SelfServicePortal({ session, data, employee, canAccessAdmin, onSwitchToAdmin, onLogout, onChange, notify, logAudit }) {
   const [tab, setTab] = useState("home");
+  const [leaveForm, setLeaveForm] = useState(false);
+  const [reqForm, setReqForm] = useState(false);
   const empId = employee?.id;
   const name = employee
     ? `${employee.firstName || ""} ${employee.lastName || ""}`.trim() || (session?.fullName || session?.username)
@@ -13558,6 +13567,44 @@ function SelfServicePortal({ session, data, employee, canAccessAdmin, onSwitchTo
     })
     .filter(Boolean)
     .sort((a, b) => (b.period?.year - a.period?.year) || (b.period?.month - a.period?.month));
+
+  const submitLeave = async (form) => {
+    const newReq = {
+      id: "lv_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+      employeeId: empId,
+      leaveType: form.leaveType,
+      startDate: form.startDate,
+      endDate: form.endDate,
+      days: ssLeaveDays(form.startDate, form.endDate),
+      reason: form.reason || "",
+      status: "pending",
+      requestedBy: session?.username,
+      requestedAt: new Date().toISOString(),
+    };
+    await onChange?.({ ...data, hrLeaveRequests: [...(data?.hrLeaveRequests || []), newReq] });
+    logAudit?.("self_leave_request", { employeeId: empId, leaveType: form.leaveType, days: newReq.days });
+    notify?.("İzin talebiniz oluşturuldu (onay bekliyor)");
+    setLeaveForm(false);
+  };
+
+  const submitRequest = async (form) => {
+    const newReq = {
+      id: "req_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+      employeeId: empId,
+      kind: form.kind,
+      amount: Number(form.amount) || 0,
+      ...(form.kind === "advance" ? { installments: Number(form.installments) || 1 } : {}),
+      ...(form.kind === "expense" ? { category: form.category || "" } : {}),
+      description: form.description || "",
+      status: "pending",
+      requestedBy: session?.username,
+      requestedAt: new Date().toISOString(),
+    };
+    await onChange?.({ ...data, hrRequests: [...(data?.hrRequests || []), newReq] });
+    logAudit?.("self_request", { employeeId: empId, kind: form.kind, amount: newReq.amount });
+    notify?.((form.kind === "advance" ? "Avans" : "Masraf") + " talebiniz oluşturuldu (onay bekliyor)");
+    setReqForm(false);
+  };
 
   const pendingLeaves = leaveRequests.filter(r => (r.status || "pending") === "pending").length;
   const pendingRequests = requests.filter(r => (r.status || "pending") === "pending").length;
@@ -13607,28 +13654,42 @@ function SelfServicePortal({ session, data, employee, canAccessAdmin, onSwitchTo
       )}
 
       {tab === "leaves" && (
-        <SsTable
-          headers={["Tür", "Başlangıç", "Bitiş", "Gün", "Durum"]}
-          rows={leaveRequests}
-          empty="İzin talebiniz yok."
-          render={(r, i) => (
-            <tr key={r.id || i}>
-              <td className="label-cell">{r.leaveType || r.type || "İzin"}</td>
-              <td className="label-cell mono">{ssDate(r.startDate)}</td>
-              <td className="label-cell mono">{ssDate(r.endDate)}</td>
-              <td>{r.days ?? r.dayCount ?? "—"}</td>
-              <td><SsStatus status={r.status || "pending"} /></td>
-            </tr>
-          )}
-        />
+        <div className="grid gap-3">
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button className="btn btn-primary" onClick={() => setLeaveForm(v => !v)}>
+              {leaveForm ? "Kapat" : "+ İzin Talebi"}
+            </button>
+          </div>
+          {leaveForm && <LeaveRequestForm onSubmit={submitLeave} onCancel={() => setLeaveForm(false)} />}
+          <SsTable
+            headers={["Tür", "Başlangıç", "Bitiş", "Gün", "Durum"]}
+            rows={leaveRequests}
+            empty="İzin talebiniz yok. Yukarıdan yeni talep oluşturun."
+            render={(r, i) => (
+              <tr key={r.id || i}>
+                <td className="label-cell">{SS_LEAVE_TYPE[r.leaveType] || r.leaveType || r.type || "İzin"}</td>
+                <td className="label-cell mono">{ssDate(r.startDate)}</td>
+                <td className="label-cell mono">{ssDate(r.endDate)}</td>
+                <td>{r.days ?? r.dayCount ?? "—"}</td>
+                <td><SsStatus status={r.status || "pending"} /></td>
+              </tr>
+            )}
+          />
+        </div>
       )}
 
       {tab === "requests" && (
         <div className="grid gap-4">
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button className="btn btn-primary" onClick={() => setReqForm(v => !v)}>
+              {reqForm ? "Kapat" : "+ Avans / Masraf Talebi"}
+            </button>
+          </div>
+          {reqForm && <RequestForm onSubmit={submitRequest} onCancel={() => setReqForm(false)} />}
           <SsTable
             headers={["Tür", "Tutar", "Tarih", "Durum"]}
             rows={requests}
-            empty="Talebiniz yok (avans/masraf/zimmet)."
+            empty="Talebiniz yok. Yukarıdan avans/masraf talebi oluşturun."
             render={(r, i) => (
               <tr key={r.id || i}>
                 <td className="label-cell">{SS_REQUEST_KIND[r.kind] || r.kind || "—"}</td>
@@ -13723,6 +13784,113 @@ function SsTable({ headers, rows, render, empty }) {
         <tbody>{rows.map((r, i) => render(r, i))}</tbody>
       </table>
     </div>
+  );
+}
+
+function LeaveRequestForm({ onSubmit, onCancel }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [leaveType, setLeaveType] = useState("annual");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const days = ssLeaveDays(startDate, endDate);
+  const submit = async (ev) => {
+    ev.preventDefault();
+    if (days < 1) { setErr("Bitiş tarihi başlangıçtan önce olamaz."); return; }
+    setBusy(true); setErr(null);
+    try {
+      await onSubmit({ leaveType, startDate, endDate, reason });
+    } catch (e) {
+      setErr(e?.message || "Talep oluşturulamadı");
+      setBusy(false);
+    }
+  };
+  return (
+    <form onSubmit={submit} className="card p-4" style={{ display: "grid", gap: 10, background: "var(--bg-alt)" }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label className="block text-sm"><span className="label">İzin Türü</span>
+          <select className="input mt-1" value={leaveType} onChange={e => setLeaveType(e.target.value)}>
+            <option value="annual">Yıllık İzin</option>
+            <option value="unpaid">Ücretsiz İzin</option>
+            <option value="sick">Hastalık (Rapor)</option>
+            <option value="excuse">Mazeret</option>
+          </select>
+        </label>
+        <label className="block text-sm"><span className="label">Toplam Gün</span>
+          <input className="input mt-1 num" value={days} readOnly/>
+        </label>
+        <label className="block text-sm"><span className="label">Başlangıç</span>
+          <input type="date" className="input mt-1" value={startDate} onChange={e => setStartDate(e.target.value)}/>
+        </label>
+        <label className="block text-sm"><span className="label">Bitiş</span>
+          <input type="date" className="input mt-1" value={endDate} onChange={e => setEndDate(e.target.value)}/>
+        </label>
+      </div>
+      <label className="block text-sm"><span className="label">Açıklama</span>
+        <input className="input mt-1" value={reason} onChange={e => setReason(e.target.value)} placeholder="Opsiyonel"/>
+      </label>
+      {err && <p style={{ color: "var(--negative)", fontSize: 12, margin: 0 }}>{err}</p>}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? "Gönderiliyor…" : "Talep Gönder"}</button>
+        <button type="button" className="btn btn-ghost" onClick={onCancel}>Vazgeç</button>
+      </div>
+    </form>
+  );
+}
+
+function RequestForm({ onSubmit, onCancel }) {
+  const [kind, setKind] = useState("advance");
+  const [amount, setAmount] = useState("");
+  const [installments, setInstallments] = useState("1");
+  const [category, setCategory] = useState("");
+  const [description, setDescription] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const submit = async (ev) => {
+    ev.preventDefault();
+    if (!(Number(amount) > 0)) { setErr("Tutar sıfırdan büyük olmalı."); return; }
+    setBusy(true); setErr(null);
+    try {
+      await onSubmit({ kind, amount, installments, category, description });
+    } catch (e) {
+      setErr(e?.message || "Talep oluşturulamadı");
+      setBusy(false);
+    }
+  };
+  return (
+    <form onSubmit={submit} className="card p-4" style={{ display: "grid", gap: 10, background: "var(--bg-alt)" }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label className="block text-sm"><span className="label">Talep Türü</span>
+          <select className="input mt-1" value={kind} onChange={e => setKind(e.target.value)}>
+            <option value="advance">Avans</option>
+            <option value="expense">Masraf</option>
+          </select>
+        </label>
+        <label className="block text-sm"><span className="label">Tutar (₺)</span>
+          <input type="number" className="input mt-1 num" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00"/>
+        </label>
+        {kind === "advance" && (
+          <label className="block text-sm"><span className="label">Taksit Sayısı</span>
+            <input type="number" min="1" className="input mt-1 num" value={installments} onChange={e => setInstallments(e.target.value)}/>
+          </label>
+        )}
+        {kind === "expense" && (
+          <label className="block text-sm"><span className="label">Kategori</span>
+            <input className="input mt-1" value={category} onChange={e => setCategory(e.target.value)} placeholder="Örn: Yol, Yemek"/>
+          </label>
+        )}
+      </div>
+      <label className="block text-sm"><span className="label">Açıklama</span>
+        <input className="input mt-1" value={description} onChange={e => setDescription(e.target.value)} placeholder="Opsiyonel"/>
+      </label>
+      {err && <p style={{ color: "var(--negative)", fontSize: 12, margin: 0 }}>{err}</p>}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? "Gönderiliyor…" : "Talep Gönder"}</button>
+        <button type="button" className="btn btn-ghost" onClick={onCancel}>Vazgeç</button>
+      </div>
+    </form>
   );
 }
 
