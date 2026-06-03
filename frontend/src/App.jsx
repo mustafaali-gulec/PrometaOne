@@ -15788,15 +15788,6 @@ function TopBar({ session, onLogout, view, setView, data, onChangeData, canAct, 
               </button>
             ))}
           </div>
-          {/* Kullanıcı bilgisi — md+ */}
-          <div className="hidden md:flex items-center gap-2 pl-2" style={{ borderLeft: "1px solid var(--line)" }}>
-            <div className="text-right">
-              <div style={{ fontSize: 11.5, fontWeight: 500, lineHeight: 1.2 }}>
-                {lang === "en" ? "Welcome back" : lang === "de" ? "Willkommen zurück" : lang === "ar" ? "مرحباً بعودتك" : "Tekrar hoşgeldiniz"}
-              </div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--accent)", lineHeight: 1.2 }}>{session.username}</div>
-            </div>
-          </div>
           {/* Dil seçici */}
           {changeLang && (
             <div className="relative">
