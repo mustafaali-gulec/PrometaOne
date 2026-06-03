@@ -34,17 +34,38 @@ export interface HrDemoPageProps {
 
 type Tab = 'org' | 'employees' | 'positions' | 'recruitment';
 
+const TOKEN_STORAGE_KEY = 'promet_access_token';
+
 export function HrDemoPage({
   apiBaseUrl = 'http://localhost:3000',
   accessToken,
   companyId = 1,
 }: HrDemoPageProps): JSX.Element {
   const [tab, setTab] = useState<Tab>('org');
+  const [token, setToken] = useState<string | null>(() => accessToken ?? extractToken());
 
-  const api: HrApi = useMemo(() => {
-    const token = accessToken ?? extractToken();
-    return new HrApiClient(apiBaseUrl, new StaticAuthTokenProvider(token));
-  }, [apiBaseUrl, accessToken]);
+  const api: HrApi = useMemo(
+    () => new HrApiClient(apiBaseUrl, new StaticAuthTokenProvider(token)),
+    [apiBaseUrl, token],
+  );
+
+  const handleLogin = (t: string): void => {
+    try {
+      window.localStorage.setItem(TOKEN_STORAGE_KEY, t);
+    } catch {
+      /* ignore */
+    }
+    setToken(t);
+  };
+
+  const handleLogout = (): void => {
+    try {
+      window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+    setToken(null);
+  };
 
   return (
     <div
@@ -55,36 +76,169 @@ export function HrDemoPage({
         padding: 24,
       }}
     >
-      <header style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 22, margin: 0 }}>HR Demo (Faz 4)</h1>
-        <p style={{ marginTop: 4, color: 'var(--ink-muted, #666)', fontSize: 13 }}>
-          Standalone demo — backend `/v1/hr/*` rotalarını kullanır. Şirket
-          id: <code>{companyId}</code>.
-        </p>
+      <header
+        style={{
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 16,
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: 22, margin: 0 }}>HR Demo (Faz 4)</h1>
+          <p style={{ marginTop: 4, color: 'var(--ink-muted, #666)', fontSize: 13 }}>
+            Standalone demo — backend `/v1/hr/*` rotalarını kullanır. Şirket id:{' '}
+            <code>{companyId}</code>.
+          </p>
+        </div>
+        {token !== null ? (
+          <button type="button" onClick={handleLogout} style={btnStyle()}>
+            Çıkış
+          </button>
+        ) : null}
       </header>
 
-      <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--line, #e5e5e5)' }}>
-        <TabButton active={tab === 'org'} onClick={() => setTab('org')}>
-          Organizasyon
-        </TabButton>
-        <TabButton active={tab === 'employees'} onClick={() => setTab('employees')}>
-          Personel
-        </TabButton>
-        <TabButton active={tab === 'positions'} onClick={() => setTab('positions')}>
-          Pozisyonlar
-        </TabButton>
-        <TabButton active={tab === 'recruitment'} onClick={() => setTab('recruitment')}>
-          İşe Alım
-        </TabButton>
-      </nav>
+      {token === null ? (
+        <HrLoginForm apiBaseUrl={apiBaseUrl} onLogin={handleLogin} />
+      ) : (
+        <>
+          <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--line, #e5e5e5)' }}>
+            <TabButton active={tab === 'org'} onClick={() => setTab('org')}>
+              Organizasyon
+            </TabButton>
+            <TabButton active={tab === 'employees'} onClick={() => setTab('employees')}>
+              Personel
+            </TabButton>
+            <TabButton active={tab === 'positions'} onClick={() => setTab('positions')}>
+              Pozisyonlar
+            </TabButton>
+            <TabButton active={tab === 'recruitment'} onClick={() => setTab('recruitment')}>
+              İşe Alım
+            </TabButton>
+          </nav>
 
-      <main style={{ marginTop: 16 }}>
-        {tab === 'org' ? <OrgTab api={api} companyId={companyId} /> : null}
-        {tab === 'employees' ? <EmployeesTab api={api} companyId={companyId} /> : null}
-        {tab === 'positions' ? <PositionsTab api={api} companyId={companyId} /> : null}
-        {tab === 'recruitment' ? <RecruitmentTab api={api} companyId={companyId} /> : null}
-      </main>
+          <main style={{ marginTop: 16 }}>
+            {tab === 'org' ? <OrgTab api={api} companyId={companyId} /> : null}
+            {tab === 'employees' ? <EmployeesTab api={api} companyId={companyId} /> : null}
+            {tab === 'positions' ? <PositionsTab api={api} companyId={companyId} /> : null}
+            {tab === 'recruitment' ? <RecruitmentTab api={api} companyId={companyId} /> : null}
+          </main>
+        </>
+      )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Login formu — token yoksa gösterilir (AI/Notifications demo pattern'i)
+// ---------------------------------------------------------------------------
+
+function HrLoginForm({
+  apiBaseUrl,
+  onLogin,
+}: {
+  apiBaseUrl: string;
+  onLogin: (token: string) => void;
+}): JSX.Element {
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('admin123');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (ev: React.FormEvent): Promise<void> => {
+    ev.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${apiBaseUrl}/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(body.message ?? `HTTP ${res.status}`);
+      }
+      const data = (await res.json()) as { accessToken?: string };
+      if (data.accessToken === undefined || data.accessToken === '') {
+        throw new Error('Yanıtta accessToken yok');
+      }
+      onLogin(data.accessToken);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Bilinmeyen hata');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <section
+      style={{
+        maxWidth: 360,
+        marginTop: 24,
+        padding: 20,
+        border: '1px solid var(--line, #e5e7eb)',
+        borderRadius: 8,
+        background: 'var(--paper, #fff)',
+      }}
+    >
+      <h2 style={{ fontSize: 16, marginTop: 0 }}>Giriş</h2>
+      <p style={{ fontSize: 12, color: 'var(--ink-muted, #6b7280)', marginTop: 0 }}>
+        HR rotaları kimlik doğrulaması ister. Demo kullanıcısı ile giriş yapın.
+      </p>
+      <form onSubmit={(ev) => void submit(ev)} style={{ display: 'grid', gap: 12 }}>
+        <label style={{ display: 'block', fontSize: 13 }}>
+          <span style={{ display: 'block', marginBottom: 4 }}>Kullanıcı adı</span>
+          <input
+            value={username}
+            onChange={(ev) => setUsername(ev.target.value)}
+            autoComplete="username"
+            style={{ ...inputStyle(), width: '100%', minWidth: 0 }}
+          />
+        </label>
+        <label style={{ display: 'block', fontSize: 13 }}>
+          <span style={{ display: 'block', marginBottom: 4 }}>Şifre</span>
+          <input
+            type="password"
+            value={password}
+            onChange={(ev) => setPassword(ev.target.value)}
+            autoComplete="current-password"
+            style={{ ...inputStyle(), width: '100%', minWidth: 0 }}
+          />
+        </label>
+        {error !== null ? (
+          <p
+            style={{
+              margin: 0,
+              padding: '8px 10px',
+              background: 'var(--danger-bg, #fee2e2)',
+              color: 'var(--danger, #b91c1c)',
+              border: '1px solid var(--danger, #fca5a5)',
+              borderRadius: 6,
+              fontSize: 13,
+            }}
+          >
+            {error}
+          </p>
+        ) : null}
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            padding: '8px 16px',
+            border: 'none',
+            background: 'var(--accent, #0066cc)',
+            color: '#fff',
+            borderRadius: 4,
+            cursor: loading ? 'wait' : 'pointer',
+            fontSize: 13,
+          }}
+        >
+          {loading ? 'Giriş yapılıyor…' : 'Giriş yap'}
+        </button>
+      </form>
+    </section>
   );
 }
 
@@ -133,12 +287,7 @@ function EmployeesTab({ api, companyId }: { api: HrApi; companyId: number }): JS
 function PositionsTab({ api, companyId }: { api: HrApi; companyId: number }): JSX.Element {
   const { positions, loading, error, refetch } = usePositions(api, companyId);
   return (
-    <Section
-      title="Pozisyonlar"
-      loading={loading}
-      error={error}
-      onReload={() => void refetch()}
-    >
+    <Section title="Pozisyonlar" loading={loading} error={error} onReload={() => void refetch()}>
       <PositionsList positions={positions} loading={loading} />
     </Section>
   );
@@ -149,16 +298,11 @@ function RecruitmentTab({ api, companyId }: { api: HrApi; companyId: number }): 
   const [positionId, setPositionId] = useState<number | null>(null);
 
   // İlk açık pozisyonu otomatik seç
-  const effectivePositionId =
-    positionId ?? (positions.length > 0 ? positions[0]!.id : null);
+  const effectivePositionId = positionId ?? (positions.length > 0 ? positions[0]!.id : null);
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      <RecruitmentFunnelSection
-        api={api}
-        companyId={companyId}
-        positionId={effectivePositionId}
-      />
+      <RecruitmentFunnelSection api={api} companyId={companyId} positionId={effectivePositionId} />
 
       <Section
         title="Açık Pozisyon Başvuruları"
@@ -269,13 +413,7 @@ function KanbanForPosition({
   );
 }
 
-function CandidatesSection({
-  api,
-  companyId,
-}: {
-  api: HrApi;
-  companyId: number;
-}): JSX.Element {
+function CandidatesSection({ api, companyId }: { api: HrApi; companyId: number }): JSX.Element {
   const { candidates, loading, error, refetch } = useCandidates(api, companyId);
   const [formOpen, setFormOpen] = useState<boolean>(false);
 
