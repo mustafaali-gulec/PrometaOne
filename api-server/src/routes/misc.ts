@@ -31,7 +31,8 @@ banks.get('/:cid/bank-accounts', requireCompanyAccess('viewer'), async (c) => {
   const cid = Number(c.req.param('cid'));
   const rows = await queryMany(
     `SELECT ba.id, ba.company_id AS "companyId", ba.bank_id AS "bankId",
-            ba.name, ba.iban, ba.account_no AS "accountNo", ba.currency,
+            ba.name, ba.iban, ba.account_no AS "accountNo",
+            ba.accounting_code AS "accountingCode", ba.currency,
             ba.opening_balance::float AS "openingBalance",
             ba.cashflow_cat_id AS "cashflowCatId",
             v.balance::float AS balance
@@ -53,6 +54,7 @@ banks.post(
       name: z.string().min(1),
       iban: z.string().optional(),
       accountNo: z.string().optional(),
+      accountingCode: z.string().optional(),
       currency: z.enum(['TRY', 'USD', 'EUR']),
       openingBalance: z.number().default(0),
       cashflowCatId: z.number().int().nullable().optional(),
@@ -62,16 +64,17 @@ banks.post(
     const cid = Number(c.req.param('cid'));
     const data = c.req.valid('json');
     const result = await queryOne(
-      `INSERT INTO bank_accounts (company_id, bank_id, name, iban, account_no, currency,
-        opening_balance, cashflow_cat_id, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING id, name, currency, opening_balance::float AS "openingBalance"`,
+      `INSERT INTO bank_accounts (company_id, bank_id, name, iban, account_no, accounting_code,
+        currency, opening_balance, cashflow_cat_id, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id, name, currency, accounting_code AS "accountingCode", opening_balance::float AS "openingBalance"`,
       [
         cid,
         data.bankId,
         data.name,
         data.iban,
         data.accountNo,
+        data.accountingCode,
         data.currency,
         data.openingBalance,
         data.cashflowCatId,
@@ -91,6 +94,7 @@ banks.patch('/:cid/bank-accounts/:id', requireCompanyAccess('cfo'), async (c) =>
     name: 'name',
     iban: 'iban',
     accountNo: 'account_no',
+    accountingCode: 'accounting_code',
     cashflowCatId: 'cashflow_cat_id',
   };
   const fields: string[] = [],

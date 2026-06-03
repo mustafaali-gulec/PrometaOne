@@ -37831,6 +37831,7 @@ function BanksManager({ data, session, canAct, lang, onChange, logAudit, notify 
       bankId: accountDraft.bankId,
       name: accountDraft.name.trim(),
       iban: (accountDraft.iban || "").replace(/\s+/g, "").toUpperCase(),
+      accountingCode: (accountDraft.accountingCode || "").trim(),
       currency: accountDraft.currency || "TRY",
       openingBalance: Number(accountDraft.openingBalance) || 0,
       cashflowCatId: accountDraft.cashflowCatId || null,
@@ -37994,7 +37995,7 @@ function BanksManager({ data, session, canAct, lang, onChange, logAudit, notify 
                         <tr>
                           <th className="label-cell" style={{ width: "30%" }}>Hesap Adı</th>
                           <th className="label-cell" style={{ width: "35%" }}>IBAN</th>
-                          <th className="label-cell" style={{ width: 70 }}>Birim</th>
+                          <th style={{ width: 80 }}>Birim</th>
                           <th style={{ width: 140 }}>Bakiye</th>
                           {(canManage || canTransfer || canEntry || canImport) && <th style={{ width: 150 }}></th>}
                         </tr>
@@ -38048,7 +38049,7 @@ function BanksManager({ data, session, canAct, lang, onChange, logAudit, notify 
                   )}
                   {canManage && (
                     <div className="p-3 border-t" style={{ borderColor: "var(--line-soft)", background: "var(--bg)" }}>
-                      <button onClick={() => setAccountDraft({ bankId: bank.id, name: "", iban: "", currency: "TRY", openingBalance: 0, cashflowCatId: "" })}
+                      <button onClick={() => setAccountDraft({ bankId: bank.id, name: "", iban: "", accountingCode: "", currency: "TRY", openingBalance: 0, cashflowCatId: "" })}
                         className="btn btn-ghost text-xs">
                         <Plus size={12}/> Hesap ekle
                       </button>
@@ -38107,6 +38108,16 @@ function BanksManager({ data, session, canAct, lang, onChange, logAudit, notify 
                 onChange={e => setAccountDraft({ ...accountDraft, iban: e.target.value.toUpperCase() })}
                 placeholder="TR00 0000 0000 0000 0000 0000 00"
                 maxLength="34"/>
+            </div>
+            <div>
+              <div className="label mb-1">{lang === "en" ? "Accounting Code" : lang === "de" ? "Buchhaltungskonto" : lang === "ar" ? "رمز الحساب المحاسبي" : "Muhasebe Hesap Kodu"}</div>
+              <input className="input mono" value={accountDraft.accountingCode || ""}
+                onChange={e => setAccountDraft({ ...accountDraft, accountingCode: e.target.value })}
+                placeholder={lang === "en" ? "e.g. 102.01" : "Örn: 102.01"}
+                maxLength="40"/>
+              <p className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>
+                {lang === "en" ? "Linked general-ledger account code (Chart of Accounts)" : lang === "de" ? "Verknüpfter Hauptbuchkontocode" : lang === "ar" ? "رمز حساب دفتر الأستاذ المرتبط" : "Bağlantılı muhasebe (büyük defter) hesap kodu — Tek Düzen Hesap Planı"}
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -38267,7 +38278,7 @@ function AccountRow({ acc, canManage, canTransfer, canEntry, canImport, onUpdate
           )}
         </div>
       </td>
-      <td className="label-cell">
+      <td>
         <span className="chip" style={{ background: "var(--bg)", color: "var(--ink-soft)" }}>
           {sym} {acc.currency}
         </span>
