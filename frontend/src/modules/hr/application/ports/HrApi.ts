@@ -11,6 +11,11 @@
 import type {
   ApplicationDto,
   ApplicationsResponse,
+  AssetDto,
+  AssetsResponse,
+  AssetStatus,
+  AssetType,
+  AssetWithAssignments,
   CandidateDto,
   CandidatesResponse,
   CandidateSource,
@@ -19,8 +24,17 @@ import type {
   EmployeesResponse,
   EmployeeStatus,
   EmploymentType,
+  LeaveBalanceDto,
+  LeaveRequestDto,
+  LeaveRequestsResponse,
+  LeaveStatus,
+  LeaveType,
   OrgTreeResponse,
   OrgUnitDto,
+  PayrollRunDto,
+  PayrollRunsResponse,
+  PayrollRunStatus,
+  PayrollRunWithItems,
   PositionDto,
   PositionsResponse,
   PositionStatus,
@@ -172,6 +186,41 @@ export interface HireFromApplicationBody {
   userId?: number | null;
 }
 
+export interface RequestLeaveBody {
+  companyId: number;
+  employeeId: number;
+  leaveType: LeaveType;
+  startDate: string;
+  endDate: string;
+  reason?: string | null;
+}
+
+export interface CreatePayrollRunBody {
+  companyId: number;
+  periodYear: number;
+  periodMonth: number;
+  note?: string | null;
+}
+
+export interface CreateAssetBody {
+  companyId: number;
+  assetType: AssetType;
+  name: string;
+  brand?: string | null;
+  model?: string | null;
+  serialNo?: string | null;
+  notes?: string | null;
+}
+
+export interface UpdateAssetBody {
+  companyId: number;
+  name?: string;
+  brand?: string | null;
+  model?: string | null;
+  serialNo?: string | null;
+  notes?: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Port
 // ---------------------------------------------------------------------------
@@ -235,4 +284,36 @@ export interface HrApi {
   rejectApplication(id: number, companyId: number, reason: string): Promise<ApplicationDto>;
   withdrawApplication(id: number, companyId: number, note?: string): Promise<ApplicationDto>;
   hireFromApplication(id: number, body: HireFromApplicationBody): Promise<EmployeeDto>;
+
+  // Leave
+  listLeaveRequests(
+    companyId: number,
+    options?: { employeeId?: number; status?: LeaveStatus },
+  ): Promise<LeaveRequestsResponse>;
+  requestLeave(body: RequestLeaveBody): Promise<LeaveRequestDto>;
+  approveLeave(id: number, companyId: number, note?: string | null): Promise<LeaveRequestDto>;
+  rejectLeave(id: number, companyId: number, note?: string | null): Promise<LeaveRequestDto>;
+  cancelLeave(id: number, companyId: number, note?: string | null): Promise<LeaveRequestDto>;
+  getLeaveBalance(companyId: number, employeeId: number): Promise<LeaveBalanceDto>;
+
+  // Payroll
+  listPayrollRuns(
+    companyId: number,
+    options?: { year?: number; status?: PayrollRunStatus },
+  ): Promise<PayrollRunsResponse>;
+  createPayrollRun(body: CreatePayrollRunBody): Promise<PayrollRunDto>;
+  runPayrollBatch(id: number, companyId: number): Promise<PayrollRunWithItems>;
+  finalizePayrollRun(id: number, companyId: number): Promise<PayrollRunDto>;
+  getPayrollRun(id: number, companyId: number): Promise<PayrollRunWithItems>;
+
+  // Asset (Zimmet / Varlık Yönetimi)
+  listAssets(
+    companyId: number,
+    options?: { status?: AssetStatus; assignedEmployeeId?: number; type?: AssetType },
+  ): Promise<AssetsResponse>;
+  createAsset(body: CreateAssetBody): Promise<AssetDto>;
+  updateAsset(id: number, body: UpdateAssetBody): Promise<AssetDto>;
+  assignAsset(id: number, companyId: number, employeeId: number): Promise<AssetDto>;
+  returnAsset(id: number, companyId: number, returnNote?: string | null): Promise<AssetDto>;
+  getAsset(id: number, companyId: number): Promise<AssetWithAssignments>;
 }

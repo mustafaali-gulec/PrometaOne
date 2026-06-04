@@ -5,9 +5,15 @@
  * `{ message: string }` shape'ine sahip Hono HTTPException çıktısı;
  * Error.message buradan dolar.
  */
+import type { RefreshFn } from '../../../access/infrastructure/auth/RefreshingAuthTokenProvider';
 import type {
   ApplicationDto,
   ApplicationsResponse,
+  AssetDto,
+  AssetsResponse,
+  AssetStatus,
+  AssetType,
+  AssetWithAssignments,
   CandidateDto,
   CandidatesResponse,
   CandidateSource,
@@ -15,8 +21,16 @@ import type {
   EmployeeDto,
   EmployeesResponse,
   EmployeeStatus,
+  LeaveBalanceDto,
+  LeaveRequestDto,
+  LeaveRequestsResponse,
+  LeaveStatus,
   OrgTreeResponse,
   OrgUnitDto,
+  PayrollRunDto,
+  PayrollRunsResponse,
+  PayrollRunStatus,
+  PayrollRunWithItems,
   PositionDto,
   PositionsResponse,
   PositionStatus,
@@ -26,6 +40,7 @@ import type {
 import type { AuthTokenProvider } from '../../application/ports/AuthTokenProvider';
 import type {
   AssignManagerBody,
+  CreateAssetBody,
   CreateDepartmentBody,
   CreateOrgUnitBody,
   CreatePositionBody,
@@ -35,10 +50,13 @@ import type {
   LinkUserBody,
   MoveApplicationStageBody,
   MoveOrgUnitBody,
+  CreatePayrollRunBody,
   RegisterCandidateBody,
+  RequestLeaveBody,
   SubmitApplicationBody,
   TerminateEmployeeBody,
   TransferEmployeeBody,
+  UpdateAssetBody,
   UpdateDepartmentBody,
   UpdateEmployeeBody,
   UpdateOrgUnitBody,
@@ -46,9 +64,14 @@ import type {
 } from '../../application/ports/HrApi';
 
 export class HrApiClient implements HrApi {
+  /**
+   * @param refresh Opsiyonel — 401 alindiginda bir kez cagrilir; yeni access
+   *   token doner ve istek tekrarlanir. Yoksa eski (static) davranis.
+   */
   constructor(
     private readonly baseUrl: string,
     private readonly tokens: AuthTokenProvider,
+    private readonly refresh?: RefreshFn,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -251,6 +274,129 @@ export class HrApiClient implements HrApi {
   }
 
   // -------------------------------------------------------------------------
+  // Leave (İzin)
+  // -------------------------------------------------------------------------
+  listLeaveRequests(
+    companyId: number,
+    options?: { employeeId?: number; status?: LeaveStatus },
+  ): Promise<LeaveRequestsResponse> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (options?.employeeId !== undefined) q.set('employeeId', String(options.employeeId));
+    if (options?.status !== undefined) q.set('status', options.status);
+    return this.request<LeaveRequestsResponse>(`/v1/hr/leave-requests?${q.toString()}`);
+  }
+
+  requestLeave(body: RequestLeaveBody): Promise<LeaveRequestDto> {
+    return this.request<LeaveRequestDto>(`/v1/hr/leave-requests`, { method: 'POST', body });
+  }
+
+  approveLeave(id: number, companyId: number, note?: string | null): Promise<LeaveRequestDto> {
+    return this.request<LeaveRequestDto>(`/v1/hr/leave-requests/${id}/approve`, {
+      method: 'POST',
+      body: note === undefined ? { companyId } : { companyId, note },
+    });
+  }
+
+  rejectLeave(id: number, companyId: number, note?: string | null): Promise<LeaveRequestDto> {
+    return this.request<LeaveRequestDto>(`/v1/hr/leave-requests/${id}/reject`, {
+      method: 'POST',
+      body: note === undefined ? { companyId } : { companyId, note },
+    });
+  }
+
+  cancelLeave(id: number, companyId: number, note?: string | null): Promise<LeaveRequestDto> {
+    return this.request<LeaveRequestDto>(`/v1/hr/leave-requests/${id}/cancel`, {
+      method: 'POST',
+      body: note === undefined ? { companyId } : { companyId, note },
+    });
+  }
+
+  getLeaveBalance(companyId: number, employeeId: number): Promise<LeaveBalanceDto> {
+    const q = new URLSearchParams({
+      companyId: String(companyId),
+      employeeId: String(employeeId),
+    });
+    return this.request<LeaveBalanceDto>(`/v1/hr/leave-balance?${q.toString()}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // Payroll (Bordro)
+  // -------------------------------------------------------------------------
+  listPayrollRuns(
+    companyId: number,
+    options?: { year?: number; status?: PayrollRunStatus },
+  ): Promise<PayrollRunsResponse> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (options?.year !== undefined) q.set('year', String(options.year));
+    if (options?.status !== undefined) q.set('status', options.status);
+    return this.request<PayrollRunsResponse>(`/v1/hr/payroll-runs?${q.toString()}`);
+  }
+
+  createPayrollRun(body: CreatePayrollRunBody): Promise<PayrollRunDto> {
+    return this.request<PayrollRunDto>(`/v1/hr/payroll-runs`, { method: 'POST', body });
+  }
+
+  runPayrollBatch(id: number, companyId: number): Promise<PayrollRunWithItems> {
+    return this.request<PayrollRunWithItems>(`/v1/hr/payroll-runs/${id}/run-batch`, {
+      method: 'POST',
+      body: { companyId },
+    });
+  }
+
+  finalizePayrollRun(id: number, companyId: number): Promise<PayrollRunDto> {
+    return this.request<PayrollRunDto>(`/v1/hr/payroll-runs/${id}/finalize`, {
+      method: 'POST',
+      body: { companyId },
+    });
+  }
+
+  getPayrollRun(id: number, companyId: number): Promise<PayrollRunWithItems> {
+    return this.request<PayrollRunWithItems>(`/v1/hr/payroll-runs/${id}?companyId=${companyId}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // Asset (Zimmet / Varlık Yönetimi)
+  // -------------------------------------------------------------------------
+  listAssets(
+    companyId: number,
+    options?: { status?: AssetStatus; assignedEmployeeId?: number; type?: AssetType },
+  ): Promise<AssetsResponse> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (options?.status !== undefined) q.set('status', options.status);
+    if (options?.assignedEmployeeId !== undefined) {
+      q.set('assignedEmployeeId', String(options.assignedEmployeeId));
+    }
+    if (options?.type !== undefined) q.set('type', options.type);
+    return this.request<AssetsResponse>(`/v1/hr/assets?${q.toString()}`);
+  }
+
+  createAsset(body: CreateAssetBody): Promise<AssetDto> {
+    return this.request<AssetDto>(`/v1/hr/assets`, { method: 'POST', body });
+  }
+
+  updateAsset(id: number, body: UpdateAssetBody): Promise<AssetDto> {
+    return this.request<AssetDto>(`/v1/hr/assets/${id}`, { method: 'PATCH', body });
+  }
+
+  assignAsset(id: number, companyId: number, employeeId: number): Promise<AssetDto> {
+    return this.request<AssetDto>(`/v1/hr/assets/${id}/assign`, {
+      method: 'POST',
+      body: { companyId, employeeId },
+    });
+  }
+
+  returnAsset(id: number, companyId: number, returnNote?: string | null): Promise<AssetDto> {
+    return this.request<AssetDto>(`/v1/hr/assets/${id}/return`, {
+      method: 'POST',
+      body: returnNote === undefined ? { companyId } : { companyId, returnNote },
+    });
+  }
+
+  getAsset(id: number, companyId: number): Promise<AssetWithAssignments> {
+    return this.request<AssetWithAssignments>(`/v1/hr/assets/${id}?companyId=${companyId}`);
+  }
+
+  // -------------------------------------------------------------------------
   // Generic request helper
   // -------------------------------------------------------------------------
   private async request<T>(
@@ -262,20 +408,15 @@ export class HrApiClient implements HrApi {
       throw new Error('Auth token yok — önce giriş yapın');
     }
 
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${token}`,
-    };
-    let bodyStr: string | undefined;
-    if (options.body !== undefined) {
-      headers['Content-Type'] = 'application/json';
-      bodyStr = JSON.stringify(options.body);
-    }
+    let response = await this.sendOnce(path, options, token);
 
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method: options.method ?? 'GET',
-      headers,
-      ...(bodyStr !== undefined ? { body: bodyStr } : {}),
-    });
+    // 401 + refresh callback varsa: bir kez yenile ve tekrar dene.
+    if (response.status === 401 && this.refresh !== undefined) {
+      const newToken = await this.refresh();
+      if (newToken !== null && newToken !== '') {
+        response = await this.sendOnce(path, options, newToken);
+      }
+    }
 
     // happy-dom + bazı fetch implementasyonlarında Response body iki kez
     // okunamaz (ReadableStream lock). Bu yüzden tek seferde text() okuyup
@@ -304,5 +445,26 @@ export class HrApiClient implements HrApi {
       return undefined as unknown as T;
     }
     return JSON.parse(raw) as T;
+  }
+
+  private sendOnce(
+    path: string,
+    options: { method?: string; body?: unknown },
+    token: string,
+  ): Promise<Response> {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+    };
+    let bodyStr: string | undefined;
+    if (options.body !== undefined) {
+      headers['Content-Type'] = 'application/json';
+      bodyStr = JSON.stringify(options.body);
+    }
+
+    return fetch(`${this.baseUrl}${path}`, {
+      method: options.method ?? 'GET',
+      headers,
+      ...(bodyStr !== undefined ? { body: bodyStr } : {}),
+    });
   }
 }

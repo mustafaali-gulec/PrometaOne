@@ -69,6 +69,26 @@ export function createFakeHrApi(): HrApiMock {
     rejectApplication: stub('rejectApplication'),
     withdrawApplication: stub('withdrawApplication'),
     hireFromApplication: stub('hireFromApplication'),
+    // Leave
+    listLeaveRequests: stub('listLeaveRequests'),
+    requestLeave: stub('requestLeave'),
+    approveLeave: stub('approveLeave'),
+    rejectLeave: stub('rejectLeave'),
+    cancelLeave: stub('cancelLeave'),
+    getLeaveBalance: stub('getLeaveBalance'),
+    // Payroll
+    listPayrollRuns: stub('listPayrollRuns'),
+    createPayrollRun: stub('createPayrollRun'),
+    runPayrollBatch: stub('runPayrollBatch'),
+    finalizePayrollRun: stub('finalizePayrollRun'),
+    getPayrollRun: stub('getPayrollRun'),
+    // Asset
+    listAssets: stub('listAssets'),
+    createAsset: stub('createAsset'),
+    updateAsset: stub('updateAsset'),
+    assignAsset: stub('assignAsset'),
+    returnAsset: stub('returnAsset'),
+    getAsset: stub('getAsset'),
   };
 }
 

@@ -1,26 +1,42 @@
 /**
- * HrDemoPage — Faz 4 / PR 5 standalone demo sayfası.
+ * HrDemoPage — İK modülü ana giriş bileşeni.
  *
- * App.jsx'e dokunmaz. 3 sekme: Organizasyon / Personel / Pozisyonlar.
- *
- * Auth token URL hash'inden (`#token=...`) veya localStorage'dan
- * (`promet_access_token`) okunur. Production'da auth modülünden gelir.
+ * Sekmeler: Organizasyon / Personel / Pozisyonlar / İşe Alım.
+ * Oturum token'ı ana uygulamanın login köprüsünden (`promet_access_token`)
+ * gelir; ayrı login formu yoktur.
  */
 import { useMemo, useState } from 'react';
 
+import type { AccessApi } from '../../access/application/ports/AccessApi';
+import { StaticAuthTokenProvider as AccessStaticAuthTokenProvider } from '../../access/application/ports/AuthTokenProvider';
+import { AccessApiClient } from '../../access/infrastructure/api/AccessApiClient';
+import {
+  LocalStorageAuthTokenProvider,
+  createTokenRefresher,
+  hasRefreshToken,
+} from '../../access/infrastructure/auth/RefreshingAuthTokenProvider';
+import { AccessPanel } from '../../access/presentation/components/AccessPanel';
+import type { AssetType, PayrollItemDto, PayrollRunDto } from '../application/dto/HrDtos';
 import { StaticAuthTokenProvider } from '../application/ports/AuthTokenProvider';
 import type { HrApi } from '../application/ports/HrApi';
 import { HrApiClient } from '../infrastructure/api/HrApiClient';
 import { ApplicationKanban } from '../presentation/components/ApplicationKanban';
+import { AssetsTable } from '../presentation/components/AssetsTable';
 import { CandidateForm } from '../presentation/components/CandidateForm';
 import { EmployeesTable } from '../presentation/components/EmployeesTable';
+import { LeaveRequestsTable } from '../presentation/components/LeaveRequestsTable';
 import { OrgTreeView } from '../presentation/components/OrgTreeView';
+import { PayrollRunsTable } from '../presentation/components/PayrollRunsTable';
+import { PayrollSlipModal } from '../presentation/components/PayrollSlipModal';
 import { PositionsList } from '../presentation/components/PositionsList';
 import { RecruitmentFunnel } from '../presentation/components/RecruitmentFunnel';
 import { useApplications } from '../presentation/hooks/useApplications';
+import { useAssets } from '../presentation/hooks/useAssets';
 import { useCandidates } from '../presentation/hooks/useCandidates';
 import { useEmployees } from '../presentation/hooks/useEmployees';
+import { useLeaveRequests } from '../presentation/hooks/useLeaveRequests';
 import { useOrgTree } from '../presentation/hooks/useOrgTree';
+import { usePayrollRuns } from '../presentation/hooks/usePayrollRuns';
 import { usePositions } from '../presentation/hooks/usePositions';
 import { useRecruitmentFunnel } from '../presentation/hooks/useRecruitmentFunnel';
 
@@ -32,53 +48,53 @@ export interface HrDemoPageProps {
   companyId?: number;
 }
 
-type Tab = 'org' | 'employees' | 'positions' | 'recruitment';
-
-const TOKEN_STORAGE_KEY = 'promet_access_token';
+type Tab =
+  | 'org'
+  | 'employees'
+  | 'positions'
+  | 'recruitment'
+  | 'leaves'
+  | 'payroll'
+  | 'assets'
+  | 'access';
 
 export function HrDemoPage({
-  apiBaseUrl = 'http://localhost:3000',
+  apiBaseUrl = '',
   accessToken,
   companyId = 1,
 }: HrDemoPageProps): JSX.Element {
   const [tab, setTab] = useState<Tab>('org');
-  const [token, setToken] = useState<string | null>(() => accessToken ?? extractToken());
+  const [token] = useState<string | null>(() => accessToken ?? extractToken());
 
-  const api: HrApi = useMemo(
-    () => new HrApiClient(apiBaseUrl, new StaticAuthTokenProvider(token)),
-    [apiBaseUrl, token],
-  );
-
-  const handleLogin = (t: string): void => {
-    try {
-      window.localStorage.setItem(TOKEN_STORAGE_KEY, t);
-    } catch {
-      /* ignore */
+  // Refresh token varsa: access token'i localStorage'dan taze okuyan +
+  // 401'de /v1/auth/refresh ile yenileyen davranisa gec. Aksi halde (ornegin
+  // token yalnizca URL hash'inden geldiyse) eski static davranis korunur.
+  const api: HrApi = useMemo(() => {
+    if (hasRefreshToken()) {
+      return new HrApiClient(
+        apiBaseUrl,
+        new LocalStorageAuthTokenProvider(),
+        createTokenRefresher(apiBaseUrl),
+      );
     }
-    setToken(t);
-  };
+    return new HrApiClient(apiBaseUrl, new StaticAuthTokenProvider(token));
+  }, [apiBaseUrl, token]);
 
-  const handleLogout = (): void => {
-    try {
-      window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-    } catch {
-      /* ignore */
+  const accessApi: AccessApi = useMemo(() => {
+    if (hasRefreshToken()) {
+      return new AccessApiClient(
+        apiBaseUrl,
+        new LocalStorageAuthTokenProvider(),
+        createTokenRefresher(apiBaseUrl),
+      );
     }
-    setToken(null);
-  };
+    return new AccessApiClient(apiBaseUrl, new AccessStaticAuthTokenProvider(token));
+  }, [apiBaseUrl, token]);
 
   return (
-    <div
-      style={{
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        maxWidth: 1100,
-        margin: '0 auto',
-        padding: 24,
-      }}
-    >
+    <div className="card" style={{ display: 'grid', gap: 16 }}>
       <header
         style={{
-          marginBottom: 16,
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
@@ -86,21 +102,12 @@ export function HrDemoPage({
         }}
       >
         <div>
-          <h1 style={{ fontSize: 22, margin: 0 }}>HR Demo (Faz 4)</h1>
-          <p style={{ marginTop: 4, color: 'var(--ink-muted, #666)', fontSize: 13 }}>
-            Standalone demo — backend `/v1/hr/*` rotalarını kullanır. Şirket id:{' '}
-            <code>{companyId}</code>.
-          </p>
+          <h1 style={{ fontSize: 20, margin: 0 }}>İnsan Kaynakları</h1>
         </div>
-        {token !== null ? (
-          <button type="button" onClick={handleLogout} style={btnStyle()}>
-            Çıkış
-          </button>
-        ) : null}
       </header>
 
       {token === null ? (
-        <HrLoginForm apiBaseUrl={apiBaseUrl} onLogin={handleLogin} />
+        <HrReloginNotice />
       ) : (
         <>
           <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--line, #e5e5e5)' }}>
@@ -116,6 +123,18 @@ export function HrDemoPage({
             <TabButton active={tab === 'recruitment'} onClick={() => setTab('recruitment')}>
               İşe Alım
             </TabButton>
+            <TabButton active={tab === 'leaves'} onClick={() => setTab('leaves')}>
+              İzinler
+            </TabButton>
+            <TabButton active={tab === 'payroll'} onClick={() => setTab('payroll')}>
+              Bordro
+            </TabButton>
+            <TabButton active={tab === 'assets'} onClick={() => setTab('assets')}>
+              Zimmet
+            </TabButton>
+            <TabButton active={tab === 'access'} onClick={() => setTab('access')}>
+              Roller ve İzinler
+            </TabButton>
           </nav>
 
           <main style={{ marginTop: 16 }}>
@@ -123,6 +142,10 @@ export function HrDemoPage({
             {tab === 'employees' ? <EmployeesTab api={api} companyId={companyId} /> : null}
             {tab === 'positions' ? <PositionsTab api={api} companyId={companyId} /> : null}
             {tab === 'recruitment' ? <RecruitmentTab api={api} companyId={companyId} /> : null}
+            {tab === 'leaves' ? <LeavesTab api={api} companyId={companyId} /> : null}
+            {tab === 'payroll' ? <PayrollTab api={api} companyId={companyId} /> : null}
+            {tab === 'assets' ? <AssetsTab api={api} companyId={companyId} /> : null}
+            {tab === 'access' ? <AccessTab api={accessApi} companyId={companyId} /> : null}
           </main>
         </>
       )}
@@ -131,113 +154,25 @@ export function HrDemoPage({
 }
 
 // ---------------------------------------------------------------------------
-// Login formu — token yoksa gösterilir (AI/Notifications demo pattern'i)
+// Oturum köprüsü yoksa: ana uygulamadan yeniden giriş bilgilendirmesi
 // ---------------------------------------------------------------------------
 
-function HrLoginForm({
-  apiBaseUrl,
-  onLogin,
-}: {
-  apiBaseUrl: string;
-  onLogin: (token: string) => void;
-}): JSX.Element {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const submit = async (ev: React.FormEvent): Promise<void> => {
-    ev.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`${apiBaseUrl}/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { message?: string };
-        throw new Error(body.message ?? `HTTP ${res.status}`);
-      }
-      const data = (await res.json()) as { accessToken?: string };
-      if (data.accessToken === undefined || data.accessToken === '') {
-        throw new Error('Yanıtta accessToken yok');
-      }
-      onLogin(data.accessToken);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Bilinmeyen hata');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+function HrReloginNotice(): JSX.Element {
   return (
     <section
       style={{
-        maxWidth: 360,
-        marginTop: 24,
-        padding: 20,
-        border: '1px solid var(--line, #e5e7eb)',
+        padding: 16,
+        border: '1px solid var(--danger, #fca5a5)',
+        background: 'var(--danger-bg, #fef2f2)',
+        color: 'var(--danger, #b91c1c)',
         borderRadius: 8,
-        background: 'var(--paper, #fff)',
+        fontSize: 13,
+        lineHeight: 1.5,
       }}
     >
-      <h2 style={{ fontSize: 16, marginTop: 0 }}>Giriş</h2>
-      <p style={{ fontSize: 12, color: 'var(--ink-muted, #6b7280)', marginTop: 0 }}>
-        HR rotaları kimlik doğrulaması ister. Demo kullanıcısı ile giriş yapın.
-      </p>
-      <form onSubmit={(ev) => void submit(ev)} style={{ display: 'grid', gap: 12 }}>
-        <label style={{ display: 'block', fontSize: 13 }}>
-          <span style={{ display: 'block', marginBottom: 4 }}>Kullanıcı adı</span>
-          <input
-            value={username}
-            onChange={(ev) => setUsername(ev.target.value)}
-            autoComplete="username"
-            style={{ ...inputStyle(), width: '100%', minWidth: 0 }}
-          />
-        </label>
-        <label style={{ display: 'block', fontSize: 13 }}>
-          <span style={{ display: 'block', marginBottom: 4 }}>Şifre</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(ev) => setPassword(ev.target.value)}
-            autoComplete="current-password"
-            style={{ ...inputStyle(), width: '100%', minWidth: 0 }}
-          />
-        </label>
-        {error !== null ? (
-          <p
-            style={{
-              margin: 0,
-              padding: '8px 10px',
-              background: 'var(--danger-bg, #fee2e2)',
-              color: 'var(--danger, #b91c1c)',
-              border: '1px solid var(--danger, #fca5a5)',
-              borderRadius: 6,
-              fontSize: 13,
-            }}
-          >
-            {error}
-          </p>
-        ) : null}
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            padding: '8px 16px',
-            border: 'none',
-            background: 'var(--accent, #0066cc)',
-            color: '#fff',
-            borderRadius: 4,
-            cursor: loading ? 'wait' : 'pointer',
-            fontSize: 13,
-          }}
-        >
-          {loading ? 'Giriş yapılıyor…' : 'Giriş yap'}
-        </button>
-      </form>
+      <strong style={{ display: 'block', marginBottom: 4 }}>Oturum doğrulanamadı</strong>
+      İK ekranları için aktif bir oturum gerekiyor. Lütfen ana uygulamadan çıkış yapıp tekrar giriş
+      yapın; oturumunuz İK modülüne otomatik olarak aktarılacaktır.
     </section>
   );
 }
@@ -280,6 +215,284 @@ function EmployeesTab({ api, companyId }: { api: HrApi; companyId: number }): JS
       }
     >
       <EmployeesTable employees={employees} loading={loading} />
+    </Section>
+  );
+}
+
+function LeavesTab({ api, companyId }: { api: HrApi; companyId: number }): JSX.Element {
+  const { leaveRequests, loading, error, refetch } = useLeaveRequests(api, companyId);
+
+  const handleApprove = async (id: number): Promise<void> => {
+    await api.approveLeave(id, companyId);
+    await refetch();
+  };
+  const handleReject = async (id: number): Promise<void> => {
+    await api.rejectLeave(id, companyId);
+    await refetch();
+  };
+  const handleCancel = async (id: number): Promise<void> => {
+    await api.cancelLeave(id, companyId);
+    await refetch();
+  };
+
+  return (
+    <Section title="İzin Talepleri" loading={loading} error={error} onReload={() => void refetch()}>
+      <LeaveRequestsTable
+        leaveRequests={leaveRequests}
+        loading={loading}
+        onApprove={(id) => void handleApprove(id)}
+        onReject={(id) => void handleReject(id)}
+        onCancel={(id) => void handleCancel(id)}
+      />
+    </Section>
+  );
+}
+
+function PayrollTab({ api, companyId }: { api: HrApi; companyId: number }): JSX.Element {
+  const { payrollRuns, loading, error, refetch } = usePayrollRuns(api, companyId);
+  const [creating, setCreating] = useState<boolean>(false);
+  const now = new Date();
+  const [year, setYear] = useState<number>(now.getUTCFullYear());
+  const [month, setMonth] = useState<number>(now.getUTCMonth() + 1);
+
+  // Fiş modalı state'i
+  const [slipRun, setSlipRun] = useState<PayrollRunDto | null>(null);
+  const [slipItems, setSlipItems] = useState<ReadonlyArray<PayrollItemDto>>([]);
+  const [slipLoading, setSlipLoading] = useState<boolean>(false);
+
+  const handleCreate = async (): Promise<void> => {
+    await api.createPayrollRun({ companyId, periodYear: year, periodMonth: month });
+    setCreating(false);
+    await refetch();
+  };
+  const handleRunBatch = async (id: number): Promise<void> => {
+    await api.runPayrollBatch(id, companyId);
+    await refetch();
+  };
+  const handleFinalize = async (id: number): Promise<void> => {
+    await api.finalizePayrollRun(id, companyId);
+    await refetch();
+  };
+  const handleView = async (id: number): Promise<void> => {
+    setSlipLoading(true);
+    try {
+      const res = await api.getPayrollRun(id, companyId);
+      setSlipRun(res.run);
+      setSlipItems(res.items);
+    } finally {
+      setSlipLoading(false);
+    }
+  };
+
+  return (
+    <Section
+      title="Bordro Koşuları"
+      loading={loading}
+      error={error}
+      onReload={() => void refetch()}
+      toolbar={
+        <button
+          type="button"
+          onClick={() => setCreating((v) => !v)}
+          style={{
+            padding: '6px 12px',
+            border: 'none',
+            background: 'var(--accent, #0066cc)',
+            color: '#fff',
+            borderRadius: 4,
+            cursor: 'pointer',
+            fontSize: 12,
+          }}
+        >
+          {creating ? 'Kapat' : '+ Yeni Koşu'}
+        </button>
+      }
+    >
+      {creating ? (
+        <div
+          style={{
+            background: 'var(--paper-2, #f9fafb)',
+            border: '1px solid var(--line, #e5e7eb)',
+            borderRadius: 8,
+            padding: 16,
+            marginBottom: 12,
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+          }}
+        >
+          <input
+            type="number"
+            value={year}
+            min={2000}
+            max={2200}
+            onChange={(ev) => setYear(Number(ev.target.value))}
+            style={inputStyle()}
+          />
+          <input
+            type="number"
+            value={month}
+            min={1}
+            max={12}
+            onChange={(ev) => setMonth(Number(ev.target.value))}
+            style={inputStyle()}
+          />
+          <button
+            type="button"
+            onClick={() => void handleCreate()}
+            style={{
+              padding: '6px 12px',
+              border: 'none',
+              background: '#10b981',
+              color: '#fff',
+              borderRadius: 4,
+              cursor: 'pointer',
+              fontSize: 12,
+            }}
+          >
+            Oluştur
+          </button>
+        </div>
+      ) : null}
+      <PayrollRunsTable
+        payrollRuns={payrollRuns}
+        loading={loading}
+        onRunBatch={(id) => void handleRunBatch(id)}
+        onFinalize={(id) => void handleFinalize(id)}
+        onView={(id) => void handleView(id)}
+      />
+      <PayrollSlipModal
+        run={slipRun}
+        items={slipItems}
+        loading={slipLoading}
+        onClose={() => setSlipRun(null)}
+      />
+    </Section>
+  );
+}
+
+const ASSET_TYPE_OPTIONS: ReadonlyArray<{ value: AssetType; label: string }> = [
+  { value: 'laptop', label: 'Dizüstü' },
+  { value: 'desktop', label: 'Masaüstü' },
+  { value: 'phone', label: 'Telefon' },
+  { value: 'vehicle', label: 'Araç' },
+  { value: 'card', label: 'Kart' },
+  { value: 'monitor', label: 'Monitör' },
+  { value: 'headset', label: 'Kulaklık' },
+  { value: 'tablet', label: 'Tablet' },
+  { value: 'printer', label: 'Yazıcı' },
+  { value: 'furniture', label: 'Mobilya' },
+  { value: 'key_lock', label: 'Anahtar/Kilit' },
+  { value: 'uniform', label: 'Üniforma' },
+  { value: 'ppe', label: 'KKD' },
+  { value: 'other', label: 'Diğer' },
+];
+
+function AssetsTab({ api, companyId }: { api: HrApi; companyId: number }): JSX.Element {
+  const { assets, loading, error, refetch } = useAssets(api, companyId);
+  const [creating, setCreating] = useState<boolean>(false);
+  const [assetType, setAssetType] = useState<AssetType>('laptop');
+  const [name, setName] = useState<string>('');
+
+  const handleCreate = async (): Promise<void> => {
+    if (name.trim().length === 0) return;
+    await api.createAsset({ companyId, assetType, name: name.trim() });
+    setName('');
+    setCreating(false);
+    await refetch();
+  };
+  const handleAssign = async (id: number): Promise<void> => {
+    const raw = window.prompt('Zimmetlenecek personel ID:');
+    if (raw === null) return;
+    const employeeId = Number(raw);
+    if (!Number.isInteger(employeeId) || employeeId <= 0) return;
+    await api.assignAsset(id, companyId, employeeId);
+    await refetch();
+  };
+  const handleReturn = async (id: number): Promise<void> => {
+    const note = window.prompt('İade notu (opsiyonel):');
+    await api.returnAsset(id, companyId, note === null || note === '' ? undefined : note);
+    await refetch();
+  };
+
+  return (
+    <Section
+      title="Varlık Havuzu (Zimmet)"
+      loading={loading}
+      error={error}
+      onReload={() => void refetch()}
+      toolbar={
+        <button
+          type="button"
+          onClick={() => setCreating((v) => !v)}
+          style={{
+            padding: '6px 12px',
+            border: 'none',
+            background: 'var(--accent, #0066cc)',
+            color: '#fff',
+            borderRadius: 4,
+            cursor: 'pointer',
+            fontSize: 12,
+          }}
+        >
+          {creating ? 'Kapat' : '+ Yeni Varlık'}
+        </button>
+      }
+    >
+      {creating ? (
+        <div
+          style={{
+            background: 'var(--paper-2, #f9fafb)',
+            border: '1px solid var(--line, #e5e7eb)',
+            borderRadius: 8,
+            padding: 16,
+            marginBottom: 12,
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+          }}
+        >
+          <select
+            value={assetType}
+            onChange={(ev) => setAssetType(ev.target.value as AssetType)}
+            style={inputStyle()}
+          >
+            {ASSET_TYPE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={name}
+            placeholder="Varlık adı"
+            onChange={(ev) => setName(ev.target.value)}
+            style={{ ...inputStyle(), minWidth: 200 }}
+          />
+          <button
+            type="button"
+            onClick={() => void handleCreate()}
+            style={{
+              padding: '6px 12px',
+              border: 'none',
+              background: '#10b981',
+              color: '#fff',
+              borderRadius: 4,
+              cursor: 'pointer',
+              fontSize: 12,
+            }}
+          >
+            Oluştur
+          </button>
+        </div>
+      ) : null}
+      <AssetsTable
+        assets={assets}
+        loading={loading}
+        onAssign={(id) => void handleAssign(id)}
+        onReturn={(id) => void handleReturn(id)}
+      />
     </Section>
   );
 }
@@ -515,6 +728,13 @@ function CandidatesSection({ api, companyId }: { api: HrApi; companyId: number }
 // ---------------------------------------------------------------------------
 // UI primitive'leri
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Access (Roller ve İzinler) sekmesi
+// ---------------------------------------------------------------------------
+function AccessTab({ api, companyId }: { api: AccessApi; companyId: number }): JSX.Element {
+  return <AccessPanel api={api} companyId={companyId} />;
+}
 
 function TabButton({
   active,
