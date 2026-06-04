@@ -98,3 +98,6 @@ ehthumbs.db
 .husky/_/
 typecheck.log
 lint.log
+
+# ---- Claude Code (makineye-ozel ajan config/memory) ----
+.claude/
