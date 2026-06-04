@@ -43201,7 +43201,7 @@ function ApprovalRulesManager({ data, session, lang, onChange, logAudit, notify 
 
       {/* Kural Listesi */}
       <div className="card" style={{ overflow: "hidden" }}>
-        <table className="grid">
+        <table className="grid actions-last">
           <thead>
             <tr>
               <th className="label-cell">{lang === "en" ? "Rule Name" : "Kural Adı"}</th>
@@ -52870,7 +52870,7 @@ function TasksListView({ tasks, lang, users, session, onClickTask, onEdit, onDel
   return (
     <div className="card" style={{ overflow: "hidden" }}>
       <div style={{ overflowX: "auto" }}>
-        <table className="grid" style={{ minWidth: 1000 }}>
+        <table className="grid actions-last" style={{ minWidth: 1000 }}>
           <thead>
             <tr>
               <th className="label-cell" style={{ minWidth: 250 }}>{lang === "en" ? "Title" : "Başlık"}</th>

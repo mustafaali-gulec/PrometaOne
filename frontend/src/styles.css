@@ -407,6 +407,15 @@ table.grid thead th:last-child {
   color: var(--accent);
 }
 
+/* Son sutunu AKSIYON (Islem) olan tablolar — teal 'toplam' vurgusundan muaf */
+table.grid.actions-last thead th:last-child,
+table.grid.actions-last tbody td:last-child {
+  background: transparent;
+  color: var(--ink-soft);
+  border-left: none;
+  font-weight: 500;
+}
+
 /* Sıfır değer için faint görünüm */
 .num.zero { color: var(--ink-faint); }
 .num.negative { color: var(--negative); }
