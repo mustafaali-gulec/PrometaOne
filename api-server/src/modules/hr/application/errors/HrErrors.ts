@@ -193,3 +193,79 @@ export class ApplicationAlreadyTerminalError extends Error {
     this.name = 'ApplicationAlreadyTerminalError';
   }
 }
+
+// ============================================================================
+// LeaveRequest (İzin Yönetimi — Faz B-1)
+// ============================================================================
+export class LeaveRequestNotFoundError extends Error {
+  constructor(leaveRequestId: number) {
+    super(`LeaveRequest bulunamadı (id=${leaveRequestId})`);
+    this.name = 'LeaveRequestNotFoundError';
+  }
+}
+
+export class LeaveRequestCompanyMismatchError extends Error {
+  constructor(leaveRequestId: number, expectedCompanyId: number) {
+    super(
+      `LeaveRequest (id=${leaveRequestId}) bu şirkete (companyId=${expectedCompanyId}) ait değil`,
+    );
+    this.name = 'LeaveRequestCompanyMismatchError';
+  }
+}
+
+// ============================================================================
+// Payroll (Bordro Yönetimi — Faz B-2)
+// ============================================================================
+export class PayrollRunNotFoundError extends Error {
+  constructor(payrollRunId: number) {
+    super(`PayrollRun bulunamadı (id=${payrollRunId})`);
+    this.name = 'PayrollRunNotFoundError';
+  }
+}
+
+export class PayrollRunCompanyMismatchError extends Error {
+  constructor(payrollRunId: number, expectedCompanyId: number) {
+    super(`PayrollRun (id=${payrollRunId}) bu şirkete (companyId=${expectedCompanyId}) ait değil`);
+    this.name = 'PayrollRunCompanyMismatchError';
+  }
+}
+
+export class PayrollRunPeriodAlreadyExistsError extends Error {
+  constructor(companyId: number, periodYear: number, periodMonth: number) {
+    super(
+      `Bu dönem için bordro koşusu zaten var (companyId=${companyId}, ${periodYear}-${String(periodMonth).padStart(2, '0')})`,
+    );
+    this.name = 'PayrollRunPeriodAlreadyExistsError';
+  }
+}
+
+export class PayrollRunNotDraftError extends Error {
+  constructor(payrollRunId: number) {
+    super(`PayrollRun (id=${payrollRunId}) draft değil — bu işlem uygulanamaz`);
+    this.name = 'PayrollRunNotDraftError';
+  }
+}
+
+// ============================================================================
+// Asset (Zimmet / Varlık Yönetimi — Faz B-3)
+// ============================================================================
+export class AssetNotFoundError extends Error {
+  constructor(assetId: number) {
+    super(`Asset bulunamadı (id=${assetId})`);
+    this.name = 'AssetNotFoundError';
+  }
+}
+
+export class AssetNotAvailableError extends Error {
+  constructor(assetId: number) {
+    super(`Asset (id=${assetId}) atanabilir değil — in_stock olmalı`);
+    this.name = 'AssetNotAvailableError';
+  }
+}
+
+export class AssetNotAssignedError extends Error {
+  constructor(assetId: number) {
+    super(`Asset (id=${assetId}) zimmette değil — iade edilemez`);
+    this.name = 'AssetNotAssignedError';
+  }
+}

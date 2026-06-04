@@ -12,6 +12,7 @@ import { logger } from 'hono/logger';
 import { config } from './config.js';
 import { closePool, healthCheck, pool } from './db.js';
 import { errorHandler } from './middleware/error.js';
+import { registerAccessModule } from './modules/access/index.js';
 import { registerAiModule } from './modules/ai/index.js';
 import { PgUserRepository, registerAuthModule } from './modules/auth/index.js';
 import { registerEInvoiceModule } from './modules/finance/einvoice/index.js';
@@ -100,6 +101,11 @@ const hrModule = registerHrModule({
 });
 
 // ============================================================================
+// Access modülü (Faz B-4) — RBAC / Özel Roller, modüler /v1/access
+// ============================================================================
+const accessModule = registerAccessModule({ pool });
+
+// ============================================================================
 // Finance modülü (Faz 5) — Bütçe & Kasa & Fatura, modüler /v1/finance
 // ============================================================================
 const financeModule = registerFinanceModule(pool);
@@ -135,6 +141,7 @@ v1.get('/', (c) =>
 // Auth — YENI moduler endpoint (Faz 3 / PR 4 cutover)
 v1.route('/auth', authModule.router);
 v1.route('/hr', hrModule.router);
+v1.route('/access', accessModule.router);
 v1.route('/finance', financeModule);
 v1.route('/finance', einvoiceModule); // e-fatura + fx (Faz 6) — aynı prefix, /einvoice/* ve /fx/* yolları
 

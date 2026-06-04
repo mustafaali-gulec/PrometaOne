@@ -17,6 +17,11 @@ import type {
   ApplicationStageHistoryRepository,
   NewApplicationStageHistoryInput,
 } from '../../application/ports/ApplicationStageHistoryRepository.js';
+import type {
+  AssetRepository,
+  NewAssetAssignmentInput,
+  NewAssetInput,
+} from '../../application/ports/AssetRepository.js';
 import type { AuditEntry, AuditLogger } from '../../application/ports/AuditLogger.js';
 import type {
   CandidateRepository,
@@ -32,9 +37,18 @@ import type {
   NewEmployeeInput,
 } from '../../application/ports/EmployeeRepository.js';
 import type {
+  LeaveRequestRepository,
+  NewLeaveRequestInput,
+} from '../../application/ports/LeaveRequestRepository.js';
+import type {
   NewOrgUnitInput,
   OrgUnitRepository,
 } from '../../application/ports/OrgUnitRepository.js';
+import type {
+  NewPayrollItemInput,
+  NewPayrollRunInput,
+  PayrollRunRepository,
+} from '../../application/ports/PayrollRunRepository.js';
 import type {
   NewPositionInput,
   PositionRepository,
@@ -45,15 +59,24 @@ import type {
 } from '../../application/ports/UnitOfWork.js';
 import type { HrUserSummary, UserLookupPort } from '../../application/ports/UserLookupPort.js';
 import { Application } from '../../domain/entities/Application.js';
+import { Asset } from '../../domain/entities/Asset.js';
+import { AssetAssignment } from '../../domain/entities/AssetAssignment.js';
 import { Candidate } from '../../domain/entities/Candidate.js';
 import { Department } from '../../domain/entities/Department.js';
 import { Employee } from '../../domain/entities/Employee.js';
+import { LeaveRequest } from '../../domain/entities/LeaveRequest.js';
 import { OrgUnit } from '../../domain/entities/OrgUnit.js';
+import { PayrollItem } from '../../domain/entities/PayrollItem.js';
+import { PayrollRun } from '../../domain/entities/PayrollRun.js';
 import { Position } from '../../domain/entities/Position.js';
+import type { AssetStatus } from '../../domain/valueObjects/AssetStatus.js';
+import type { AssetType } from '../../domain/valueObjects/AssetType.js';
 import { DepartmentCode } from '../../domain/valueObjects/DepartmentCode.js';
 import { EmployeeNumber } from '../../domain/valueObjects/EmployeeNumber.js';
 import { HireDate } from '../../domain/valueObjects/HireDate.js';
+import type { LeaveStatus } from '../../domain/valueObjects/LeaveStatus.js';
 import { OrgUnitCode } from '../../domain/valueObjects/OrgUnitCode.js';
+import type { PayrollRunStatus } from '../../domain/valueObjects/PayrollRunStatus.js';
 import { PhoneNumber } from '../../domain/valueObjects/PhoneNumber.js';
 import type { RecruitmentStage } from '../../domain/valueObjects/RecruitmentStage.js';
 import { isTerminalStage } from '../../domain/valueObjects/RecruitmentStage.js';
@@ -587,6 +610,9 @@ export interface FakeHrContext {
   candidates: InMemoryCandidateRepository;
   applications: InMemoryApplicationRepository;
   stageHistory: InMemoryApplicationStageHistoryRepository;
+  leaveRequests: InMemoryLeaveRequestRepository;
+  payroll: InMemoryPayrollRepository;
+  assets: InMemoryAssetRepository;
   users: InMemoryUserLookup;
   uow: InMemoryUnitOfWork;
 }
@@ -601,6 +627,9 @@ export function makeFakeHrContext(now?: Date): FakeHrContext {
   const candidates = new InMemoryCandidateRepository(clock);
   const stageHistory = new InMemoryApplicationStageHistoryRepository();
   const applications = new InMemoryApplicationRepository(clock, stageHistory);
+  const leaveRequests = new InMemoryLeaveRequestRepository(clock);
+  const payroll = new InMemoryPayrollRepository(clock);
+  const assets = new InMemoryAssetRepository(clock);
   const users = new InMemoryUserLookup();
   const uow = new InMemoryUnitOfWork(
     orgUnits,
@@ -621,6 +650,9 @@ export function makeFakeHrContext(now?: Date): FakeHrContext {
     candidates,
     applications,
     stageHistory,
+    leaveRequests,
+    payroll,
+    assets,
     users,
     uow,
   };
@@ -890,5 +922,353 @@ export class InMemoryApplicationRepository implements ApplicationRepository {
     this.store.clear();
     for (const [k, v] of snap.store) this.store.set(k, v);
     this.nextId = snap.nextId;
+  }
+}
+
+// ============================================================================
+// LeaveRequestRepository fake
+// ============================================================================
+export class InMemoryLeaveRequestRepository implements LeaveRequestRepository {
+  private readonly store = new Map<number, LeaveRequest>();
+  private nextId = 1;
+
+  constructor(private readonly clock: Clock) {}
+
+  async insert(input: NewLeaveRequestInput): Promise<LeaveRequest> {
+    const id = this.nextId++;
+    const now = this.clock.now();
+    const lr = LeaveRequest.create({
+      id,
+      companyId: input.companyId,
+      employeeId: input.employeeId,
+      leaveType: input.leaveType,
+      startDate: new Date(input.startDate),
+      endDate: new Date(input.endDate),
+      days: input.days,
+      reason: input.reason,
+      status: input.status,
+      requestedByUserId: input.requestedByUserId,
+      decidedByUserId: null,
+      decidedAt: null,
+      decisionNote: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    this.store.set(id, lr);
+    return lr;
+  }
+
+  async update(leaveRequest: LeaveRequest): Promise<void> {
+    if (!this.store.has(leaveRequest.id)) {
+      throw new Error(`InMemoryLeaveRequestRepository: id=${leaveRequest.id} bulunamadı`);
+    }
+    this.store.set(leaveRequest.id, leaveRequest);
+  }
+
+  async findById(id: number, companyId: number): Promise<LeaveRequest | null> {
+    const lr = this.store.get(id);
+    if (!lr || lr.companyId !== companyId) return null;
+    return lr;
+  }
+
+  async list(filter: {
+    companyId: number;
+    employeeId?: number;
+    status?: LeaveStatus;
+  }): Promise<ReadonlyArray<LeaveRequest>> {
+    return [...this.store.values()].filter((lr) => {
+      if (lr.companyId !== filter.companyId) return false;
+      if (filter.employeeId !== undefined && lr.employeeId !== filter.employeeId) return false;
+      if (filter.status !== undefined && lr.status !== filter.status) return false;
+      return true;
+    });
+  }
+
+  async sumApprovedAnnualDays(
+    employeeId: number,
+    companyId: number,
+    year: number,
+  ): Promise<number> {
+    let total = 0;
+    for (const lr of this.store.values()) {
+      if (
+        lr.companyId === companyId &&
+        lr.employeeId === employeeId &&
+        lr.status === 'approved' &&
+        lr.leaveType === 'annual' &&
+        lr.startDate.getUTCFullYear() === year
+      ) {
+        total += lr.days;
+      }
+    }
+    return total;
+  }
+
+  seed(lr: LeaveRequest): void {
+    this.store.set(lr.id, lr);
+    if (lr.id >= this.nextId) this.nextId = lr.id + 1;
+  }
+}
+
+// ============================================================================
+// PayrollRunRepository fake (run + items)
+// ============================================================================
+export class InMemoryPayrollRepository implements PayrollRunRepository {
+  private readonly runs = new Map<number, PayrollRun>();
+  private readonly items = new Map<number, PayrollItem>();
+  private nextRunId = 1;
+  private nextItemId = 1;
+
+  constructor(private readonly clock: Clock) {}
+
+  async createRun(input: NewPayrollRunInput): Promise<PayrollRun> {
+    // UNIQUE(company_id, period_year, period_month) taklidi
+    for (const r of this.runs.values()) {
+      if (
+        r.companyId === input.companyId &&
+        r.periodYear === input.periodYear &&
+        r.periodMonth === input.periodMonth
+      ) {
+        const err = new Error(
+          'duplicate key value violates unique constraint "uq_hr_payroll_runs_company_period"',
+        );
+        (err as Error & { code?: string }).code = '23505';
+        throw err;
+      }
+    }
+    const id = this.nextRunId++;
+    const now = this.clock.now();
+    const run = PayrollRun.create({
+      id,
+      companyId: input.companyId,
+      periodYear: input.periodYear,
+      periodMonth: input.periodMonth,
+      status: input.status,
+      note: input.note,
+      finalizedAt: null,
+      finalizedByUserId: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    this.runs.set(id, run);
+    return run;
+  }
+
+  async findRunById(id: number, companyId: number): Promise<PayrollRun | null> {
+    const r = this.runs.get(id);
+    if (!r || r.companyId !== companyId) return null;
+    return r;
+  }
+
+  async findRunByPeriod(
+    companyId: number,
+    periodYear: number,
+    periodMonth: number,
+  ): Promise<PayrollRun | null> {
+    for (const r of this.runs.values()) {
+      if (
+        r.companyId === companyId &&
+        r.periodYear === periodYear &&
+        r.periodMonth === periodMonth
+      ) {
+        return r;
+      }
+    }
+    return null;
+  }
+
+  async listRuns(filter: {
+    companyId: number;
+    year?: number;
+    status?: PayrollRunStatus;
+  }): Promise<ReadonlyArray<PayrollRun>> {
+    return [...this.runs.values()].filter((r) => {
+      if (r.companyId !== filter.companyId) return false;
+      if (filter.year !== undefined && r.periodYear !== filter.year) return false;
+      if (filter.status !== undefined && r.status !== filter.status) return false;
+      return true;
+    });
+  }
+
+  async updateRun(run: PayrollRun): Promise<void> {
+    if (!this.runs.has(run.id)) {
+      throw new Error(`InMemoryPayrollRepository: run id=${run.id} bulunamadı`);
+    }
+    this.runs.set(run.id, run);
+  }
+
+  async replaceItemsForRun(
+    runId: number,
+    companyId: number,
+    inputs: ReadonlyArray<NewPayrollItemInput>,
+  ): Promise<ReadonlyArray<PayrollItem>> {
+    for (const [id, item] of [...this.items]) {
+      if (item.runId === runId && item.companyId === companyId) {
+        this.items.delete(id);
+      }
+    }
+    const now = this.clock.now();
+    const inserted: PayrollItem[] = [];
+    for (const input of inputs) {
+      const id = this.nextItemId++;
+      const item = PayrollItem.create({
+        id,
+        companyId: input.companyId,
+        runId: input.runId,
+        employeeId: input.employeeId,
+        grossSalary: input.grossSalary,
+        sgkEmployee: input.sgkEmployee,
+        unemployment: input.unemployment,
+        incomeTax: input.incomeTax,
+        stampTax: input.stampTax,
+        otherDeductions: input.otherDeductions,
+        netSalary: input.netSalary,
+        createdAt: now,
+        updatedAt: now,
+      });
+      this.items.set(id, item);
+      inserted.push(item);
+    }
+    return inserted;
+  }
+
+  async listItemsForRun(runId: number, companyId: number): Promise<ReadonlyArray<PayrollItem>> {
+    return [...this.items.values()]
+      .filter((i) => i.runId === runId && i.companyId === companyId)
+      .sort((a, b) => a.employeeId - b.employeeId || a.id - b.id);
+  }
+
+  async findItem(id: number, companyId: number): Promise<PayrollItem | null> {
+    const i = this.items.get(id);
+    if (!i || i.companyId !== companyId) return null;
+    return i;
+  }
+
+  seedRun(run: PayrollRun): void {
+    this.runs.set(run.id, run);
+    if (run.id >= this.nextRunId) this.nextRunId = run.id + 1;
+  }
+}
+
+// ============================================================================
+// AssetRepository fake (asset + assignment ledger)
+// ============================================================================
+export class InMemoryAssetRepository implements AssetRepository {
+  private readonly assets = new Map<number, Asset>();
+  private readonly assignments = new Map<number, AssetAssignment>();
+  private nextAssetId = 1;
+  private nextAssignmentId = 1;
+
+  constructor(private readonly clock: Clock) {}
+
+  async createAsset(input: NewAssetInput): Promise<Asset> {
+    const id = this.nextAssetId++;
+    const now = this.clock.now();
+    const asset = Asset.create({
+      id,
+      companyId: input.companyId,
+      assetType: input.assetType,
+      name: input.name,
+      brand: input.brand,
+      model: input.model,
+      serialNo: input.serialNo,
+      status: input.status,
+      assignedEmployeeId: input.assignedEmployeeId,
+      notes: input.notes,
+      createdAt: now,
+      updatedAt: now,
+    });
+    this.assets.set(id, asset);
+    return asset;
+  }
+
+  async findAssetById(id: number, companyId: number): Promise<Asset | null> {
+    const a = this.assets.get(id);
+    if (!a || a.companyId !== companyId) return null;
+    return a;
+  }
+
+  async listAssets(filter: {
+    companyId: number;
+    status?: AssetStatus;
+    assignedEmployeeId?: number;
+    type?: AssetType;
+  }): Promise<ReadonlyArray<Asset>> {
+    return [...this.assets.values()].filter((a) => {
+      if (a.companyId !== filter.companyId) return false;
+      if (filter.status !== undefined && a.status !== filter.status) return false;
+      if (
+        filter.assignedEmployeeId !== undefined &&
+        a.assignedEmployeeId !== filter.assignedEmployeeId
+      ) {
+        return false;
+      }
+      if (filter.type !== undefined && a.assetType !== filter.type) return false;
+      return true;
+    });
+  }
+
+  async updateAsset(asset: Asset): Promise<void> {
+    if (!this.assets.has(asset.id)) {
+      throw new Error(`InMemoryAssetRepository: asset id=${asset.id} bulunamadı`);
+    }
+    this.assets.set(asset.id, asset);
+  }
+
+  async createAssignment(input: NewAssetAssignmentInput): Promise<AssetAssignment> {
+    const id = this.nextAssignmentId++;
+    const now = this.clock.now();
+    const assignment = AssetAssignment.create({
+      id,
+      companyId: input.companyId,
+      assetId: input.assetId,
+      employeeId: input.employeeId,
+      assignedAt: input.assignedAt,
+      assignedByUserId: input.assignedByUserId,
+      returnedAt: null,
+      returnedByUserId: null,
+      returnNote: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    this.assignments.set(id, assignment);
+    return assignment;
+  }
+
+  async findOpenAssignmentForAsset(
+    assetId: number,
+    companyId: number,
+  ): Promise<AssetAssignment | null> {
+    const open = [...this.assignments.values()]
+      .filter((a) => a.assetId === assetId && a.companyId === companyId && a.returnedAt === null)
+      .sort((a, b) => b.assignedAt.getTime() - a.assignedAt.getTime() || b.id - a.id);
+    return open[0] ?? null;
+  }
+
+  async closeAssignment(assignment: AssetAssignment): Promise<void> {
+    if (!this.assignments.has(assignment.id)) {
+      throw new Error(`InMemoryAssetRepository: assignment id=${assignment.id} bulunamadı`);
+    }
+    this.assignments.set(assignment.id, assignment);
+  }
+
+  async listAssignments(filter: {
+    companyId: number;
+    assetId?: number;
+    employeeId?: number;
+  }): Promise<ReadonlyArray<AssetAssignment>> {
+    return [...this.assignments.values()]
+      .filter((a) => {
+        if (a.companyId !== filter.companyId) return false;
+        if (filter.assetId !== undefined && a.assetId !== filter.assetId) return false;
+        if (filter.employeeId !== undefined && a.employeeId !== filter.employeeId) return false;
+        return true;
+      })
+      .sort((a, b) => b.assignedAt.getTime() - a.assignedAt.getTime() || b.id - a.id);
+  }
+
+  seedAsset(asset: Asset): void {
+    this.assets.set(asset.id, asset);
+    if (asset.id >= this.nextAssetId) this.nextAssetId = asset.id + 1;
   }
 }

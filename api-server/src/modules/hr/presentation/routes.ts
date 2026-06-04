@@ -14,32 +14,49 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 
 import { authMiddleware, requireRole } from '../../../middleware/auth.js';
+import type { ApproveLeaveRequestUseCase } from '../application/useCases/ApproveLeaveRequestUseCase.js';
 import type { ArchiveDepartmentUseCase } from '../application/useCases/ArchiveDepartmentUseCase.js';
 import type { ArchiveOrgUnitUseCase } from '../application/useCases/ArchiveOrgUnitUseCase.js';
+import type { AssignAssetUseCase } from '../application/useCases/AssignAssetUseCase.js';
 import type { AssignDepartmentManagerUseCase } from '../application/useCases/AssignDepartmentManagerUseCase.js';
+import type { CancelLeaveRequestUseCase } from '../application/useCases/CancelLeaveRequestUseCase.js';
 import type { ClosePositionUseCase } from '../application/useCases/ClosePositionUseCase.js';
+import type { CreateAssetUseCase } from '../application/useCases/CreateAssetUseCase.js';
 import type { CreateDepartmentUseCase } from '../application/useCases/CreateDepartmentUseCase.js';
 import type { CreateOrgUnitUseCase } from '../application/useCases/CreateOrgUnitUseCase.js';
+import type { CreatePayrollRunUseCase } from '../application/useCases/CreatePayrollRunUseCase.js';
 import type { CreatePositionUseCase } from '../application/useCases/CreatePositionUseCase.js';
 import type { DeleteCandidateUseCase } from '../application/useCases/DeleteCandidateUseCase.js';
+import type { FinalizePayrollRunUseCase } from '../application/useCases/FinalizePayrollRunUseCase.js';
+import type { GetAssetUseCase } from '../application/useCases/GetAssetUseCase.js';
+import type { GetLeaveBalanceUseCase } from '../application/useCases/GetLeaveBalanceUseCase.js';
+import type { GetPayrollRunUseCase } from '../application/useCases/GetPayrollRunUseCase.js';
 import type { GetRecruitmentFunnelUseCase } from '../application/useCases/GetRecruitmentFunnelUseCase.js';
 import type { HireEmployeeUseCase } from '../application/useCases/HireEmployeeUseCase.js';
 import type { HireFromApplicationUseCase } from '../application/useCases/HireFromApplicationUseCase.js';
 import type { LinkEmployeeToUserUseCase } from '../application/useCases/LinkEmployeeToUserUseCase.js';
 import type { ListApplicationsForCandidateUseCase } from '../application/useCases/ListApplicationsForCandidateUseCase.js';
 import type { ListApplicationsForPositionUseCase } from '../application/useCases/ListApplicationsForPositionUseCase.js';
+import type { ListAssetsUseCase } from '../application/useCases/ListAssetsUseCase.js';
 import type { ListCandidatesUseCase } from '../application/useCases/ListCandidatesUseCase.js';
 import type { ListEmployeesUseCase } from '../application/useCases/ListEmployeesUseCase.js';
+import type { ListLeaveRequestsUseCase } from '../application/useCases/ListLeaveRequestsUseCase.js';
 import type { ListOrgTreeForCompanyUseCase } from '../application/useCases/ListOrgTreeForCompanyUseCase.js';
+import type { ListPayrollRunsUseCase } from '../application/useCases/ListPayrollRunsUseCase.js';
 import type { ListPositionsUseCase } from '../application/useCases/ListPositionsUseCase.js';
 import type { MoveApplicationStageUseCase } from '../application/useCases/MoveApplicationStageUseCase.js';
 import type { MoveOrgUnitUseCase } from '../application/useCases/MoveOrgUnitUseCase.js';
 import type { RegisterCandidateUseCase } from '../application/useCases/RegisterCandidateUseCase.js';
 import type { RejectApplicationUseCase } from '../application/useCases/RejectApplicationUseCase.js';
+import type { RejectLeaveRequestUseCase } from '../application/useCases/RejectLeaveRequestUseCase.js';
+import type { RequestLeaveUseCase } from '../application/useCases/RequestLeaveUseCase.js';
+import type { ReturnAssetUseCase } from '../application/useCases/ReturnAssetUseCase.js';
+import type { RunPayrollBatchUseCase } from '../application/useCases/RunPayrollBatchUseCase.js';
 import type { SubmitApplicationUseCase } from '../application/useCases/SubmitApplicationUseCase.js';
 import type { TerminateEmployeeUseCase } from '../application/useCases/TerminateEmployeeUseCase.js';
 import type { TransferEmployeeUseCase } from '../application/useCases/TransferEmployeeUseCase.js';
 import type { UnlinkEmployeeFromUserUseCase } from '../application/useCases/UnlinkEmployeeFromUserUseCase.js';
+import type { UpdateAssetUseCase } from '../application/useCases/UpdateAssetUseCase.js';
 import type { UpdateCandidateUseCase } from '../application/useCases/UpdateCandidateUseCase.js';
 import type { UpdateDepartmentUseCase } from '../application/useCases/UpdateDepartmentUseCase.js';
 import type { UpdateEmployeeProfileUseCase } from '../application/useCases/UpdateEmployeeProfileUseCase.js';
@@ -88,6 +105,26 @@ export interface HrRouterDeps {
   listApplicationsForPosition: ListApplicationsForPositionUseCase;
   listApplicationsForCandidate: ListApplicationsForCandidateUseCase;
   getRecruitmentFunnel: GetRecruitmentFunnelUseCase;
+  // Leave (İzin Yönetimi — 6)
+  requestLeave: RequestLeaveUseCase;
+  approveLeaveRequest: ApproveLeaveRequestUseCase;
+  rejectLeaveRequest: RejectLeaveRequestUseCase;
+  cancelLeaveRequest: CancelLeaveRequestUseCase;
+  listLeaveRequests: ListLeaveRequestsUseCase;
+  getLeaveBalance: GetLeaveBalanceUseCase;
+  // Payroll (Bordro Yönetimi — 5)
+  createPayrollRun: CreatePayrollRunUseCase;
+  runPayrollBatch: RunPayrollBatchUseCase;
+  finalizePayrollRun: FinalizePayrollRunUseCase;
+  listPayrollRuns: ListPayrollRunsUseCase;
+  getPayrollRun: GetPayrollRunUseCase;
+  // Asset (Zimmet / Varlık Yönetimi — 6)
+  createAsset: CreateAssetUseCase;
+  updateAsset: UpdateAssetUseCase;
+  assignAsset: AssignAssetUseCase;
+  returnAsset: ReturnAssetUseCase;
+  listAssets: ListAssetsUseCase;
+  getAsset: GetAssetUseCase;
 }
 
 // ===========================================================================
@@ -123,6 +160,26 @@ const recruitmentStageSchema = z.enum([
   'rejected',
   'withdrawn',
 ]);
+const leaveTypeSchema = z.enum(['annual', 'sick', 'unpaid', 'maternity', 'other']);
+const leaveStatusSchema = z.enum(['pending', 'approved', 'rejected', 'cancelled']);
+const payrollRunStatusSchema = z.enum(['draft', 'finalized']);
+const assetTypeSchema = z.enum([
+  'laptop',
+  'desktop',
+  'phone',
+  'vehicle',
+  'card',
+  'monitor',
+  'headset',
+  'tablet',
+  'printer',
+  'furniture',
+  'key_lock',
+  'uniform',
+  'ppe',
+  'other',
+]);
+const assetStatusSchema = z.enum(['in_stock', 'assigned', 'maintenance', 'retired', 'lost']);
 
 // ===========================================================================
 // Router
@@ -1126,6 +1183,490 @@ export function createHrRouter(deps: HrRouterDeps): Hono {
           ...(body.userId !== undefined ? { userId: body.userId } : {}),
         });
         return c.json(dto, 201);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // LEAVE (İzin Yönetimi)
+  // -------------------------------------------------------------------------
+  app.get(
+    '/leave-requests',
+    zValidator(
+      'query',
+      companyIdQuery.extend({
+        employeeId: z.coerce.number().int().positive().optional(),
+        status: leaveStatusSchema.optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const opts: {
+          companyId: number;
+          employeeId?: number;
+          status?: 'pending' | 'approved' | 'rejected' | 'cancelled';
+        } = { companyId: q.companyId };
+        if (q.employeeId !== undefined) opts.employeeId = q.employeeId;
+        if (q.status !== undefined) opts.status = q.status;
+        const list = await deps.listLeaveRequests.execute(opts);
+        return c.json({ leaveRequests: list });
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/leave-requests',
+    zValidator(
+      'json',
+      z.object({
+        companyId: positiveInt,
+        employeeId: positiveInt,
+        leaveType: leaveTypeSchema,
+        startDate: z.string(),
+        endDate: z.string(),
+        reason: z.string().nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const auth = c.get('auth');
+      const body = c.req.valid('json');
+      try {
+        const dto = await deps.requestLeave.execute({
+          actorUserId: auth.userId,
+          actorUsername: auth.username,
+          companyId: body.companyId,
+          employeeId: body.employeeId,
+          leaveType: body.leaveType,
+          startDate: body.startDate,
+          endDate: body.endDate,
+          ...(body.reason !== undefined ? { reason: body.reason } : {}),
+        });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/leave-requests/:id/approve',
+    requireHrWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({ companyId: positiveInt, note: z.string().nullable().optional() }),
+    ),
+    async (c) => {
+      const auth = c.get('auth');
+      const { id } = c.req.valid('param');
+      const body = c.req.valid('json');
+      try {
+        const dto = await deps.approveLeaveRequest.execute({
+          actorUserId: auth.userId,
+          actorUsername: auth.username,
+          companyId: body.companyId,
+          leaveRequestId: id,
+          ...(body.note !== undefined ? { note: body.note } : {}),
+        });
+        return c.json(dto);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/leave-requests/:id/reject',
+    requireHrWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({ companyId: positiveInt, note: z.string().nullable().optional() }),
+    ),
+    async (c) => {
+      const auth = c.get('auth');
+      const { id } = c.req.valid('param');
+      const body = c.req.valid('json');
+      try {
+        const dto = await deps.rejectLeaveRequest.execute({
+          actorUserId: auth.userId,
+          actorUsername: auth.username,
+          companyId: body.companyId,
+          leaveRequestId: id,
+          ...(body.note !== undefined ? { note: body.note } : {}),
+        });
+        return c.json(dto);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/leave-requests/:id/cancel',
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({ companyId: positiveInt, note: z.string().nullable().optional() }),
+    ),
+    async (c) => {
+      const auth = c.get('auth');
+      const { id } = c.req.valid('param');
+      const body = c.req.valid('json');
+      try {
+        const dto = await deps.cancelLeaveRequest.execute({
+          actorUserId: auth.userId,
+          actorUsername: auth.username,
+          companyId: body.companyId,
+          leaveRequestId: id,
+          ...(body.note !== undefined ? { note: body.note } : {}),
+        });
+        return c.json(dto);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/leave-balance',
+    zValidator(
+      'query',
+      companyIdQuery.extend({
+        employeeId: z.coerce.number().int().positive(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const dto = await deps.getLeaveBalance.execute({
+          companyId: q.companyId,
+          employeeId: q.employeeId,
+        });
+        return c.json(dto);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // PAYROLL (Bordro Yönetimi)
+  // -------------------------------------------------------------------------
+  app.get(
+    '/payroll-runs',
+    zValidator(
+      'query',
+      companyIdQuery.extend({
+        year: z.coerce.number().int().optional(),
+        status: payrollRunStatusSchema.optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const opts: {
+          companyId: number;
+          year?: number;
+          status?: 'draft' | 'finalized';
+        } = { companyId: q.companyId };
+        if (q.year !== undefined) opts.year = q.year;
+        if (q.status !== undefined) opts.status = q.status;
+        const list = await deps.listPayrollRuns.execute(opts);
+        return c.json({ payrollRuns: list });
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/payroll-runs',
+    requireHrWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: positiveInt,
+        periodYear: z.number().int().min(2000).max(2200),
+        periodMonth: z.number().int().min(1).max(12),
+        note: z.string().nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const auth = c.get('auth');
+      const body = c.req.valid('json');
+      try {
+        const dto = await deps.createPayrollRun.execute({
+          actorUserId: auth.userId,
+          actorUsername: auth.username,
+          companyId: body.companyId,
+          periodYear: body.periodYear,
+          periodMonth: body.periodMonth,
+          ...(body.note !== undefined ? { note: body.note } : {}),
+        });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/payroll-runs/:id/run-batch',
+    requireHrWrite,
+    zValidator('param', idParam),
+    zValidator('json', z.object({ companyId: positiveInt })),
+    async (c) => {
+      const auth = c.get('auth');
+      const { id } = c.req.valid('param');
+      const { companyId } = c.req.valid('json');
+      try {
+        const result = await deps.runPayrollBatch.execute({
+          actorUserId: auth.userId,
+          actorUsername: auth.username,
+          companyId,
+          payrollRunId: id,
+        });
+        return c.json(result);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/payroll-runs/:id/finalize',
+    requireHrWrite,
+    zValidator('param', idParam),
+    zValidator('json', z.object({ companyId: positiveInt })),
+    async (c) => {
+      const auth = c.get('auth');
+      const { id } = c.req.valid('param');
+      const { companyId } = c.req.valid('json');
+      try {
+        const dto = await deps.finalizePayrollRun.execute({
+          actorUserId: auth.userId,
+          actorUsername: auth.username,
+          companyId,
+          payrollRunId: id,
+        });
+        return c.json(dto);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/payroll-runs/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQuery),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const { companyId } = c.req.valid('query');
+      try {
+        const result = await deps.getPayrollRun.execute({
+          companyId,
+          payrollRunId: id,
+        });
+        return c.json(result);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // ASSET (Zimmet / Varlık Yönetimi)
+  // -------------------------------------------------------------------------
+  app.get(
+    '/assets',
+    zValidator(
+      'query',
+      companyIdQuery.extend({
+        status: assetStatusSchema.optional(),
+        assignedEmployeeId: z.coerce.number().int().positive().optional(),
+        type: assetTypeSchema.optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const opts: {
+          companyId: number;
+          status?: 'in_stock' | 'assigned' | 'maintenance' | 'retired' | 'lost';
+          assignedEmployeeId?: number;
+          type?:
+            | 'laptop'
+            | 'desktop'
+            | 'phone'
+            | 'vehicle'
+            | 'card'
+            | 'monitor'
+            | 'headset'
+            | 'tablet'
+            | 'printer'
+            | 'furniture'
+            | 'key_lock'
+            | 'uniform'
+            | 'ppe'
+            | 'other';
+        } = { companyId: q.companyId };
+        if (q.status !== undefined) opts.status = q.status;
+        if (q.assignedEmployeeId !== undefined) opts.assignedEmployeeId = q.assignedEmployeeId;
+        if (q.type !== undefined) opts.type = q.type;
+        const list = await deps.listAssets.execute(opts);
+        return c.json({ assets: list });
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/assets',
+    requireHrWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: positiveInt,
+        assetType: assetTypeSchema,
+        name: z.string().min(1).max(200),
+        brand: z.string().nullable().optional(),
+        model: z.string().nullable().optional(),
+        serialNo: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const auth = c.get('auth');
+      const body = c.req.valid('json');
+      try {
+        const dto = await deps.createAsset.execute({
+          actorUserId: auth.userId,
+          actorUsername: auth.username,
+          companyId: body.companyId,
+          assetType: body.assetType,
+          name: body.name,
+          ...(body.brand !== undefined ? { brand: body.brand } : {}),
+          ...(body.model !== undefined ? { model: body.model } : {}),
+          ...(body.serialNo !== undefined ? { serialNo: body.serialNo } : {}),
+          ...(body.notes !== undefined ? { notes: body.notes } : {}),
+        });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/assets/:id',
+    requireHrWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: positiveInt,
+        name: z.string().min(1).max(200).optional(),
+        brand: z.string().nullable().optional(),
+        model: z.string().nullable().optional(),
+        serialNo: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const auth = c.get('auth');
+      const { id } = c.req.valid('param');
+      const body = c.req.valid('json');
+      try {
+        const dto = await deps.updateAsset.execute({
+          actorUserId: auth.userId,
+          actorUsername: auth.username,
+          companyId: body.companyId,
+          id,
+          ...(body.name !== undefined ? { name: body.name } : {}),
+          ...(body.brand !== undefined ? { brand: body.brand } : {}),
+          ...(body.model !== undefined ? { model: body.model } : {}),
+          ...(body.serialNo !== undefined ? { serialNo: body.serialNo } : {}),
+          ...(body.notes !== undefined ? { notes: body.notes } : {}),
+        });
+        return c.json(dto);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/assets/:id/assign',
+    requireHrWrite,
+    zValidator('param', idParam),
+    zValidator('json', z.object({ companyId: positiveInt, employeeId: positiveInt })),
+    async (c) => {
+      const auth = c.get('auth');
+      const { id } = c.req.valid('param');
+      const body = c.req.valid('json');
+      try {
+        const dto = await deps.assignAsset.execute({
+          actorUserId: auth.userId,
+          actorUsername: auth.username,
+          companyId: body.companyId,
+          assetId: id,
+          employeeId: body.employeeId,
+        });
+        return c.json(dto);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/assets/:id/return',
+    requireHrWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({ companyId: positiveInt, returnNote: z.string().nullable().optional() }),
+    ),
+    async (c) => {
+      const auth = c.get('auth');
+      const { id } = c.req.valid('param');
+      const body = c.req.valid('json');
+      try {
+        const dto = await deps.returnAsset.execute({
+          actorUserId: auth.userId,
+          actorUsername: auth.username,
+          companyId: body.companyId,
+          assetId: id,
+          ...(body.returnNote !== undefined ? { returnNote: body.returnNote } : {}),
+        });
+        return c.json(dto);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/assets/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQuery),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const { companyId } = c.req.valid('query');
+      try {
+        const result = await deps.getAsset.execute({
+          companyId,
+          assetId: id,
+        });
+        return c.json(result);
       } catch (err) {
         mapHrError(err);
       }

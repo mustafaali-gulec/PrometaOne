@@ -17,6 +17,9 @@ import { HTTPException } from 'hono/http-exception';
 import {
   ApplicationAlreadyTerminalError,
   ApplicationNotFoundError,
+  AssetNotAssignedError,
+  AssetNotAvailableError,
+  AssetNotFoundError,
   CandidateAlreadyAppliedToPositionError,
   CandidateHasActiveApplicationsError,
   CandidateNotFoundError,
@@ -28,6 +31,12 @@ import {
   EmployeeCompanyMismatchError,
   EmployeeNotFoundError,
   EmployeeNumberAlreadyExistsError,
+  LeaveRequestCompanyMismatchError,
+  LeaveRequestNotFoundError,
+  PayrollRunCompanyMismatchError,
+  PayrollRunNotDraftError,
+  PayrollRunNotFoundError,
+  PayrollRunPeriodAlreadyExistsError,
   OrgCycleDetectedError,
   OrgUnitCompanyMismatchError,
   OrgUnitHasChildrenError,
@@ -38,11 +47,14 @@ import {
   UserAlreadyLinkedToEmployeeError,
   UserNotFoundForLinkError,
 } from '../application/errors/HrErrors.js';
+import { InvalidAssetTransitionError } from '../domain/valueObjects/AssetStatus.js';
 import { InvalidDepartmentCodeError } from '../domain/valueObjects/DepartmentCode.js';
 import { InvalidEmployeeNumberError } from '../domain/valueObjects/EmployeeNumber.js';
 import { InvalidEmployeeTransitionError } from '../domain/valueObjects/EmployeeStatus.js';
 import { InvalidHireDateError } from '../domain/valueObjects/HireDate.js';
+import { InvalidLeaveTransitionError } from '../domain/valueObjects/LeaveStatus.js';
 import { InvalidOrgUnitCodeError } from '../domain/valueObjects/OrgUnitCode.js';
+import { InvalidPayrollRunTransitionError } from '../domain/valueObjects/PayrollRunStatus.js';
 import { InvalidPhoneNumberError } from '../domain/valueObjects/PhoneNumber.js';
 import { InvalidPositionTransitionError } from '../domain/valueObjects/PositionStatus.js';
 import { InvalidStageTransitionError } from '../domain/valueObjects/RecruitmentStage.js';
@@ -61,6 +73,9 @@ export function mapHrError(err: unknown): never {
     err instanceof EmployeeNotFoundError ||
     err instanceof CandidateNotFoundError ||
     err instanceof ApplicationNotFoundError ||
+    err instanceof LeaveRequestNotFoundError ||
+    err instanceof PayrollRunNotFoundError ||
+    err instanceof AssetNotFoundError ||
     err instanceof UserNotFoundForLinkError
   ) {
     throw new HTTPException(404, { message: err.message });
@@ -71,7 +86,9 @@ export function mapHrError(err: unknown): never {
     err instanceof OrgUnitCompanyMismatchError ||
     err instanceof DepartmentCompanyMismatchError ||
     err instanceof PositionCompanyMismatchError ||
-    err instanceof EmployeeCompanyMismatchError
+    err instanceof EmployeeCompanyMismatchError ||
+    err instanceof LeaveRequestCompanyMismatchError ||
+    err instanceof PayrollRunCompanyMismatchError
   ) {
     throw new HTTPException(403, { message: err.message });
   }
@@ -88,7 +105,8 @@ export function mapHrError(err: unknown): never {
     err instanceof CandidateHasActiveApplicationsError ||
     err instanceof CandidateAlreadyAppliedToPositionError ||
     err instanceof PositionNotOpenError ||
-    err instanceof ApplicationAlreadyTerminalError
+    err instanceof ApplicationAlreadyTerminalError ||
+    err instanceof PayrollRunPeriodAlreadyExistsError
   ) {
     throw new HTTPException(409, { message: err.message });
   }
@@ -98,6 +116,12 @@ export function mapHrError(err: unknown): never {
     err instanceof InvalidEmployeeTransitionError ||
     err instanceof InvalidPositionTransitionError ||
     err instanceof InvalidStageTransitionError ||
+    err instanceof InvalidLeaveTransitionError ||
+    err instanceof InvalidPayrollRunTransitionError ||
+    err instanceof InvalidAssetTransitionError ||
+    err instanceof PayrollRunNotDraftError ||
+    err instanceof AssetNotAvailableError ||
+    err instanceof AssetNotAssignedError ||
     err instanceof InvalidOrgUnitCodeError ||
     err instanceof InvalidDepartmentCodeError ||
     err instanceof InvalidEmployeeNumberError ||
