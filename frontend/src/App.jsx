@@ -12600,9 +12600,9 @@ function Theme() {
 
       /* Sticky table headers + mobile uyarlamalar */
       @media (max-width: 768px) {
-        /* Sidebar mobile'da daha dar */
+        /* Sidebar mobile'da ray + panel için */
         .app-sidebar {
-          width: 180px !important;
+          width: 240px !important;
         }
 
         /* Larger touch targets */
@@ -13241,6 +13241,8 @@ function ResetPasswordForm({ lang, users, setUsers, onBack, onSuccess }) {
 ===================================================================== */
 function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobile = false }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Rayda seçili (paneli açık) modül grubu
+  const [activeModule, setActiveModule] = useState("overview");
 
   // View değişince mobile menüyü kapat
   useEffect(() => {
@@ -13381,6 +13383,44 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
     return can(session.role, i.perm);
   });
 
+  // === Modül rayı (gruplar = modüller) ===
+  const moduleDefs = [
+    { key: "overview",   icon: LayoutDashboard },
+    { key: "sales",      icon: Target },
+    { key: "purchase",   icon: Receipt },
+    { key: "finance",    icon: Landmark },
+    { key: "hr",         icon: Users },
+    { key: "accounting", icon: BarChart3 },
+    { key: "system",     icon: Settings },
+  ];
+
+  // Aktif view değişince, ait olduğu modülü rayda seçili yap
+  useEffect(() => {
+    const g = items.find(i => i.id === view)?.group;
+    if (g) setActiveModule(g);
+  }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Her item için bildirim rozeti
+  const badgeOf = (id) =>
+      id === "invoices"          ? invoiceAlertCount
+    : id === "approvals"         ? pendingApprovalCount
+    : id === "tasks"             ? myTasksCount
+    : id === "sales_pipeline"    ? openDealsCount
+    : id === "purchase_requests" ? activePRCount
+    : 0;
+
+  // Sadece en az 1 görünür alt menüsü olan modüller rayda görünür (yetki filtresi)
+  const visibleModules = moduleDefs.filter(m => visibleItems.some(i => i.group === m.key));
+  const effectiveModule = visibleModules.some(m => m.key === activeModule)
+    ? activeModule
+    : visibleModules[0]?.key;
+  const panelItems = visibleItems.filter(i => i.group === effectiveModule);
+  // Modül rozeti = içindeki görünür item rozetlerinin toplamı
+  const moduleBadge = (key) =>
+    visibleItems.filter(i => i.group === key).reduce((s, i) => s + badgeOf(i.id), 0);
+  const moduleLabel = (key) =>
+    groupLabels[key]?.[lang] || groupLabels[key]?.tr || key;
+
   return (
     <>
       {renderMobileTrigger}
@@ -13398,9 +13438,7 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
       )}
 
       <aside className="app-sidebar" style={{
-        width: 220, flexShrink: 0,
-        background: "var(--paper)",
-        borderRight: "1px solid var(--line)",
+        width: 240, flexShrink: 0,
         height: "100vh",
         ...(isMobile ? {
           position: "fixed",
@@ -13412,65 +13450,84 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
         } : {
           position: "sticky", top: 0,
         }),
-        overflowY: "auto",
-        overflowX: "hidden",
-        display: "flex", flexDirection: "column",
+        display: "flex", flexDirection: "row",
+        background: "var(--paper)",
+        borderRight: "1px solid var(--line)",
       }}>
-      {/* Logo bölümü */}
-      <div style={{
-        padding: "12px 14px", borderBottom: "1px solid var(--line)",
-        display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
-        ...(isMobile ? { paddingTop: "calc(12px + env(safe-area-inset-top))" } : {}),
-      }}>
-        <Logo size={22}/>
-        <Wordmark size={14}/>
-        {isMobile && (
-          <button onClick={() => setMobileOpen(false)}
-            style={{
-              marginLeft: "auto",
-              background: "transparent", border: "none",
-              color: "var(--ink-mute)", fontSize: 18, cursor: "pointer",
-              padding: 4,
-            }}
-            aria-label={lang === "en" ? "Close menu" : "Menüyü kapat"}>
-            ✕
-          </button>
-        )}
-      </div>
 
-      {/* Menü items'ları (scroll edilebilir) */}
-      <nav style={{ flex: 1, padding: 8, overflowY: "auto" }}>
-        <div className="space-y-0.5">
-          {(() => {
-            let lastGroup = null;
-            return visibleItems.map(i => {
-              const Ic = i.icon;
-              const isActive = view === i.id;
-              const badge = i.id === "invoices" ? invoiceAlertCount
-                          : i.id === "approvals" ? pendingApprovalCount
-                          : i.id === "tasks" ? myTasksCount
-                          : i.id === "sales_pipeline" ? openDealsCount
-                          : i.id === "purchase_requests" ? activePRCount
-                          : 0;
-              const groupChanged = i.group && i.group !== lastGroup;
-              lastGroup = i.group;
-              return (
-                <React.Fragment key={i.id}>
-                  {/* Grup başlığı */}
-                  {groupChanged && (
-                    <div style={{
-                      padding: "8px 10px 4px",
-                      fontSize: 9,
-                      fontWeight: 700,
-                      color: "var(--ink-mute)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.08em",
-                      marginTop: lastGroup === i.group ? 0 : 6,
-                    }}>
-                      {groupLabels[i.group]?.[lang] || groupLabels[i.group]?.tr || i.group}
-                    </div>
-                  )}
-                  <button onClick={() => setView(i.id)}
+        {/* ===== Modül rayı (ikon butonlar) ===== */}
+        <div style={{
+          width: 54, flexShrink: 0,
+          background: "var(--bg-alt)",
+          borderRight: "1px solid var(--line)",
+          display: "flex", flexDirection: "column", alignItems: "center",
+          paddingTop: isMobile ? "calc(10px + env(safe-area-inset-top))" : 10,
+          paddingBottom: 10,
+          overflowY: "auto", overflowX: "hidden",
+        }}>
+          <div style={{ marginBottom: 12 }}><Logo size={24}/></div>
+          {visibleModules.map(m => {
+            const Ic = m.icon;
+            const active = effectiveModule === m.key;
+            const mb = moduleBadge(m.key);
+            const label = moduleLabel(m.key);
+            return (
+              <button key={m.key}
+                onClick={() => setActiveModule(m.key)}
+                title={label}
+                aria-label={label}
+                style={{
+                  position: "relative",
+                  width: 40, height: 40, marginBottom: 4,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  borderRadius: 8, border: "none", cursor: "pointer",
+                  background: active ? "var(--ink)" : "transparent",
+                  color: active ? "var(--bg)" : "var(--ink)",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.background = "var(--paper)"; }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}>
+                <Ic size={18} strokeWidth={active ? 2.25 : 1.75}/>
+                {mb > 0 && (
+                  <span className="rounded-full text-white font-bold flex items-center justify-center"
+                    style={{ position: "absolute", top: 2, right: 2, background: "#dc2626", fontSize: 8, minWidth: 14, height: 14, padding: "0 3px" }}>
+                    {mb > 99 ? "99+" : mb}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ===== Alt menü paneli ===== */}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", height: "100%" }}>
+          {/* Panel başlığı — seçili modül adı */}
+          <div style={{
+            padding: "12px 14px", borderBottom: "1px solid var(--line)",
+            display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
+            ...(isMobile ? { paddingTop: "calc(12px + env(safe-area-inset-top))" } : {}),
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {effectiveModule ? moduleLabel(effectiveModule) : ""}
+            </span>
+            {isMobile && (
+              <button onClick={() => setMobileOpen(false)}
+                style={{ background: "transparent", border: "none", color: "var(--ink-mute)", fontSize: 18, cursor: "pointer", padding: 4 }}
+                aria-label={lang === "en" ? "Close menu" : "Menüyü kapat"}>
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Alt menü item'ları (scroll edilebilir) */}
+          <nav style={{ flex: 1, padding: 8, overflowY: "auto" }}>
+            <div className="space-y-0.5">
+              {panelItems.map(i => {
+                const Ic = i.icon;
+                const isActive = view === i.id;
+                const badge = badgeOf(i.id);
+                return (
+                  <button key={i.id} onClick={() => setView(i.id)}
                     className="w-full flex items-center gap-2 text-left transition-all"
                     style={{
                       padding: "8px 10px",
@@ -13495,34 +13552,33 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
                       </span>
                     )}
                   </button>
-                </React.Fragment>
-              );
-            });
-          })()}
-        </div>
-      </nav>
+                );
+              })}
+            </div>
+          </nav>
 
-      {/* Alt kısım — Çıkış */}
-      <div style={{ padding: 8, borderTop: "1px solid var(--line)", flexShrink: 0 }}>
-        <button onClick={onLogout}
-          className="w-full flex items-center gap-2 text-left transition-all"
-          style={{
-            padding: "8px 10px",
-            borderRadius: 4,
-            fontSize: 12.5,
-            fontWeight: 500,
-            color: "var(--negative)",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
-          onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-          <LogOut size={13}/>
-          <span>{lang === "en" ? "Logout" : "Çıkış Yap"}</span>
-        </button>
-      </div>
-    </aside>
+          {/* Alt kısım — Çıkış */}
+          <div style={{ padding: 8, borderTop: "1px solid var(--line)", flexShrink: 0 }}>
+            <button onClick={onLogout}
+              className="w-full flex items-center gap-2 text-left transition-all"
+              style={{
+                padding: "8px 10px",
+                borderRadius: 4,
+                fontSize: 12.5,
+                fontWeight: 500,
+                color: "var(--negative)",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              <LogOut size={13}/>
+              <span>{lang === "en" ? "Logout" : "Çıkış Yap"}</span>
+            </button>
+          </div>
+        </div>
+      </aside>
     </>
   );
 }
