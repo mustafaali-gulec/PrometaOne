@@ -2,16 +2,19 @@
 <html lang="tr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0"
+    />
 
     <!-- PWA Meta -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Prometa One" />
+    <meta name="apple-mobile-web-app-title" content="M Suite" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="application-name" content="Prometa One" />
-    <meta name="theme-color" content="#0891b2" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0b3d2e" media="(prefers-color-scheme: dark)" />
+    <meta name="application-name" content="M Suite" />
+    <meta name="theme-color" content="#2563eb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
     <meta name="format-detection" content="telephone=no" />
 
     <!-- Manifest -->
@@ -21,16 +24,17 @@
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
     <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-96x96.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-72x72.png" />
 
-    <title>Prometa One — Finance, HR, CRM & Projects</title>
+    <title>M Suite — Run Your Business As One</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Fraunces:wght@500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
 
@@ -42,49 +46,85 @@
         --safe-left: env(safe-area-inset-left, 0px);
         --safe-right: env(safe-area-inset-right, 0px);
       }
-      html, body {
+      html,
+      body {
         overscroll-behavior-y: contain;
         -webkit-tap-highlight-color: transparent;
       }
       /* Splash screen */
       #pwa-splash {
-        position: fixed; inset: 0;
-        display: flex; align-items: center; justify-content: center;
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         flex-direction: column;
-        background: #0891b2;
+        background: #0f172a;
         z-index: 9999;
         transition: opacity 0.3s ease-out;
         color: #fff;
       }
-      #pwa-splash.hidden { opacity: 0; pointer-events: none; }
-      #pwa-splash h1 { font-family: Inter, sans-serif; font-size: 28px; margin: 16px 0 8px; }
-      #pwa-splash p { font-family: Inter, sans-serif; font-size: 14px; opacity: 0.8; }
+      #pwa-splash.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #pwa-splash h1 {
+        font-family: Manrope, Inter, sans-serif;
+        font-size: 30px;
+        margin: 16px 0 4px;
+        letter-spacing: -0.02em;
+      }
+      #pwa-splash h1 b {
+        font-weight: 800;
+      }
+      #pwa-splash h1 span {
+        font-weight: 300;
+      }
+      #pwa-splash .tagline {
+        font-family: Manrope, Inter, sans-serif;
+        font-size: 10px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        opacity: 0.6;
+        margin: 0 0 12px;
+      }
+      #pwa-splash p {
+        font-family: Manrope, Inter, sans-serif;
+        font-size: 14px;
+        opacity: 0.8;
+      }
       .pwa-spinner {
-        width: 40px; height: 40px;
-        border: 3px solid rgba(255,255,255,0.3);
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
         border-top-color: #fff;
         border-radius: 50%;
         animation: pwa-spin 0.8s linear infinite;
       }
-      @keyframes pwa-spin { to { transform: rotate(360deg); } }
+      @keyframes pwa-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
     </style>
   </head>
   <body>
     <!-- Splash (App.jsx ready olduğunda kaldırılır) -->
     <div id="pwa-splash">
       <div class="pwa-spinner"></div>
-      <h1>Prometa One</h1>
+      <h1><b>M</b>&nbsp;<span>Suite</span></h1>
+      <p class="tagline">Run Your Business As One</p>
       <p>Yükleniyor…</p>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
       // App mount olunca splash kalksın
-      window.addEventListener("load", () => {
+      window.addEventListener('load', () => {
         setTimeout(() => {
-          const s = document.getElementById("pwa-splash");
+          const s = document.getElementById('pwa-splash');
           if (s) {
-            s.classList.add("hidden");
+            s.classList.add('hidden');
             setTimeout(() => s.remove(), 300);
           }
         }, 500);
@@ -92,4 +132,3 @@
     </script>
   </body>
 </html>
-

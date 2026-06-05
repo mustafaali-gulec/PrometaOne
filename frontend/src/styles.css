@@ -3,38 +3,39 @@
 @tailwind utilities;
 
 /* =====================================================================
-   PROMETA ONE — Kurumsal Tema (v2)
+   M SUITE — Kurumsal Tema (v3)
    ---------------------------------------------------------------------
+   Marka: M Suite — "RUN YOUR BUSINESS AS ONE"
    Tasarım hedefi: SAP/Workday/Oracle Fusion kalitesinde kurumsal görünüm
-   - Daha refined renk paleti (kapalı yeşil aksanlı)
-   - Tutarlı tipografi hiyerarşisi
+   - M Suite marka paleti (Signal Blue aksanlı, Ink/Slate/Steel/Cloud nötrleri)
+   - Manrope tipografisi
    - Tablolarda doğru hizalama (sayılar sağa)
    - Görsel hiyerarşi: header, section, row, cell ayrımı net
 ===================================================================== */
 :root {
-  /* === Yüzey Renkleri === */
+  /* === Yüzey Renkleri (Cloud) === */
   --paper: #ffffff;
-  --bg: #f7f7f5;
-  --bg-alt: #f1f0ec;
-  --bg-soft: #fafaf9;
+  --bg: #f8fafc;
+  --bg-alt: #eef2f7;
+  --bg-soft: #fbfcfe;
 
-  /* === Metin === */
-  --ink: #1c1917;
-  --ink-soft: #44403c;
-  --ink-mute: #78716c;
-  --ink-faint: #a8a29e;
+  /* === Metin (Ink / Slate / Steel) === */
+  --ink: #1a2540;
+  --ink-soft: #334155;
+  --ink-mute: #6b7a99;
+  --ink-faint: #94a3b8;
 
   /* === Çizgiler === */
-  --line: #e7e5e4;
-  --line-soft: #f0efed;
-  --line-strong: #d6d3d1;
+  --line: #e2e8f0;
+  --line-soft: #eef2f7;
+  --line-strong: #cbd5e1;
 
-  /* === Aksan (Kurumsal koyu yeşil) === */
-  --accent: #0a4d4a;
-  --accent-hover: #073a37;
-  --accent-soft: #e6f0ef;
-  --accent-mid: #136d68;
-  --accent-light: #c5d9d7;
+  /* === Aksan (M Suite Signal Blue) === */
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: #e8effe;
+  --accent-mid: #3b82f6;
+  --accent-light: #c7dbfd;
 
   /* === Semantik === */
   --positive: #14532d;
@@ -72,7 +73,7 @@ html { font-feature-settings: "ss01", "ss02", "cv01", "cv11"; }
 
 body {
   margin: 0;
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family: "Manrope", "Inter", system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--ink);
   font-size: 13px;
@@ -83,16 +84,16 @@ body {
 }
 
 html[dir="rtl"] body {
-  font-family: "Inter", "Noto Sans Arabic", system-ui, sans-serif;
+  font-family: "Manrope", "Inter", "Noto Sans Arabic", system-ui, sans-serif;
 }
 
 /* =====================================================================
    Tipografi
 ===================================================================== */
 .display {
-  font-family: "Fraunces", Georgia, serif;
-  font-weight: 500;
-  letter-spacing: -0.015em;
+  font-family: "Manrope", "Inter", system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.025em;
   line-height: 1.2;
 }
 
@@ -821,7 +822,7 @@ button, a {
   border-radius: 4px;
 }
 .mobile-bottom-nav-item.active {
-  color: #0891b2;
+  color: var(--accent);
 }
 .mobile-bottom-nav-item:active {
   background: var(--bg-alt);

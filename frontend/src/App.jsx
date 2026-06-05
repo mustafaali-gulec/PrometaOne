@@ -73,7 +73,7 @@ function detectBrowserLanguage() {
 const I18N_DICT = {
   tr: {
     // ====== APP / GENEL ======
-    "app.name": "Prometa One",
+    "app.name": "M Suite",
     "app.tagline": "Finance & HR Platform",
     "app.tagline.tr": "Finans ve İK Platformu",
     "common.save": "Kaydet",
@@ -301,9 +301,9 @@ const I18N_DICT = {
     "users.myPermissions": "Benim Yetkilerim",
 
     // ====== AI ======
-    "ai.assistant": "Prometa AI",
+    "ai.assistant": "M Suite AI",
     "ai.placeholder": "Sorunuzu yazın...",
-    "ai.welcome": "Merhaba! Ben Prometa AI — şirketinizin finansal ve İK verilerine erişimim var. Aşağıdaki gibi sorular sorabilirsiniz:",
+    "ai.welcome": "Merhaba! Ben M Suite AI — şirketinizin finansal ve İK verilerine erişimim var. Aşağıdaki gibi sorular sorabilirsiniz:",
     "ai.suggestions.cash": "Bu ay toplam nakit girişim ne kadar?",
     "ai.suggestions.overdue": "Vadesi geçmiş faturalarım var mı?",
     "ai.suggestions.activity": "Bugün hangi işlemler yapıldı?",
@@ -979,7 +979,7 @@ const I18N_DICT = {
   },
 
   en: {
-    "app.name": "Prometa One",
+    "app.name": "M Suite",
     "app.tagline": "Finance & HR Platform",
     "common.save": "Save",
     "common.cancel": "Cancel",
@@ -1195,9 +1195,9 @@ const I18N_DICT = {
     "users.permissions": "Permissions",
     "users.myPermissions": "My Permissions",
 
-    "ai.assistant": "Prometa AI",
+    "ai.assistant": "M Suite AI",
     "ai.placeholder": "Type your question...",
-    "ai.welcome": "Hi! I'm Prometa AI — I have access to your financial and HR data. You can ask me questions like:",
+    "ai.welcome": "Hi! I'm M Suite AI — I have access to your financial and HR data. You can ask me questions like:",
     "ai.suggestions.cash": "What is my total cash inflow this month?",
     "ai.suggestions.overdue": "Do I have any overdue invoices?",
     "ai.suggestions.activity": "What actions were taken today?",
@@ -1843,7 +1843,7 @@ const I18N_DICT = {
   },
 
   de: {
-    "app.name": "Prometa One",
+    "app.name": "M Suite",
     "app.tagline": "Finanz- & HR-Plattform",
     "common.save": "Speichern",
     "common.cancel": "Abbrechen",
@@ -2059,9 +2059,9 @@ const I18N_DICT = {
     "users.permissions": "Berechtigungen",
     "users.myPermissions": "Meine Berechtigungen",
 
-    "ai.assistant": "Prometa AI",
+    "ai.assistant": "M Suite AI",
     "ai.placeholder": "Geben Sie Ihre Frage ein...",
-    "ai.welcome": "Hallo! Ich bin Prometa AI — ich habe Zugriff auf Ihre Finanz- und HR-Daten. Sie können Fragen stellen wie:",
+    "ai.welcome": "Hallo! Ich bin M Suite AI — ich habe Zugriff auf Ihre Finanz- und HR-Daten. Sie können Fragen stellen wie:",
     "ai.suggestions.cash": "Wie hoch ist mein Geldzufluss diesen Monat?",
     "ai.suggestions.overdue": "Habe ich überfällige Rechnungen?",
     "ai.suggestions.activity": "Welche Aktionen wurden heute durchgeführt?",
@@ -2700,7 +2700,7 @@ const I18N_DICT = {
   },
 
   ar: {
-    "app.name": "بروميتا وان",
+    "app.name": "M Suite",
     "app.tagline": "منصة المالية والموارد البشرية",
     "common.save": "حفظ",
     "common.cancel": "إلغاء",
@@ -2916,9 +2916,9 @@ const I18N_DICT = {
     "users.permissions": "الصلاحيات",
     "users.myPermissions": "صلاحياتي",
 
-    "ai.assistant": "بروميتا AI",
+    "ai.assistant": "M Suite AI",
     "ai.placeholder": "اكتب سؤالك...",
-    "ai.welcome": "مرحبا! أنا بروميتا AI — لدي وصول إلى بياناتك المالية والموارد البشرية. يمكنك طرح أسئلة مثل:",
+    "ai.welcome": "مرحبا! أنا M Suite AI — لدي وصول إلى بياناتك المالية والموارد البشرية. يمكنك طرح أسئلة مثل:",
     "ai.suggestions.cash": "كم هو إجمالي تدفق النقد لدي هذا الشهر؟",
     "ai.suggestions.overdue": "هل لدي فواتير متأخرة؟",
     "ai.suggestions.activity": "ما الإجراءات التي تم اتخاذها اليوم؟",
@@ -7279,7 +7279,7 @@ function createNotification(notifications, opts) {
               to: recipientEmail,
               subject,
               html,
-              fromName: emailSettings.fromName || "Prometa One",
+              fromName: emailSettings.fromName || "M Suite",
               replyTo: emailSettings.replyTo,
               meta: {
                 kind: notif.kind,
@@ -7725,15 +7725,15 @@ const EMAIL_TEMPLATES = {
   // Genel
   generic: {
     subject: {
-      tr: "Prometa One — Bildirim",
-      en: "Prometa One — Notification",
+      tr: "M Suite — Bildirim",
+      en: "M Suite — Notification",
     },
     accent: "#0b3d2e",
   },
 };
 
 // HTML e-posta şablonu üret — responsive, inline CSS (bütün mail client'larda çalışsın)
-function generateEmailHtml({ title, body, accent, ctaText, ctaUrl, footer, lang = "tr", logoText = "Prometa One", details = [] }) {
+function generateEmailHtml({ title, body, accent, ctaText, ctaUrl, footer, lang = "tr", logoText = "M Suite", details = [] }) {
   const safeAccent = accent || "#0b3d2e";
   const dir = LANGUAGES?.[lang]?.rtl ? "rtl" : "ltr";
   const langCode = lang || "tr";
@@ -7801,8 +7801,8 @@ function generateEmailHtml({ title, body, accent, ctaText, ctaUrl, footer, lang 
             <td style="padding:20px 30px; background:#fafafa; border-top:1px solid #e5e5e5;">
               <div style="font-size:11px; color:#737373; line-height:1.5;">
                 ${footer || (lang === "en"
-                  ? "This is an automated notification from Prometa One. To change your email preferences, log in to the portal."
-                  : "Bu, Prometa One sisteminden otomatik gönderilen bir bildirimdir. E-posta tercihlerinizi değiştirmek için portala giriş yapın.")}
+                  ? "This is an automated notification from M Suite. To change your email preferences, log in to the portal."
+                  : "Bu, M Suite sisteminden otomatik gönderilen bir bildirimdir. E-posta tercihlerinizi değiştirmek için portala giriş yapın.")}
               </div>
             </td>
           </tr>
@@ -7893,7 +7893,7 @@ function buildEmailFromNotification({ notification, recipient, lang = "tr", base
     });
   }
 
-  const ctaText = lang === "en" ? "View in Prometa One →" : "Prometa One'da Görüntüle →";
+  const ctaText = lang === "en" ? "View in M Suite →" : "M Suite'te Görüntüle →";
 
   const html = generateEmailHtml({
     title: notification.title || subject,
@@ -10131,7 +10131,7 @@ function createEmptyCompanyData(opts = {}) {
     hrEmailSettings: {             // Şirket bazlı SMTP/Mailgun/SendGrid ayarları
       provider: "mailto",          // mailto | sendgrid | mailgun | smtp | ses
       fromAddress: "",
-      fromName: "Prometa One",
+      fromName: "M Suite",
       replyTo: "",
       apiKey: "",                  // Backend'de saklanmalı, frontend sadece varlığı gösterir
       domain: "",                  // Mailgun için
@@ -11092,30 +11092,31 @@ function Logo({ size = 32, variant = "color" }) {
   );
 }
 
-/* ---------- Wordmark: "Prometa One" ---------- */
+/* ---------- Wordmark: "M Suite" ---------- */
 function Wordmark({ size = 24, color = "var(--accent)", showSub = true }) {
-  // Eğer renk beyazsa (koyu zemin üzerinde), ONE badge'ini de inverse yap
+  // Koyu zemin (beyaz renk) durumunda "Suite" için yumuşak inverse ton kullan
   const isWhite = color === "#fff" || color === "#ffffff" || color === "white";
-  const badgeBg = isWhite ? "rgba(255,255,255,0.15)" : (color === "var(--accent)" ? "var(--accent)" : color);
-  const badgeColor = isWhite ? "#fff" : "#f5f3ef";
-  const badgeBorder = isWhite ? "1px solid rgba(255,255,255,0.3)" : "none";
+  const subColor = isWhite ? "rgba(255,255,255,0.72)" : "var(--ink-mute, #6b7a99)";
   return (
-    <div className="flex items-baseline gap-1.5">
-      <span className="display" style={{ fontSize: size, color, lineHeight: 1, letterSpacing: "-0.03em", fontWeight: 500 }}>
-        prometa
+    <div className="flex items-baseline" style={{ gap: size * 0.14 }}>
+      <span
+        className="display"
+        style={{ fontSize: size, color, lineHeight: 1, letterSpacing: "-0.04em", fontWeight: 800 }}
+      >
+        M
       </span>
-      <span style={{
-        fontSize: size * 0.5,
-        lineHeight: 1,
-        fontWeight: 600,
-        fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-        letterSpacing: "0.05em",
-        padding: "2px 6px",
-        background: badgeBg,
-        color: badgeColor,
-        border: badgeBorder,
-        borderRadius: 2,
-      }}>ONE</span>
+      <span
+        style={{
+          fontSize: size * 0.92,
+          color: subColor,
+          lineHeight: 1,
+          letterSpacing: "-0.01em",
+          fontWeight: 300,
+          fontFamily: "'Manrope', 'Inter', system-ui, sans-serif",
+        }}
+      >
+        Suite
+      </span>
     </div>
   );
 }
@@ -11151,7 +11152,7 @@ function exportToExcel(data, options = {}) {
   if (includeProjections && includeRealized) scopeLabel = "Manuel + projeksiyon + gerçekleşen ödemeler";
   else if (includeProjections) scopeLabel = "Manuel + açık fatura projeksiyonları";
 
-  aoa.push(["Prometa One — Nakit Akış Tablosu"]);
+  aoa.push(["M Suite — Nakit Akış Tablosu"]);
   aoa.push([`Mali Yıl: ${data.fiscalYear}`, `Başlangıç Ayı: ${TR_MONTHS[data.fiscalStartMonth]}`, `Kapsam: ${scopeLabel}`, `İhraç: ${new Date().toLocaleString("tr-TR")}`]);
   aoa.push([]);
 
@@ -12188,7 +12189,7 @@ export default function App() {
           }}>📲</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 13 }}>
-              {lang === "en" ? "Install Prometa One" : "Prometa One'u Yükle"}
+              {lang === "en" ? "Install M Suite" : "M Suite'i Yükle"}
             </div>
             <div style={{ fontSize: 11, color: "#525252" }}>
               {lang === "en" ? "Faster access, offline support" : "Daha hızlı erişim, çevrimdışı destek"}
@@ -39660,7 +39661,7 @@ function PartyMuavinView({ parties, selectedPartyId, setSelectedPartyId, cariVou
   </div>
 
   <div class="footer">
-    ${lang === "en" ? "Generated by Prometa One" : "Prometa One tarafından oluşturulmuştur"} • ${today}
+    ${lang === "en" ? "Generated by M Suite" : "M Suite tarafından oluşturulmuştur"} • ${today}
   </div>
 </body>
 </html>
@@ -43986,7 +43987,7 @@ ${r.topParties.length === 0 ? `<p style="color:#6b7280;font-style:italic;">${T("
 </ul>
 
 <div class="footer">
-  ${T("Prometa One · Aylık Yönetim Raporu", "Prometa One · Monthly Management Report")} · 
+  ${T("M Suite · Aylık Yönetim Raporu", "M Suite · Monthly Management Report")} ·
   ${T("Oluşturulma", "Generated")}: ${new Date().toLocaleString(lang === "en" ? "en-US" : "tr-TR")}
 </div>
 
@@ -71066,7 +71067,7 @@ function AIAssistantWidget({ data, session, users, audit }) {
             : "English format (1,234.56)";
       const dateFormatHint = activeLang === "en" ? "DD/MM/YYYY" : "GG.AA.YYYY";
 
-      const systemPrompt = `You are the AI assistant of Prometa One (integrated Finance & HR platform).
+      const systemPrompt = `You are the AI assistant of M Suite (integrated Finance & HR platform).
 
 CRITICAL: Respond in ${langName} (${activeLang}). The user is interacting in ${langName}.
 
@@ -71216,7 +71217,7 @@ ${contextJson}`;
             color: "#fff",
           }}>
           <Sparkles size={16}/>
-          <span className="text-sm font-medium">Prometa AI</span>
+          <span className="text-sm font-medium">M Suite AI</span>
         </button>
       )}
 
@@ -71236,7 +71237,7 @@ ${contextJson}`;
             <div className="flex items-center gap-2">
               <Sparkles size={16}/>
               <div>
-                <div className="font-semibold text-sm">Prometa AI Asistan</div>
+                <div className="font-semibold text-sm">M Suite AI Asistan</div>
                 <div className="text-xs opacity-80">{t("app.tagline")}</div>
               </div>
             </div>
@@ -74038,7 +74039,7 @@ function generateDailyReport(data, activeCompany, options = {}) {
 
   lines.push(halfSep);
   lines.push(`Otomatik üretildi · ${new Date().toLocaleString("tr-TR")}`);
-  lines.push("Prometa One · Finans ve İK Platformu");
+  lines.push("M Suite · Finans ve İK Platformu");
 
   const text = lines.join("\n");
   const summary = {
@@ -74298,7 +74299,7 @@ function NotificationsCard({ data, onChange, logAudit, notify, activeCompany }) 
   const sendViaMail = () => {
     if (!report) return;
     if (settings.recipients.length === 0) return notify("Önce alıcı ekleyin", "err");
-    const subject = `Prometa One Vade Raporu — ${new Date().toLocaleDateString("tr-TR")} — ${activeCompany?.name || ""}`;
+    const subject = `M Suite Vade Raporu — ${new Date().toLocaleDateString("tr-TR")} — ${activeCompany?.name || ""}`;
     // mailto URL uzunluk sınırı (~2000 char) — özet versiyon
     const bodyShort = (report.text || "").slice(0, 1500) + "\n\n[Tam rapor uygulamada görüntülenebilir]";
     const url = `mailto:${encodeURIComponent(settings.recipients.join(","))}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyShort)}`;
@@ -74336,7 +74337,7 @@ function NotificationsCard({ data, onChange, logAudit, notify, activeCompany }) 
     if (perm === "granted") {
       await update({ browserNotifyEnabled: true });
       notify("Tarayıcı bildirimleri etkin");
-      new Notification("Prometa One", {
+      new Notification("M Suite", {
         body: "Bildirimler etkinleştirildi. Sayfayı açtığınızda kritik alarmları göreceksiniz.",
         icon: "/favicon.ico",
       });
@@ -74355,7 +74356,7 @@ function NotificationsCard({ data, onChange, logAudit, notify, activeCompany }) 
       const todayKey = new Date().toISOString().slice(0, 10);
       const lastShown = localStorage.getItem("promet_notif_last");
       if (lastShown !== todayKey) {
-        new Notification("⚠️ Vade Uyarısı — Prometa One", {
+        new Notification("⚠️ Vade Uyarısı — M Suite", {
           body: `${r.summary.overdueCount} fatura vadesi geçti (toplam ${fmtTL(r.summary.overdueTotal)} ₺)`,
         });
         localStorage.setItem("promet_notif_last", todayKey);
@@ -76073,7 +76074,7 @@ function PushPreferencesPanel({ session, data, onChange, lang, notify, compact =
     try {
       const reg = await navigator.serviceWorker.getRegistration();
       if (reg) {
-        await reg.showNotification("🔔 Prometa One — Test", {
+        await reg.showNotification("🔔 M Suite — Test", {
           body: lang === "en"
             ? "This is a test notification. Push notifications are working!"
             : "Bu bir test bildirimidir. Push bildirimler çalışıyor!",
@@ -76346,7 +76347,7 @@ function EmailPreferencesPanel({ session, employee, data, onChange, lang, notify
     const testNotif = {
       id: "test_" + Date.now(),
       kind: "generic",
-      title: lang === "en" ? "Test Email from Prometa One" : "Prometa One — Test E-postası",
+      title: lang === "en" ? "Test Email from M Suite" : "M Suite — Test E-postası",
       body: lang === "en"
         ? "This is a test email to verify your email notification settings. Everything looks good!"
         : "Bu, e-posta bildirim ayarlarınızı doğrulamak için gönderilen bir test e-postasıdır. Her şey yolunda!",
@@ -76371,7 +76372,7 @@ function EmailPreferencesPanel({ session, employee, data, onChange, lang, notify
         to: userEmail,
         subject,
         html,
-        fromName: emailSettings.fromName || "Prometa One",
+        fromName: emailSettings.fromName || "M Suite",
         meta: { kind: "test" },
       }).then(r => {
         if (r.success) notify(lang === "en" ? "Test email sent!" : "Test e-postası gönderildi!");
@@ -76532,7 +76533,7 @@ function EmailSettingsPanel({ data, onChange, lang, notify, canManage }) {
   const [draft, setDraft] = useState({
     provider: settings.provider || "mailto",
     fromAddress: settings.fromAddress || "",
-    fromName: settings.fromName || "Prometa One",
+    fromName: settings.fromName || "M Suite",
     replyTo: settings.replyTo || "",
     apiKey: "",                              // Yeni değer ya da boş bırak (silmek için)
     domain: settings.domain || "",
@@ -76647,7 +76648,7 @@ function EmailSettingsPanel({ data, onChange, lang, notify, canManage }) {
           <div>
             <div className="label mb-1">{lang === "en" ? "From Name" : "Gönderen Adı"}</div>
             <input className="input w-full"
-              placeholder="Prometa One"
+              placeholder="M Suite"
               value={draft.fromName}
               onChange={e => setDraft({ ...draft, fromName: e.target.value })}/>
           </div>
