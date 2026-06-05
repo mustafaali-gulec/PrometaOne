@@ -285,6 +285,12 @@ DO $$
 DECLARE
   v_company_id INT;
   v_bank_id    INT;
+  v_cat_satis  INT;
+  v_cat_hizmet INT;
+  v_cat_maas   INT;
+  v_cat_kira   INT;
+  v_cat_pazar  INT;
+  v_fy         INT := EXTRACT(YEAR FROM CURRENT_DATE)::INT;
 BEGIN
   -- Finance tabloları yoksa (004 migrate edilmemişse) sessizce çık.
   IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kasa_accounts') THEN
@@ -300,25 +306,100 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Kasa hesabı (TRY) — Merkez Kasa
+  -- ---- KASA / BANKA (Nakit) -------------------------------------------------
   INSERT INTO kasa_accounts (company_id, name, currency, opening_balance, active)
   SELECT v_company_id, 'Merkez Kasa', 'TRY', 50000.00, TRUE
   WHERE NOT EXISTS (
     SELECT 1 FROM kasa_accounts WHERE company_id = v_company_id AND name = 'Merkez Kasa'
   );
 
-  -- Banka kataloğu — Ziraat Bankası
   INSERT INTO banks (name, code, color)
   SELECT 'Ziraat Bankası', 'ZIRAAT', '#e30613'
   WHERE NOT EXISTS (SELECT 1 FROM banks WHERE code = 'ZIRAAT');
   SELECT id INTO v_bank_id FROM banks WHERE code = 'ZIRAAT' LIMIT 1;
 
-  -- Banka hesabı (TRY) — Ana Vadesiz TL
   INSERT INTO bank_accounts (company_id, bank_id, name, currency, opening_balance, active)
   SELECT v_company_id, v_bank_id, 'Ana Vadesiz TL', 'TRY', 250000.00, TRUE
   WHERE NOT EXISTS (
     SELECT 1 FROM bank_accounts WHERE company_id = v_company_id AND name = 'Ana Vadesiz TL'
   );
 
-  RAISE NOTICE 'Finance seed tamamlandı (company_id=%)', v_company_id;
+  -- ---- BÜTÇE: kategoriler (idempotent: company+section+name) ----------------
+  INSERT INTO categories (company_id, section, name, sort_order)
+  SELECT v_company_id, 'inflows', 'Satış Geliri', 0
+  WHERE NOT EXISTS (SELECT 1 FROM categories WHERE company_id=v_company_id AND section='inflows' AND name='Satış Geliri');
+  INSERT INTO categories (company_id, section, name, sort_order)
+  SELECT v_company_id, 'inflows', 'Hizmet Geliri', 1
+  WHERE NOT EXISTS (SELECT 1 FROM categories WHERE company_id=v_company_id AND section='inflows' AND name='Hizmet Geliri');
+  INSERT INTO categories (company_id, section, name, sort_order)
+  SELECT v_company_id, 'outflows', 'Maaş Ödemeleri', 0
+  WHERE NOT EXISTS (SELECT 1 FROM categories WHERE company_id=v_company_id AND section='outflows' AND name='Maaş Ödemeleri');
+  INSERT INTO categories (company_id, section, name, sort_order)
+  SELECT v_company_id, 'outflows', 'Kira Gideri', 1
+  WHERE NOT EXISTS (SELECT 1 FROM categories WHERE company_id=v_company_id AND section='outflows' AND name='Kira Gideri');
+  INSERT INTO categories (company_id, section, name, sort_order)
+  SELECT v_company_id, 'outflows', 'Pazarlama', 2
+  WHERE NOT EXISTS (SELECT 1 FROM categories WHERE company_id=v_company_id AND section='outflows' AND name='Pazarlama');
+
+  SELECT id INTO v_cat_satis  FROM categories WHERE company_id=v_company_id AND section='inflows'  AND name='Satış Geliri'   LIMIT 1;
+  SELECT id INTO v_cat_hizmet FROM categories WHERE company_id=v_company_id AND section='inflows'  AND name='Hizmet Geliri'  LIMIT 1;
+  SELECT id INTO v_cat_maas   FROM categories WHERE company_id=v_company_id AND section='outflows' AND name='Maaş Ödemeleri' LIMIT 1;
+  SELECT id INTO v_cat_kira   FROM categories WHERE company_id=v_company_id AND section='outflows' AND name='Kira Gideri'    LIMIT 1;
+  SELECT id INTO v_cat_pazar  FROM categories WHERE company_id=v_company_id AND section='outflows' AND name='Pazarlama'      LIMIT 1;
+
+  -- ---- BÜTÇE: aylık hücreler (cells) — bu mali yıl, 12 ay -------------------
+  INSERT INTO cells (company_id, category_id, fiscal_year, month_idx, value)
+  SELECT v_company_id, c.cat, v_fy, gs.m, c.base + gs.m * c.step
+  FROM (VALUES
+    (v_cat_satis, 180000.00, 8000.00),
+    (v_cat_hizmet, 90000.00, 4000.00),
+    (v_cat_maas,  120000.00, 3000.00),
+    (v_cat_kira,   35000.00,    0.00),
+    (v_cat_pazar,  20000.00, 1500.00)
+  ) AS c(cat, base, step)
+  CROSS JOIN generate_series(0, 11) AS gs(m)
+  WHERE c.cat IS NOT NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM cells
+      WHERE company_id=v_company_id AND category_id=c.cat AND fiscal_year=v_fy AND month_idx=gs.m
+    );
+
+  -- ---- FATURALAR (idempotent: company+invoice_no) --------------------------
+  INSERT INTO invoices (company_id, type, invoice_no, counterparty, issue_date, due_date, currency, subtotal, kdv_rate, kdv, total, paid_amount, cashflow_cat_id)
+  SELECT v_company_id, 'out', 'SF-' || v_fy || '-001', 'ABC Ticaret A.Ş.', CURRENT_DATE - 10, CURRENT_DATE + 20, 'TRY', 100000.00, 0.20, 20000.00, 120000.00, 0.00, v_cat_satis
+  WHERE NOT EXISTS (SELECT 1 FROM invoices WHERE company_id=v_company_id AND invoice_no='SF-' || v_fy || '-001');
+  INSERT INTO invoices (company_id, type, invoice_no, counterparty, issue_date, due_date, currency, subtotal, kdv_rate, kdv, total, paid_amount, cashflow_cat_id)
+  SELECT v_company_id, 'out', 'SF-' || v_fy || '-002', 'Mavi Yazılım Ltd.', CURRENT_DATE - 5, CURRENT_DATE + 25, 'TRY', 50000.00, 0.20, 10000.00, 60000.00, 60000.00, v_cat_hizmet
+  WHERE NOT EXISTS (SELECT 1 FROM invoices WHERE company_id=v_company_id AND invoice_no='SF-' || v_fy || '-002');
+  INSERT INTO invoices (company_id, type, invoice_no, counterparty, issue_date, due_date, currency, subtotal, kdv_rate, kdv, total, paid_amount, cashflow_cat_id)
+  SELECT v_company_id, 'in', 'AF-' || v_fy || '-001', 'XYZ Tedarik Ltd.', CURRENT_DATE - 8, CURRENT_DATE + 12, 'TRY', 40000.00, 0.20, 8000.00, 48000.00, 0.00, v_cat_kira
+  WHERE NOT EXISTS (SELECT 1 FROM invoices WHERE company_id=v_company_id AND invoice_no='AF-' || v_fy || '-001');
+  INSERT INTO invoices (company_id, type, invoice_no, counterparty, issue_date, due_date, currency, subtotal, kdv_rate, kdv, total, paid_amount, cashflow_cat_id)
+  SELECT v_company_id, 'in', 'AF-' || v_fy || '-002', 'Global Corp (USD)', CURRENT_DATE - 3, CURRENT_DATE + 27, 'USD', 5000.00, 0.00, 0.00, 5000.00, 0.00, NULL
+  WHERE NOT EXISTS (SELECT 1 FROM invoices WHERE company_id=v_company_id AND invoice_no='AF-' || v_fy || '-002');
+
+  -- ---- DÖVİZ/FX: güncel kurlar (exchange_rate_history) ----------------------
+  -- Bugün + 30 gün önce (değerleme referansı için) USD & EUR.
+  INSERT INTO exchange_rate_history (date, currency, rate, source)
+  SELECT CURRENT_DATE, 'USD', 32.50, 'SEED'
+  WHERE NOT EXISTS (SELECT 1 FROM exchange_rate_history WHERE date=CURRENT_DATE AND currency='USD');
+  INSERT INTO exchange_rate_history (date, currency, rate, source)
+  SELECT CURRENT_DATE, 'EUR', 35.20, 'SEED'
+  WHERE NOT EXISTS (SELECT 1 FROM exchange_rate_history WHERE date=CURRENT_DATE AND currency='EUR');
+  INSERT INTO exchange_rate_history (date, currency, rate, source)
+  SELECT CURRENT_DATE - 30, 'USD', 32.00, 'SEED'
+  WHERE NOT EXISTS (SELECT 1 FROM exchange_rate_history WHERE date=CURRENT_DATE - 30 AND currency='USD');
+  INSERT INTO exchange_rate_history (date, currency, rate, source)
+  SELECT CURRENT_DATE - 30, 'EUR', 34.80, 'SEED'
+  WHERE NOT EXISTS (SELECT 1 FROM exchange_rate_history WHERE date=CURRENT_DATE - 30 AND currency='EUR');
+
+  -- ---- DÖVİZ/FX: örnek kur farkı değerlemesi (revaluations) -----------------
+  INSERT INTO revaluations (company_id, reference_date, valuation_date, usd_rate_1, usd_rate_2, eur_rate_1, eur_rate_2, gain_total, loss_total, net, details, posted)
+  SELECT v_company_id, CURRENT_DATE - 30, CURRENT_DATE, 32.00, 32.50, 34.80, 35.20, 2500.00, 0.00, 2500.00,
+         '[{"account":"Global Corp (USD)","currency":"USD","amount":5000,"diff":2500}]'::jsonb, FALSE
+  WHERE NOT EXISTS (
+    SELECT 1 FROM revaluations WHERE company_id=v_company_id AND reference_date=CURRENT_DATE - 30 AND valuation_date=CURRENT_DATE
+  );
+
+  RAISE NOTICE 'Finance seed tamamlandı (company_id=%, fiscal_year=%)', v_company_id, v_fy;
 END $$;
