@@ -12,6 +12,8 @@ export interface PurchaseOrdersTableProps {
   onMarkOrdered?: (id: number) => void;
   onMarkReceived?: (id: number) => void;
   onCancel?: (id: number) => void;
+  /** Siparişi SAS formatında yazdır/PDF. */
+  onPrint?: (id: number) => void;
 }
 
 const STATUS_LABELS: Record<PoStatus, string> = {
@@ -40,6 +42,7 @@ export function PurchaseOrdersTable({
   onMarkOrdered,
   onMarkReceived,
   onCancel,
+  onPrint,
 }: PurchaseOrdersTableProps): JSX.Element {
   if (loading === true) {
     return (
@@ -57,7 +60,10 @@ export function PurchaseOrdersTable({
   }
 
   const showActions =
-    onMarkOrdered !== undefined || onMarkReceived !== undefined || onCancel !== undefined;
+    onMarkOrdered !== undefined ||
+    onMarkReceived !== undefined ||
+    onCancel !== undefined ||
+    onPrint !== undefined;
 
   return (
     <table
@@ -120,6 +126,11 @@ export function PurchaseOrdersTable({
                   {onCancel !== undefined && (po.status === 'draft' || po.status === 'ordered') ? (
                     <button onClick={() => onCancel(po.id)} style={actionBtn('#ef4444')}>
                       İptal
+                    </button>
+                  ) : null}
+                  {onPrint !== undefined ? (
+                    <button onClick={() => onPrint(po.id)} style={actionBtn('#0891b2')}>
+                      Yazdır
                     </button>
                   ) : null}
                 </span>

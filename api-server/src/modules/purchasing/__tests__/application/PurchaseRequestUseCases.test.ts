@@ -2,12 +2,12 @@
  * Satınalma talebi (PR) use-case testleri.
  */
 import assert from 'node:assert/strict';
-
-import { beforeEach, describe, it } from 'vitest';
+import { beforeEach, describe, it } from 'node:test';
 
 import {
   ChangePrStatusUseCase,
   CreatePurchaseRequestUseCase,
+  DeletePurchaseRequestUseCase,
   ListPurchaseRequestsUseCase,
 } from '../../application/useCases/PurchaseRequestUseCases.js';
 import {
@@ -82,5 +82,19 @@ describe('PurchaseRequestUseCases', () => {
     await create.execute({ companyId: 100, items, submit: true });
     const list = new ListPurchaseRequestsUseCase(repo);
     assert.equal((await list.execute({ companyId: 100, status: 'draft' })).length, 1);
+  });
+
+  it('happy: delete talebi siler', async () => {
+    const create = new CreatePurchaseRequestUseCase(repo, clock);
+    const pr = await create.execute({ companyId: 100, items });
+    const del = new DeletePurchaseRequestUseCase(repo);
+    await del.execute({ companyId: 100, prId: pr.id });
+    const list = new ListPurchaseRequestsUseCase(repo);
+    assert.equal((await list.execute({ companyId: 100 })).length, 0);
+  });
+
+  it('edge: olmayan PR delete → PurchaseRequestNotFoundError', async () => {
+    const del = new DeletePurchaseRequestUseCase(repo);
+    await assert.rejects(del.execute({ companyId: 100, prId: 999 }), PurchaseRequestNotFoundError);
   });
 });

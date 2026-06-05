@@ -41,6 +41,8 @@ export interface CreateVendorInput {
   name: string;
   code?: string | undefined;
   taxId?: string | null | undefined;
+  taxOffice?: string | null | undefined;
+  address?: string | null | undefined;
   personType?: PersonType | undefined;
   cariClass?: CariClass | undefined;
   accountCode?: string | null | undefined;
@@ -65,6 +67,8 @@ export class CreateVendorUseCase {
       code,
       name: input.name.trim(),
       taxId: input.taxId?.trim() || null,
+      taxOffice: input.taxOffice?.trim() || null,
+      address: input.address?.trim() || null,
       personType: input.personType ?? 'legal',
       cariClass,
       // accountCode verilmezse cari kodu ile aynı (cari hesap linki)
@@ -98,6 +102,8 @@ export interface UpdateVendorInput {
   vendorId: number;
   name?: string | undefined;
   taxId?: string | null | undefined;
+  taxOffice?: string | null | undefined;
+  address?: string | null | undefined;
   personType?: PersonType | undefined;
   cariClass?: CariClass | undefined;
   accountCode?: string | null | undefined;
@@ -116,6 +122,8 @@ export class UpdateVendorUseCase {
       {
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.taxId !== undefined ? { taxId: input.taxId } : {}),
+        ...(input.taxOffice !== undefined ? { taxOffice: input.taxOffice } : {}),
+        ...(input.address !== undefined ? { address: input.address } : {}),
         ...(input.personType !== undefined ? { personType: input.personType } : {}),
         ...(input.cariClass !== undefined ? { cariClass: input.cariClass } : {}),
         ...(input.accountCode !== undefined ? { accountCode: input.accountCode } : {}),

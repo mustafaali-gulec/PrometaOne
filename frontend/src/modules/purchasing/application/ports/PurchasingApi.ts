@@ -29,6 +29,8 @@ export interface CreateVendorBody {
   name: string;
   code?: string;
   taxId?: string | null;
+  taxOffice?: string | null;
+  address?: string | null;
   personType?: PersonType;
   cariClass?: CariClass;
   accountCode?: string | null;
@@ -38,6 +40,8 @@ export interface UpdateVendorBody {
   companyId: number;
   name?: string;
   taxId?: string | null;
+  taxOffice?: string | null;
+  address?: string | null;
   personType?: PersonType;
   cariClass?: CariClass;
   accountCode?: string | null;

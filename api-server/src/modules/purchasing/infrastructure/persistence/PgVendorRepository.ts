@@ -17,6 +17,8 @@ interface VendorRow {
   code: string;
   name: string;
   tax_id: string | null;
+  tax_office: string | null;
+  address: string | null;
   person_type: PersonType;
   cari_class: CariClass;
   account_code: string | null;
@@ -27,7 +29,7 @@ interface VendorRow {
 }
 
 const COLS =
-  'id, company_id, code, name, tax_id, person_type, cari_class, account_code, active, created_by, created_at, updated_at';
+  'id, company_id, code, name, tax_id, tax_office, address, person_type, cari_class, account_code, active, created_by, created_at, updated_at';
 
 export class PgVendorRepository implements VendorRepository {
   constructor(private readonly db: Queryable) {}
@@ -35,14 +37,16 @@ export class PgVendorRepository implements VendorRepository {
   async insert(input: NewVendorInput): Promise<Vendor> {
     const r = await this.db.query<VendorRow>(
       `INSERT INTO vendors
-         (company_id, code, name, tax_id, person_type, cari_class, account_code, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         (company_id, code, name, tax_id, tax_office, address, person_type, cari_class, account_code, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING ${COLS}`,
       [
         input.companyId,
         input.code,
         input.name,
         input.taxId,
+        input.taxOffice,
+        input.address,
         input.personType,
         input.cariClass,
         input.accountCode,
@@ -55,12 +59,14 @@ export class PgVendorRepository implements VendorRepository {
   async update(vendor: Vendor): Promise<void> {
     await this.db.query(
       `UPDATE vendors
-         SET name = $1, tax_id = $2, person_type = $3, cari_class = $4,
-             account_code = $5, active = $6, updated_at = NOW()
-       WHERE id = $7 AND company_id = $8`,
+         SET name = $1, tax_id = $2, tax_office = $3, address = $4, person_type = $5,
+             cari_class = $6, account_code = $7, active = $8, updated_at = NOW()
+       WHERE id = $9 AND company_id = $10`,
       [
         vendor.name,
         vendor.taxId,
+        vendor.taxOffice,
+        vendor.address,
         vendor.personType,
         vendor.cariClass,
         vendor.accountCode,
@@ -123,6 +129,8 @@ function rowToVendor(row: VendorRow): Vendor {
     code: row.code,
     name: row.name,
     taxId: row.tax_id,
+    taxOffice: row.tax_office,
+    address: row.address,
     personType: row.person_type,
     cariClass: row.cari_class,
     accountCode: row.account_code,

@@ -43,6 +43,8 @@ export class InMemoryVendorRepository implements VendorRepository {
       code: input.code,
       name: input.name,
       taxId: input.taxId,
+      taxOffice: input.taxOffice,
+      address: input.address,
       personType: input.personType,
       cariClass: input.cariClass,
       accountCode: input.accountCode,
@@ -137,6 +139,11 @@ export class InMemoryPurchaseRequestRepository implements PurchaseRequestReposit
     return [...this.store.values()].filter(
       (p) => p.companyId === companyId && p.prNo.startsWith(prefix),
     ).length;
+  }
+
+  async delete(id: number, companyId: number): Promise<void> {
+    const pr = this.store.get(id);
+    if (pr && pr.companyId === companyId) this.store.delete(id);
   }
 }
 

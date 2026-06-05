@@ -139,6 +139,21 @@ export class UpdatePurchaseRequestUseCase {
   }
 }
 
+export interface DeletePurchaseRequestInput {
+  companyId: number;
+  prId: number;
+}
+
+export class DeletePurchaseRequestUseCase {
+  constructor(private readonly prs: PurchaseRequestRepository) {}
+
+  async execute(input: DeletePurchaseRequestInput): Promise<void> {
+    const pr = await this.prs.findById(input.prId, input.companyId);
+    if (!pr) throw new PurchaseRequestNotFoundError(input.prId);
+    await this.prs.delete(input.prId, input.companyId);
+  }
+}
+
 export interface ChangePrStatusInput {
   companyId: number;
   prId: number;

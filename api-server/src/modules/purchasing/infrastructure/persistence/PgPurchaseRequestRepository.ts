@@ -165,6 +165,14 @@ export class PgPurchaseRequestRepository implements PurchaseRequestRepository {
     return Number(r.rows[0]?.count ?? 0);
   }
 
+  async delete(id: number, companyId: number): Promise<void> {
+    // purchase_request_items FK ON DELETE CASCADE ile birlikte silinir
+    await this.pool.query(`DELETE FROM purchase_requests WHERE id = $1 AND company_id = $2`, [
+      id,
+      companyId,
+    ]);
+  }
+
   private async loadItems(prIds: number[]): Promise<Map<number, PurchaseRequestItem[]>> {
     const r = await this.pool.query<ItemRow>(
       `SELECT pr_id, line_no, description, quantity, unit_price, note

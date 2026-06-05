@@ -39,4 +39,6 @@ export interface PurchaseRequestRepository {
   ): Promise<ReadonlyArray<PurchaseRequest>>;
   /** Verilen ön ek ile başlayan pr_no sayısı (numara üretimi için). */
   countByNoPrefix(companyId: number, prefix: string): Promise<number>;
+  /** Talebi (ve kalemlerini, FK cascade) siler. */
+  delete(id: number, companyId: number): Promise<void>;
 }

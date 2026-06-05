@@ -16,6 +16,8 @@ export interface VendorProps {
   code: string;
   name: string;
   taxId: string | null;
+  taxOffice: string | null;
+  address: string | null;
   personType: PersonType;
   cariClass: CariClass;
   accountCode: string | null;
@@ -28,6 +30,8 @@ export interface VendorProps {
 export interface VendorUpdate {
   name?: string;
   taxId?: string | null;
+  taxOffice?: string | null;
+  address?: string | null;
   personType?: PersonType;
   cariClass?: CariClass;
   accountCode?: string | null;
@@ -60,6 +64,12 @@ export class Vendor {
   get taxId(): string | null {
     return this.props.taxId;
   }
+  get taxOffice(): string | null {
+    return this.props.taxOffice;
+  }
+  get address(): string | null {
+    return this.props.address;
+  }
   get personType(): PersonType {
     return this.props.personType;
   }
@@ -90,6 +100,8 @@ export class Vendor {
       ...this.props,
       name,
       taxId: changes.taxId !== undefined ? changes.taxId : this.props.taxId,
+      taxOffice: changes.taxOffice !== undefined ? changes.taxOffice : this.props.taxOffice,
+      address: changes.address !== undefined ? changes.address : this.props.address,
       personType: changes.personType ?? this.props.personType,
       cariClass: changes.cariClass ?? this.props.cariClass,
       accountCode: changes.accountCode !== undefined ? changes.accountCode : this.props.accountCode,

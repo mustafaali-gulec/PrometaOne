@@ -15,10 +15,12 @@ import type {
   ChangePoStatusUseCase,
   CreatePurchaseOrderUseCase,
   ListPurchaseOrdersUseCase,
+  UpdatePurchaseOrderUseCase,
 } from '../application/useCases/PurchaseOrderUseCases.js';
 import type {
   ChangePrStatusUseCase,
   CreatePurchaseRequestUseCase,
+  DeletePurchaseRequestUseCase,
   ListPurchaseRequestsUseCase,
   UpdatePurchaseRequestUseCase,
 } from '../application/useCases/PurchaseRequestUseCases.js';
@@ -39,9 +41,11 @@ export interface PurchasingRouterDeps {
   createPurchaseRequest: CreatePurchaseRequestUseCase;
   listPurchaseRequests: ListPurchaseRequestsUseCase;
   updatePurchaseRequest: UpdatePurchaseRequestUseCase;
+  deletePurchaseRequest: DeletePurchaseRequestUseCase;
   changePrStatus: ChangePrStatusUseCase;
   createPurchaseOrder: CreatePurchaseOrderUseCase;
   listPurchaseOrders: ListPurchaseOrdersUseCase;
+  updatePurchaseOrder: UpdatePurchaseOrderUseCase;
   changePoStatus: ChangePoStatusUseCase;
 }
 
@@ -131,6 +135,8 @@ export function createPurchasingRouter(deps: PurchasingRouterDeps): Hono {
         taxId: z.string().max(20).nullable().optional(),
         personType: personType.optional(),
         cariClass: cariClass.optional(),
+        taxOffice: z.string().max(120).nullable().optional(),
+        address: z.string().max(2000).nullable().optional(),
         accountCode: z.string().max(40).nullable().optional(),
       }),
     ),
@@ -157,6 +163,8 @@ export function createPurchasingRouter(deps: PurchasingRouterDeps): Hono {
         taxId: z.string().max(20).nullable().optional(),
         personType: personType.optional(),
         cariClass: cariClass.optional(),
+        taxOffice: z.string().max(120).nullable().optional(),
+        address: z.string().max(2000).nullable().optional(),
         accountCode: z.string().max(40).nullable().optional(),
       }),
     ),
@@ -273,6 +281,23 @@ export function createPurchasingRouter(deps: PurchasingRouterDeps): Hono {
     },
   );
 
+  app.delete(
+    '/requests/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const { companyId } = c.req.valid('query');
+      try {
+        await deps.deletePurchaseRequest.execute({ companyId, prId: id });
+        return c.body(null, 204);
+      } catch (err) {
+        mapPurchasingError(err);
+      }
+    },
+  );
+
   app.post(
     '/requests/:id/status',
     requireWrite,
@@ -326,8 +351,9 @@ export function createPurchasingRouter(deps: PurchasingRouterDeps): Hono {
       'json',
       z.object({
         companyId: z.number().int().positive(),
-        vendorId: z.number().int().positive(),
-        prId: z.number().int().positive().nullable().optional(),
+        // bigint id'ler JSON'da string olarak gelebilir → coerce
+        vendorId: z.coerce.number().int().positive(),
+        prId: z.coerce.number().int().positive().nullable().optional(),
         currency: currency.optional(),
         note: z.string().max(4000).nullable().optional(),
         lines: z.array(poLine).optional(),
@@ -339,6 +365,31 @@ export function createPurchasingRouter(deps: PurchasingRouterDeps): Hono {
       try {
         const dto = await deps.createPurchaseOrder.execute({ ...b, createdBy: actorId(c) });
         return c.json(dto, 201);
+      } catch (err) {
+        mapPurchasingError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/orders/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        currency: currency.optional(),
+        note: z.string().max(4000).nullable().optional(),
+        lines: z.array(poLine).min(1).optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.updatePurchaseOrder.execute({ poId: id, ...b });
+        return c.json(dto);
       } catch (err) {
         mapPurchasingError(err);
       }

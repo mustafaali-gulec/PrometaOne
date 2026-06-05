@@ -62,6 +62,17 @@ export type { PurchaseRequestsTableProps } from './presentation/components/Purch
 export { PurchaseOrdersTable } from './presentation/components/PurchaseOrdersTable';
 export type { PurchaseOrdersTableProps } from './presentation/components/PurchaseOrdersTable';
 
+// --- Report ---------------------------------------------------------------
+export {
+  buildPurchaseOrderReportHtml,
+  printPurchaseOrder,
+  DEFAULT_PO_TERMS,
+} from './presentation/report/purchaseOrderReport';
+export type {
+  PurchaseOrderReportInput,
+  ReportCompany,
+} from './presentation/report/purchaseOrderReport';
+
 // --- Demo -----------------------------------------------------------------
 export { PurchasingPage } from './demo/PurchasingPage';
 export type { PurchasingPageProps, PurchasingTab } from './demo/PurchasingPage';

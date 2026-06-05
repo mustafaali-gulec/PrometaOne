@@ -2,8 +2,7 @@
  * Statü geçiş kuralları (PrStatus/PoStatus) + entity changeStatus testleri.
  */
 import assert from 'node:assert/strict';
-
-import { describe, it } from 'vitest';
+import { describe, it } from 'node:test';
 
 import { PurchaseOrder } from '../../domain/entities/PurchaseOrder.js';
 import { PurchaseRequest } from '../../domain/entities/PurchaseRequest.js';

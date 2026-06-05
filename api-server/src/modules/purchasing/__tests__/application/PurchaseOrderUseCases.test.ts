@@ -2,12 +2,12 @@
  * Satınalma siparişi (PO) use-case testleri.
  */
 import assert from 'node:assert/strict';
-
-import { beforeEach, describe, it } from 'vitest';
+import { beforeEach, describe, it } from 'node:test';
 
 import {
   ChangePoStatusUseCase,
   CreatePurchaseOrderUseCase,
+  UpdatePurchaseOrderUseCase,
 } from '../../application/useCases/PurchaseOrderUseCases.js';
 import { CreatePurchaseRequestUseCase } from '../../application/useCases/PurchaseRequestUseCases.js';
 import { CreateVendorUseCase } from '../../application/useCases/VendorUseCases.js';
@@ -109,6 +109,30 @@ describe('PurchaseOrderUseCases', () => {
     const change = new ChangePoStatusUseCase(poRepo, clock);
     await assert.rejects(
       change.execute({ companyId: 100, poId: 999, status: 'ordered' }),
+      PurchaseOrderNotFoundError,
+    );
+  });
+
+  it('happy: update satırları değiştirir, total yeniden hesaplanır', async () => {
+    const vendorId = await makeVendor();
+    const create = new CreatePurchaseOrderUseCase(poRepo, vendorRepo, prRepo, clock);
+    const po = await create.execute({ companyId: 100, vendorId, lines });
+    const update = new UpdatePurchaseOrderUseCase(poRepo, clock);
+    const dto = await update.execute({
+      companyId: 100,
+      poId: po.id,
+      lines: [{ description: 'Yeni', quantity: 4, unitPrice: 250 }],
+      note: 'guncellendi',
+    });
+    assert.equal(dto.totalAmount, 1000);
+    assert.equal(dto.lines.length, 1);
+    assert.equal(dto.note, 'guncellendi');
+  });
+
+  it('edge: olmayan PO update → PurchaseOrderNotFoundError', async () => {
+    const update = new UpdatePurchaseOrderUseCase(poRepo, clock);
+    await assert.rejects(
+      update.execute({ companyId: 100, poId: 999, note: 'x' }),
       PurchaseOrderNotFoundError,
     );
   });

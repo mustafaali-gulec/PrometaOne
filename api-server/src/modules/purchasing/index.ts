@@ -14,10 +14,12 @@ import {
   ChangePoStatusUseCase,
   CreatePurchaseOrderUseCase,
   ListPurchaseOrdersUseCase,
+  UpdatePurchaseOrderUseCase,
 } from './application/useCases/PurchaseOrderUseCases.js';
 import {
   ChangePrStatusUseCase,
   CreatePurchaseRequestUseCase,
+  DeletePurchaseRequestUseCase,
   ListPurchaseRequestsUseCase,
   UpdatePurchaseRequestUseCase,
 } from './application/useCases/PurchaseRequestUseCases.js';
@@ -47,9 +49,11 @@ export function registerPurchasingModule(pool: Pool): ReturnType<typeof createPu
     createPurchaseRequest: new CreatePurchaseRequestUseCase(prs, clock),
     listPurchaseRequests: new ListPurchaseRequestsUseCase(prs),
     updatePurchaseRequest: new UpdatePurchaseRequestUseCase(prs, clock),
+    deletePurchaseRequest: new DeletePurchaseRequestUseCase(prs),
     changePrStatus: new ChangePrStatusUseCase(prs, clock),
     createPurchaseOrder: new CreatePurchaseOrderUseCase(pos, vendors, prs, clock),
     listPurchaseOrders: new ListPurchaseOrdersUseCase(pos),
+    updatePurchaseOrder: new UpdatePurchaseOrderUseCase(pos, clock),
     changePoStatus: new ChangePoStatusUseCase(pos, clock),
   };
 

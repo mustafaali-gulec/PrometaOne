@@ -6,7 +6,7 @@
  * gelirse PR kalemlerinden satırlar kopyalanır. ChangePoStatus statü geçiş
  * kurallarını (PoStatus) uygular.
  */
-import type { PurchaseOrderLine } from '../../domain/entities/PurchaseOrder.js';
+import { PurchaseOrder, type PurchaseOrderLine } from '../../domain/entities/PurchaseOrder.js';
 import {
   PurchaseOrderNotFoundError,
   PurchaseRequestNotFoundError,
@@ -113,6 +113,36 @@ export class ListPurchaseOrdersUseCase {
     if (input.vendorId !== undefined) options.vendorId = input.vendorId;
     const list = await this.pos.listByCompany(input.companyId, options);
     return list.map(toPurchaseOrderDto);
+  }
+}
+
+export interface UpdatePurchaseOrderInput {
+  companyId: number;
+  poId: number;
+  currency?: CurrencyCode | undefined;
+  note?: string | null | undefined;
+  lines?: PoLineInput[] | undefined;
+}
+
+export class UpdatePurchaseOrderUseCase {
+  constructor(
+    private readonly pos: PurchaseOrderRepository,
+    private readonly clock: Clock,
+  ) {}
+
+  async execute(input: UpdatePurchaseOrderInput): Promise<PurchaseOrderDto> {
+    const po = await this.pos.findById(input.poId, input.companyId);
+    if (!po) throw new PurchaseOrderNotFoundError(input.poId);
+    const j = po.toJSON();
+    const updated = PurchaseOrder.create({
+      ...j,
+      currency: input.currency ?? j.currency,
+      note: input.note !== undefined ? input.note?.trim() || null : j.note,
+      lines: input.lines !== undefined ? toLines(input.lines) : j.lines,
+      updatedAt: this.clock.now(),
+    });
+    await this.pos.update(updated);
+    return toPurchaseOrderDto(updated);
   }
 }
 

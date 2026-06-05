@@ -22,6 +22,7 @@ import { VendorsTable } from '../presentation/components/VendorsTable';
 import { usePurchaseOrders } from '../presentation/hooks/usePurchaseOrders';
 import { usePurchaseRequests } from '../presentation/hooks/usePurchaseRequests';
 import { useVendors } from '../presentation/hooks/useVendors';
+import { printPurchaseOrder, type ReportCompany } from '../presentation/report/purchaseOrderReport';
 
 export type PurchasingTab = 'vendors' | 'requests' | 'orders';
 
@@ -44,6 +45,8 @@ export interface PurchasingPageProps {
    * Belirtilmezse tüm sekmeler + demo başlığı gösterilir (standalone demo).
    */
   views?: PurchasingTab[];
+  /** SAS (PO) baskı raporundaki "Fatura Bilgileri" (alıcı firma) bloğu. */
+  company?: ReportCompany;
 }
 
 type Tab = PurchasingTab;
@@ -54,6 +57,7 @@ export function PurchasingPage({
   companyId = 1,
   initialTab,
   views,
+  company,
 }: PurchasingPageProps): JSX.Element {
   const scoped = Array.isArray(views) && views.length > 0;
   const visibleTabs: PurchasingTab[] = scoped ? views : ALL_TABS;
@@ -106,7 +110,7 @@ export function PurchasingPage({
       <main style={{ marginTop: showTabs ? 16 : 0 }}>
         {tab === 'vendors' ? <VendorsTab api={api} companyId={companyId} /> : null}
         {tab === 'requests' ? <RequestsTab api={api} companyId={companyId} /> : null}
-        {tab === 'orders' ? <OrdersTab api={api} companyId={companyId} /> : null}
+        {tab === 'orders' ? <OrdersTab api={api} companyId={companyId} company={company} /> : null}
       </main>
     </div>
   );
@@ -187,7 +191,15 @@ function RequestsTab({ api, companyId }: { api: PurchasingApi; companyId: number
   );
 }
 
-function OrdersTab({ api, companyId }: { api: PurchasingApi; companyId: number }): JSX.Element {
+function OrdersTab({
+  api,
+  companyId,
+  company,
+}: {
+  api: PurchasingApi;
+  companyId: number;
+  company?: ReportCompany | undefined;
+}): JSX.Element {
   const [showForm, setShowForm] = useState(false);
   const { orders, loading, error, refetch } = usePurchaseOrders(api, companyId);
   const { vendors } = useVendors(api, companyId);
@@ -203,6 +215,12 @@ function OrdersTab({ api, companyId }: { api: PurchasingApi; companyId: number }
   const onCancel = async (id: number): Promise<void> => {
     await api.changeOrderStatus(id, { companyId, status: 'cancelled' });
     await refetch();
+  };
+  const onPrint = (id: number): void => {
+    const order = orders.find((o) => String(o.id) === String(id));
+    if (order === undefined) return;
+    const vendor = vendors.find((v) => String(v.id) === String(order.vendorId)) ?? null;
+    printPurchaseOrder({ order, vendor, ...(company !== undefined ? { company } : {}) });
   };
 
   return (
@@ -234,6 +252,7 @@ function OrdersTab({ api, companyId }: { api: PurchasingApi; companyId: number }
         onMarkOrdered={(id) => void onMarkOrdered(id)}
         onMarkReceived={(id) => void onMarkReceived(id)}
         onCancel={(id) => void onCancel(id)}
+        onPrint={onPrint}
       />
     </Section>
   );
@@ -318,6 +337,8 @@ function VendorCreateForm({
   const [personType, setPersonType] = useState<PersonType>('legal');
   const [cariClass, setCariClass] = useState<CariClass>('satici');
   const [taxId, setTaxId] = useState('');
+  const [taxOffice, setTaxOffice] = useState('');
+  const [address, setAddress] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const submit = async (): Promise<void> => {
@@ -334,9 +355,13 @@ function VendorCreateForm({
         personType,
         cariClass,
         taxId: taxId.trim() === '' ? null : taxId.trim(),
+        taxOffice: taxOffice.trim() === '' ? null : taxOffice.trim(),
+        address: address.trim() === '' ? null : address.trim(),
       });
       setName('');
       setTaxId('');
+      setTaxOffice('');
+      setAddress('');
       onDone();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Tedarikçi eklenemedi');
@@ -358,6 +383,20 @@ function VendorCreateForm({
           onChange={(ev) => setTaxId(ev.target.value)}
           placeholder="Vergi no (ops.)"
           style={{ ...fieldStyle(), width: 140 }}
+        />
+        <input
+          value={taxOffice}
+          onChange={(ev) => setTaxOffice(ev.target.value)}
+          placeholder="Vergi dairesi (ops.)"
+          style={{ ...fieldStyle(), width: 160 }}
+        />
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <input
+          value={address}
+          onChange={(ev) => setAddress(ev.target.value)}
+          placeholder="Adres (ops.)"
+          style={{ ...fieldStyle(), flex: 1, minWidth: 240 }}
         />
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

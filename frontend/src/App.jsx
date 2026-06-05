@@ -3784,6 +3784,7 @@ const ACTIONS = {
   update: { label: "Değiştir",    color: "#ca8a04" },
   delete: { label: "Sil",         color: "#dc2626" },
   export: { label: "Dışa Aktar",  color: "#7c3aed" },
+  approve:{ label: "Onayla",      color: "#0f766e" },
 };
 
 const RESOURCES = {
@@ -3819,6 +3820,21 @@ const RESOURCES = {
   "accounting.journal":  { module: "Muhasebe", label: "Yevmiye Fişleri",  actions: ["view","create","update","delete","export"], legacyPerm: "view_accounting" },
   "accounting.parties":  { module: "Muhasebe", label: "Cari Yönetimi (Cari/Tedarikçi)", actions: ["view","create","update","delete","export"], legacyPerm: "view_accounting" },
   "accounting.budget":   { module: "Muhasebe", label: "Bütçe",          actions: ["view","create","update","delete","export"], legacyPerm: "view_budget" },
+
+  // Şantiye Yönetim (Construction) modülleri
+  "construction.projects":          { module: "Şantiye", label: "Projeler & Şantiyeler",            actions: ["view","create","update","delete"],                 legacyPerm: "view_dashboard" },
+  "construction.contracts":         { module: "Şantiye", label: "Sözleşme & İhale",                 actions: ["view","create","update","delete","export"],        legacyPerm: "view_accounting" },
+  "construction.boq":               { module: "Şantiye", label: "Keşif & Pursantaj",                actions: ["view","create","update","delete","export"],        legacyPerm: "view_budget" },
+  "construction.measurements":      { module: "Şantiye", label: "Metraj / Yeşil Defter / Ataşman",  actions: ["view","create","update","delete"],                 legacyPerm: "view_budget" },
+  "construction.progress":          { module: "Şantiye", label: "Hakediş",                          actions: ["view","create","update","delete","export","approve"], legacyPerm: "view_accounting" },
+  "construction.expenses":          { module: "Şantiye", label: "Harcama & Finans",                 actions: ["view","create","update","delete","export"],        legacyPerm: "view_invoices" },
+  "construction.advances":          { module: "Şantiye", label: "Avanslar",                         actions: ["view","create","update","delete"],                 legacyPerm: "view_invoices" },
+  "construction.materials":         { module: "Şantiye", label: "Malzeme & Depo / Stok",            actions: ["view","create","update","delete","export"],        legacyPerm: "view_dashboard" },
+  "construction.material_requests": { module: "Şantiye", label: "Malzeme Talebi",                   actions: ["view","create","update","delete","approve"],       legacyPerm: "view_dashboard" },
+  "construction.timesheets":        { module: "Şantiye", label: "Puantaj & İşgücü",                 actions: ["view","create","update","delete","export"],        legacyPerm: "view_employees" },
+  "construction.machinery":         { module: "Şantiye", label: "Makine Parkı",                     actions: ["view","create","update","delete","export"],        legacyPerm: "view_dashboard" },
+  "construction.reports":           { module: "Şantiye", label: "Şantiye Raporları & Analitik",     actions: ["view","export"],                                   legacyPerm: "view_reports" },
+  "construction.settings":          { module: "Şantiye", label: "Poz Katalog / Fire / Ayar",        actions: ["view","create","update","delete"],                 legacyPerm: "manage_categories" },
 
   // Sistem modülleri
   "system.users":        { module: "Sistem", label: "Kullanıcılar",    actions: ["view","create","update","delete"], legacyPerm: "manage_users" },
@@ -12357,13 +12373,13 @@ export default function App() {
           />
         )}
         {view === "purchase_requests" && (
-          <PurchasingPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["requests"]} />
+          <PurchasingPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["requests"]} company={purchasingBuyerCompany(effectiveData, session)} />
         )}
         {view === "purchase_orders" && (
-          <PurchasingPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["orders"]} />
+          <PurchasingPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["orders"]} company={purchasingBuyerCompany(effectiveData, session)} />
         )}
         {view === "purchase_vendors" && (
-          <PurchasingPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["vendors"]} />
+          <PurchasingPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["vendors"]} company={purchasingBuyerCompany(effectiveData, session)} />
         )}
         {view === "projects" && (
           <ProjectsModule
@@ -13253,6 +13269,7 @@ const SIDE_MENU_GROUP_LABELS = {
   overview:   { tr: "Genel Bakış",        en: "Overview",       de: "Übersicht",     ar: "نظرة عامة" },
   sales:      { tr: "Satış & CRM",        en: "Sales & CRM",    de: "Vertrieb & CRM", ar: "المبيعات و CRM" },
   purchase:   { tr: "Satınalma",          en: "Purchasing",     de: "Einkauf",       ar: "المشتريات" },
+  construction: { tr: "Şantiye Yönetim",  en: "Construction",   de: "Baustelle",     ar: "إدارة الموقع" },
   finance:    { tr: "Finans",             en: "Finance",        de: "Finanzen",      ar: "المالية" },
   hr:         { tr: "İnsan Kaynakları",   en: "Human Resources", de: "Personal",      ar: "الموارد البشرية" },
   accounting: { tr: "Muhasebe & Analiz",  en: "Accounting",     de: "Buchhaltung",   ar: "المحاسبة" },
@@ -13264,6 +13281,7 @@ const SIDE_MENU_MODULE_DEFS = [
   { key: "overview",   icon: LayoutDashboard },
   { key: "sales",      icon: Target },
   { key: "purchase",   icon: Receipt },
+  { key: "construction", icon: Building2 },
   { key: "finance",    icon: Landmark },
   { key: "hr",         icon: Users },
   { key: "accounting", icon: BarChart3 },
@@ -13287,6 +13305,10 @@ function buildSideMenuItems(lang) {
     { id: "purchase_requests", label: lang === "en" ? "Purchase Requests" : lang === "de" ? "Bestellanforderungen" : lang === "ar" ? "طلبات الشراء" : "Talepler", icon: ClipboardList, perm: "view_dashboard", resource: "finance.dashboard", group: "purchase" },
     { id: "purchase_orders",   label: lang === "en" ? "Purchase Orders" : lang === "de" ? "Bestellungen" : lang === "ar" ? "أوامر الشراء" : "Siparişler", icon: Receipt, perm: "view_dashboard", resource: "finance.dashboard", group: "purchase" },
     { id: "purchase_vendors",  label: lang === "en" ? "Vendors" : lang === "de" ? "Lieferanten" : lang === "ar" ? "الموردون" : "Tedarikçiler", icon: Building2, perm: "view_accounting", resource: "accounting.parties", group: "purchase" },
+
+    // === ŞANTİYE YÖNETİM ===
+    { id: "cs_projects",  label: lang === "en" ? "Projects" : lang === "de" ? "Projekte" : lang === "ar" ? "المشاريع" : "Projeler", icon: Building2, perm: "view_dashboard", resource: "construction.projects", group: "construction" },
+    { id: "cs_contracts", label: lang === "en" ? "Contracts & Tenders" : lang === "de" ? "Verträge" : lang === "ar" ? "العقود" : "Sözleşme & İhale", icon: FileCheck, perm: "view_accounting", resource: "construction.contracts", group: "construction" },
 
     // === FİNANS ===
     { id: "banks",      label: t("menu.banks", lang),      icon: Landmark,        perm: "view_banks",     resource: "finance.banks", group: "finance" },
@@ -58320,6 +58342,13 @@ function DealDetailModal({ deal, parties, users, session, lang, tasks = [], invo
    localStorage tabanli bilesen referans/yedek olarak korunuyor (mount edilmiyor).
 ===================================================================== */
 // eslint-disable-next-line no-unused-vars
+// Satınalma SAS (PO) baskı raporunda "Fatura Bilgileri" alıcı firma bloğu için
+function purchasingBuyerCompany(data, session) {
+  const id = session?.activeCompanyId ?? 1;
+  const c = (data?.companies || []).find(x => x.id === id);
+  return c ? { name: c.name, taxNo: c.taxNo, taxOffice: c.taxOffice } : undefined;
+}
+
 function PurchaseModule({ data, session, users = [], canAct, lang, onChange, logAudit, notify, navigateToEntity, initialView = "requests" }) {
   const [activeView, setActiveView] = useState(initialView);  // requests | orders | vendors
   const [editingPR, setEditingPR] = useState(null);

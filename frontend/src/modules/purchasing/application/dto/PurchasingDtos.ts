@@ -40,6 +40,8 @@ export interface VendorDto {
   code: string;
   name: string;
   taxId: string | null;
+  taxOffice: string | null;
+  address: string | null;
   personType: PersonType;
   cariClass: CariClass;
   accountCode: string | null;

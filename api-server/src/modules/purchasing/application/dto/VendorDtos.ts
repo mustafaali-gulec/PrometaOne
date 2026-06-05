@@ -9,6 +9,8 @@ export interface VendorDto {
   code: string;
   name: string;
   taxId: string | null;
+  taxOffice: string | null;
+  address: string | null;
   personType: PersonType;
   cariClass: CariClass;
   accountCode: string | null;
@@ -25,6 +27,8 @@ export function toVendorDto(v: Vendor): VendorDto {
     code: j.code,
     name: j.name,
     taxId: j.taxId,
+    taxOffice: j.taxOffice,
+    address: j.address,
     personType: j.personType,
     cariClass: j.cariClass,
     accountCode: j.accountCode,

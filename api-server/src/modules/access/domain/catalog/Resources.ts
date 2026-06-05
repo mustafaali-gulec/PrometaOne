@@ -8,7 +8,7 @@
  * için backend mirror'a TAŞINMAMIŞTIR (bkz. PermissionResolver sapma notu).
  */
 
-export const ACTIONS = ['view', 'create', 'update', 'delete', 'export'] as const;
+export const ACTIONS = ['view', 'create', 'update', 'delete', 'export', 'approve'] as const;
 
 export type Action = (typeof ACTIONS)[number];
 
@@ -169,6 +169,73 @@ export const RESOURCES: Readonly<Record<string, ResourceDef>> = {
   'purchasing.orders': {
     module: 'Satınalma',
     label: 'Satınalma Siparişleri',
+    actions: ['view', 'create', 'update', 'delete'],
+  },
+
+  // Şantiye Yönetim (Construction)
+  'construction.projects': {
+    module: 'Şantiye',
+    label: 'Projeler & Şantiyeler',
+    actions: ['view', 'create', 'update', 'delete'],
+  },
+  'construction.contracts': {
+    module: 'Şantiye',
+    label: 'Sözleşme & İhale',
+    actions: ['view', 'create', 'update', 'delete', 'export'],
+  },
+  'construction.boq': {
+    module: 'Şantiye',
+    label: 'Keşif & Pursantaj',
+    actions: ['view', 'create', 'update', 'delete', 'export'],
+  },
+  'construction.measurements': {
+    module: 'Şantiye',
+    label: 'Metraj / Yeşil Defter / Ataşman',
+    actions: ['view', 'create', 'update', 'delete'],
+  },
+  'construction.progress': {
+    module: 'Şantiye',
+    label: 'Hakediş',
+    actions: ['view', 'create', 'update', 'delete', 'export', 'approve'],
+  },
+  'construction.expenses': {
+    module: 'Şantiye',
+    label: 'Harcama & Finans',
+    actions: ['view', 'create', 'update', 'delete', 'export'],
+  },
+  'construction.advances': {
+    module: 'Şantiye',
+    label: 'Avanslar',
+    actions: ['view', 'create', 'update', 'delete'],
+  },
+  'construction.materials': {
+    module: 'Şantiye',
+    label: 'Malzeme & Depo / Stok',
+    actions: ['view', 'create', 'update', 'delete', 'export'],
+  },
+  'construction.material_requests': {
+    module: 'Şantiye',
+    label: 'Malzeme Talebi',
+    actions: ['view', 'create', 'update', 'delete', 'approve'],
+  },
+  'construction.timesheets': {
+    module: 'Şantiye',
+    label: 'Puantaj & İşgücü',
+    actions: ['view', 'create', 'update', 'delete', 'export'],
+  },
+  'construction.machinery': {
+    module: 'Şantiye',
+    label: 'Makine Parkı',
+    actions: ['view', 'create', 'update', 'delete', 'export'],
+  },
+  'construction.reports': {
+    module: 'Şantiye',
+    label: 'Şantiye Raporları & Analitik',
+    actions: ['view', 'export'],
+  },
+  'construction.settings': {
+    module: 'Şantiye',
+    label: 'Poz Katalog / Fire / Ayar',
     actions: ['view', 'create', 'update', 'delete'],
   },
 
