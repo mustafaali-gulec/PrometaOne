@@ -11706,27 +11706,53 @@ export default function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // SW update detection
+  // SW update detection — OTOMATIK: yeni surum bulununca kendiliginden aktive
+  // olur ve sayfa bir kez yenilenir (kullanici "guncelle" tiklamasina gerek yok).
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
+    let reloaded = false;
+    // Sayfa yuklenirken zaten bir SW kontrolu var miydi? Ilk kurulumda yoktur;
+    // o ilk "claim" reload tetiklememeli, sonraki kontrol degisimi = guncelleme.
+    let hadController = !!navigator.serviceWorker.controller;
+    let updateInterval = null;
+
+    const onControllerChange = () => {
+      if (reloaded) return;
+      if (!hadController) { hadController = true; return; }
+      reloaded = true;
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+
     navigator.serviceWorker.getRegistration().then(reg => {
       if (!reg) return;
-      // Yeni SW bulundu mu?
+      // Yeni SW kuruldu → hemen aktive et (bekletme). controllerchange reload eder.
+      const activateNow = (sw) => {
+        if (!sw) return;
+        setSwUpdateAvailable(sw); // yedek banner; normalde controllerchange once reload eder
+        sw.postMessage({ type: "SKIP_WAITING" });
+      };
       reg.addEventListener("updatefound", () => {
         const newSW = reg.installing;
         if (!newSW) return;
         newSW.addEventListener("statechange", () => {
           if (newSW.state === "installed" && navigator.serviceWorker.controller) {
-            // Mevcut SW var ve yeni SW kurulmuş → güncelleme hazır
-            setSwUpdateAvailable(newSW);
+            activateNow(newSW);
           }
         });
       });
-      // Zaten waiting state'inde varsa
-      if (reg.waiting) {
-        setSwUpdateAvailable(reg.waiting);
-      }
+      // Zaten bekleyen bir SW varsa hemen aktive et
+      if (reg.waiting) activateNow(reg.waiting);
+      // Acik sekmede periyodik guncelleme kontrolu (yeni deploy'u yakalamak icin)
+      updateInterval = setInterval(() => {
+        if (typeof reg.update === "function") reg.update().catch(() => {});
+      }, 60000);
     });
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+      if (updateInterval) clearInterval(updateInterval);
+    };
   }, []);
 
   // PWA: install prompt göster
@@ -12152,14 +12178,14 @@ export default function App() {
           top: isOnline ? "calc(env(safe-area-inset-top))" : "calc(30px + env(safe-area-inset-top))",
           left: 0, right: 0,
           zIndex: 9997,
-          background: "#7c3aed", color: "#fff",
+          background: "#2563eb", color: "#fff",
           padding: "8px 12px",
           fontSize: 12, fontWeight: 700,
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
         }}>
           <span>🔄 {lang === "en" ? "New version available" : "Yeni sürüm hazır"}</span>
           <button onClick={applySwUpdate}
-            style={{ padding: "4px 12px", background: "#fff", color: "#7c3aed", border: "none", borderRadius: 3, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+            style={{ padding: "4px 12px", background: "#fff", color: "#2563eb", border: "none", borderRadius: 3, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
             {lang === "en" ? "Update Now" : "Şimdi Güncelle"}
           </button>
         </div>

@@ -1,18 +1,20 @@
 /* ============================================================================
-   PROMETA ONE — Service Worker
+   M SUITE — Service Worker
    ---------------------------------------------------------------------------
    • Web Push API mesajlarını dinler
    • FCM/APN üzerinden gelen bildirimleri OS-level toast olarak gösterir
    • Bildirime tıklayınca uygulamayı uygun sayfaya yönlendirir
    • PWA cache: App shell + statik asset + API (offline-first hybrid)
    • Background sync (offline değişiklikler)
+   • Otomatik güncelleme: install→skipWaiting, activate→clients.claim;
+     istemci controllerchange ile sayfayı bir kez kendiliğinden yeniler.
 ============================================================================ */
 
-const SW_VERSION = "1.1.0";
-const APP_NAME = "Prometa One";
-const CACHE_VERSION = `prometa-app-v${SW_VERSION}`;
-const RUNTIME_CACHE = `prometa-runtime-v${SW_VERSION}`;
-const API_CACHE = `prometa-api-v${SW_VERSION}`;
+const SW_VERSION = "1.2.0";
+const APP_NAME = "M Suite";
+const CACHE_VERSION = `msuite-app-v${SW_VERSION}`;
+const RUNTIME_CACHE = `msuite-runtime-v${SW_VERSION}`;
+const API_CACHE = `msuite-api-v${SW_VERSION}`;
 
 // App shell — kurulumda öncelikli cache
 const PRECACHE_URLS = [
@@ -88,7 +90,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(req).catch(() =>
         caches.match("/index.html").then(r => r || new Response(
-          "<html><body style='font-family:sans-serif;padding:40px;text-align:center'><h1>⚡ Prometa One</h1><p>Çevrimdışı. Bağlantınızı kontrol edin.</p></body></html>",
+          "<html><body style='font-family:sans-serif;padding:40px;text-align:center'><h1>⚡ M Suite</h1><p>Çevrimdışı. Bağlantınızı kontrol edin.</p></body></html>",
           { headers: { "Content-Type": "text/html; charset=utf-8" } }
         ))
       )
@@ -167,7 +169,7 @@ self.addEventListener("push", (event) => {
     body: payload.body || "",
     icon: payload.icon || "/icon-192.png",
     badge: payload.badge || "/badge-72.png",
-    tag: payload.tag || `prometa-${Date.now()}`,
+    tag: payload.tag || `msuite-${Date.now()}`,
     data: {
       url: payload.link || payload.url || "/",
       link: payload.link || null,
