@@ -19,6 +19,7 @@ import { registerEInvoiceModule } from './modules/finance/einvoice/index.js';
 import { registerFinanceModule } from './modules/finance/index.js';
 import { registerHrModule } from './modules/hr/index.js';
 import { registerNotificationsModule } from './modules/notifications/index.js';
+import { registerPurchasingModule } from './modules/purchasing/index.js';
 import cellsRoutes from './routes/cells.js';
 import companiesRoutes from './routes/companies.js';
 import invoicesRoutes from './routes/invoices.js';
@@ -112,6 +113,11 @@ const financeModule = registerFinanceModule(pool);
 const einvoiceModule = registerEInvoiceModule(pool);
 
 // ============================================================================
+// Satınalma modülü — Tedarikçi (cari) & Talep & Sipariş, modüler /v1/purchasing
+// ============================================================================
+const purchasingModule = registerPurchasingModule(pool);
+
+// ============================================================================
 // Routes — /v1 prefix
 // ============================================================================
 const v1 = new Hono();
@@ -144,6 +150,7 @@ v1.route('/hr', hrModule.router);
 v1.route('/access', accessModule.router);
 v1.route('/finance', financeModule);
 v1.route('/finance', einvoiceModule); // e-fatura + fx (Faz 6) — aynı prefix, /einvoice/* ve /fx/* yolları
+v1.route('/purchasing', purchasingModule);
 
 // Companies + cells + invoices
 v1.route('/companies', companiesRoutes);

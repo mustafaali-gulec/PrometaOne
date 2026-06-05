@@ -155,6 +155,23 @@ export const RESOURCES: Readonly<Record<string, ResourceDef>> = {
     actions: ['view', 'create', 'update', 'delete', 'export'],
   },
 
+  // Satınalma
+  'purchasing.vendors': {
+    module: 'Satınalma',
+    label: 'Tedarikçiler (Cari)',
+    actions: ['view', 'create', 'update', 'delete'],
+  },
+  'purchasing.requests': {
+    module: 'Satınalma',
+    label: 'Satınalma Talepleri',
+    actions: ['view', 'create', 'update', 'delete'],
+  },
+  'purchasing.orders': {
+    module: 'Satınalma',
+    label: 'Satınalma Siparişleri',
+    actions: ['view', 'create', 'update', 'delete'],
+  },
+
   // Sistem
   'system.users': {
     module: 'Sistem',

@@ -10094,6 +10094,7 @@ function createEmptyCompanyData(opts = {}) {
     hrCustomRoles: [],
     hrRoleGrants: [],
     hrPermOverrides: [],
+    roleMenuVisibility: {},  // { "<sistemRolü|özelRolId>": ["menuItemId", ...] } — allow-list; yoksa kısıt yok
     // === GLOBAL ATS SCORECARD SYSTEM ===
     hrQuestions: [...DEFAULT_QUESTION_BANK],
     hrInterviewKits: [...DEFAULT_INTERVIEW_KITS],
@@ -11992,6 +11993,12 @@ export default function App() {
     });
   }, [session, effectiveData, userScope]);
 
+  // RBAC: rol bazlı menü görünürlüğü (allow-list) — null ise kısıt yok
+  const menuVisibility = useMemo(
+    () => (session ? resolveMenuVisibility(session, effectiveData, userScope) : null),
+    [session, effectiveData, userScope]
+  );
+
   // canView: View açma yetkisi — yeni resource.view OR eski legacy permission
   const canView = useCallback((legacyPerm, resource) => {
     if (!session) return false;
@@ -12240,7 +12247,7 @@ export default function App() {
       {/* Sol kalıcı menü */}
       <SideMenu session={session} view={view} setView={setView}
         data={effectiveData} canAct={canAct} lang={lang} onLogout={logout}
-        isMobile={isMobile}/>
+        isMobile={isMobile} menuVisibility={menuVisibility}/>
 
       {/* Mobile Bottom Navigation */}
       {isMobile && session && (
@@ -13239,41 +13246,31 @@ function ResetPasswordForm({ lang, users, setUsers, onBack, onSuccess }) {
    - Scroll desteği (uzun menü için)
    - Mobile'da bottom-nav ve hamburger yok
 ===================================================================== */
-function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobile = false }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  // Rayda seçili (paneli açık) modül grubu
-  const [activeModule, setActiveModule] = useState("overview");
+// === Sol menü yapısı — SideMenu ve Menü Görünürlüğü editörü ortak kullanır ===
+const SIDE_MENU_GROUP_LABELS = {
+  overview:   { tr: "Genel Bakış",        en: "Overview",       de: "Übersicht",     ar: "نظرة عامة" },
+  sales:      { tr: "Satış & CRM",        en: "Sales & CRM",    de: "Vertrieb & CRM", ar: "المبيعات و CRM" },
+  purchase:   { tr: "Satınalma",          en: "Purchasing",     de: "Einkauf",       ar: "المشتريات" },
+  finance:    { tr: "Finans",             en: "Finance",        de: "Finanzen",      ar: "المالية" },
+  hr:         { tr: "İnsan Kaynakları",   en: "Human Resources", de: "Personal",      ar: "الموارد البشرية" },
+  accounting: { tr: "Muhasebe & Analiz",  en: "Accounting",     de: "Buchhaltung",   ar: "المحاسبة" },
+  system:     { tr: "Sistem",             en: "System",         de: "System",        ar: "النظام" },
+};
 
-  // View değişince mobile menüyü kapat
-  useEffect(() => {
-    if (isMobile) setMobileOpen(false);
-  }, [view, isMobile]);
+// Ray ikonları (gruplar = modüller)
+const SIDE_MENU_MODULE_DEFS = [
+  { key: "overview",   icon: LayoutDashboard },
+  { key: "sales",      icon: Target },
+  { key: "purchase",   icon: Receipt },
+  { key: "finance",    icon: Landmark },
+  { key: "hr",         icon: Users },
+  { key: "accounting", icon: BarChart3 },
+  { key: "system",     icon: Settings },
+];
 
-  // Mobil hamburger butonu
-  const renderMobileTrigger = isMobile && !mobileOpen && (
-    <button
-      onClick={() => setMobileOpen(true)}
-      style={{
-        position: "fixed",
-        top: "calc(8px + env(safe-area-inset-top))",
-        left: 8,
-        zIndex: 9990,
-        background: "#0891b2",
-        color: "#fff",
-        border: "none",
-        borderRadius: 8,
-        width: 40, height: 40,
-        boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-        cursor: "pointer",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 18,
-      }}
-      aria-label={lang === "en" ? "Open menu" : "Menü aç"}>
-      ☰
-    </button>
-  );
-
-  const items = [
+// Menü öğeleri — id'ler benzersizdir ve menü görünürlüğü yetkisinin anahtarıdır
+function buildSideMenuItems(lang) {
+  return [
     // === GENEL BAKIŞ ===
     { id: "dashboard",  label: t("menu.dashboard", lang),  icon: LayoutDashboard, perm: "view_dashboard", resource: "finance.dashboard", group: "overview" },
     { id: "cashflow_dashboard", label: lang === "en" ? "Cash Flow" : lang === "de" ? "Cashflow" : lang === "ar" ? "التدفق النقدي" : "Nakit Akışı", icon: LineChartIcon, perm: "view_dashboard", resource: "finance.dashboard", group: "overview" },
@@ -13317,16 +13314,74 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
     { id: "audit",      label: t("menu.audit", lang),      icon: History,         perm: "view_audit",     resource: "system.audit", group: "system" },
     { id: "settings",   label: t("menu.settings", lang),   icon: Settings,        perm: "system_settings", resource: "system.settings", group: "system" },
   ];
+}
 
-  const groupLabels = {
-    overview:   { tr: "Genel Bakış",        en: "Overview",       de: "Übersicht",     ar: "نظرة عامة" },
-    sales:      { tr: "Satış & CRM",        en: "Sales & CRM",    de: "Vertrieb & CRM", ar: "المبيعات و CRM" },
-    purchase:   { tr: "Satınalma",          en: "Purchasing",     de: "Einkauf",       ar: "المشتريات" },
-    finance:    { tr: "Finans",             en: "Finance",        de: "Finanzen",      ar: "المالية" },
-    hr:         { tr: "İnsan Kaynakları",   en: "Human Resources", de: "Personal",      ar: "الموارد البشرية" },
-    accounting: { tr: "Muhasebe & Analiz",  en: "Accounting",     de: "Buchhaltung",   ar: "المحاسبة" },
-    system:     { tr: "Sistem",             en: "System",         de: "System",        ar: "النظام" },
-  };
+// Bir kullanıcı için menü görünürlük kısıtını çöz.
+// Dönüş: null  → kısıtlama yok (yetkilerin izin verdiği her şey görünür)
+//        Set   → yalnızca bu id'ler görünür (allow-list, çoklu rolde birleşim)
+function resolveMenuVisibility(session, data, userScope) {
+  if (!session) return null;
+  if (session.role === "admin") return null; // admin her zaman tümünü görür
+  const map = data?.roleMenuVisibility || {};
+  const keys = [];
+  // Sistem rolü profili
+  if (Array.isArray(map[session.role])) keys.push(session.role);
+  // Kullanıcıya uygulanan özel roller (grant + scope + geçerlilik)
+  const customRoles = data?.hrCustomRoles || [];
+  const grants = data?.hrRoleGrants || [];
+  const now = new Date();
+  grants
+    .filter(g => grantAppliesToUser(g, session, userScope, {
+      orgUnits: data?.hrOrgUnits || [], departments: data?.hrDepartments || [],
+    }))
+    .filter(g => !(g.validFrom && new Date(g.validFrom) > now))
+    .filter(g => !(g.validUntil && new Date(g.validUntil) < now))
+    .forEach(g => {
+      const role = customRoles.find(r => r.id === g.roleId);
+      if (role && Array.isArray(map[role.id])) keys.push(role.id);
+    });
+  if (keys.length === 0) return null; // hiçbir uygulanan rol menü profili tanımlamamış
+  const set = new Set();
+  keys.forEach(k => map[k].forEach(id => set.add(id)));
+  return set;
+}
+
+function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobile = false, menuVisibility = null }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  // Rayda seçili (paneli açık) modül grubu
+  const [activeModule, setActiveModule] = useState("overview");
+
+  // View değişince mobile menüyü kapat
+  useEffect(() => {
+    if (isMobile) setMobileOpen(false);
+  }, [view, isMobile]);
+
+  // Mobil hamburger butonu
+  const renderMobileTrigger = isMobile && !mobileOpen && (
+    <button
+      onClick={() => setMobileOpen(true)}
+      style={{
+        position: "fixed",
+        top: "calc(8px + env(safe-area-inset-top))",
+        left: 8,
+        zIndex: 9990,
+        background: "#0891b2",
+        color: "#fff",
+        border: "none",
+        borderRadius: 8,
+        width: 40, height: 40,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+        cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 18,
+      }}
+      aria-label={lang === "en" ? "Open menu" : "Menü aç"}>
+      ☰
+    </button>
+  );
+
+  const items = buildSideMenuItems(lang);
+  const groupLabels = SIDE_MENU_GROUP_LABELS;
 
   // Bildirim sayısı: 7 gün içinde vadesi olan veya geçmiş açık faturalar
   const invoiceAlertCount = useMemo(() => {
@@ -13377,22 +13432,15 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
     ).length;
   }, [data.purchaseRequests, session.username, session.role]);
 
-  // Görünür item'lar
+  // Görünür item'lar — önce rol bazlı menü görünürlük kısıtı (allow-list), sonra yetki kontrolü
   const visibleItems = items.filter(i => {
+    if (menuVisibility && !menuVisibility.has(i.id)) return false;
     if (canAct && i.resource && canAct(`${i.resource}.view`)) return true;
     return can(session.role, i.perm);
   });
 
   // === Modül rayı (gruplar = modüller) ===
-  const moduleDefs = [
-    { key: "overview",   icon: LayoutDashboard },
-    { key: "sales",      icon: Target },
-    { key: "purchase",   icon: Receipt },
-    { key: "finance",    icon: Landmark },
-    { key: "hr",         icon: Users },
-    { key: "accounting", icon: BarChart3 },
-    { key: "system",     icon: Settings },
-  ];
+  const moduleDefs = SIDE_MENU_MODULE_DEFS;
 
   // Aktif view değişince, ait olduğu modülü rayda seçili yap
   useEffect(() => {
@@ -71635,6 +71683,9 @@ function AccessControlView({ data, session, users, setUsers, lang, onChange, log
               icon={UserCheck} label={t("auth.grants", lang)} badge={grants.length || null} badgeColor="#0ea5e9"/>
             <SidebarTabButton active={subTab === "overrides"} onClick={() => setSubTab("overrides")}
               icon={UserX} label={t("auth.overrides", lang)} badge={overrides.length || null} badgeColor="#ea580c"/>
+            <SidebarTabButton active={subTab === "menus"} onClick={() => setSubTab("menus")}
+              icon={Eye} label={lang === "en" ? "Menu Visibility" : lang === "de" ? "Menüsichtbarkeit" : lang === "ar" ? "ظهور القائمة" : "Menü Görünürlüğü"}
+              badge={Object.keys(data.roleMenuVisibility || {}).length || null} badgeColor="#0891b2"/>
           </div>
         </div>
 
@@ -71656,6 +71707,196 @@ function AccessControlView({ data, session, users, setUsers, lang, onChange, log
           {subTab === "overrides" && (
             <PermOverridesManager data={data} users={users} onChange={onChange} lang={lang}
               logAudit={logAudit} notify={notify} session={session}/>
+          )}
+          {subTab === "menus" && (
+            <MenuVisibilityManager data={data} onChange={onChange} lang={lang}
+              logAudit={logAudit} notify={notify} session={session}/>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- MENÜ GÖRÜNÜRLÜĞÜ (rol bazlı, allow-list) ---------- */
+function MenuVisibilityManager({ data, onChange, logAudit, notify, session, lang }) {
+  const tr = (trv, env) => (lang === "en" ? env : trv);
+  const items = useMemo(() => buildSideMenuItems(lang), [lang]);
+  const modules = useMemo(
+    () => SIDE_MENU_MODULE_DEFS.filter(m => items.some(i => i.group === m.key)),
+    [items]
+  );
+  const customRoles = data.hrCustomRoles || [];
+  const vis = data.roleMenuVisibility || {};
+
+  // Rol listesi: sistem rolleri (admin hariç — her zaman tümünü görür) + özel roller
+  const roleOptions = useMemo(() => ([
+    ...Object.entries(ROLES)
+      .filter(([key]) => key !== "admin")
+      .map(([key, r]) => ({ key, name: r.label, color: r.color, system: true })),
+    ...customRoles.map(r => ({ key: r.id, name: r.name, color: r.color || "#7c3aed", system: false })),
+  ]), [customRoles]);
+
+  const [selected, setSelected] = useState(roleOptions[0]?.key || null);
+  const selOpt = roleOptions.find(r => r.key === selected) || roleOptions[0];
+
+  const entry = selOpt ? vis[selOpt.key] : undefined;
+  const restricted = Array.isArray(entry);
+  const allowed = new Set(restricted ? entry : []);
+  const grpLabel = (k) => SIDE_MENU_GROUP_LABELS[k]?.[lang] || SIDE_MENU_GROUP_LABELS[k]?.tr || k;
+
+  const persist = async (nextArrOrNull) => {
+    const next = { ...vis };
+    if (nextArrOrNull == null) delete next[selOpt.key];
+    else next[selOpt.key] = nextArrOrNull;
+    await onChange({ ...data, roleMenuVisibility: next });
+    if (logAudit) await logAudit("menu_visibility_edit", {
+      rol: selOpt.name,
+      gorunur: nextArrOrNull == null ? "kısıt yok" : nextArrOrNull.length,
+    });
+  };
+
+  const setRestriction = async (on) => {
+    if (!on) { await persist(null); notify && notify(tr("Kısıtlama kaldırıldı — tüm menüler görünür", "Restriction removed")); }
+    else { await persist(items.map(i => i.id)); notify && notify(tr("Kısıtlama açıldı (tümü seçili)", "Restriction enabled")); }
+  };
+  const toggleItem = async (id) => {
+    const n = new Set(allowed);
+    n.has(id) ? n.delete(id) : n.add(id);
+    await persist([...n]);
+  };
+  const setModule = async (groupKey, on) => {
+    const ids = items.filter(i => i.group === groupKey).map(i => i.id);
+    const n = new Set(allowed);
+    ids.forEach(id => on ? n.add(id) : n.delete(id));
+    await persist([...n]);
+  };
+  const setAll = async (on) => persist(on ? items.map(i => i.id) : []);
+
+  if (!selOpt) {
+    return <div className="card p-6 text-center text-sm" style={{ color: "var(--ink-mute)" }}>{tr("Rol bulunamadı", "No roles")}</div>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Bilgi kutusu */}
+      <div className="card p-3 flex items-start gap-2" style={{ background: "var(--bg)" }}>
+        <Eye size={14} style={{ color: "#0891b2", marginTop: 2, flexShrink: 0 }}/>
+        <div className="text-xs" style={{ color: "var(--ink-soft)", lineHeight: 1.5 }}>
+          {tr(
+            "Bir rol için menü kısıtlaması açarsanız, o role sahip kullanıcılar yalnızca seçtiğiniz modül/alt menüleri görür (yetkileri elverse bile gerisi gizlenir). Kapalıysa yetkilerinin izin verdiği tüm menüler görünür. Birden fazla rolde birleşim alınır. Yönetici (admin) her zaman tümünü görür. Not: bu yalnızca menü görünürlüğüdür; işlem yetkileri Roller/İzinler sekmesinden yönetilir.",
+            "Enabling a menu restriction for a role limits its users to the modules/submenus you select (the rest is hidden even if permitted). When off, all permitted menus show. Multiple roles are unioned. Admin always sees everything. Note: this controls menu visibility only; action permissions are managed in the Roles tab."
+          )}
+        </div>
+      </div>
+
+      <div className="flex gap-3" style={{ alignItems: "flex-start" }}>
+        {/* Rol seçici */}
+        <div style={{ width: 190, flexShrink: 0 }} className="card p-2">
+          <div className="text-xs font-semibold mb-2 px-1" style={{ color: "var(--ink-mute)" }}>{tr("ROLLER", "ROLES")}</div>
+          <div className="space-y-0.5">
+            {roleOptions.map(r => {
+              const active = r.key === selOpt.key;
+              const hasRule = Array.isArray(vis[r.key]);
+              return (
+                <button key={r.key} onClick={() => setSelected(r.key)}
+                  className="w-full flex items-center gap-2 text-left"
+                  style={{ padding: "7px 8px", borderRadius: 6, border: "none", cursor: "pointer",
+                    background: active ? "var(--ink)" : "transparent", color: active ? "var(--bg)" : "var(--ink)", fontSize: 12.5 }}>
+                  <Shield size={12} style={{ color: active ? "var(--bg)" : r.color, flexShrink: 0 }}/>
+                  <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
+                  {r.system && <Lock size={9} style={{ opacity: 0.5 }}/>}
+                  {hasRule && <span title={tr("Kısıt tanımlı", "Restricted")} style={{ width: 6, height: 6, borderRadius: 999, background: "#0891b2", flexShrink: 0 }}/>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Menü konfigürasyonu */}
+        <div style={{ flex: 1, minWidth: 0 }} className="card p-3">
+          <div className="flex items-center justify-between gap-2 mb-3 pb-3" style={{ borderBottom: "1px solid var(--line-soft)" }}>
+            <div className="flex items-center gap-2 min-w-0">
+              <Shield size={14} style={{ color: selOpt.color }}/>
+              <span className="font-semibold text-sm" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selOpt.name}</span>
+              {selOpt.system && (
+                <span className="chip" style={{ fontSize: 10, background: "var(--bg)", color: "var(--ink-mute)" }}>
+                  <Lock size={9}/> {tr("Sistem rolü", "System role")}
+                </span>
+              )}
+            </div>
+            <label className="flex items-center gap-2 text-xs" style={{ flexShrink: 0, cursor: "pointer" }}>
+              <span style={{ color: "var(--ink-mute)" }}>{tr("Menü kısıtlaması", "Menu restriction")}</span>
+              <input type="checkbox" checked={restricted} onChange={e => setRestriction(e.target.checked)}/>
+            </label>
+          </div>
+
+          {!restricted ? (
+            <div className="text-center py-10">
+              <Eye size={28} className="mx-auto mb-2" style={{ color: "var(--ink-mute)" }}/>
+              <div className="text-sm font-medium mb-1">{tr("Kısıtlama yok", "No restriction")}</div>
+              <div className="text-xs mb-4" style={{ color: "var(--ink-mute)" }}>
+                {tr("Bu rol, yetkilerinin izin verdiği tüm menüleri görür.", "This role sees all menus its permissions allow.")}
+              </div>
+              <button className="btn btn-primary inline-flex items-center" onClick={() => setRestriction(true)}>
+                <EyeOff size={13}/> {tr("Menü kısıtlaması tanımla", "Define menu restriction")}
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs" style={{ color: "var(--ink-mute)" }}>
+                  {allowed.size}/{items.length} {tr("menü görünür", "menus visible")}
+                </span>
+                <div className="ml-auto flex gap-1">
+                  <button className="btn btn-ghost" style={{ fontSize: 11 }} onClick={() => setAll(true)}>{tr("Tümünü seç", "Select all")}</button>
+                  <button className="btn btn-ghost" style={{ fontSize: 11 }} onClick={() => setAll(false)}>{tr("Temizle", "Clear")}</button>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {modules.map(m => {
+                  const Ic = m.icon;
+                  const modItems = items.filter(i => i.group === m.key);
+                  const onCount = modItems.filter(i => allowed.has(i.id)).length;
+                  const allOn = onCount === modItems.length;
+                  return (
+                    <div key={m.key} className="rounded" style={{ border: "1px solid var(--line-soft)" }}>
+                      <div className="flex items-center gap-2 px-2 py-1.5" style={{ background: "var(--bg)", borderBottom: "1px solid var(--line-soft)" }}>
+                        <Ic size={13} style={{ color: "var(--ink-soft)" }}/>
+                        <span className="text-xs font-semibold">{grpLabel(m.key)}</span>
+                        <span className="text-xs" style={{ color: "var(--ink-mute)" }}>({onCount}/{modItems.length})</span>
+                        <button className="ml-auto" style={{ fontSize: 11, color: "#0891b2", background: "none", border: "none", cursor: "pointer" }}
+                          onClick={() => setModule(m.key, !allOn)}>
+                          {allOn ? tr("Hiçbiri", "None") : tr("Tümü", "All")}
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-px p-1">
+                        {modItems.map(i => {
+                          const on = allowed.has(i.id);
+                          const ItemIc = i.icon;
+                          return (
+                            <button key={i.id} onClick={() => toggleItem(i.id)}
+                              className="flex items-center gap-2 text-left"
+                              style={{ padding: "6px 8px", borderRadius: 4, border: "none", cursor: "pointer",
+                                background: on ? "#0891b211" : "transparent", fontSize: 12 }}>
+                              <span style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                                  border: on ? "none" : "1.5px solid var(--line)",
+                                  background: on ? "#0891b2" : "transparent",
+                                  display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                {on && <Check size={11} style={{ color: "#fff" }} strokeWidth={3}/>}
+                              </span>
+                              <ItemIc size={12} style={{ color: "var(--ink-mute)", flexShrink: 0 }}/>
+                              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                color: on ? "var(--ink)" : "var(--ink-soft)" }}>{i.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
       </div>
