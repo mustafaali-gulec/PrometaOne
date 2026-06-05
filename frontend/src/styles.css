@@ -281,7 +281,7 @@ table.grid {
   border-collapse: collapse;     /* separate yerine collapse — kenarlar netleşir */
   border-spacing: 0;
   font-size: 12.5px;
-  table-layout: auto;            /* İçeriğe göre, ama th/td birebir aynı padding */
+  table-layout: fixed;           /* SABIT: th/td sütun genişlikleri birebir senkron */
 }
 
 /* Hem th hem td: aynı padding, aynı box-sizing */
@@ -292,6 +292,7 @@ table.grid td {
   vertical-align: middle;
   line-height: 1.4;
   text-align: right;             /* DEFAULT: sayılar sağa */
+  overflow-wrap: break-word;     /* fixed layout: uzun metin taşmasın, sarsın */
 }
 
 /* Başlık (thead) — sadece arka plan + font + border farklı, layout aynı */
@@ -306,6 +307,13 @@ table.grid thead th {
   color: var(--ink-mute);
   border-bottom: 1px solid var(--line-strong);
   white-space: nowrap;
+  /* Dikey scroll'da başlık sabit kalır (en yakın scroll atasına yapışır). */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-alt);     /* sticky: altındaki satırlar başlığın arkasından geçmesin */
+  /* border-collapse'ta sticky th'nin alt kenarı kaybolur → box-shadow ile çiz */
+  box-shadow: inset 0 -1px 0 var(--line-strong);
 }
 
 /* İlk sütun (etiket): th ve td birlikte sola yaslı */
@@ -421,6 +429,27 @@ table.grid.actions-last tbody td:last-child {
 .num.zero { color: var(--ink-faint); }
 .num.negative { color: var(--negative); }
 .num.positive { color: var(--positive); }
+
+/* =====================================================================
+   Dikey kaydırmalı tablo sarmalayıcı
+   ---------------------------------------------------------------------
+   Kullanım: <div class="table-scroll"><table class="grid">…</table></div>
+   • max-height aşılınca dikey scroll çıkar, thead sticky ile sabit kalır.
+   • scrollbar-gutter: stable → scrollbar çıkınca/kaybolunca içerik kaymaz,
+     dolayısıyla başlık ile gövde hizası bozulmaz.
+   • Tek tablo + sticky thead olduğundan th/td sütunları daima senkron.
+===================================================================== */
+.table-scroll {
+  max-height: var(--table-scroll-h, 70vh);
+  overflow: auto;
+  scrollbar-gutter: stable;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+/* Sarmalayıcı kendi kenarlığını çizdiği için tablo kenarlarını sadeleştir */
+.table-scroll > table.grid { border-radius: 0; }
+/* Sticky başlık sarmalayıcının üst kenarına otursun */
+.table-scroll table.grid thead th { top: 0; }
 
 /* =====================================================================
    Scrollbar
