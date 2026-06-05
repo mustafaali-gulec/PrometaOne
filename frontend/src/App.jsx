@@ -12607,9 +12607,9 @@ function Theme() {
 
       /* Sticky table headers + mobile uyarlamalar */
       @media (max-width: 768px) {
-        /* Sidebar mobile'da ray + panel için */
+        /* Sidebar mobile'da ray + panel için (genişlik inline/dinamik) */
         .app-sidebar {
-          width: 240px !important;
+          width: auto !important;
         }
 
         /* Larger touch targets */
@@ -13350,6 +13350,8 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
   const [mobileOpen, setMobileOpen] = useState(false);
   // Rayda seçili (paneli açık) modül grubu
   const [activeModule, setActiveModule] = useState("overview");
+  // Alt menü paneli açık mı (açılır-kapanır)
+  const [panelOpen, setPanelOpen] = useState(true);
 
   // View değişince mobile menüyü kapat
   useEffect(() => {
@@ -13486,8 +13488,9 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
       )}
 
       <aside className="app-sidebar" style={{
-        width: 240, flexShrink: 0,
+        width: 168 + (panelOpen ? 192 : 0), flexShrink: 0,
         height: "100vh",
+        transition: isMobile ? undefined : "width 0.2s ease-out",
         ...(isMobile ? {
           position: "fixed",
           top: 0, left: 0,
@@ -13503,129 +13506,156 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
         borderRight: "1px solid var(--line)",
       }}>
 
-        {/* ===== Modül rayı (ikon butonlar) ===== */}
+        {/* ===== Modül rayı (ikon + isim) ===== */}
         <div style={{
-          width: 54, flexShrink: 0,
+          width: 168, flexShrink: 0,
           background: "var(--bg-alt)",
           borderRight: "1px solid var(--line)",
-          display: "flex", flexDirection: "column", alignItems: "center",
+          display: "flex", flexDirection: "column",
           paddingTop: isMobile ? "calc(10px + env(safe-area-inset-top))" : 10,
-          paddingBottom: 10,
-          overflowY: "auto", overflowX: "hidden",
+          paddingBottom: 8,
+          overflowX: "hidden",
         }}>
-          <div style={{ marginBottom: 12 }}><Logo size={24}/></div>
-          {visibleModules.map(m => {
-            const Ic = m.icon;
-            const active = effectiveModule === m.key;
-            const mb = moduleBadge(m.key);
-            const label = moduleLabel(m.key);
-            return (
-              <button key={m.key}
-                onClick={() => setActiveModule(m.key)}
-                title={label}
-                aria-label={label}
-                style={{
-                  position: "relative",
-                  width: 40, height: 40, marginBottom: 4,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  borderRadius: 8, border: "none", cursor: "pointer",
-                  background: active ? "var(--ink)" : "transparent",
-                  color: active ? "var(--bg)" : "var(--ink)",
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.background = "var(--paper)"; }}
-                onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}>
-                <Ic size={18} strokeWidth={active ? 2.25 : 1.75}/>
-                {mb > 0 && (
-                  <span className="rounded-full text-white font-bold flex items-center justify-center"
-                    style={{ position: "absolute", top: 2, right: 2, background: "#dc2626", fontSize: 8, minWidth: 14, height: 14, padding: "0 3px" }}>
-                    {mb > 99 ? "99+" : mb}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ===== Alt menü paneli ===== */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", height: "100%" }}>
-          {/* Panel başlığı — seçili modül adı */}
-          <div style={{
-            padding: "12px 14px", borderBottom: "1px solid var(--line)",
-            display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
-            ...(isMobile ? { paddingTop: "calc(12px + env(safe-area-inset-top))" } : {}),
-          }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {effectiveModule ? moduleLabel(effectiveModule) : ""}
-            </span>
-            {isMobile && (
-              <button onClick={() => setMobileOpen(false)}
-                style={{ background: "transparent", border: "none", color: "var(--ink-mute)", fontSize: 18, cursor: "pointer", padding: 4 }}
-                aria-label={lang === "en" ? "Close menu" : "Menüyü kapat"}>
-                ✕
-              </button>
-            )}
+          {/* Logo */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 12px 10px" }}>
+            <Logo size={22}/>
+            <Wordmark size={13}/>
           </div>
 
-          {/* Alt menü item'ları (scroll edilebilir) */}
-          <nav style={{ flex: 1, padding: 8, overflowY: "auto" }}>
-            <div className="space-y-0.5">
-              {panelItems.map(i => {
-                const Ic = i.icon;
-                const isActive = view === i.id;
-                const badge = badgeOf(i.id);
-                return (
-                  <button key={i.id} onClick={() => setView(i.id)}
-                    className="w-full flex items-center gap-2 text-left transition-all"
-                    style={{
-                      padding: "8px 10px",
-                      borderRadius: 4,
-                      fontSize: 12.5,
-                      fontWeight: isActive ? 700 : 500,
-                      color: isActive ? "var(--bg)" : "var(--ink)",
-                      background: isActive ? "var(--ink)" : "transparent",
-                      border: "none",
-                      cursor: "pointer",
-                    }}
-                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "var(--bg-alt)"; }}
-                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}>
-                    <Ic size={13} strokeWidth={isActive ? 2 : 1.75} style={{ flexShrink: 0 }}/>
-                    <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {i.label}
+          {/* Modül butonları */}
+          <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "0 8px" }} className="space-y-0.5">
+            {visibleModules.map(m => {
+              const Ic = m.icon;
+              const active = effectiveModule === m.key;
+              const mb = moduleBadge(m.key);
+              const label = moduleLabel(m.key);
+              return (
+                <button key={m.key}
+                  onClick={() => {
+                    if (m.key === effectiveModule) setPanelOpen(o => !o);
+                    else { setActiveModule(m.key); setPanelOpen(true); }
+                  }}
+                  title={label}
+                  className="w-full flex items-center gap-2 text-left transition-all"
+                  style={{
+                    position: "relative",
+                    padding: "8px 10px", borderRadius: 6,
+                    fontSize: 12.5, fontWeight: active ? 700 : 500,
+                    border: "none", cursor: "pointer",
+                    background: active ? "var(--ink)" : "transparent",
+                    color: active ? "var(--bg)" : "var(--ink)",
+                  }}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.background = "var(--paper)"; }}
+                  onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}>
+                  <Ic size={15} strokeWidth={active ? 2.25 : 1.75} style={{ flexShrink: 0 }}/>
+                  <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+                  {mb > 0 && (
+                    <span className="rounded-full text-white font-bold flex items-center justify-center flex-shrink-0"
+                      style={{ background: "#dc2626", fontSize: 9, minWidth: 16, height: 16, padding: "0 4px" }}>
+                      {mb > 99 ? "99+" : mb}
                     </span>
-                    {badge > 0 && (
-                      <span className="rounded-full text-white font-bold flex items-center justify-center flex-shrink-0"
-                        style={{ background: "#dc2626", fontSize: 9, minWidth: 16, height: 16, padding: "0 4px" }}>
-                        {badge > 99 ? "99+" : badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </nav>
+                  )}
+                  {/* aktif modülde panel aç/kapa göstergesi */}
+                  {active && (
+                    <ChevronRight size={13} style={{ flexShrink: 0, transition: "transform 0.2s", transform: panelOpen ? "rotate(180deg)" : "none", opacity: 0.8 }}/>
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
-          {/* Alt kısım — Çıkış */}
-          <div style={{ padding: 8, borderTop: "1px solid var(--line)", flexShrink: 0 }}>
+          {/* Ray alt kısmı — Daralt/Genişlet + Çıkış (panel kapalıyken de erişilir) */}
+          <div style={{ padding: "8px 8px 0", borderTop: "1px solid var(--line)", marginTop: 8 }} className="space-y-0.5">
+            {!isMobile && (
+              <button onClick={() => setPanelOpen(o => !o)}
+                className="w-full flex items-center gap-2 text-left transition-all"
+                title={panelOpen ? (lang === "en" ? "Collapse panel" : "Paneli daralt") : (lang === "en" ? "Expand panel" : "Paneli genişlet")}
+                style={{ padding: "7px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500, color: "var(--ink-mute)", background: "transparent", border: "none", cursor: "pointer" }}
+                onMouseEnter={e => e.currentTarget.style.background = "var(--paper)"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                <ChevronRight size={14} style={{ flexShrink: 0, transition: "transform 0.2s", transform: panelOpen ? "rotate(180deg)" : "none" }}/>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {panelOpen ? (lang === "en" ? "Collapse" : "Daralt") : (lang === "en" ? "Expand" : "Genişlet")}
+                </span>
+              </button>
+            )}
             <button onClick={onLogout}
               className="w-full flex items-center gap-2 text-left transition-all"
-              style={{
-                padding: "8px 10px",
-                borderRadius: 4,
-                fontSize: 12.5,
-                fontWeight: 500,
-                color: "var(--negative)",
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-              }}
+              style={{ padding: "7px 10px", borderRadius: 6, fontSize: 12.5, fontWeight: 500, color: "var(--negative)", background: "transparent", border: "none", cursor: "pointer" }}
               onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-              <LogOut size={13}/>
-              <span>{lang === "en" ? "Logout" : "Çıkış Yap"}</span>
+              <LogOut size={14} style={{ flexShrink: 0 }}/>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lang === "en" ? "Logout" : "Çıkış Yap"}</span>
             </button>
           </div>
         </div>
+
+        {/* ===== Alt menü paneli (açılır-kapanır) ===== */}
+        {panelOpen && (
+          <div style={{ width: 192, flexShrink: 0, minWidth: 0, display: "flex", flexDirection: "column", height: "100%" }}>
+            {/* Panel başlığı — seçili modül adı + daralt */}
+            <div style={{
+              padding: "12px 14px", borderBottom: "1px solid var(--line)",
+              display: "flex", alignItems: "center", gap: 8, flexShrink: 0,
+              ...(isMobile ? { paddingTop: "calc(12px + env(safe-area-inset-top))" } : {}),
+            }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {effectiveModule ? moduleLabel(effectiveModule) : ""}
+              </span>
+              {isMobile ? (
+                <button onClick={() => setMobileOpen(false)}
+                  style={{ background: "transparent", border: "none", color: "var(--ink-mute)", fontSize: 18, cursor: "pointer", padding: 4 }}
+                  aria-label={lang === "en" ? "Close menu" : "Menüyü kapat"}>
+                  ✕
+                </button>
+              ) : (
+                <button onClick={() => setPanelOpen(false)}
+                  title={lang === "en" ? "Collapse panel" : "Paneli daralt"}
+                  style={{ background: "transparent", border: "none", color: "var(--ink-mute)", cursor: "pointer", padding: 2, display: "flex" }}>
+                  <ChevronRight size={16} style={{ transform: "rotate(180deg)" }}/>
+                </button>
+              )}
+            </div>
+
+            {/* Alt menü item'ları (scroll edilebilir) */}
+            <nav style={{ flex: 1, padding: 8, overflowY: "auto" }}>
+              <div className="space-y-0.5">
+                {panelItems.map(i => {
+                  const Ic = i.icon;
+                  const isActive = view === i.id;
+                  const badge = badgeOf(i.id);
+                  return (
+                    <button key={i.id} onClick={() => setView(i.id)}
+                      className="w-full flex items-center gap-2 text-left transition-all"
+                      style={{
+                        padding: "8px 10px",
+                        borderRadius: 4,
+                        fontSize: 12.5,
+                        fontWeight: isActive ? 700 : 500,
+                        color: isActive ? "var(--bg)" : "var(--ink)",
+                        background: isActive ? "var(--ink)" : "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "var(--bg-alt)"; }}
+                      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}>
+                      <Ic size={13} strokeWidth={isActive ? 2 : 1.75} style={{ flexShrink: 0 }}/>
+                      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {i.label}
+                      </span>
+                      {badge > 0 && (
+                        <span className="rounded-full text-white font-bold flex items-center justify-center flex-shrink-0"
+                          style={{ background: "#dc2626", fontSize: 9, minWidth: 16, height: 16, padding: "0 4px" }}>
+                          {badge > 99 ? "99+" : badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+          </div>
+        )}
       </aside>
     </>
   );
