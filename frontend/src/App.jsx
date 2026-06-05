@@ -12894,7 +12894,7 @@ function LoginScreen({ onLogin, lang, changeLang, users, setUsers }) {
       {/* === SOL: Brand Panel (büyük ekranlarda) === */}
       <div className="hidden lg:flex flex-col justify-between flex-1 px-12 py-10 relative overflow-hidden"
         style={{
-          background: "linear-gradient(135deg, var(--accent) 0%, #073a37 100%)",
+          background: "linear-gradient(135deg, var(--accent) 0%, #0f172a 100%)",
           color: "#fff",
         }}>
         {/* Subtle pattern overlay */}
@@ -12924,7 +12924,7 @@ function LoginScreen({ onLogin, lang, changeLang, users, setUsers }) {
           </div>
         </div>
         <div style={{ position: "relative", zIndex: 1, fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: "0.04em" }}>
-          © {new Date().getFullYear()} Prometa HR Teknoloji A.Ş.
+          © {new Date().getFullYear()} M Suite
         </div>
       </div>
 

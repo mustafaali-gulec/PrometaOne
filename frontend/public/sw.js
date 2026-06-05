@@ -10,7 +10,7 @@
      istemci controllerchange ile sayfayı bir kez kendiliğinden yeniler.
 ============================================================================ */
 
-const SW_VERSION = "1.2.0";
+const SW_VERSION = "1.3.0";
 const APP_NAME = "M Suite";
 const CACHE_VERSION = `msuite-app-v${SW_VERSION}`;
 const RUNTIME_CACHE = `msuite-runtime-v${SW_VERSION}`;
@@ -79,9 +79,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // JS/CSS bundle (Vite hash'li) — Stale-while-revalidate
-  if (/\.(js|css|mjs)$/i.test(url.pathname)) {
-    event.respondWith(staleWhileRevalidate(req));
+  // JS/CSS bundle — Network-first (online'da daima taze; rebrand/guncellemeler
+  // aninda gorunur, offline'da son cache'e duser)
+  if (/\.(js|jsx|ts|tsx|css|mjs)$/i.test(url.pathname)) {
+    event.respondWith(networkFirstRuntime(req));
     return;
   }
 
@@ -119,6 +120,19 @@ async function networkFirstWithFallback(req) {
       JSON.stringify({ offline: true, error: "Network unavailable" }),
       { headers: { "Content-Type": "application/json" }, status: 503 }
     );
+  }
+}
+
+async function networkFirstRuntime(req) {
+  const cache = await caches.open(RUNTIME_CACHE);
+  try {
+    const resp = await fetch(req);
+    if (resp && resp.ok) cache.put(req, resp.clone());
+    return resp;
+  } catch (err) {
+    const cached = await cache.match(req);
+    if (cached) return cached;
+    throw err;
   }
 }
 
