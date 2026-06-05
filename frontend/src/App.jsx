@@ -14446,7 +14446,7 @@ function OrgChartNode({ unit, orgUnits, departments, jobTitles, employees, isRoo
     return dept?.orgUnitId === unit.id;
   }).length;
 
-  // Org-Birimi rengi (üst kart için Prometa accent rengi)
+  // Org-Birimi rengi (üst kart için M Suite accent rengi)
   const unitColor = "#0a4d4a";
 
   // Hem alt org birimi hem de departman olabilir
@@ -15814,7 +15814,7 @@ function OrgUnitFormModal({ draft, setDraft, orgUnits, employees, users, canMana
                   <div className="label mb-1">{lang === "en" ? "Payroll System" : "Bordro Sistemi"}</div>
                   <select className="input w-full" value={draft.integration?.payrollSystem || ""}
                     onChange={e => setIntegration("payrollSystem", e.target.value)}>
-                    <option value="">— {lang === "en" ? "Internal (Prometa)" : "Dahili (Prometa)"} —</option>
+                    <option value="">— {lang === "en" ? "Internal (M Suite)" : "Dahili (M Suite)"} —</option>
                     <option value="logo">Logo Bordro</option>
                     <option value="netsis">Netsis Bordro</option>
                     <option value="mikro">Mikro Bordro</option>

@@ -1,5 +1,5 @@
 /**
- * Prometa One Frontend ↔ Backend Köprüsü
+ * M Suite Frontend ↔ Backend Köprüsü
  * ----------------------------------------
  * Bu dosya window.PROMETA_API objesi oluşturur. Backend mevcut değilse
  * frontend otomatik olarak demo modunda çalışır (localStorage + console).
@@ -9,13 +9,13 @@
  *  - POST /v1/auth/reset-password
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || "/v1";
+const API_BASE = import.meta.env.VITE_API_URL || '/v1';
 
 // Backend mevcut mu kontrolü (sayfa açıldığında)
 async function checkBackend() {
   try {
     const res = await fetch(`${API_BASE}/health`, {
-      method: "GET",
+      method: 'GET',
       signal: AbortSignal.timeout(2000),
     });
     return res.ok;
@@ -28,11 +28,11 @@ window.PROMETA_API = {
   // Şifre sıfırlama talebi gönder
   sendPasswordResetEmail: async ({ username, email, token }) => {
     const res = await fetch(`${API_BASE}/auth/forgot-password`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         emailOrUsername: email || username,
-        lang: window.__PROMETA_LANG__ || "tr",
+        lang: window.__PROMETA_LANG__ || 'tr',
       }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -42,13 +42,13 @@ window.PROMETA_API = {
   // Token ile yeni şifre belirle
   resetPassword: async ({ token, newPassword }) => {
     const res = await fetch(`${API_BASE}/auth/reset-password`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, newPassword }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      return { success: false, reason: err.message || "error" };
+      return { success: false, reason: err.message || 'error' };
     }
     return res.json();
   },
@@ -57,10 +57,10 @@ window.PROMETA_API = {
 // Backend yoksa PROMETA_API'yi sil → demo modu devreye girer
 checkBackend().then((ok) => {
   if (!ok) {
-    console.warn("⚠️ Backend erişilemez. Demo mod aktif. Veriler tarayıcıda saklanıyor.");
+    console.warn('⚠️ Backend erişilemez. Demo mod aktif. Veriler tarayıcıda saklanıyor.');
     delete window.PROMETA_API;
   } else {
-    console.log("✓ Backend bağlantısı aktif (" + API_BASE + ")");
+    console.log('✓ Backend bağlantısı aktif (' + API_BASE + ')');
   }
 });
 

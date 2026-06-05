@@ -54,7 +54,7 @@ const notificationsModule = registerNotificationsModule(
     smtpUser: config.SMTP_USER,
     smtpPass: config.SMTP_PASS,
     smtpSecure: config.SMTP_SECURE,
-    emailFrom: config.SMTP_FROM ?? 'Prometa One <noreply@prometa.local>',
+    emailFrom: config.SMTP_FROM ?? 'M Suite <noreply@prometa.local>',
     enableCron: config.ENABLE_CRON,
   },
   {
@@ -132,7 +132,7 @@ v1.get('/health', async (c) => {
 
 v1.get('/', (c) =>
   c.json({
-    name: 'Prometa One API',
+    name: 'M Suite API',
     version: '2.0.0',
     description: 'Finance & HR Platform Backend',
   }),

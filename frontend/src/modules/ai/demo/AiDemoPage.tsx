@@ -39,7 +39,7 @@ export function AiDemoPage({ apiBaseUrl }: AiDemoPageProps) {
   return (
     <main className="max-w-4xl mx-auto px-6 py-10 space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-slate-900">Prometa One — AI Asistan Modülü Demo</h1>
+        <h1 className="text-2xl font-bold text-slate-900">M Suite — AI Asistan Modülü Demo</h1>
         <p className="mt-1 text-sm text-slate-600">
           Strangler Fig: App.jsx&apos;in 12386. satırındaki eski AIAssistantWidget yerinde, yeni
           modüler widget burada.
@@ -79,7 +79,7 @@ export function AiDemoPage({ apiBaseUrl }: AiDemoPageProps) {
             api={api}
             options={{
               system:
-                'Sen Prometa One adlı Türk finans + İK yazılımının yardımcı asistanısın. Türkçe, kısa ve net cevaplar ver.',
+                'Sen M Suite adlı Türk finans + İK yazılımının yardımcı asistanısın. Türkçe, kısa ve net cevaplar ver.',
             }}
           />
         </>

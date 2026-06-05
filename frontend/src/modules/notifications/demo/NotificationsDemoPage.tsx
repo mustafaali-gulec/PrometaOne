@@ -43,9 +43,7 @@ export function NotificationsDemoPage({ apiBaseUrl }: NotificationsDemoPageProps
     <main className="max-w-4xl mx-auto px-6 py-10">
       <header className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Prometa One — Notifications Modülü Demo
-          </h1>
+          <h1 className="text-2xl font-bold text-slate-900">M Suite — Notifications Modülü Demo</h1>
           <p className="mt-1 text-sm text-slate-600">
             Strangler Fig: App.jsx&apos;e dokunmadan yeni modülü test eder.
           </p>
