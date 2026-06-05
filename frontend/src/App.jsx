@@ -16792,7 +16792,7 @@ function EmployeesList({ data, session, canAct, lang, onChange, logAudit, notify
             : t("emp.notFound.hint", lang)}
         />
       ) : (
-        <div className="card overflow-x-auto">
+        <div className="table-scroll" style={{ maxHeight: 520 }}>
           <table className="grid">
             <thead>
               <tr>
@@ -36925,7 +36925,7 @@ function AgingReportView({ parties = [], invoices = [], lang = "tr", onPartyClic
 
       {/* Tablo */}
       <div className="card" style={{ overflow: "hidden" }}>
-        <div style={{ overflowX: "auto" }}>
+        <div style={{ overflow: "auto", maxHeight: 480, scrollbarGutter: "stable" }}>
           <table className="grid" style={{ minWidth: 900 }}>
             <thead>
               <tr>
