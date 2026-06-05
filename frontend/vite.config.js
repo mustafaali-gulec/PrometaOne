@@ -15,6 +15,14 @@ export default defineConfig({
         target: process.env.VITE_PROXY_TARGET || 'http://host.docker.internal:3000',
         changeOrigin: true,
       },
+      // ML servisi (FastAPI, :8001). Frontend '/api/ml/*' cagirir; ML rotalari
+      // kokte (/health, /predict/*, /models/*, /v1/*) oldugundan '/api/ml' prefix'i
+      // rewrite ile siyrilir. Bare-metal dev icin VITE_ML_PROXY_TARGET verin.
+      '/api/ml': {
+        target: process.env.VITE_ML_PROXY_TARGET || 'http://host.docker.internal:8001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/ml/, ''),
+      },
     },
   },
   build: {
