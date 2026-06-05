@@ -5,6 +5,7 @@ import {
   Tooltip, ResponsiveContainer, Legend, ReferenceLine, Area, AreaChart
 } from "recharts";
 import { FinanceDemoPage } from './modules/finance';
+import { PurchasingPage } from './modules/purchasing';
 import {
   Lock, LogOut, LayoutDashboard, Table2, FolderTree, Users, History,
   Settings, Plus, Trash2, Edit3, Save, X, ChevronRight, ChevronDown,
@@ -12355,13 +12356,14 @@ export default function App() {
             initialView={view === "sales_pipeline" ? "pipeline" : view === "sales_leads" ? "list" : "activities"}
           />
         )}
-        {(view === "purchase_requests" || view === "purchase_orders" || view === "purchase_vendors") && (
-          <PurchaseModule
-            data={effectiveData} session={session} users={users} canAct={canAct} lang={lang}
-            onChange={saveData} logAudit={logAudit} notify={notify}
-            navigateToEntity={navigateToEntity}
-            initialView={view === "purchase_requests" ? "requests" : view === "purchase_orders" ? "orders" : "vendors"}
-          />
+        {view === "purchase_requests" && (
+          <PurchasingPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["requests"]} />
+        )}
+        {view === "purchase_orders" && (
+          <PurchasingPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["orders"]} />
+        )}
+        {view === "purchase_vendors" && (
+          <PurchasingPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["vendors"]} />
         )}
         {view === "projects" && (
           <ProjectsModule
@@ -58313,7 +58315,11 @@ function DealDetailModal({ deal, parties, users, session, lang, tasks = [], invo
    ---------------------------------------------------------------------
    Talep (PR) → Onay → Sipariş (PO) → Teslim → Fatura döngüsü.
    Tedarikçi yönetimi mevcut Cari (party.type=supplier) ile entegre.
+   NOT (Strangler Fig): purchase_* gorunumleri artik modules/purchasing
+   PurchasingPage (backend /v1/purchasing) ile mount ediliyor. Bu eski
+   localStorage tabanli bilesen referans/yedek olarak korunuyor (mount edilmiyor).
 ===================================================================== */
+// eslint-disable-next-line no-unused-vars
 function PurchaseModule({ data, session, users = [], canAct, lang, onChange, logAudit, notify, navigateToEntity, initialView = "requests" }) {
   const [activeView, setActiveView] = useState(initialView);  // requests | orders | vendors
   const [editingPR, setEditingPR] = useState(null);
