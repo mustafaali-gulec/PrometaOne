@@ -12298,7 +12298,7 @@ export default function App() {
           <FinanceDemoPage
             apiBaseUrl=""
             companyId={session?.activeCompanyId ?? 1}
-            initialTab="cash"
+            views={["cash"]}
           />
         )}
         {view === "loans" && canView("view_loans", "finance.loans") && (
@@ -12393,14 +12393,14 @@ export default function App() {
           <FinanceDemoPage
             apiBaseUrl=""
             companyId={session?.activeCompanyId ?? 1}
-            initialTab="budget"
+            views={["budget"]}
           />
         )}
         {view === "fx" && canView("view_fx_revaluation", "finance.fx") && (
           <FinanceDemoPage
             apiBaseUrl=""
             companyId={session?.activeCompanyId ?? 1}
-            initialTab="fx"
+            views={["fx"]}
           />
         )}
         {view === "ai" && canView("view_ai_prediction", "finance.ai_prediction") && (
@@ -12412,6 +12412,7 @@ export default function App() {
           <FinanceDemoPage
             apiBaseUrl=""
             companyId={session?.activeCompanyId ?? 1}
+            views={["invoices", "einvoice"]}
             initialTab="invoices"
           />
         )}
@@ -37277,8 +37278,8 @@ function PartiesModule({ data, session, canAct, lang, onChange, logAudit, notify
 /* ===================================================================== */
 /* PARTY QUICK CREATE MODAL                                              */
 /* ===================================================================== */
-function PartyQuickCreateModal({ lang, existingParties, onSave, onClose }) {
-  const [type, setType] = useState("customer");
+function PartyQuickCreateModal({ lang, existingParties, onSave, onClose, initialType = "customer" }) {
+  const [type, setType] = useState(initialType);
   const [personType, setPersonType] = useState("real");
   const [name, setName] = useState("");
   const [taxId, setTaxId] = useState("");
@@ -37321,8 +37322,9 @@ function PartyQuickCreateModal({ lang, existingParties, onSave, onClose }) {
         debtCloseControl: { days: 0, action: "continue" },
       },
       accounting: {
-        costCenter: "", cariClass: "alici",
-        accountCode_alici: "", accountCode_satici: "",
+        costCenter: "", cariClass: type === "supplier" ? "satici" : "alici",
+        accountCode_alici: type === "supplier" ? "" : previewCode,
+        accountCode_satici: type === "supplier" ? previewCode : "",
         accountCode_personel: "", accountCode_diger: "",
       },
       guarantees: [],
@@ -58184,6 +58186,7 @@ function PurchaseModule({ data, session, users = [], canAct, lang, onChange, log
   const [editingPO, setEditingPO] = useState(null);
   const [viewingPR, setViewingPR] = useState(null);
   const [viewingPO, setViewingPO] = useState(null);
+  const [showVendorModal, setShowVendorModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState("active");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterRequester, setFilterRequester] = useState("mine");
@@ -58299,6 +58302,14 @@ function PurchaseModule({ data, session, users = [], canAct, lang, onChange, log
     logAudit && logAudit(isNew ? "pr_create" : "pr_update", "purchase_request", { id: saved.id, prNo: saved.prNo });
     notify(isNew ? (lang === "en" ? `PR ${saved.prNo} created` : `Talep ${saved.prNo} oluşturuldu`) : (lang === "en" ? "Updated" : "Güncellendi"));
     setEditingPR(null);
+  };
+
+  // === Yeni Tedarikçi (cari) oluştur — Satınalma içinden ===
+  const saveVendor = async (newParty) => {
+    await onChange({ ...data, accParties: [...parties, newParty] });
+    logAudit && logAudit("party_create", "party", { id: newParty.id, name: newParty.name });
+    notify(lang === "en" ? "Vendor created" : "Tedarikçi oluşturuldu");
+    setShowVendorModal(false);
   };
 
   // PR'yi onaya gönder
@@ -58658,6 +58669,7 @@ function PurchaseModule({ data, session, users = [], canAct, lang, onChange, log
         <VendorsListView
           vendors={vendors} pos={pos} prs={prs} lang={lang}
           onGoToParty={(pid) => navigateToEntity?.("party", pid)}
+          onCreateVendor={() => setShowVendorModal(true)}
         />
       )}
 
@@ -58695,6 +58707,15 @@ function PurchaseModule({ data, session, users = [], canAct, lang, onChange, log
           onEdit={() => { setEditingPO(viewingPO); setViewingPO(null); }}
           onChangeStatus={(s) => changePOStatus(viewingPO, s)}
           onGoToVendor={(pid) => { setViewingPO(null); navigateToEntity?.("party", pid); }}
+        />
+      )}
+      {showVendorModal && (
+        <PartyQuickCreateModal
+          lang={lang}
+          existingParties={parties}
+          initialType="supplier"
+          onSave={saveVendor}
+          onClose={() => setShowVendorModal(false)}
         />
       )}
     </div>
@@ -58898,7 +58919,7 @@ function POListView({ pos, vendors, prs, lang, onClickPO, onEdit, onCancel }) {
 }
 
 /* === VENDORS LIST VIEW === */
-function VendorsListView({ vendors, pos, prs, lang, onGoToParty }) {
+function VendorsListView({ vendors, pos, prs, lang, onGoToParty, onCreateVendor }) {
   // Her tedarikçi için istatistikler
   const vendorStats = useMemo(() => {
     return vendors.map(v => {
@@ -58921,13 +58942,19 @@ function VendorsListView({ vendors, pos, prs, lang, onGoToParty }) {
 
   return (
     <div className="card" style={{ overflow: "hidden" }}>
-      <div className="p-2" style={{ borderBottom: "1px solid var(--line)", background: "var(--bg-alt)" }}>
+      <div className="p-2 flex items-center justify-between" style={{ borderBottom: "1px solid var(--line)", background: "var(--bg-alt)" }}>
         <span className="font-bold text-sm">
           🏢 {lang === "en" ? "Vendor Performance" : "Tedarikçi Performansı"}
           <span className="text-xs ml-2" style={{ color: "var(--ink-mute)", fontWeight: 400 }}>
             ({vendorStats.length} {lang === "en" ? "vendors" : "tedarikçi"})
           </span>
         </span>
+        {onCreateVendor && (
+          <button onClick={onCreateVendor}
+            style={{ padding: "5px 12px", background: "#ea580c", color: "#fff", border: "none", borderRadius: 3, fontSize: 11, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <Plus size={12}/> {lang === "en" ? "New Vendor" : "Yeni Tedarikçi"}
+          </button>
+        )}
       </div>
       <div style={{ overflowX: "auto" }}>
         <table className="grid" style={{ minWidth: 900 }}>
@@ -58954,7 +58981,7 @@ function VendorsListView({ vendors, pos, prs, lang, onGoToParty }) {
                   <div className="font-bold text-sm">{v.name}</div>
                   {v.code && <div className="text-xs mono" style={{ color: "var(--ink-mute)" }}>{v.code}</div>}
                 </td>
-                <td className="mono text-xs">{v.taxNumber || "—"}</td>
+                <td className="mono text-xs">{v.taxId || v.taxNumber || "—"}</td>
                 <td className="mono text-right" style={{ fontWeight: 700 }}>{v.poCount}</td>
                 <td className="mono text-right" style={{ color: v.openCount > 0 ? "#ea580c" : "var(--ink-mute)", fontWeight: v.openCount > 0 ? 700 : 400 }}>
                   {v.openCount || "—"}

@@ -5,7 +5,7 @@
  * Auth token URL hash'inden (`#token=...`) veya localStorage'dan
  * (`promet_access_token`) okunur (HrDemoPage ile aynı).
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import type {
   CategorySection,
@@ -33,6 +33,15 @@ import { useRevaluations } from '../presentation/hooks/useRevaluations';
 
 export type FinanceTab = 'budget' | 'cash' | 'invoices' | 'einvoice' | 'fx';
 
+const ALL_TABS: FinanceTab[] = ['budget', 'cash', 'invoices', 'einvoice', 'fx'];
+const TAB_LABELS: Record<FinanceTab, string> = {
+  budget: 'Bütçe',
+  cash: 'Nakit',
+  invoices: 'Faturalar',
+  einvoice: 'E-Fatura',
+  fx: 'Döviz/FX',
+};
+
 export interface FinanceDemoPageProps {
   apiBaseUrl?: string;
   accessToken?: string;
@@ -40,6 +49,12 @@ export interface FinanceDemoPageProps {
   fiscalYear?: number;
   /** Açılışta seçili sekme (App.jsx menü eşlemesi için). */
   initialTab?: FinanceTab;
+  /**
+   * Verilirse yalnızca bu sekmeler gösterilir ("görünüm-bazlı" mount):
+   * demo başlığı gizlenir; tek sekmede sekme çubuğu da gizlenir.
+   * Belirtilmezse tüm sekmeler + demo başlığı gösterilir (standalone demo).
+   */
+  views?: FinanceTab[];
 }
 
 type Tab = FinanceTab;
@@ -49,9 +64,16 @@ export function FinanceDemoPage({
   accessToken,
   companyId = 1,
   fiscalYear = new Date().getFullYear(),
-  initialTab = 'budget',
+  initialTab,
+  views,
 }: FinanceDemoPageProps): JSX.Element {
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const scoped = Array.isArray(views) && views.length > 0;
+  const visibleTabs: FinanceTab[] = scoped ? views : ALL_TABS;
+  const defaultTab: Tab =
+    initialTab !== undefined && visibleTabs.includes(initialTab)
+      ? initialTab
+      : (visibleTabs[0] ?? 'budget');
+  const [tab, setTab] = useState<Tab>(defaultTab);
 
   const api: FinanceApi = useMemo(() => {
     const token = accessToken ?? extractToken();
@@ -63,42 +85,42 @@ export function FinanceDemoPage({
     return new EInvoiceApiClient(apiBaseUrl, new StaticAuthTokenProvider(token));
   }, [apiBaseUrl, accessToken]);
 
+  const showTabs = visibleTabs.length > 1;
+
   return (
     <div
-      style={{
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        maxWidth: 1100,
-        margin: '0 auto',
-        padding: 24,
-      }}
+      style={
+        scoped
+          ? { padding: 4 }
+          : {
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              maxWidth: 1100,
+              margin: '0 auto',
+              padding: 24,
+            }
+      }
     >
-      <header style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 22, margin: 0 }}>Finans Demo (Faz 5)</h1>
-        <p style={{ marginTop: 4, color: 'var(--ink-muted, #666)', fontSize: 13 }}>
-          Standalone demo — backend `/v1/finance/*` rotalarını kullanır. Şirket id:{' '}
-          <code>{companyId}</code>.
-        </p>
-      </header>
+      {!scoped ? (
+        <header style={{ marginBottom: 16 }}>
+          <h1 style={{ fontSize: 22, margin: 0 }}>Finans Demo (Faz 5)</h1>
+          <p style={{ marginTop: 4, color: 'var(--ink-muted, #666)', fontSize: 13 }}>
+            Standalone demo — backend `/v1/finance/*` rotalarını kullanır. Şirket id:{' '}
+            <code>{companyId}</code>.
+          </p>
+        </header>
+      ) : null}
 
-      <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--line, #e5e5e5)' }}>
-        <TabButton active={tab === 'budget'} onClick={() => setTab('budget')}>
-          Bütçe
-        </TabButton>
-        <TabButton active={tab === 'cash'} onClick={() => setTab('cash')}>
-          Nakit
-        </TabButton>
-        <TabButton active={tab === 'invoices'} onClick={() => setTab('invoices')}>
-          Faturalar
-        </TabButton>
-        <TabButton active={tab === 'einvoice'} onClick={() => setTab('einvoice')}>
-          E-Fatura
-        </TabButton>
-        <TabButton active={tab === 'fx'} onClick={() => setTab('fx')}>
-          Döviz/FX
-        </TabButton>
-      </nav>
+      {showTabs ? (
+        <nav style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--line, #e5e5e5)' }}>
+          {visibleTabs.map((tb) => (
+            <TabButton key={tb} active={tab === tb} onClick={() => setTab(tb)}>
+              {TAB_LABELS[tb]}
+            </TabButton>
+          ))}
+        </nav>
+      ) : null}
 
-      <main style={{ marginTop: 16 }}>
+      <main style={{ marginTop: showTabs ? 16 : 0 }}>
         {tab === 'budget' ? (
           <BudgetTab api={api} companyId={companyId} fiscalYear={fiscalYear} />
         ) : null}
@@ -151,14 +173,49 @@ function BudgetTab({
 
 function CashTab({ api, companyId }: { api: FinanceApi; companyId: number }): JSX.Element {
   const [type, setType] = useState<EndpointType>('kasa');
-  const [accountId, setAccountId] = useState<number>(1);
+  const [accounts, setAccounts] = useState<Array<{ id: number; name: string }>>([]);
+  const [accLoading, setAccLoading] = useState(false);
+  const [accError, setAccError] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<number>(0);
   const [showForm, setShowForm] = useState(false);
-  const { position, loading, error, refetch } = useCashPosition(api, companyId, type, accountId);
+
+  // Tip değişince ilgili hesap listesini (kasa/banka) çek; sabit #1 sorgulamayız.
+  useEffect(() => {
+    let alive = true;
+    setAccLoading(true);
+    setAccError(null);
+    setShowForm(false);
+    const p = type === 'bank' ? api.listBankAccounts(companyId) : api.listKasaAccounts(companyId);
+    p.then((res) => {
+      if (!alive) return;
+      const list = res.accounts.map((a) => ({ id: a.id, name: a.name }));
+      setAccounts(list);
+      const first = list[0];
+      setSelectedId(first ? first.id : 0);
+    })
+      .catch((err) => {
+        if (alive) setAccError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (alive) setAccLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [api, companyId, type]);
+
+  // Pozisyon yalnızca geçerli bir hesap seçiliyken çekilir (autoFetch guard).
+  const { position, loading, error, refetch } = useCashPosition(api, companyId, type, selectedId, {
+    autoFetch: selectedId > 0,
+  });
+
+  const hasAccounts = accounts.length > 0;
+
   return (
     <Section
       title="Nakit Pozisyonu"
-      loading={loading}
-      error={error}
+      loading={loading || accLoading}
+      error={error ?? accError}
       onReload={() => void refetch()}
       toolbar={
         <div style={{ display: 'flex', gap: 6 }}>
@@ -170,14 +227,23 @@ function CashTab({ api, companyId }: { api: FinanceApi; companyId: number }): JS
             <option value="kasa">Kasa</option>
             <option value="bank">Banka</option>
           </select>
-          <input
-            type="number"
-            value={accountId}
-            min={1}
-            onChange={(ev) => setAccountId(Number(ev.target.value))}
-            style={{ ...selectStyle(), width: 80 }}
-          />
-          {type === 'kasa' ? (
+          <select
+            value={selectedId}
+            onChange={(ev) => setSelectedId(Number(ev.target.value))}
+            disabled={!hasAccounts}
+            style={{ ...selectStyle(), minWidth: 160 }}
+          >
+            {hasAccounts ? (
+              accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name} (#{a.id})
+                </option>
+              ))
+            ) : (
+              <option value={0}>— Hesap yok —</option>
+            )}
+          </select>
+          {type === 'kasa' && selectedId > 0 ? (
             <button onClick={() => setShowForm((v) => !v)} style={btnStyle()}>
               {showForm ? 'Kapat' : '+ Hareket'}
             </button>
@@ -185,18 +251,34 @@ function CashTab({ api, companyId }: { api: FinanceApi; companyId: number }): JS
         </div>
       }
     >
-      {showForm && type === 'kasa' ? (
-        <KasaEntryForm
-          api={api}
-          companyId={companyId}
-          kasaAccountId={accountId}
-          onDone={() => {
-            setShowForm(false);
-            void refetch();
+      {!hasAccounts && !accLoading ? (
+        <div
+          style={{
+            padding: 24,
+            textAlign: 'center',
+            color: 'var(--ink-mute, #888)',
+            fontSize: 13,
           }}
-        />
-      ) : null}
-      <CashPositionCard position={position} loading={loading} />
+        >
+          Henüz {type === 'bank' ? 'banka' : 'kasa'} hesabı tanımlı değil. Hesap eklendikten sonra
+          nakit pozisyonu burada görünür.
+        </div>
+      ) : (
+        <>
+          {showForm && type === 'kasa' && selectedId > 0 ? (
+            <KasaEntryForm
+              api={api}
+              companyId={companyId}
+              kasaAccountId={selectedId}
+              onDone={() => {
+                setShowForm(false);
+                void refetch();
+              }}
+            />
+          ) : null}
+          <CashPositionCard position={position} loading={loading} />
+        </>
+      )}
     </Section>
   );
 }

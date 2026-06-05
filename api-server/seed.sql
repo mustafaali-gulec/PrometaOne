@@ -275,3 +275,50 @@ BEGIN
 
   RAISE NOTICE 'HR seed tamamlandı (company_id=%)', v_company_id;
 END $$;
+
+-- =====================================================================
+-- FINANCE SEED — örnek kasa + banka hesabı (Nakit Pozisyonu demo için)
+-- HR seed'den bağımsız ayrı blok. Idempotent: company + isim doğal
+-- anahtarına göre WHERE NOT EXISTS ile korunur.
+-- =====================================================================
+DO $$
+DECLARE
+  v_company_id INT;
+  v_bank_id    INT;
+BEGIN
+  -- Finance tabloları yoksa (004 migrate edilmemişse) sessizce çık.
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kasa_accounts') THEN
+    RAISE NOTICE 'Finance tabloları yok — finance seed atlandı';
+    RETURN;
+  END IF;
+
+  SELECT id INTO v_company_id
+  FROM companies WHERE name = 'Prometa HR Teknoloji A.Ş.' LIMIT 1;
+
+  IF v_company_id IS NULL THEN
+    RAISE NOTICE 'Demo şirket bulunamadı — finance seed atlandı';
+    RETURN;
+  END IF;
+
+  -- Kasa hesabı (TRY) — Merkez Kasa
+  INSERT INTO kasa_accounts (company_id, name, currency, opening_balance, active)
+  SELECT v_company_id, 'Merkez Kasa', 'TRY', 50000.00, TRUE
+  WHERE NOT EXISTS (
+    SELECT 1 FROM kasa_accounts WHERE company_id = v_company_id AND name = 'Merkez Kasa'
+  );
+
+  -- Banka kataloğu — Ziraat Bankası
+  INSERT INTO banks (name, code, color)
+  SELECT 'Ziraat Bankası', 'ZIRAAT', '#e30613'
+  WHERE NOT EXISTS (SELECT 1 FROM banks WHERE code = 'ZIRAAT');
+  SELECT id INTO v_bank_id FROM banks WHERE code = 'ZIRAAT' LIMIT 1;
+
+  -- Banka hesabı (TRY) — Ana Vadesiz TL
+  INSERT INTO bank_accounts (company_id, bank_id, name, currency, opening_balance, active)
+  SELECT v_company_id, v_bank_id, 'Ana Vadesiz TL', 'TRY', 250000.00, TRUE
+  WHERE NOT EXISTS (
+    SELECT 1 FROM bank_accounts WHERE company_id = v_company_id AND name = 'Ana Vadesiz TL'
+  );
+
+  RAISE NOTICE 'Finance seed tamamlandı (company_id=%)', v_company_id;
+END $$;
