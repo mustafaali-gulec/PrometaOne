@@ -35,17 +35,9 @@ export function ContractsTable({ contracts, loading }: ContractsTableProps): JSX
   }
 
   return (
-    <table
-      data-testid="cs-contracts-table"
-      style={{
-        width: '100%',
-        borderCollapse: 'collapse',
-        fontSize: 13,
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-      }}
-    >
+    <table data-testid="cs-contracts-table" className="grid">
       <thead>
-        <tr style={{ background: 'var(--paper-2, #f5f5f5)', textAlign: 'left' }}>
+        <tr>
           <th style={cell()}>Sözleşme No</th>
           <th style={cell()}>Başlık</th>
           <th style={cell()}>Taraf</th>
@@ -56,7 +48,7 @@ export function ContractsTable({ contracts, loading }: ContractsTableProps): JSX
       </thead>
       <tbody>
         {contracts.map((c) => (
-          <tr key={String(c.id)} style={{ borderBottom: '1px solid var(--line, #e5e5e5)' }}>
+          <tr key={String(c.id)}>
             <td style={cell()}>
               <strong>{c.contractNo}</strong>
             </td>
@@ -93,5 +85,5 @@ export function ContractsTable({ contracts, loading }: ContractsTableProps): JSX
 }
 
 function cell(): React.CSSProperties {
-  return { padding: '8px 12px', borderBottom: '1px solid var(--line, #e5e5e5)' };
+  return {};
 }

@@ -539,26 +539,19 @@ function Table({
     return <p style={{ fontSize: 12, color: 'var(--ink-muted, #888)' }}>{empty}</p>;
   }
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+    <table className="grid">
       <thead>
-        <tr style={{ background: 'var(--paper-2, #f5f5f5)', textAlign: 'left' }}>
+        <tr>
           {head.map((h, i) => (
-            <th
-              key={i}
-              style={{ padding: '7px 9px', borderBottom: '1px solid var(--line, #e5e5e5)' }}
-            >
-              {h}
-            </th>
+            <th key={i}>{h}</th>
           ))}
         </tr>
       </thead>
       <tbody>
         {rows.map((r, ri) => (
-          <tr key={ri} style={{ borderBottom: '1px solid var(--line, #eee)' }}>
+          <tr key={ri}>
             {r.map((cell, ci) => (
-              <td key={ci} style={{ padding: '7px 9px' }}>
-                {cell}
-              </td>
+              <td key={ci}>{cell}</td>
             ))}
           </tr>
         ))}
@@ -569,21 +562,35 @@ function Table({
 
 function fld(extra: React.CSSProperties): React.CSSProperties {
   return {
-    padding: '6px 8px',
-    border: '1px solid var(--line, #d1d5db)',
-    borderRadius: 4,
-    fontSize: 12,
+    width: '100%',
+    padding: '7px 10px',
+    fontSize: 13,
+    fontFamily: 'inherit',
+    background: 'var(--paper, #fff)',
+    border: '1px solid var(--line-strong, #d6d3d1)',
+    borderRadius: 'var(--radius, 6px)',
+    color: 'var(--ink, #1c1917)',
+    outline: 'none',
+    minWidth: 0,
     ...extra,
   };
 }
 function btn(): React.CSSProperties {
   return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
     padding: '6px 12px',
-    border: '1px solid var(--line, #d1d5db)',
-    borderRadius: 4,
+    fontSize: 12.5,
+    fontWeight: 500,
+    fontFamily: 'inherit',
+    border: '1px solid var(--line-strong, #d6d3d1)',
+    borderRadius: 'var(--radius, 6px)',
     background: 'var(--paper, #fff)',
+    color: 'var(--ink, #1c1917)',
     cursor: 'pointer',
-    fontSize: 12,
+    whiteSpace: 'nowrap',
   };
 }
 function delBtn(): React.CSSProperties {

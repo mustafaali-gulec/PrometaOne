@@ -78,17 +78,9 @@ export function ProjectsTable({
   const showActions = onSetStatus !== undefined || onDeactivate !== undefined;
 
   return (
-    <table
-      data-testid="cs-projects-table"
-      style={{
-        width: '100%',
-        borderCollapse: 'collapse',
-        fontSize: 13,
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-      }}
-    >
+    <table data-testid="cs-projects-table" className="grid actions-last">
       <thead>
-        <tr style={{ background: 'var(--paper-2, #f5f5f5)', textAlign: 'left' }}>
+        <tr>
           <th style={cell()}>Kod</th>
           <th style={cell()}>Proje Adı</th>
           <th style={cell()}>Tip</th>
@@ -100,7 +92,7 @@ export function ProjectsTable({
       </thead>
       <tbody>
         {projects.map((p) => (
-          <tr key={String(p.id)} style={{ borderBottom: '1px solid var(--line, #e5e5e5)' }}>
+          <tr key={String(p.id)}>
             <td style={cell()}>
               <strong>{p.code}</strong>
             </td>
@@ -153,17 +145,21 @@ export function ProjectsTable({
 }
 
 function cell(): React.CSSProperties {
-  return { padding: '8px 12px', borderBottom: '1px solid var(--line, #e5e5e5)' };
+  return {};
 }
 
 function actionBtn(bg: string): React.CSSProperties {
   return {
-    padding: '3px 10px',
-    border: 'none',
-    borderRadius: 4,
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '4px 10px',
+    border: `1px solid ${bg}`,
+    borderRadius: 'var(--radius, 6px)',
     background: bg,
     color: '#fff',
-    fontSize: 11,
+    fontSize: 11.5,
+    fontWeight: 500,
+    fontFamily: 'inherit',
     cursor: 'pointer',
   };
 }

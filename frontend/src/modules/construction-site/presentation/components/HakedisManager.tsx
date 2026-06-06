@@ -321,9 +321,9 @@ function HakedisDetail({
         </span>
       </div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+      <table className="grid">
         <thead>
-          <tr style={{ background: 'var(--paper-2, #f5f5f5)', textAlign: 'left' }}>
+          <tr>
             <th style={cell()}>İş Kalemi</th>
             <th style={{ ...cell(), textAlign: 'right' }}>Önceki</th>
             <th style={{ ...cell(), textAlign: 'right' }}>Bu Dönem</th>
@@ -334,7 +334,7 @@ function HakedisDetail({
         </thead>
         <tbody>
           {progress.lines.map((l) => (
-            <tr key={String(l.id)} style={{ borderBottom: '1px solid var(--line, #eee)' }}>
+            <tr key={String(l.id)}>
               <td style={cell()}>#{l.boqLineId}</td>
               <td style={{ ...cell(), textAlign: 'right' }}>{l.prevQty}</td>
               <td style={{ ...cell(), textAlign: 'right' }}>
@@ -513,25 +513,39 @@ function Row({
 }
 
 function cell(): React.CSSProperties {
-  return { padding: '6px 8px', borderBottom: '1px solid var(--line, #eee)' };
+  return {};
 }
 function field(extra: React.CSSProperties): React.CSSProperties {
   return {
-    padding: '5px 7px',
-    border: '1px solid var(--line, #d1d5db)',
-    borderRadius: 4,
-    fontSize: 12,
+    width: '100%',
+    padding: '7px 10px',
+    fontSize: 13,
+    fontFamily: 'inherit',
+    background: 'var(--paper, #fff)',
+    border: '1px solid var(--line-strong, #d6d3d1)',
+    borderRadius: 'var(--radius, 6px)',
+    color: 'var(--ink, #1c1917)',
+    outline: 'none',
+    minWidth: 0,
     ...extra,
   };
 }
 function btn(): React.CSSProperties {
   return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
     padding: '6px 12px',
-    border: '1px solid var(--line, #d1d5db)',
-    borderRadius: 4,
+    fontSize: 12.5,
+    fontWeight: 500,
+    fontFamily: 'inherit',
+    border: '1px solid var(--line-strong, #d6d3d1)',
+    borderRadius: 'var(--radius, 6px)',
     background: 'var(--paper, #fff)',
+    color: 'var(--ink, #1c1917)',
     cursor: 'pointer',
-    fontSize: 12,
+    whiteSpace: 'nowrap',
   };
 }
 function badge(bg: string): React.CSSProperties {

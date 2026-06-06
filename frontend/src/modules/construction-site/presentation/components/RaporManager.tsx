@@ -148,7 +148,8 @@ export function RaporManager({ api, companyId }: RaporManagerProps): JSX.Element
               ...btn(),
               background: 'var(--accent, #0066cc)',
               color: '#fff',
-              border: 'none',
+              border: '1px solid var(--accent, #0a4d4a)',
+              borderRadius: 'var(--radius, 6px)',
             }}
           >
             ⬇ Excel İndir
@@ -221,9 +222,9 @@ export function RaporManager({ api, companyId }: RaporManagerProps): JSX.Element
                 Bu sözleşmede hakediş yok.
               </p>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+              <table className="grid">
                 <thead>
-                  <tr style={{ background: 'var(--paper-2, #f5f5f5)', textAlign: 'left' }}>
+                  <tr>
                     <th style={cell()}>Hakediş No</th>
                     <th style={cell()}>Dönem Sonu</th>
                     <th style={cell()}>Durum</th>
@@ -234,7 +235,7 @@ export function RaporManager({ api, companyId }: RaporManagerProps): JSX.Element
                 </thead>
                 <tbody>
                   {curve.points.map((p) => (
-                    <tr key={p.seqNo} style={{ borderBottom: '1px solid var(--line, #eee)' }}>
+                    <tr key={p.seqNo}>
                       <td style={cell()}>#{p.seqNo}</td>
                       <td style={cell()}>{p.periodEnd ?? '—'}</td>
                       <td style={cell()}>{p.status}</td>
@@ -305,25 +306,39 @@ function fmt(n: number, cur: string): string {
   return `${n.toLocaleString('tr-TR')} ${cur}`;
 }
 function cell(): React.CSSProperties {
-  return { padding: '7px 9px', borderBottom: '1px solid var(--line, #eee)' };
+  return {};
 }
 function fld(extra: React.CSSProperties): React.CSSProperties {
   return {
-    padding: '6px 8px',
-    border: '1px solid var(--line, #d1d5db)',
-    borderRadius: 4,
-    fontSize: 12,
+    width: '100%',
+    padding: '7px 10px',
+    fontSize: 13,
+    fontFamily: 'inherit',
+    background: 'var(--paper, #fff)',
+    border: '1px solid var(--line-strong, #d6d3d1)',
+    borderRadius: 'var(--radius, 6px)',
+    color: 'var(--ink, #1c1917)',
+    outline: 'none',
+    minWidth: 0,
     ...extra,
   };
 }
 function btn(): React.CSSProperties {
   return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
     padding: '6px 12px',
-    border: '1px solid var(--line, #d1d5db)',
-    borderRadius: 4,
+    fontSize: 12.5,
+    fontWeight: 500,
+    fontFamily: 'inherit',
+    border: '1px solid var(--line-strong, #d6d3d1)',
+    borderRadius: 'var(--radius, 6px)',
     background: 'var(--paper, #fff)',
+    color: 'var(--ink, #1c1917)',
     cursor: 'pointer',
-    fontSize: 12,
+    whiteSpace: 'nowrap',
   };
 }
 function errBox(): React.CSSProperties {

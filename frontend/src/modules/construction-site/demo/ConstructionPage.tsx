@@ -839,14 +839,16 @@ function TabButton({
     <button
       onClick={onClick}
       style={{
-        padding: '8px 16px',
+        padding: '9px 14px',
         border: 'none',
         background: 'transparent',
         cursor: 'pointer',
-        fontSize: 14,
-        fontWeight: active ? 600 : 400,
-        borderBottom: active ? '2px solid var(--accent, #0066cc)' : '2px solid transparent',
-        color: active ? 'var(--accent, #0066cc)' : 'var(--ink, #111)',
+        fontSize: 13,
+        fontFamily: 'inherit',
+        fontWeight: active ? 600 : 500,
+        marginBottom: -1,
+        borderBottom: active ? '2px solid var(--accent, #0a4d4a)' : '2px solid transparent',
+        color: active ? 'var(--accent, #0a4d4a)' : 'var(--ink-soft, #57534e)',
       }}
     >
       {children}
@@ -879,7 +881,9 @@ function Section({
           marginBottom: 8,
         }}
       >
-        <h2 style={{ fontSize: 16, margin: 0 }}>{title}</h2>
+        <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--ink, #1c1917)' }}>
+          {title}
+        </h2>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {toolbar}
           <button onClick={onReload} disabled={loading} style={btnStyle()}>
@@ -922,12 +926,12 @@ function FormBox({
       }}
       style={{
         display: 'grid',
-        gap: 8,
-        marginBottom: 12,
-        padding: 12,
-        border: '1px solid var(--line, #e5e7eb)',
-        borderRadius: 6,
-        background: 'var(--paper-2, #f9fafb)',
+        gap: 10,
+        marginBottom: 14,
+        padding: 14,
+        border: '1px solid var(--line, #e7e5e4)',
+        borderRadius: 'var(--radius-md, 8px)',
+        background: 'var(--bg-soft, #faf9f7)',
       }}
     >
       {children}
@@ -946,12 +950,17 @@ function SubmitBtn({ busy, label }: { busy: boolean; label: string }): JSX.Eleme
       type="submit"
       disabled={busy}
       style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         padding: '7px 14px',
-        border: 'none',
-        background: 'var(--accent, #0066cc)',
+        border: '1px solid var(--accent, #0a4d4a)',
+        background: 'var(--accent, #0a4d4a)',
         color: '#fff',
-        borderRadius: 4,
-        fontSize: 12,
+        borderRadius: 'var(--radius, 6px)',
+        fontSize: 12.5,
+        fontWeight: 500,
+        fontFamily: 'inherit',
         cursor: busy ? 'wait' : 'pointer',
         justifySelf: 'start',
       }}
@@ -963,22 +972,35 @@ function SubmitBtn({ busy, label }: { busy: boolean; label: string }): JSX.Eleme
 
 function fieldStyle(): React.CSSProperties {
   return {
-    padding: '6px 8px',
-    border: '1px solid var(--line, #d1d5db)',
-    borderRadius: 4,
-    fontSize: 12,
+    width: '100%',
+    padding: '7px 10px',
+    fontSize: 13,
+    fontFamily: 'inherit',
+    background: 'var(--paper, #fff)',
+    border: '1px solid var(--line-strong, #d6d3d1)',
+    borderRadius: 'var(--radius, 6px)',
+    color: 'var(--ink, #1c1917)',
+    outline: 'none',
     minWidth: 0,
   };
 }
 
 function btnStyle(): React.CSSProperties {
   return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
     padding: '6px 12px',
-    border: '1px solid var(--line, #d1d5db)',
-    borderRadius: 4,
+    fontSize: 12.5,
+    fontWeight: 500,
+    fontFamily: 'inherit',
+    border: '1px solid var(--line-strong, #d6d3d1)',
+    borderRadius: 'var(--radius, 6px)',
     background: 'var(--paper, #fff)',
+    color: 'var(--ink, #1c1917)',
     cursor: 'pointer',
-    fontSize: 12,
+    whiteSpace: 'nowrap',
   };
 }
 

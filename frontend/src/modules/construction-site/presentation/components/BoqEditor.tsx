@@ -65,12 +65,9 @@ export function BoqEditor({
 
   return (
     <div>
-      <table
-        data-testid="cs-boq-editor"
-        style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}
-      >
+      <table data-testid="cs-boq-editor" className="grid actions-last">
         <thead>
-          <tr style={{ background: 'var(--paper-2, #f5f5f5)', textAlign: 'left' }}>
+          <tr>
             <th style={cell()}>#</th>
             <th style={cell()}>Poz</th>
             <th style={cell()}>Açıklama</th>
@@ -87,7 +84,7 @@ export function BoqEditor({
             const amt = amounts[idx]!;
             const pct = total > 0 ? (amt / total) * 100 : 0;
             return (
-              <tr key={idx} style={{ borderBottom: '1px solid var(--line, #eee)' }}>
+              <tr key={idx}>
                 <td style={cell()}>{idx + 1}</td>
                 <td style={cell()}>
                   <select
@@ -180,32 +177,49 @@ export function BoqEditor({
 }
 
 function cell(): React.CSSProperties {
-  return { padding: '6px 8px', borderBottom: '1px solid var(--line, #eee)' };
+  return {};
 }
 function inp(): React.CSSProperties {
   return {
-    padding: '4px 6px',
-    border: '1px solid var(--line, #d1d5db)',
-    borderRadius: 4,
-    fontSize: 12,
+    width: '100%',
+    padding: '6px 8px',
+    fontSize: 12.5,
+    fontFamily: 'inherit',
+    background: 'var(--paper, #fff)',
+    border: '1px solid var(--line-strong, #d6d3d1)',
+    borderRadius: 'var(--radius, 6px)',
+    color: 'var(--ink, #1c1917)',
+    outline: 'none',
+    minWidth: 0,
   };
 }
 function btn(): React.CSSProperties {
   return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
     padding: '6px 14px',
-    border: '1px solid var(--line, #d1d5db)',
-    borderRadius: 4,
+    fontSize: 12.5,
+    fontWeight: 500,
+    fontFamily: 'inherit',
+    border: '1px solid var(--line-strong, #d6d3d1)',
+    borderRadius: 'var(--radius, 6px)',
     background: 'var(--paper, #fff)',
+    color: 'var(--ink, #1c1917)',
     cursor: 'pointer',
-    fontSize: 12,
+    whiteSpace: 'nowrap',
   };
 }
 function miniBtn(): React.CSSProperties {
   return {
-    padding: '2px 8px',
-    border: '1px solid var(--line, #d1d5db)',
-    borderRadius: 4,
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '3px 9px',
+    border: '1px solid var(--line-strong, #d6d3d1)',
+    borderRadius: 'var(--radius, 6px)',
     background: 'var(--paper, #fff)',
+    color: 'var(--ink, #1c1917)',
     cursor: 'pointer',
     fontSize: 13,
   };
