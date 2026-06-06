@@ -644,7 +644,7 @@ Mevcut model birebir kullanılır. `construction.*` kaynakları hem backend `Res
 | reports           | V X           | V                    | V X           | V (kendi)             | V (kendi)     |
 | settings          | V C U D       | V                    | V             | —                     | —             |
 
-> Notlar: **Görev ayrılığı** — Şantiye Şefi hakedişi _hazırlar/gönderir_ (create/update + submit), Proje Müdürü _onaylar_ (`approve`). İşveren/Taşeron dış roller `access_role_grants` ile yalnızca kendi sözleşmelerine scope'lanır (v1'de scope, sözleşme bazlı bir filtre katmanı ile uygulanır — bkz. §6 açık konular). Muhasebe finans tarafında tam yetkili, operasyonel tablolarda salt-okunur.
+> Notlar: **Görev ayrılığı** — Şantiye Şefi hakedişi _hazırlar/gönderir_ (create/update + submit), Proje Müdürü _onaylar_ (`approve`). İşveren/Taşeron dış roller yalnızca kendi sözleşmelerine scope'lanmalıdır; ancak bu **dış-taraf scope v1'de uygulanmamış, ertelenmiştir** (user↔vendor bağı önkoşul — bkz. §6.3). Muhasebe finans tarafında tam yetkili, operasyonel tablolarda salt-okunur.
 
 ### 4.4 Sistem Rolleriyle Eşleme (geçiş kolaylığı)
 
@@ -713,15 +713,29 @@ Geçiş kuralları domain katmanında (`ProgressPayment` entity) saf fonksiyon o
 - **SF-4 — Harcama & Finans:** `026`, gider/avans/kasa, maliyet dağıtımı, bütçe-gerçekleşen sapma.
 - **SF-5 — Malzeme & Depo:** `027`, stok/transfer/fire/talep-onay, purchasing köprüsü.
 - **SF-6 — İşgücü & Makine:** `028`, puantaj, taşeron işçi, makine logu/yakıt/bakım, maliyet dağıtımı.
-- **SF-7 — Raporlar, Dış Portal & İhale Sertleştirmesi:** İşveren/Taşeron scope'lu salt-okunur portal, S-eğrisi, KİK çıktıları (Excel).
+- **SF-7 — Raporlar:** proje gösterge paneli, pursantaj S-eğrisi, KİK çıktıları (Excel). **(v1'de tamamlandı.)** _Dış Portal (İşveren/Taşeron scope) bu fazdan çıkarılıp ertelendi — bkz. §6.3._
 
 ### 6.2 Onay/karar bekleyen açık konular
 
 1. **`approve` aksiyonu** kataloğa eklensin mi (öneri: evet)? Onaysız alternatif: status değişimini `update` ile gateleyip rol seviyesine bırakmak (KİK için zayıf).
 2. **Gider–Fatura bağı:** §2.3'teki (a) vs (b)? (öneri: a — ayrı `cs_expenses` + loose `invoice_id`).
-3. **Dış portal scope:** İşveren/Taşeronun "yalnızca kendi sözleşmesi" kısıtı — `access_role_grants`'a sözleşme bazlı yeni bir scope mi, yoksa use-case katmanında filtre mi? (öneri v1: use-case filtresi; v2: grant scope genişletme).
+3. **Dış portal scope:** İşveren/Taşeronun "yalnızca kendi sözleşmesi" kısıtı — `access_role_grants`'a sözleşme bazlı yeni bir scope mi, yoksa use-case katmanında filtre mi? **→ KARAR: v1'de uygulanmadı, ERTELENDİ (bkz. §6.3 / SF-8); user↔vendor bağı önkoşul.**
 4. **Poz katalog kaynağı:** CSB birim fiyatları manuel/CSV import mu, yoksa boş başlayıp firma kendi mi girecek? (öneri v1: CSV import + manuel).
 5. **Migration bölme:** tek `023` yerine domain başına `023–028` (öneri: bölünmüş — okunabilir, faz-faz deploy).
+
+### 6.3 Ertelenen Kapsam (v1 sonrası — ERTELENDİ)
+
+Aşağıdaki iki başlık SF-1…SF-7 v1 teslimatının **kapsamı dışında bırakılmış** ve resmî olarak **ertelenmiştir**. Veri modeli ve okuma/raporlama altyapısı v1'de hazır olduğundan, bunlar geriye-uyumlu birer ek olarak sonraki bir fazda (SF-8) eklenebilir; v1 mimarisinde değişiklik gerektirmezler.
+
+1. **Dış Portal — İşveren/Taşeron salt-okunur scope (ERTELENDİ → SF-8).**
+   - **Neden:** Dış tarafların yalnızca _kendi sözleşmelerini_ görebilmesi için bir **kullanıcı ↔ cari (vendor) bağı** gerekir; mevcut auth/RBAC modelinde (`users`, `access_role_grants`) bu bağ yoktur. `access_role_grants.subject_type` bir `vendor` değeri ve sözleşme-bazlı scope filtresi olmadan güvenli izolasyon kurulamaz.
+   - **v1'deki durum:** Raporlar (`construction.reports`) ve hakediş görünümleri **iç kullanıcılara** açıktır; dış-taraf scope **uygulanmamıştır**.
+   - **SF-8 işi:** (a) `users`↔`vendor` eşlemesi (yeni kolon/tablo), (b) `access_role_grants`'a `vendor`/`contract` scope türü veya use-case katmanında sözleşme-bazlı filtre, (c) salt-okunur dış portal ekranları.
+
+2. **Yeşil Defter & Ataşman — ayrı ekran/CRUD (ERTELENDİ → SF-8).**
+   - **Neden:** v1'de hakediş satırının `this_qty`'si fiilen ölçülen metrajı temsil eder ve kümülatif devirle çalışır; ayrı yeşil defter/ataşman giriş ekranı olmadan da uçtan uca hakediş üretilebilir. Bağımsız ölçü-detayı (formül/boyut/çizim eki) girişi ek bir UI/iş yükü olduğundan ertelendi.
+   - **v1'deki durum:** `cs_measurement_book` (yeşil defter) ve `cs_attachments` (ataşman) **tabloları migration `025` ile oluşturulmuştur**; ancak bunlara özel **use-case / endpoint / ekran YOKTUR**.
+   - **SF-8 işi:** Ataşman ölçü-detayı (formül + boyutlar → sonuç miktarı) ve yeşil defter kümülatif metraj giriş ekranları + bunların hakediş satırlarını besleyen bağ; dosya eki (`file_url`) yükleme.
 
 ---
 
