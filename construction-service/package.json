@@ -1,0 +1,36 @@
+{
+  "name": "@prometa/construction-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Prometa One — Şantiye Yönetim Mikroservisi (Hono + tsx, DB-per-service, Kafka events)",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "migrate": "node scripts/migrate.js",
+    "test": "tsx --test \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "hono": "^4.6.0",
+    "@hono/node-server": "^1.13.0",
+    "@hono/zod-validator": "^0.4.0",
+    "pg": "^8.13.0",
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.23.0",
+    "dotenv": "^16.4.0",
+    "kafkajs": "^2.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "@types/jsonwebtoken": "^9.0.7",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
