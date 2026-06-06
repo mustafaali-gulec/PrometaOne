@@ -7,8 +7,11 @@
  */
 import { Kafka, type Producer } from 'kafkajs';
 
-import type { DomainEvent, EventPublisher } from '../modules/construction/application/ports/EventPublisher.js';
 import { config } from '../config.js';
+import type {
+  DomainEvent,
+  EventPublisher,
+} from '../modules/construction/application/ports/EventPublisher.js';
 
 export class NoopEventPublisher implements EventPublisher {
   async publish(_event: DomainEvent): Promise<void> {

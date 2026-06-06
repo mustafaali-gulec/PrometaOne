@@ -33,8 +33,8 @@ import {
 } from '../dto/ProgressDtos.js';
 import type { BoqRepository } from '../ports/BoqRepository.js';
 import type { Clock } from '../ports/Clock.js';
-import type { EventPublisher } from '../ports/EventPublisher.js';
 import type { ContractRepository } from '../ports/ContractRepository.js';
+import type { EventPublisher } from '../ports/EventPublisher.js';
 import type {
   NewDeductionInput,
   NewProgressLineInput,

@@ -24,6 +24,9 @@ export default [
       '**/*.tsbuildinfo',
       'legacy/**',
       'ml-service/**',
+      // construction-service: bağımsız mikroservis, kendi eslint config'i var
+      // (construction-service/eslint.config.js). Monolit pre-commit'i ona dokunmaz.
+      'construction-service/**',
       'frontend/public/**',
       // Eski 81K satirlik monolith — Strangler Fig sirasinda modul-modul
       // cikarilacak, bitince silinecek. ESLint ona dokunmaz.

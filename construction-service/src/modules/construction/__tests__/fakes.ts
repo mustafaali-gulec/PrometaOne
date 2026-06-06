@@ -3,12 +3,12 @@
  */
 import type { BoqRepository, NewBoqLineInput } from '../application/ports/BoqRepository.js';
 import type { Clock } from '../application/ports/Clock.js';
-import type { DomainEvent, EventPublisher } from '../application/ports/EventPublisher.js';
 import type {
   ContractRepository,
   ListContractsOptions,
   NewContractInput,
 } from '../application/ports/ContractRepository.js';
+import type { DomainEvent, EventPublisher } from '../application/ports/EventPublisher.js';
 import type {
   AdvanceRepository,
   CashMovementRepository,
