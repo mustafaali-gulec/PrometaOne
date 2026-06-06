@@ -5,6 +5,7 @@ import {
   Tooltip, ResponsiveContainer, Legend, ReferenceLine, Area, AreaChart
 } from "recharts";
 import { FinanceDemoPage } from './modules/finance';
+import { ConstructionPage } from './modules/construction-site';
 import {
   Lock, LogOut, LayoutDashboard, Table2, FolderTree, Users, History,
   Settings, Plus, Trash2, Edit3, Save, X, ChevronRight, ChevronDown,
@@ -3783,6 +3784,7 @@ const ACTIONS = {
   update: { label: "Değiştir",    color: "#ca8a04" },
   delete: { label: "Sil",         color: "#dc2626" },
   export: { label: "Dışa Aktar",  color: "#7c3aed" },
+  approve:{ label: "Onayla",      color: "#0f766e" },
 };
 
 const RESOURCES = {
@@ -3818,6 +3820,21 @@ const RESOURCES = {
   "accounting.journal":  { module: "Muhasebe", label: "Yevmiye Fişleri",  actions: ["view","create","update","delete","export"], legacyPerm: "view_accounting" },
   "accounting.parties":  { module: "Muhasebe", label: "Cari Yönetimi (Cari/Tedarikçi)", actions: ["view","create","update","delete","export"], legacyPerm: "view_accounting" },
   "accounting.budget":   { module: "Muhasebe", label: "Bütçe",          actions: ["view","create","update","delete","export"], legacyPerm: "view_budget" },
+
+  // Şantiye Yönetim (Construction Service — bağımsız mikroservis /v1/construction)
+  "construction.projects":          { module: "Şantiye", label: "Projeler & Şantiyeler",            actions: ["view","create","update","delete"],                 legacyPerm: "view_dashboard" },
+  "construction.contracts":         { module: "Şantiye", label: "Sözleşme & İhale",                 actions: ["view","create","update","delete","export"],        legacyPerm: "view_accounting" },
+  "construction.boq":               { module: "Şantiye", label: "Keşif & Pursantaj",                actions: ["view","create","update","delete","export"],        legacyPerm: "view_budget" },
+  "construction.measurements":      { module: "Şantiye", label: "Metraj / Yeşil Defter / Ataşman",  actions: ["view","create","update","delete"],                 legacyPerm: "view_budget" },
+  "construction.progress":          { module: "Şantiye", label: "Hakediş",                          actions: ["view","create","update","delete","export","approve"], legacyPerm: "view_accounting" },
+  "construction.expenses":          { module: "Şantiye", label: "Harcama & Finans",                 actions: ["view","create","update","delete","export"],        legacyPerm: "view_invoices" },
+  "construction.advances":          { module: "Şantiye", label: "Avanslar",                         actions: ["view","create","update","delete"],                 legacyPerm: "view_invoices" },
+  "construction.materials":         { module: "Şantiye", label: "Malzeme & Depo / Stok",            actions: ["view","create","update","delete","export"],        legacyPerm: "view_dashboard" },
+  "construction.material_requests": { module: "Şantiye", label: "Malzeme Talebi",                   actions: ["view","create","update","delete","approve"],       legacyPerm: "view_dashboard" },
+  "construction.timesheets":        { module: "Şantiye", label: "Puantaj & İşgücü",                 actions: ["view","create","update","delete","export"],        legacyPerm: "view_employees" },
+  "construction.machinery":         { module: "Şantiye", label: "Makine Parkı",                     actions: ["view","create","update","delete","export"],        legacyPerm: "view_dashboard" },
+  "construction.reports":           { module: "Şantiye", label: "Şantiye Raporları & Analitik",     actions: ["view","export"],                                   legacyPerm: "view_reports" },
+  "construction.settings":          { module: "Şantiye", label: "Poz Katalog / Fire / Ayar",        actions: ["view","create","update","delete"],                 legacyPerm: "manage_categories" },
 
   // Sistem modülleri
   "system.users":        { module: "Sistem", label: "Kullanıcılar",    actions: ["view","create","update","delete"], legacyPerm: "manage_users" },
@@ -12355,6 +12372,13 @@ export default function App() {
             initialView={view === "purchase_requests" ? "requests" : view === "purchase_orders" ? "orders" : "vendors"}
           />
         )}
+        {(view === "cs_projects" || view === "cs_contracts" || view === "cs_progress" || view === "cs_finance" || view === "cs_depot" || view === "cs_labor" || view === "cs_reports") && (
+          <ConstructionPage
+            apiBaseUrl=""
+            companyId={session?.activeCompanyId ?? 1}
+            views={[{ cs_projects: "projects", cs_contracts: "contracts", cs_progress: "progress", cs_finance: "finance", cs_depot: "depot", cs_labor: "labor", cs_reports: "reports" }[view]]}
+          />
+        )}
         {view === "projects" && (
           <ProjectsModule
             data={effectiveData} session={session} users={users} canAct={canAct} lang={lang}
@@ -13283,6 +13307,15 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
     { id: "purchase_orders",   label: lang === "en" ? "Purchase Orders" : lang === "de" ? "Bestellungen" : lang === "ar" ? "أوامر الشراء" : "Siparişler", icon: Receipt, perm: "view_dashboard", resource: "finance.dashboard", group: "purchase" },
     { id: "purchase_vendors",  label: lang === "en" ? "Vendors" : lang === "de" ? "Lieferanten" : lang === "ar" ? "الموردون" : "Tedarikçiler", icon: Building2, perm: "view_accounting", resource: "accounting.parties", group: "purchase" },
 
+    // === ŞANTİYE YÖNETİM (bağımsız mikroservis) ===
+    { id: "cs_projects",  label: lang === "en" ? "Projects" : lang === "de" ? "Projekte" : lang === "ar" ? "المشاريع" : "Projeler", icon: Building2, perm: "view_dashboard", resource: "construction.projects", group: "construction" },
+    { id: "cs_contracts", label: lang === "en" ? "Contracts & Tenders" : lang === "de" ? "Verträge" : lang === "ar" ? "العقود" : "Sözleşme & İhale", icon: FileCheck, perm: "view_accounting", resource: "construction.contracts", group: "construction" },
+    { id: "cs_progress",  label: lang === "en" ? "Progress Payments" : lang === "de" ? "Abschlagszahlungen" : lang === "ar" ? "المستحقات" : "Hakediş", icon: Receipt, perm: "view_accounting", resource: "construction.progress", group: "construction" },
+    { id: "cs_finance",   label: lang === "en" ? "Expenses & Finance" : lang === "de" ? "Ausgaben" : lang === "ar" ? "المصروفات" : "Harcama & Finans", icon: Wallet, perm: "view_invoices", resource: "construction.expenses", group: "construction" },
+    { id: "cs_depot",     label: lang === "en" ? "Materials & Stock" : lang === "de" ? "Material & Lager" : lang === "ar" ? "المواد والمخزون" : "Malzeme & Depo", icon: ClipboardList, perm: "view_dashboard", resource: "construction.materials", group: "construction" },
+    { id: "cs_labor",     label: lang === "en" ? "Labor & Machinery" : lang === "de" ? "Arbeit & Maschinen" : lang === "ar" ? "العمالة والآلات" : "İş Gücü & Makine", icon: Users, perm: "view_employees", resource: "construction.timesheets", group: "construction" },
+    { id: "cs_reports",   label: lang === "en" ? "Reports" : lang === "de" ? "Berichte" : lang === "ar" ? "التقارير" : "Raporlar", icon: BarChart3, perm: "view_reports", resource: "construction.reports", group: "construction" },
+
     // === FİNANS ===
     { id: "banks",      label: t("menu.banks", lang),      icon: Landmark,        perm: "view_banks",     resource: "finance.banks", group: "finance" },
     { id: "kasa",       label: t("menu.kasa", lang),       icon: Wallet,          perm: "view_kasa",      resource: "finance.kasa", group: "finance" },
@@ -13316,6 +13349,7 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
     overview:   { tr: "Genel Bakış",        en: "Overview",       de: "Übersicht",     ar: "نظرة عامة" },
     sales:      { tr: "Satış & CRM",        en: "Sales & CRM",    de: "Vertrieb & CRM", ar: "المبيعات و CRM" },
     purchase:   { tr: "Satınalma",          en: "Purchasing",     de: "Einkauf",       ar: "المشتريات" },
+    construction: { tr: "Şantiye Yönetim",  en: "Construction",   de: "Baustelle",     ar: "إدارة الموقع" },
     finance:    { tr: "Finans",             en: "Finance",        de: "Finanzen",      ar: "المالية" },
     hr:         { tr: "İnsan Kaynakları",   en: "Human Resources", de: "Personal",      ar: "الموارد البشرية" },
     accounting: { tr: "Muhasebe & Analiz",  en: "Accounting",     de: "Buchhaltung",   ar: "المحاسبة" },

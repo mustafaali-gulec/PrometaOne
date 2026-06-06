@@ -11,6 +11,13 @@ export default defineConfig({
     // host port map'i uzerinden host.docker.internal ile erisilir. Bare-metal local
     // dev icin VITE_PROXY_TARGET=http://localhost:3000 verin.
     proxy: {
+      // Şantiye Yönetim BAĞIMSIZ mikroservis (construction-service, :3002).
+      // Daha spesifik kural önce gelmeli — /v1/construction/* monolit yerine
+      // servise gider; gerisi (/v1/*) monolite. UI değişmez (relative çağrılar).
+      '/v1/construction': {
+        target: process.env.VITE_CONSTRUCTION_TARGET || 'http://host.docker.internal:3002',
+        changeOrigin: true,
+      },
       '/v1': {
         target: process.env.VITE_PROXY_TARGET || 'http://host.docker.internal:3000',
         changeOrigin: true,
