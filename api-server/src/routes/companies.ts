@@ -8,6 +8,7 @@ import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 
 import { pool, queryOne, queryMany, transaction } from '../db.js';
+import { publishCore } from '../events/kafka.js';
 import { logAudit } from '../middleware/audit.js';
 import { authMiddleware, requireRole, requireCompanyAccess } from '../middleware/auth.js';
 
@@ -108,6 +109,12 @@ companies.post(
     });
 
     await logAudit(c, 'company_create', { name: data.name }, newCompany.id);
+    // Referans event → construction-service cs_ref_companies (no-op if no Kafka)
+    await publishCore('core.company', String(newCompany.id), {
+      id: newCompany.id,
+      name: newCompany.name,
+      taxNo: newCompany.taxNo,
+    });
     return c.json(newCompany, 201);
   },
 );
@@ -176,6 +183,10 @@ companies.patch(
     );
 
     await logAudit(c, 'company_update', { changes: data }, cid);
+    if (result) {
+      const r = result as { id: number; name: string; taxNo: string | null };
+      await publishCore('core.company', String(r.id), { id: r.id, name: r.name, taxNo: r.taxNo });
+    }
     return c.json(result);
   },
 );
@@ -186,6 +197,7 @@ companies.delete('/:cid', requireRole('admin'), async (c) => {
   // Soft delete
   await pool.query(`UPDATE companies SET active = FALSE WHERE id = $1`, [cid]);
   await logAudit(c, 'company_delete', {}, cid);
+  await publishCore('core.company', String(cid), { id: cid }, 'deleted');
   return new Response(null, { status: 204 });
 });
 

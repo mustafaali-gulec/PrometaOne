@@ -11,6 +11,7 @@ import { logger } from 'hono/logger';
 
 import { config } from './config.js';
 import { closePool, healthCheck, pool } from './db.js';
+import { ConstructionEventConsumer, disconnectKafkaProducer } from './events/kafka.js';
 import { errorHandler } from './middleware/error.js';
 import { registerAccessModule } from './modules/access/index.js';
 import { registerAiModule } from './modules/ai/index.js';
@@ -215,6 +216,15 @@ if (config.ENABLE_CRON) {
   notificationsModule.scheduler.start();
 }
 
+// Kafka — construction-service event'lerini tuket (KAFKA_BROKERS varsa)
+const constructionConsumer =
+  config.kafkaBrokers.length > 0 ? new ConstructionEventConsumer() : null;
+if (constructionConsumer) {
+  constructionConsumer
+    .start()
+    .catch((err: unknown) => console.error('[kafka] construction consumer baslatilamadi:', err));
+}
+
 const server = serve(
   {
     fetch: app.fetch,
@@ -234,6 +244,8 @@ async function shutdown(signal: string): Promise<void> {
   console.log(`\n${signal} alindi — kapatiliyor...`);
   stopCron();
   notificationsModule.scheduler.stop();
+  if (constructionConsumer) await constructionConsumer.stop();
+  await disconnectKafkaProducer();
   server.close(() => console.log('* HTTP server kapandi'));
   await closePool();
   console.log('* DB pool kapandi');

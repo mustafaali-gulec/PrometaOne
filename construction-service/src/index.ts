@@ -13,6 +13,7 @@ import { logger } from 'hono/logger';
 
 import { config } from './config.js';
 import { closePool, healthCheck, pool } from './db.js';
+import { RefEventConsumer } from './events/consumer.js';
 import { getEventPublisher, KafkaEventPublisher } from './events/kafka.js';
 import { registerConstructionModule } from './modules/construction/index.js';
 
@@ -74,7 +75,9 @@ const server = serve({ fetch: app.fetch, port: config.PORT, hostname: config.HOS
   console.log(`  Mode   : ${config.NODE_ENV}`);
   console.log(`  Listen : http://${config.HOST}:${String(info.port)}/v1`);
   console.log(`  Health : http://${config.HOST}:${String(info.port)}/v1/health`);
-  console.log(`  Kafka  : ${config.kafkaBrokers.length > 0 ? config.kafkaBrokers.join(',') : 'no-op'}`);
+  console.log(
+    `  Kafka  : ${config.kafkaBrokers.length > 0 ? config.kafkaBrokers.join(',') : 'no-op'}`,
+  );
   console.log('========================================================================');
 });
 
@@ -83,10 +86,20 @@ if (events instanceof KafkaEventPublisher) {
   events.connect().catch((err: unknown) => console.error('[kafka] ön bağlantı başarısız:', err));
 }
 
+// Referans event tüketicisi (core.company/user/vendor → cs_ref_*). Kafka varsa.
+let refConsumer: RefEventConsumer | null = null;
+if (config.kafkaBrokers.length > 0) {
+  refConsumer = new RefEventConsumer(pool, config.kafkaBrokers, config.KAFKA_CLIENT_ID);
+  refConsumer
+    .start()
+    .catch((err: unknown) => console.error('[kafka] ref consumer başlatılamadı:', err));
+}
+
 // === Graceful shutdown ===
 async function shutdown(signal: string): Promise<void> {
   console.log(`\n${signal} alındı — kapatılıyor...`);
   server.close();
+  if (refConsumer) await refConsumer.stop();
   if (events instanceof KafkaEventPublisher) await events.disconnect();
   await closePool();
   process.exit(0);

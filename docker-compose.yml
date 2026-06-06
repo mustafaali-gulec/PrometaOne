@@ -72,12 +72,16 @@ services:
       SMTP_SECURE: ${SMTP_SECURE:-false}
       ENABLE_CRON: ${ENABLE_CRON:-true}
       ML_SERVICE_URL: http://ml-service:8001
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_CLIENT_ID: api-server
       TZ: Europe/Istanbul
     ports:
       - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_started
     networks:
       - prometa
 
