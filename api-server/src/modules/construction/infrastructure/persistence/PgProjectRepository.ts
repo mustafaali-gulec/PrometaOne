@@ -150,7 +150,7 @@ export class PgProjectRepository implements ProjectRepository {
 
 function rowToProject(row: ProjectRow): Project {
   return Project.create({
-    id: row.id,
+    id: Number(row.id),
     companyId: row.company_id,
     code: row.code,
     name: row.name,

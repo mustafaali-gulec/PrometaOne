@@ -38,6 +38,108 @@ export class DuplicateContractNoError extends ConstructionError {
   }
 }
 
+export class PozNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Poz bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicatePozError extends ConstructionError {
+  constructor(pozNo: string) {
+    super(`Bu poz no zaten kayıtlı: ${pozNo}`);
+  }
+}
+
+export class ProgressNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Hakediş bulunamadı: ${id}`);
+  }
+}
+
+export class ProgressNotEditableError extends ConstructionError {
+  constructor(status: string) {
+    super(`Bu durumdaki hakediş düzenlenemez: '${status}' (yalnızca taslak/reddedilmiş)`);
+  }
+}
+
+export class ExpenseNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Gider bulunamadı: ${id}`);
+  }
+}
+
+export class AdvanceNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Avans bulunamadı: ${id}`);
+  }
+}
+
+export class CashMovementNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Kasa/banka hareketi bulunamadı: ${id}`);
+  }
+}
+
+export class MaterialNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Malzeme bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateMaterialCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu kodda malzeme zaten var: ${code}`);
+  }
+}
+
+export class WarehouseNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Depo bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateWarehouseCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu kodda depo zaten var: ${code}`);
+  }
+}
+
+export class MaterialRequestNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Malzeme talebi bulunamadı: ${id}`);
+  }
+}
+
+export class MaterialRequestNotEditableError extends ConstructionError {
+  constructor(status: string) {
+    super(`Bu durumdaki talep düzenlenemez: '${status}' (yalnızca taslak/reddedilmiş)`);
+  }
+}
+
+export class PersonnelNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Personel bulunamadı: ${id}`);
+  }
+}
+
+export class MachineNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Makine bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateMachineCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu kodda makine zaten var: ${code}`);
+  }
+}
+
+export class TimesheetNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Puantaj kaydı bulunamadı: ${id}`);
+  }
+}
+
 export class InvalidStatusTransitionError extends ConstructionError {
   constructor(from: string, to: string) {
     super(`Geçersiz statü geçişi: '${from}' → '${to}'`);

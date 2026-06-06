@@ -232,11 +232,11 @@ function rowToContract(row: ContractRow): Contract {
           notes: row.t_notes,
         };
   return Contract.create({
-    id: row.id,
+    id: Number(row.id),
     companyId: row.company_id,
-    projectId: row.project_id,
+    projectId: Number(row.project_id),
     partyKind: row.party_kind,
-    vendorId: row.vendor_id,
+    vendorId: row.vendor_id !== null ? Number(row.vendor_id) : null,
     contractNo: row.contract_no,
     title: row.title,
     amount: Number(row.amount),

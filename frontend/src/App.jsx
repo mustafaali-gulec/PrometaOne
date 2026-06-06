@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import { FinanceDemoPage } from './modules/finance';
 import { PurchasingPage } from './modules/purchasing';
+import { ConstructionPage } from './modules/construction-site';
 import {
   Lock, LogOut, LayoutDashboard, Table2, FolderTree, Users, History,
   Settings, Plus, Trash2, Edit3, Save, X, ChevronRight, ChevronDown,
@@ -12381,6 +12382,33 @@ export default function App() {
         {view === "purchase_vendors" && (
           <PurchasingPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["vendors"]} company={purchasingBuyerCompany(effectiveData, session)} />
         )}
+        {view === "cs_projects" && (
+          <ConstructionPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["projects"]} />
+        )}
+        {view === "cs_contracts" && (
+          <ConstructionPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["contracts"]} />
+        )}
+        {view === "cs_boq" && (
+          <ConstructionPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["boq"]} />
+        )}
+        {view === "cs_progress" && (
+          <ConstructionPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["progress"]} />
+        )}
+        {view === "cs_finance" && (
+          <ConstructionPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["finance"]} />
+        )}
+        {view === "cs_depot" && (
+          <ConstructionPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["depot"]} />
+        )}
+        {view === "cs_labor" && (
+          <ConstructionPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["labor"]} />
+        )}
+        {view === "cs_reports" && (
+          <ConstructionPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["reports"]} />
+        )}
+        {view === "cs_poz" && (
+          <ConstructionPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["poz"]} />
+        )}
         {view === "projects" && (
           <ProjectsModule
             data={effectiveData} session={session} users={users} canAct={canAct} lang={lang}
@@ -13309,6 +13337,13 @@ function buildSideMenuItems(lang) {
     // === ŞANTİYE YÖNETİM ===
     { id: "cs_projects",  label: lang === "en" ? "Projects" : lang === "de" ? "Projekte" : lang === "ar" ? "المشاريع" : "Projeler", icon: Building2, perm: "view_dashboard", resource: "construction.projects", group: "construction" },
     { id: "cs_contracts", label: lang === "en" ? "Contracts & Tenders" : lang === "de" ? "Verträge" : lang === "ar" ? "العقود" : "Sözleşme & İhale", icon: FileCheck, perm: "view_accounting", resource: "construction.contracts", group: "construction" },
+    { id: "cs_boq", label: lang === "en" ? "BoQ & Progress %" : lang === "de" ? "Leistungsverzeichnis" : lang === "ar" ? "الكشف" : "Keşif & Pursantaj", icon: Table2, perm: "view_budget", resource: "construction.boq", group: "construction" },
+    { id: "cs_progress", label: lang === "en" ? "Progress Payments" : lang === "de" ? "Abschlagszahlungen" : lang === "ar" ? "المستحقات" : "Hakediş", icon: Receipt, perm: "view_accounting", resource: "construction.progress", group: "construction" },
+    { id: "cs_finance", label: lang === "en" ? "Expenses & Finance" : lang === "de" ? "Ausgaben & Finanzen" : lang === "ar" ? "المصروفات" : "Harcama & Finans", icon: Wallet, perm: "view_invoices", resource: "construction.expenses", group: "construction" },
+    { id: "cs_depot", label: lang === "en" ? "Materials & Stock" : lang === "de" ? "Material & Lager" : lang === "ar" ? "المواد والمخزون" : "Malzeme & Depo", icon: ClipboardList, perm: "view_dashboard", resource: "construction.materials", group: "construction" },
+    { id: "cs_labor", label: lang === "en" ? "Labor & Machinery" : lang === "de" ? "Arbeit & Maschinen" : lang === "ar" ? "العمالة والآلات" : "İş Gücü & Makine", icon: Users, perm: "view_employees", resource: "construction.timesheets", group: "construction" },
+    { id: "cs_reports", label: lang === "en" ? "Reports" : lang === "de" ? "Berichte" : lang === "ar" ? "التقارير" : "Raporlar", icon: BarChart3, perm: "view_reports", resource: "construction.reports", group: "construction" },
+    { id: "cs_poz", label: lang === "en" ? "Unit Price Catalog" : lang === "de" ? "Positionskatalog" : lang === "ar" ? "كتالوج البنود" : "Poz Katalog", icon: FolderTree, perm: "manage_categories", resource: "construction.settings", group: "construction" },
 
     // === FİNANS ===
     { id: "banks",      label: t("menu.banks", lang),      icon: Landmark,        perm: "view_banks",     resource: "finance.banks", group: "finance" },
