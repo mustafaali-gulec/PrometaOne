@@ -13,6 +13,8 @@ import { Kafka, type Consumer, type Producer } from 'kafkajs';
 import { config } from '../config.js';
 import { pool } from '../db.js';
 
+import { createHakedisJournalEntry } from './journal.js';
+
 let producer: Producer | null = null;
 let producerReady = false;
 
@@ -106,7 +108,11 @@ export class ConstructionEventConsumer {
               raw,
             ],
           );
-          // UZANTI NOKTASI: hakediş approved/paid → muhasebe fişi / bildirim burada üretilebilir.
+          // Hakediş approved/paid → çift taraflı yevmiye fişi (idempotent).
+          if (topic === 'construction.hakedis' && env.type === 'status_changed') {
+            const created = await createHakedisJournalEntry(env.payload ?? {});
+            if (created) console.warn(`[kafka] yevmiye fişi üretildi: hakediş ${companyId ?? '?'}`);
+          }
         } catch (err) {
           console.error(`[kafka] construction event işleme hatası (topic=${topic}):`, err);
         }
