@@ -26,4 +26,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD curl -fsS http://localhost:3002/v1/health || exit 1
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["npx", "tsx", "src/index.ts"]
+# Açılışta migration'ları uygula (idempotent — uygulanmışları atlar), sonra servisi başlat.
+# Böylece prod deploy yeni migration'ları (örn. 003_construction_payments) otomatik alır.
+CMD ["sh", "-c", "node scripts/migrate.js && npx tsx src/index.ts"]
