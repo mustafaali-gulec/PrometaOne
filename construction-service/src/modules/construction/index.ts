@@ -22,15 +22,19 @@ import {
   CreateAdvanceUseCase,
   CreateCashMovementUseCase,
   CreateExpenseUseCase,
+  CreateManualPaymentUseCase,
   DeleteAdvanceUseCase,
   DeleteCashMovementUseCase,
   DeleteExpenseUseCase,
+  DeleteManualPaymentUseCase,
   GetProjectCostSummaryUseCase,
   ListAdvancesUseCase,
   ListCashMovementsUseCase,
   ListExpensesUseCase,
+  ListPaymentListUseCase,
   UpdateAdvanceUseCase,
   UpdateExpenseUseCase,
+  UpdateManualPaymentUseCase,
 } from './application/useCases/FinanceUseCases.js';
 import {
   CreateMachineLogUseCase,
@@ -95,6 +99,7 @@ import {
   PgAdvanceRepository,
   PgCashMovementRepository,
   PgExpenseRepository,
+  PgPaymentRepository,
 } from './infrastructure/persistence/PgFinanceRepositories.js';
 import {
   PgLaborCostRepository,
@@ -128,6 +133,7 @@ export function registerConstructionModule(
   const expenses = new PgExpenseRepository(pool);
   const advances = new PgAdvanceRepository(pool);
   const cash = new PgCashMovementRepository(pool);
+  const payments = new PgPaymentRepository(pool);
   const materials = new PgMaterialRepository(pool);
   const warehouses = new PgWarehouseRepository(pool);
   const stock = new PgStockRepository(pool);
@@ -171,6 +177,10 @@ export function registerConstructionModule(
     createCashMovement: new CreateCashMovementUseCase(cash, projects),
     listCashMovements: new ListCashMovementsUseCase(cash),
     deleteCashMovement: new DeleteCashMovementUseCase(cash),
+    listPayments: new ListPaymentListUseCase(payments),
+    createPayment: new CreateManualPaymentUseCase(payments),
+    updatePayment: new UpdateManualPaymentUseCase(payments),
+    deletePayment: new DeleteManualPaymentUseCase(payments),
     createMaterial: new CreateMaterialUseCase(materials),
     listMaterials: new ListMaterialsUseCase(materials),
     updateMaterial: new UpdateMaterialUseCase(materials, clock),

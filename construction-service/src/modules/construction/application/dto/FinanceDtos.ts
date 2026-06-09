@@ -98,6 +98,40 @@ export function toAdvanceDto(a: Advance): AdvanceDto {
   };
 }
 
+export type PaymentStatus = 'planned' | 'paid';
+export type PaymentSource = 'manual' | 'hakedis' | 'expense' | 'advance';
+
+export interface ManualPaymentDto {
+  id: number;
+  companyId: number;
+  projectId: number | null;
+  payee: string | null;
+  description: string | null;
+  amount: number;
+  currency: CurrencyCode;
+  dueDate: string | null;
+  status: PaymentStatus;
+  paidAt: string | null;
+  method: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentListItemDto {
+  source: PaymentSource;
+  sourceId: number; // kaynak satır id
+  paymentId: number | null; // manuel ise cs_payments.id (edit/delete için), değilse null
+  projectId: number | null;
+  payee: string | null;
+  description: string | null;
+  amount: number;
+  currency: CurrencyCode;
+  status: PaymentStatus;
+  date: string | null; // ISO 'YYYY-MM-DD'
+  dueDate: string | null;
+  method: string | null;
+}
+
 export function toCashMovementDto(m: CashMovement): CashMovementDto {
   const j = m.toJSON();
   return {

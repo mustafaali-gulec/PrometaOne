@@ -6,6 +6,7 @@ import {
   AdvanceNotFoundError,
   CashMovementNotFoundError,
   ExpenseNotFoundError,
+  PaymentNotFoundError,
   ProjectNotFoundError,
 } from '../../domain/errors/ConstructionErrors.js';
 import { round2, type CurrencyCode } from '../../domain/valueObjects/Currency.js';
@@ -16,6 +17,8 @@ import {
   type AdvanceDto,
   type CashMovementDto,
   type ExpenseDto,
+  type ManualPaymentDto,
+  type PaymentListItemDto,
   type ProjectCostSummaryDto,
 } from '../dto/FinanceDtos.js';
 import type { Clock } from '../ports/Clock.js';
@@ -23,6 +26,7 @@ import type {
   AdvanceRepository,
   CashMovementRepository,
   ExpenseRepository,
+  PaymentRepository,
 } from '../ports/FinanceRepositories.js';
 import type { ProjectRepository } from '../ports/ProjectRepository.js';
 
@@ -281,5 +285,83 @@ export class DeleteCashMovementUseCase {
   async execute(input: { companyId: number; movementId: number }): Promise<void> {
     const ok = await this.cash.delete(input.movementId, input.companyId);
     if (!ok) throw new CashMovementNotFoundError(input.movementId);
+  }
+}
+
+// ===== PAYMENTS (Ödeme Listesi) =============================================
+export class ListPaymentListUseCase {
+  constructor(private readonly payments: PaymentRepository) {}
+  async execute(input: {
+    companyId: number;
+    projectId?: number | null | undefined;
+  }): Promise<PaymentListItemDto[]> {
+    return this.payments.listUnified(input.companyId, input.projectId ?? null);
+  }
+}
+
+export interface CreateManualPaymentInput {
+  companyId: number;
+  projectId?: number | null | undefined;
+  payee?: string | null | undefined;
+  description?: string | null | undefined;
+  amount: number;
+  currency?: CurrencyCode | undefined;
+  dueDate?: string | null | undefined;
+  status?: 'planned' | 'paid' | undefined;
+  paidAt?: string | null | undefined;
+  method?: string | null | undefined;
+  createdBy?: number | null | undefined;
+}
+
+export class CreateManualPaymentUseCase {
+  constructor(private readonly payments: PaymentRepository) {}
+  async execute(input: CreateManualPaymentInput): Promise<ManualPaymentDto> {
+    return this.payments.insertManual({
+      companyId: input.companyId,
+      projectId: input.projectId ?? null,
+      payee: input.payee?.trim() || null,
+      description: input.description?.trim() || null,
+      amount: round2(input.amount),
+      currency: input.currency ?? 'TRY',
+      dueDate: input.dueDate ?? null,
+      status: input.status ?? 'planned',
+      paidAt: input.paidAt ?? null,
+      method: input.method?.trim() || null,
+      createdBy: input.createdBy ?? null,
+    });
+  }
+}
+
+export interface UpdateManualPaymentInput extends Omit<CreateManualPaymentInput, 'amount'> {
+  paymentId: number;
+  amount?: number | undefined;
+}
+
+export class UpdateManualPaymentUseCase {
+  constructor(private readonly payments: PaymentRepository) {}
+  async execute(input: UpdateManualPaymentInput): Promise<ManualPaymentDto> {
+    const existing = await this.payments.findManualById(input.paymentId, input.companyId);
+    if (!existing) throw new PaymentNotFoundError(input.paymentId);
+    const updated = await this.payments.updateManual(input.paymentId, input.companyId, {
+      payee: input.payee !== undefined ? input.payee?.trim() || null : existing.payee,
+      description:
+        input.description !== undefined ? input.description?.trim() || null : existing.description,
+      amount: input.amount !== undefined ? round2(input.amount) : existing.amount,
+      currency: input.currency ?? existing.currency,
+      dueDate: input.dueDate !== undefined ? input.dueDate : existing.dueDate,
+      status: input.status ?? existing.status,
+      paidAt: input.paidAt !== undefined ? input.paidAt : existing.paidAt,
+      method: input.method !== undefined ? input.method?.trim() || null : existing.method,
+    });
+    if (!updated) throw new PaymentNotFoundError(input.paymentId);
+    return updated;
+  }
+}
+
+export class DeleteManualPaymentUseCase {
+  constructor(private readonly payments: PaymentRepository) {}
+  async execute(input: { companyId: number; paymentId: number }): Promise<void> {
+    const ok = await this.payments.deleteManual(input.paymentId, input.companyId);
+    if (!ok) throw new PaymentNotFoundError(input.paymentId);
   }
 }

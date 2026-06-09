@@ -6,6 +6,7 @@ import type { Advance } from '../../domain/entities/Advance.js';
 import type { CashMovement } from '../../domain/entities/CashMovement.js';
 import type { Expense } from '../../domain/entities/Expense.js';
 import type { CurrencyCode } from '../../domain/valueObjects/Currency.js';
+import type { ManualPaymentDto, PaymentListItemDto } from '../dto/FinanceDtos.js';
 
 export interface NewExpenseInput {
   companyId: number;
@@ -74,4 +75,41 @@ export interface CashMovementRepository {
   delete(id: number, companyId: number): Promise<boolean>;
   findById(id: number, companyId: number): Promise<CashMovement | null>;
   listByProject(projectId: number, companyId: number): Promise<ReadonlyArray<CashMovement>>;
+}
+
+export interface NewManualPaymentInput {
+  companyId: number;
+  projectId: number | null;
+  payee: string | null;
+  description: string | null;
+  amount: number;
+  currency: CurrencyCode;
+  dueDate: string | null;
+  status: 'planned' | 'paid';
+  paidAt: string | null;
+  method: string | null;
+  createdBy: number | null;
+}
+
+export interface ManualPaymentPatch {
+  payee: string | null;
+  description: string | null;
+  amount: number;
+  currency: CurrencyCode;
+  dueDate: string | null;
+  status: 'planned' | 'paid';
+  paidAt: string | null;
+  method: string | null;
+}
+
+export interface PaymentRepository {
+  listUnified(companyId: number, projectId: number | null): Promise<PaymentListItemDto[]>;
+  insertManual(input: NewManualPaymentInput): Promise<ManualPaymentDto>;
+  findManualById(id: number, companyId: number): Promise<ManualPaymentDto | null>;
+  updateManual(
+    id: number,
+    companyId: number,
+    patch: ManualPaymentPatch,
+  ): Promise<ManualPaymentDto | null>;
+  deleteManual(id: number, companyId: number): Promise<boolean>;
 }

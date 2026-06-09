@@ -21,6 +21,8 @@ import type {
   MaterialRequestsResponse,
   MaterialsResponse,
   MovementsResponse,
+  ManualPaymentDto,
+  PaymentListResponse,
   PozDto,
   PozResponse,
   ProgressKind,
@@ -214,6 +216,29 @@ export interface UpdateExpenseBody {
   currency?: CurrencyCode;
   spentAt?: string;
 }
+export interface CreatePaymentBody {
+  companyId: number;
+  projectId?: number | null;
+  payee?: string | null;
+  description?: string | null;
+  amount: number;
+  currency?: CurrencyCode;
+  dueDate?: string | null;
+  status?: 'planned' | 'paid';
+  paidAt?: string | null;
+  method?: string | null;
+}
+export interface UpdatePaymentBody {
+  companyId: number;
+  payee?: string | null;
+  description?: string | null;
+  amount?: number;
+  currency?: CurrencyCode;
+  dueDate?: string | null;
+  status?: 'planned' | 'paid';
+  paidAt?: string | null;
+  method?: string | null;
+}
 export interface CreateAdvanceBody {
   companyId: number;
   projectId: number;
@@ -369,6 +394,11 @@ export interface ConstructionApi {
   updateExpense(id: number, body: UpdateExpenseBody): Promise<ExpenseDto>;
   deleteExpense(id: number, companyId: number): Promise<void>;
   getCostSummary(projectId: number, companyId: number): Promise<ProjectCostSummaryDto>;
+  // Ödeme Listesi (birleşik: manuel + hakediş + gider + avans)
+  listPaymentList(companyId: number, projectId?: number | null): Promise<PaymentListResponse>;
+  createPayment(body: CreatePaymentBody): Promise<ManualPaymentDto>;
+  updatePayment(id: number, body: UpdatePaymentBody): Promise<ManualPaymentDto>;
+  deletePayment(id: number, companyId: number): Promise<void>;
   listAdvances(companyId: number, projectId: number): Promise<AdvancesResponse>;
   createAdvance(body: CreateAdvanceBody): Promise<AdvanceDto>;
   deleteAdvance(id: number, companyId: number): Promise<void>;

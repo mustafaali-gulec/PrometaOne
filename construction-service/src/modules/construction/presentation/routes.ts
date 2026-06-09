@@ -22,13 +22,17 @@ import type {
   CreateExpenseUseCase,
   DeleteAdvanceUseCase,
   DeleteCashMovementUseCase,
+  CreateManualPaymentUseCase,
   DeleteExpenseUseCase,
+  DeleteManualPaymentUseCase,
   GetProjectCostSummaryUseCase,
   ListAdvancesUseCase,
   ListCashMovementsUseCase,
   ListExpensesUseCase,
+  ListPaymentListUseCase,
   UpdateAdvanceUseCase,
   UpdateExpenseUseCase,
+  UpdateManualPaymentUseCase,
 } from '../application/useCases/FinanceUseCases.js';
 import type {
   CreateMachineLogUseCase,
@@ -123,6 +127,10 @@ export interface ConstructionRouterDeps {
   createCashMovement: CreateCashMovementUseCase;
   listCashMovements: ListCashMovementsUseCase;
   deleteCashMovement: DeleteCashMovementUseCase;
+  listPayments: ListPaymentListUseCase;
+  createPayment: CreateManualPaymentUseCase;
+  updatePayment: UpdateManualPaymentUseCase;
+  deletePayment: DeleteManualPaymentUseCase;
   createMaterial: CreateMaterialUseCase;
   listMaterials: ListMaterialsUseCase;
   updateMaterial: UpdateMaterialUseCase;
@@ -995,6 +1003,104 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
       const q = c.req.valid('query');
       try {
         await deps.deleteCashMovement.execute({ movementId: id, companyId: q.companyId });
+        return c.body(null, 204);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== ÖDEME LİSTESİ (Payments) =========================================
+  app.get(
+    '/payments',
+    zValidator(
+      'query',
+      companyIdQ.extend({ projectId: z.coerce.number().int().positive().optional() }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const items = await deps.listPayments.execute({
+          companyId: q.companyId,
+          projectId: q.projectId ?? null,
+        });
+        return c.json({ items });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/payments',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive().nullable().optional(),
+        payee: z.string().max(300).nullable().optional(),
+        description: z.string().max(500).nullable().optional(),
+        amount: z.number().nonnegative(),
+        currency: currency.optional(),
+        dueDate: dateStr.nullable().optional(),
+        status: z.enum(['planned', 'paid']).optional(),
+        paidAt: dateStr.nullable().optional(),
+        method: z.string().max(40).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.createPayment.execute({ ...b, createdBy: actorId(c) });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/payments/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive().nullable().optional(),
+        payee: z.string().max(300).nullable().optional(),
+        description: z.string().max(500).nullable().optional(),
+        amount: z.number().nonnegative().optional(),
+        currency: currency.optional(),
+        dueDate: dateStr.nullable().optional(),
+        status: z.enum(['planned', 'paid']).optional(),
+        paidAt: dateStr.nullable().optional(),
+        method: z.string().max(40).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.updatePayment.execute({ paymentId: id, ...b });
+        return c.json(dto);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/payments/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        await deps.deletePayment.execute({ paymentId: id, companyId: q.companyId });
         return c.body(null, 204);
       } catch (err) {
         mapConstructionError(err);

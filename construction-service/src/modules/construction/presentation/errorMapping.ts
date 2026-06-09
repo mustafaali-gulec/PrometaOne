@@ -24,6 +24,7 @@ import {
   MaterialNotFoundError,
   MaterialRequestNotEditableError,
   MaterialRequestNotFoundError,
+  PaymentNotFoundError,
   PersonnelNotFoundError,
   PozNotFoundError,
   ProgressNotEditableError,
@@ -42,6 +43,7 @@ export function mapConstructionError(err: unknown): never {
     err instanceof ExpenseNotFoundError ||
     err instanceof AdvanceNotFoundError ||
     err instanceof CashMovementNotFoundError ||
+    err instanceof PaymentNotFoundError ||
     err instanceof MaterialNotFoundError ||
     err instanceof WarehouseNotFoundError ||
     err instanceof MaterialRequestNotFoundError ||

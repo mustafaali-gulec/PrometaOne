@@ -21,6 +21,8 @@ import type {
   MaterialRequestsResponse,
   MaterialsResponse,
   MovementsResponse,
+  ManualPaymentDto,
+  PaymentListResponse,
   PozDto,
   PozResponse,
   ProgressKind,
@@ -60,6 +62,7 @@ import type {
   CreateMachineLogBody,
   CreateMaterialBody,
   CreateMaterialRequestBody,
+  CreatePaymentBody,
   CreatePersonnelBody,
   CreatePozBody,
   CreateProgressBody,
@@ -73,6 +76,7 @@ import type {
   UpdateContractBody,
   UpdateExpenseBody,
   UpdateMaterialBody,
+  UpdatePaymentBody,
   UpdatePozBody,
   UpdateProjectBody,
 } from '../../application/ports/ConstructionApi';
@@ -260,6 +264,26 @@ export class ConstructionApiClient implements ConstructionApi {
   getCostSummary(projectId: number, companyId: number): Promise<ProjectCostSummaryDto> {
     return this.request<ProjectCostSummaryDto>(
       `/v1/construction/projects/${String(projectId)}/cost-summary?companyId=${String(companyId)}`,
+    );
+  }
+  listPaymentList(companyId: number, projectId?: number | null): Promise<PaymentListResponse> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (projectId != null) q.set('projectId', String(projectId));
+    return this.request<PaymentListResponse>(`/v1/construction/payments?${q.toString()}`);
+  }
+  createPayment(body: CreatePaymentBody): Promise<ManualPaymentDto> {
+    return this.request<ManualPaymentDto>(`/v1/construction/payments`, { method: 'POST', body });
+  }
+  updatePayment(id: number, body: UpdatePaymentBody): Promise<ManualPaymentDto> {
+    return this.request<ManualPaymentDto>(`/v1/construction/payments/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+  deletePayment(id: number, companyId: number): Promise<void> {
+    return this.request<void>(
+      `/v1/construction/payments/${String(id)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
     );
   }
   listAdvances(companyId: number, projectId: number): Promise<AdvancesResponse> {

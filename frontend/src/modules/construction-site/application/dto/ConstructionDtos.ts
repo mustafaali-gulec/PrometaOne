@@ -234,6 +234,47 @@ export interface CashResponse {
   movements: ReadonlyArray<CashMovementDto>;
 }
 
+// ===== Ödeme Listesi =========================================================
+export type PaymentStatus = 'planned' | 'paid';
+export type PaymentSource = 'manual' | 'hakedis' | 'expense' | 'advance';
+
+/** Manuel ödeme kaydı (cs_payments). */
+export interface ManualPaymentDto {
+  id: number;
+  companyId: number;
+  projectId: number | null;
+  payee: string | null;
+  description: string | null;
+  amount: number;
+  currency: CurrencyCode;
+  dueDate: string | null;
+  status: PaymentStatus;
+  paidAt: string | null;
+  method: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Birleşik ödeme listesi satırı (manuel + hakediş + gider + avans). */
+export interface PaymentListItemDto {
+  source: PaymentSource;
+  sourceId: number;
+  paymentId: number | null; // manuel ise düzenle/sil için
+  projectId: number | null;
+  payee: string | null;
+  description: string | null;
+  amount: number;
+  currency: CurrencyCode;
+  status: PaymentStatus;
+  date: string | null;
+  dueDate: string | null;
+  method: string | null;
+}
+
+export interface PaymentListResponse {
+  items: ReadonlyArray<PaymentListItemDto>;
+}
+
 export type StockMoveKind = 'in' | 'out' | 'transfer' | 'adjust' | 'waste';
 export type MaterialRequestStatus =
   | 'draft'

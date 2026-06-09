@@ -80,6 +80,12 @@ export class CashMovementNotFoundError extends ConstructionError {
   }
 }
 
+export class PaymentNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Ödeme bulunamadı: ${id}`);
+  }
+}
+
 export class MaterialNotFoundError extends ConstructionError {
   constructor(id: number) {
     super(`Malzeme bulunamadı: ${id}`);

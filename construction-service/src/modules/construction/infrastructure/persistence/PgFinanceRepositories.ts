@@ -4,13 +4,21 @@
  * BIGINT id/FK alanları satır eşleyicide Number()'a çevrilir (JSON'da sayısal id).
  */
 import type {
+  ManualPaymentDto,
+  PaymentListItemDto,
+  PaymentStatus,
+} from '../../application/dto/FinanceDtos.js';
+import type {
   AdvanceRepository,
   CashMovementRepository,
   CategoryTotal,
   ExpenseRepository,
+  ManualPaymentPatch,
   NewAdvanceInput,
   NewCashMovementInput,
   NewExpenseInput,
+  NewManualPaymentInput,
+  PaymentRepository,
 } from '../../application/ports/FinanceRepositories.js';
 import { Advance } from '../../domain/entities/Advance.js';
 import { CashMovement } from '../../domain/entities/CashMovement.js';
@@ -363,4 +371,179 @@ function rowToCash(row: CashRow): CashMovement {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
+}
+
+// ===== PAYMENT (Ödeme Listesi) ==============================================
+interface PaymentListRow {
+  source: string;
+  source_id: string;
+  payment_id: string | null;
+  project_id: string | null;
+  payee: string | null;
+  description: string | null;
+  amount: string;
+  currency: string;
+  status: string;
+  txn_date: string | null;
+  due_date: string | null;
+  method: string | null;
+}
+
+interface ManualPaymentRow {
+  id: string;
+  company_id: number;
+  project_id: string | null;
+  payee: string | null;
+  description: string | null;
+  amount: string;
+  currency: CurrencyCode;
+  due_date: string | null;
+  status: string;
+  paid_at: string | null;
+  method: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+const P_COLS =
+  'id, company_id, project_id, payee, description, amount, currency, ' +
+  'due_date::text AS due_date, status, paid_at::text AS paid_at, method, created_at, updated_at';
+
+export class PgPaymentRepository implements PaymentRepository {
+  constructor(private readonly db: Queryable) {}
+
+  async listUnified(companyId: number, projectId: number | null): Promise<PaymentListItemDto[]> {
+    const r = await this.db.query<PaymentListRow>(
+      `SELECT u.source, u.source_id, u.payment_id, u.project_id, u.payee, u.description,
+              u.amount, u.currency, u.status, u.txn_date, u.due_date, u.method
+       FROM (
+         SELECT 'manual'::text AS source, p.id AS source_id, p.id AS payment_id, p.project_id,
+                p.payee, p.description, p.amount, p.currency::text AS currency, p.status::text AS status,
+                COALESCE(p.paid_at, p.due_date, p.created_at::date)::text AS txn_date,
+                p.due_date::text AS due_date, p.method
+           FROM cs_payments p WHERE p.company_id = $1
+         UNION ALL
+         SELECT 'hakedis', pp.id, NULL::bigint, c.project_id, v.name, pp.hakedis_no,
+                pp.net_payable, pp.currency::text, (CASE WHEN pp.status = 'paid' THEN 'paid' ELSE 'planned' END),
+                COALESCE(pp.approved_at::date, pp.created_at::date)::text, NULL::text, NULL::text
+           FROM cs_progress_payments pp
+           JOIN cs_contracts c ON c.id = pp.contract_id
+           LEFT JOIN cs_ref_vendors v ON v.id = c.vendor_id
+          WHERE pp.company_id = $1 AND pp.kind = 'subcontractor' AND pp.status IN ('approved','paid')
+         UNION ALL
+         SELECT 'expense', e.id, NULL::bigint, e.project_id, v.name,
+                COALESCE(NULLIF(e.description, ''), e.category), e.amount, e.currency::text, 'paid',
+                e.spent_at::text, NULL::text, NULL::text
+           FROM cs_expenses e LEFT JOIN cs_ref_vendors v ON v.id = e.vendor_id WHERE e.company_id = $1
+         UNION ALL
+         SELECT 'advance', a.id, NULL::bigint, a.project_id, v.name,
+                COALESCE(NULLIF(a.description, ''), 'Avans'), a.amount, a.currency::text, 'paid',
+                a.given_at::text, NULL::text, NULL::text
+           FROM cs_advances a LEFT JOIN cs_ref_vendors v ON v.id = a.vendor_id WHERE a.company_id = $1
+       ) u
+       WHERE ($2::bigint IS NULL OR u.project_id = $2)
+       ORDER BY u.txn_date DESC NULLS LAST, u.source`,
+      [companyId, projectId],
+    );
+    return r.rows.map((row) => ({
+      source: row.source as PaymentListItemDto['source'],
+      sourceId: Number(row.source_id),
+      paymentId: row.payment_id == null ? null : Number(row.payment_id),
+      projectId: row.project_id == null ? null : Number(row.project_id),
+      payee: row.payee,
+      description: row.description,
+      amount: Number(row.amount),
+      currency: row.currency as CurrencyCode,
+      status: row.status as PaymentStatus,
+      date: row.txn_date,
+      dueDate: row.due_date,
+      method: row.method,
+    }));
+  }
+
+  async insertManual(input: NewManualPaymentInput): Promise<ManualPaymentDto> {
+    const r = await this.db.query<ManualPaymentRow>(
+      `INSERT INTO cs_payments
+         (company_id, project_id, payee, description, amount, currency, due_date, status, paid_at, method, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       RETURNING ${P_COLS}`,
+      [
+        input.companyId,
+        input.projectId,
+        input.payee,
+        input.description,
+        input.amount,
+        input.currency,
+        input.dueDate,
+        input.status,
+        input.paidAt,
+        input.method,
+        input.createdBy,
+      ],
+    );
+    return rowToManualPayment(r.rows[0]!);
+  }
+
+  async findManualById(id: number, companyId: number): Promise<ManualPaymentDto | null> {
+    const r = await this.db.query<ManualPaymentRow>(
+      `SELECT ${P_COLS} FROM cs_payments WHERE id = $1 AND company_id = $2 LIMIT 1`,
+      [id, companyId],
+    );
+    const row = r.rows[0];
+    return row ? rowToManualPayment(row) : null;
+  }
+
+  async updateManual(
+    id: number,
+    companyId: number,
+    patch: ManualPaymentPatch,
+  ): Promise<ManualPaymentDto | null> {
+    const r = await this.db.query<ManualPaymentRow>(
+      `UPDATE cs_payments
+         SET payee = $1, description = $2, amount = $3, currency = $4, due_date = $5,
+             status = $6, paid_at = $7, method = $8, updated_at = NOW()
+       WHERE id = $9 AND company_id = $10
+       RETURNING ${P_COLS}`,
+      [
+        patch.payee,
+        patch.description,
+        patch.amount,
+        patch.currency,
+        patch.dueDate,
+        patch.status,
+        patch.paidAt,
+        patch.method,
+        id,
+        companyId,
+      ],
+    );
+    const row = r.rows[0];
+    return row ? rowToManualPayment(row) : null;
+  }
+
+  async deleteManual(id: number, companyId: number): Promise<boolean> {
+    const r = await this.db.query<{ id: string }>(
+      `DELETE FROM cs_payments WHERE id = $1 AND company_id = $2 RETURNING id`,
+      [id, companyId],
+    );
+    return r.rows.length > 0;
+  }
+}
+
+function rowToManualPayment(row: ManualPaymentRow): ManualPaymentDto {
+  return {
+    id: Number(row.id),
+    companyId: row.company_id,
+    projectId: row.project_id == null ? null : Number(row.project_id),
+    payee: row.payee,
+    description: row.description,
+    amount: Number(row.amount),
+    currency: row.currency,
+    dueDate: row.due_date,
+    status: row.status as PaymentStatus,
+    paidAt: row.paid_at,
+    method: row.method,
+    createdAt: row.created_at.toISOString(),
+    updatedAt: row.updated_at.toISOString(),
+  };
 }
