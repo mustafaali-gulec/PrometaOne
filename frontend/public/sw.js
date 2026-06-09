@@ -10,11 +10,18 @@
      istemci controllerchange ile sayfayı bir kez kendiliğinden yeniler.
 ============================================================================ */
 
-const SW_VERSION = "1.3.0";
+const SW_VERSION = "1.3.1";
 const APP_NAME = "M Suite";
 const CACHE_VERSION = `msuite-app-v${SW_VERSION}`;
 const RUNTIME_CACHE = `msuite-runtime-v${SW_VERSION}`;
 const API_CACHE = `msuite-api-v${SW_VERSION}`;
+
+// DEV (Vite localhost): SW asla araya girmemeli — modülleri cache'leyip eski/karışık
+// bundle servis ediyor, HMR ve taze kod bozuluyor (navigasyon kilitleniyor). Dev'de
+// SW kendini kapatır, tüm cache'leri siler ve istemcileri bir kez taze yeniler.
+// Prod (gerçek domain) davranışı değişmez.
+const IS_DEV =
+  self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1";
 
 // App shell — kurulumda öncelikli cache
 const PRECACHE_URLS = [
@@ -39,6 +46,19 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   console.log("[SW] Activated v" + SW_VERSION);
+  if (IS_DEV) {
+    // Dev: tüm cache'leri sil ve kendini kaydı sil. Sayfayı ZORLA yenileme —
+    // app dev-guard'ı yeniden kayıt yapmadığı için sonraki manuel yenilemede taze
+    // kod SW'siz yüklenir. (Zorla reload + app re-register = reload döngüsü olurdu.)
+    event.waitUntil(
+      (async () => {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+        try { await self.registration.unregister(); } catch (e) { /* yoksay */ }
+      })()
+    );
+    return;
+  }
   event.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
@@ -54,6 +74,9 @@ self.addEventListener("activate", (event) => {
 
 // === FETCH — Cache stratejileri ===
 self.addEventListener("fetch", (event) => {
+  // Dev: SW araya girmesin — tarayıcı doğrudan Vite'tan taze çeksin.
+  if (IS_DEV) return;
+
   const req = event.request;
   const url = new URL(req.url);
 

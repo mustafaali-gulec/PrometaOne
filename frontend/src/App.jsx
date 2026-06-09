@@ -7424,6 +7424,23 @@ function getNotificationPermission() {
 // Service Worker'ı kaydet
 async function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return null;
+  // DEV (Vite): SW, /src modüllerini cache'leyip eski/karışık bundle servis ediyor →
+  // HMR ve taze kod bozuluyor (navigasyon kilitleniyor). Dev'de KAYDETME ve mevcut
+  // SW + msuite-* cache'lerini temizle ki taze kod yüklensin. Prod build'de SW aktif kalır.
+  if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.DEV) {
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+      if (typeof caches !== "undefined") {
+        const keys = await caches.keys();
+        await Promise.all(keys.filter(k => k.startsWith("msuite-")).map(k => caches.delete(k)));
+      }
+      if (regs.length > 0) console.warn("[Push] DEV modu — Service Worker kaldırıldı, cache temizlendi.");
+    } catch (err) {
+      console.error("[Push] DEV SW temizleme hatası:", err);
+    }
+    return null;
+  }
   try {
     const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
     console.log("[Push] Service Worker registered:", reg.scope);
@@ -12374,6 +12391,7 @@ export default function App() {
         )}
         {(view === "cs_projects" || view === "cs_contracts" || view === "cs_progress" || view === "cs_finance" || view === "cs_depot" || view === "cs_labor" || view === "cs_reports") && (
           <ConstructionPage
+            key={view}
             apiBaseUrl=""
             companyId={session?.activeCompanyId ?? 1}
             views={[{ cs_projects: "projects", cs_contracts: "contracts", cs_progress: "progress", cs_finance: "finance", cs_depot: "depot", cs_labor: "labor", cs_reports: "reports" }[view]]}
@@ -56734,6 +56752,8 @@ function fmtDealMoney(amount, currency = "TRY") {
 /* === ANA WRAPPER: Pipeline + Liste + Aktiviteler === */
 function SalesModule({ data, session, users = [], canAct, lang, onChange, logAudit, notify, navigateToEntity, initialView = "pipeline" }) {
   const [activeView, setActiveView] = useState(initialView);  // pipeline | list | activities
+  // Kenar menüden alt-görünüm değişince (prop) içerik de geçsin — bileşen remount olmadığı için senkronla
+  useEffect(() => { setActiveView(initialView); }, [initialView]);
   const [editingDeal, setEditingDeal] = useState(null);       // null | "new" | deal
   const [viewingDeal, setViewingDeal] = useState(null);       // deal
   const [filterOwner, setFilterOwner] = useState("all");      // username | "all" | "mine"
@@ -58211,6 +58231,8 @@ function DealDetailModal({ deal, parties, users, session, lang, tasks = [], invo
 ===================================================================== */
 function PurchaseModule({ data, session, users = [], canAct, lang, onChange, logAudit, notify, navigateToEntity, initialView = "requests" }) {
   const [activeView, setActiveView] = useState(initialView);  // requests | orders | vendors
+  // Kenar menüden alt-görünüm değişince (prop) içerik de geçsin — bileşen remount olmadığı için senkronla
+  useEffect(() => { setActiveView(initialView); }, [initialView]);
   const [editingPR, setEditingPR] = useState(null);
   const [editingPO, setEditingPO] = useState(null);
   const [viewingPR, setViewingPR] = useState(null);
