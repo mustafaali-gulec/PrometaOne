@@ -18,6 +18,8 @@ import type {
 } from '../../application/dto/ConstructionDtos';
 import type { ConstructionApi, DeductionBody } from '../../application/ports/ConstructionApi';
 
+import { HakedisKanban } from './HakedisKanban';
+
 const STATUS_LABELS: Record<ProgressStatus, string> = {
   draft: 'Taslak',
   submitted: 'Gönderildi',
@@ -80,6 +82,7 @@ export function HakedisManager({ api, companyId }: HakedisManagerProps): JSX.Ele
   const [selected, setSelected] = useState<ProgressPaymentDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<'table' | 'kanban'>('table');
 
   useEffect(() => {
     let cancelled = false;
@@ -142,6 +145,21 @@ export function HakedisManager({ api, companyId }: HakedisManagerProps): JSX.Ele
     await reloadList(contractId);
   };
 
+  // Kanban sürükle-bırak durum değişimi (geçerlilik HakedisKanban'da kontrol edilir).
+  const setStatus = async (id: number, status: ProgressStatus): Promise<void> => {
+    setError(null);
+    try {
+      await api.changeProgressStatus(id, { companyId, status });
+      await reloadList(contractId);
+      if (selected?.id === id) {
+        const dto = await api.getProgress(id, companyId);
+        setSelected(dto);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Durum değiştirilemedi');
+    }
+  };
+
   return (
     <section>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
@@ -166,6 +184,9 @@ export function HakedisManager({ api, companyId }: HakedisManagerProps): JSX.Ele
             <button onClick={() => void create('subcontractor')} disabled={busy} style={btn()}>
               + Taşeron Hakedişi
             </button>
+            <div style={{ marginLeft: 'auto' }}>
+              <KanbanToggle mode={mode} onChange={setMode} />
+            </div>
           </>
         ) : null}
       </div>
@@ -176,6 +197,26 @@ export function HakedisManager({ api, companyId }: HakedisManagerProps): JSX.Ele
         <p style={{ fontSize: 13, color: 'var(--ink-muted, #888)' }}>
           Hakediş için bir sözleşme seçin.
         </p>
+      ) : mode === 'kanban' ? (
+        <div>
+          <HakedisKanban
+            list={list}
+            selectedId={selected?.id ?? null}
+            onOpen={(id) => void open(id)}
+            onSetStatus={(id, s) => void setStatus(id, s)}
+          />
+          {selected !== null ? (
+            <div style={{ marginTop: 16 }}>
+              <HakedisDetail
+                api={api}
+                companyId={companyId}
+                progress={selected}
+                onChanged={(dto) => void refreshSelected(dto)}
+                onError={setError}
+              />
+            </div>
+          ) : null}
+        </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16 }}>
           <div>
@@ -515,6 +556,43 @@ function Row({
 function cell(): React.CSSProperties {
   return {};
 }
+/** Tablo ⇄ Kanban segment kontrolü (app accent stilinde). */
+function KanbanToggle({
+  mode,
+  onChange,
+}: {
+  mode: 'table' | 'kanban';
+  onChange: (m: 'table' | 'kanban') => void;
+}): JSX.Element {
+  const seg = (active: boolean): React.CSSProperties => ({
+    padding: '6px 12px',
+    fontSize: 12.5,
+    fontWeight: 500,
+    fontFamily: 'inherit',
+    border: 'none',
+    cursor: 'pointer',
+    background: active ? 'var(--accent, #0a4d4a)' : 'var(--paper, #fff)',
+    color: active ? '#fff' : 'var(--ink-soft, #57534e)',
+  });
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        border: '1px solid var(--line-strong, #d6d3d1)',
+        borderRadius: 'var(--radius, 6px)',
+        overflow: 'hidden',
+      }}
+    >
+      <button onClick={() => onChange('table')} style={seg(mode === 'table')}>
+        ☰ Liste
+      </button>
+      <button onClick={() => onChange('kanban')} style={seg(mode === 'kanban')}>
+        ▦ Kanban
+      </button>
+    </div>
+  );
+}
+
 function field(extra: React.CSSProperties): React.CSSProperties {
   return {
     width: '100%',

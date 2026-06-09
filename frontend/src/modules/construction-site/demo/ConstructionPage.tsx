@@ -25,6 +25,7 @@ import { FinansManager } from '../presentation/components/FinansManager';
 import { HakedisManager } from '../presentation/components/HakedisManager';
 import { IsgucuManager } from '../presentation/components/IsgucuManager';
 import { PozCatalogTable } from '../presentation/components/PozCatalogTable';
+import { ProjectsKanban } from '../presentation/components/ProjectsKanban';
 import { ProjectsTable } from '../presentation/components/ProjectsTable';
 import { RaporManager } from '../presentation/components/RaporManager';
 import { useContracts } from '../presentation/hooks/useContracts';
@@ -145,6 +146,7 @@ export function ConstructionPage({
 
 function ProjectsTab({ api, companyId }: { api: ConstructionApi; companyId: number }): JSX.Element {
   const [showForm, setShowForm] = useState(false);
+  const [mode, setMode] = useState<'table' | 'kanban'>('table');
   const { projects, loading, error, refetch } = useProjects(api, companyId);
 
   const onSetStatus = async (id: number, status: ProjectStatus): Promise<void> => {
@@ -163,9 +165,12 @@ function ProjectsTab({ api, companyId }: { api: ConstructionApi; companyId: numb
       error={error}
       onReload={() => void refetch()}
       toolbar={
-        <button onClick={() => setShowForm((v) => !v)} style={btnStyle()}>
-          {showForm ? 'Kapat' : '+ Proje'}
-        </button>
+        <>
+          <ViewToggle mode={mode} onChange={setMode} />
+          <button onClick={() => setShowForm((v) => !v)} style={btnStyle()}>
+            {showForm ? 'Kapat' : '+ Proje'}
+          </button>
+        </>
       }
     >
       {showForm ? (
@@ -178,13 +183,54 @@ function ProjectsTab({ api, companyId }: { api: ConstructionApi; companyId: numb
           }}
         />
       ) : null}
-      <ProjectsTable
-        projects={projects}
-        loading={loading}
-        onSetStatus={(id, s) => void onSetStatus(id, s)}
-        onDeactivate={(id) => void onDeactivate(id)}
-      />
+      {mode === 'kanban' ? (
+        <ProjectsKanban projects={projects} onSetStatus={(id, s) => void onSetStatus(id, s)} />
+      ) : (
+        <ProjectsTable
+          projects={projects}
+          loading={loading}
+          onSetStatus={(id, s) => void onSetStatus(id, s)}
+          onDeactivate={(id) => void onDeactivate(id)}
+        />
+      )}
     </Section>
+  );
+}
+
+/** Tablo ⇄ Kanban segment kontrolü (app accent stilinde). */
+function ViewToggle({
+  mode,
+  onChange,
+}: {
+  mode: 'table' | 'kanban';
+  onChange: (m: 'table' | 'kanban') => void;
+}): JSX.Element {
+  const seg = (active: boolean): React.CSSProperties => ({
+    padding: '6px 12px',
+    fontSize: 12.5,
+    fontWeight: 500,
+    fontFamily: 'inherit',
+    border: 'none',
+    cursor: 'pointer',
+    background: active ? 'var(--accent, #0a4d4a)' : 'var(--paper, #fff)',
+    color: active ? '#fff' : 'var(--ink-soft, #57534e)',
+  });
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        border: '1px solid var(--line-strong, #d6d3d1)',
+        borderRadius: 'var(--radius, 6px)',
+        overflow: 'hidden',
+      }}
+    >
+      <button onClick={() => onChange('table')} style={seg(mode === 'table')}>
+        ☰ Tablo
+      </button>
+      <button onClick={() => onChange('kanban')} style={seg(mode === 'kanban')}>
+        ▦ Kanban
+      </button>
+    </div>
   );
 }
 

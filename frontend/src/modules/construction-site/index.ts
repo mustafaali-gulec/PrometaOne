@@ -29,10 +29,12 @@ export { usePozCatalog } from './presentation/hooks/usePozCatalog';
 
 // --- Components
 export { ProjectsTable } from './presentation/components/ProjectsTable';
+export { ProjectsKanban } from './presentation/components/ProjectsKanban';
 export { ContractsTable } from './presentation/components/ContractsTable';
 export { PozCatalogTable } from './presentation/components/PozCatalogTable';
 export { BoqEditor, emptyRow, type BoqEditRow } from './presentation/components/BoqEditor';
 export { HakedisManager } from './presentation/components/HakedisManager';
+export { HakedisKanban } from './presentation/components/HakedisKanban';
 export { FinansManager } from './presentation/components/FinansManager';
 export { DepoManager } from './presentation/components/DepoManager';
 export { IsgucuManager } from './presentation/components/IsgucuManager';
