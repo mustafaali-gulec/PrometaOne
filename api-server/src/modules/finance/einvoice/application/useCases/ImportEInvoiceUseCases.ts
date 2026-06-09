@@ -6,12 +6,15 @@
  * kaydının "imported" işaretlenmesi TEK transaction'da (EInvoiceUnitOfWork).
  */
 import type { Clock } from '../../../application/ports/Clock.js';
-import type { EInvoice } from '../../domain/entities/EInvoice.js';
+import { EInvoice } from '../../domain/entities/EInvoice.js';
 import {
   EInvoiceAlreadyImportedError,
   EInvoiceNotFoundError,
+  UnsupportedEInvoiceFileError,
 } from '../../domain/errors/EInvoiceErrors.js';
 import { EInvoiceToInvoicePolicy } from '../../domain/services/EInvoiceToInvoicePolicy.js';
+import { GibHtmlInvoiceParser } from '../../domain/services/GibHtmlInvoiceParser.js';
+import { UblInvoiceParser } from '../../domain/services/UblInvoiceParser.js';
 import type { InvoiceDirection } from '../../domain/valueObjects/InvoiceDirection.js';
 import type { EInvoiceRepository, PartyMappingRepository } from '../ports/EInvoiceRepositories.js';
 import type { EInvoiceUnitOfWork } from '../ports/EInvoiceUnitOfWork.js';
@@ -62,6 +65,64 @@ export class ImportEInvoiceUseCase {
       return { einvoiceId: input.einvoiceId, invoiceId: persistedInvoice.id! };
     });
   }
+}
+
+export interface UploadEInvoiceResult {
+  einvoiceId: number;
+  uuid: string;
+  invoiceNo: string;
+  format: 'xml' | 'html';
+}
+
+/**
+ * ImportEInvoiceFromFileUseCase — elle yüklenen bir UBL XML veya GİB e-Fatura
+ * HTML dosyasını parse edip cache'e (einvoice_invoices) `provider='manual'`
+ * olarak yazar. Sonrasında kullanıcı normal "Aktar" akışıyla `invoices`'a
+ * geçirir. (companyId, uuid) UNIQUE üzerinden idempotent — aynı fatura iki kez
+ * yüklenirse mevcut kayıt güncellenir.
+ */
+export class ImportEInvoiceFromFileUseCase {
+  constructor(private readonly einvoices: EInvoiceRepository) {}
+
+  async execute(input: {
+    companyId: number;
+    content: string;
+    /** İndirilen gelen faturalar için varsayılan 'incoming'. */
+    direction?: InvoiceDirection;
+  }): Promise<UploadEInvoiceResult> {
+    const direction = input.direction ?? 'incoming';
+    const content = input.content.trim();
+
+    const format = detectFormat(content);
+    const parsed =
+      format === 'xml'
+        ? UblInvoiceParser.parse(content, direction)
+        : GibHtmlInvoiceParser.parse(content, direction);
+
+    const stored = await this.einvoices.upsert(
+      EInvoice.fromParsed(parsed, {
+        companyId: input.companyId,
+        provider: 'manual',
+        gibStatus: null,
+      }),
+    );
+
+    return {
+      einvoiceId: stored.id!,
+      uuid: stored.uuid,
+      invoiceNo: stored.invoiceNo,
+      format,
+    };
+  }
+}
+
+/** Dosya içeriğinden UBL XML mi GİB HTML mi olduğunu saptar. */
+function detectFormat(content: string): 'xml' | 'html' {
+  // Önce HTML görüntü dosyası mı? (gömülü qrvalue / <html>)
+  if (GibHtmlInvoiceParser.looksLikeGibHtml(content)) return 'html';
+  // UBL XML: <Invoice> kökü (namespace prefix'li olabilir).
+  if (/<(?:[A-Za-z0-9]+:)?Invoice[\s>]/.test(content)) return 'xml';
+  throw new UnsupportedEInvoiceFileError('içerik UBL <Invoice> veya GİB HTML değil');
 }
 
 export class IgnoreEInvoiceUseCase {

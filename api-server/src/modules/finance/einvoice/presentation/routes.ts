@@ -28,6 +28,7 @@ import type {
 } from '../application/useCases/CredentialUseCases.js';
 import type {
   IgnoreEInvoiceUseCase,
+  ImportEInvoiceFromFileUseCase,
   ImportEInvoiceUseCase,
   ListEInvoicesUseCase,
 } from '../application/useCases/ImportEInvoiceUseCases.js';
@@ -44,6 +45,7 @@ export interface EInvoiceRouterDeps {
   listEInvoices: ListEInvoicesUseCase;
   syncEInvoices: SyncEInvoicesUseCase;
   importEInvoice: ImportEInvoiceUseCase;
+  importEInvoiceFromFile: ImportEInvoiceFromFileUseCase;
   ignoreEInvoice: IgnoreEInvoiceUseCase;
   saveCredential: SaveCredentialUseCase;
   testConnection: TestConnectionUseCase;
@@ -128,6 +130,34 @@ export function createEInvoiceRouter(deps: EInvoiceRouterDeps): Hono {
           actorUserId: actor(c),
         });
         return c.json(res);
+      } catch (err) {
+        mapEInvoiceError(err);
+      }
+    },
+  );
+
+  // Elle dosya yükleme (UBL XML veya GİB e-Fatura HTML) → cache'e 'manual' kayıt.
+  app.post(
+    '/einvoice/upload',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        /** Dosya içeriği (UTF-8 metin). */
+        content: z.string().min(1),
+        direction: direction.optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const res = await deps.importEInvoiceFromFile.execute({
+          companyId: b.companyId,
+          content: b.content,
+          ...(b.direction !== undefined ? { direction: b.direction } : {}),
+        });
+        return c.json(res, 201);
       } catch (err) {
         mapEInvoiceError(err);
       }

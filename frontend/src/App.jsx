@@ -78957,13 +78957,13 @@ function InvoicesUnified({ data, session, canAct, lang, onChange, logAudit, noti
     (async () => {
       try {
         if (isLive) {
-          const res = await fetch(`${apiBase}/v1/einvoice/invoices?companyId=${data.activeCompanyId}&pending=true`, {
+          const res = await fetch(`${apiBase}/v1/finance/einvoice?companyId=${data.activeCompanyId}&pendingOnly=true`, {
             headers: { Authorization: `Bearer ${session.token}` },
           });
           const json = await res.json();
           if (mounted) setEinvCounts({
-            pending: (json.invoices || []).length,
-            total: (json.invoices || []).length,
+            pending: (json.einvoices || []).length,
+            total: (json.einvoices || []).length,
           });
         } else {
           const stored = await S.get(`promet:einvoice:${data.activeCompanyId}`) || [];
@@ -80163,6 +80163,7 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
   const [einvoices, setEinvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [syncRange, setSyncRange] = useState({
     from: (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0,10); })(),
     to: new Date().toISOString().slice(0,10),
@@ -80181,17 +80182,22 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
     setLoading(true);
     try {
       if (isLive) {
-        const res = await fetch(`${apiBase}/v1/einvoice/invoices?companyId=${data.activeCompanyId}`, {
+        const res = await fetch(`${apiBase}/v1/finance/einvoice?companyId=${data.activeCompanyId}`, {
           headers: { Authorization: `Bearer ${session.token}` },
         });
         const json = await res.json();
-        setEinvoices(json.invoices || []);
-        // Provider status
-        const sRes = await fetch(`${apiBase}/v1/einvoice/status?companyId=${data.activeCompanyId}`, {
-          headers: { Authorization: `Bearer ${session.token}` },
-        });
-        const sJson = await sRes.json();
-        setProviderStatus(sJson.providers?.[0] || null);
+        setEinvoices(json.einvoices || []);
+        // Provider durumu: gerçek backend'de ayrı /status yok; sync-log'dan türet.
+        try {
+          const sRes = await fetch(`${apiBase}/v1/finance/einvoice/sync-log?companyId=${data.activeCompanyId}`, {
+            headers: { Authorization: `Bearer ${session.token}` },
+          });
+          const sJson = await sRes.json();
+          const last = (sJson.logs || [])[0];
+          setProviderStatus(last
+            ? { last_sync_at: last.startedAt || last.finishedAt, last_sync_status: last.status, auto_sync_enabled: false }
+            : null);
+        } catch { setProviderStatus(null); }
       } else {
         // Demo: localStorage
         const stored = await S.get(`promet:einvoice:${data.activeCompanyId}`);
@@ -80212,7 +80218,7 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
     setSyncing(true);
     try {
       if (isLive) {
-        const res = await fetch(`${apiBase}/v1/einvoice/sync`, {
+        const res = await fetch(`${apiBase}/v1/finance/einvoice/sync`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -80227,8 +80233,8 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
           }),
         });
         const json = await res.json();
-        if (json.status === "error") {
-          alert("Senkron hatası: " + json.errorMessage);
+        if (!res.ok || json.status === "error") {
+          alert("Senkron hatası: " + (json.errorMessage || json.message || "bağlantı/yetki"));
         } else {
           notify(`${json.incomingNew} gelen + ${json.outgoingNew} giden yeni fatura çekildi`);
         }
@@ -80256,17 +80262,17 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
     if (!cashflowCatId) { alert("Nakit Akış Kalemi seçin"); return; }
     try {
       if (isLive) {
-        const res = await fetch(`${apiBase}/v1/einvoice/invoices/${einv.id}/import?companyId=${data.activeCompanyId}`, {
+        const res = await fetch(`${apiBase}/v1/finance/einvoice/${einv.id}/import`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.token}`,
           },
-          body: JSON.stringify({ cashflowCatId }),
+          body: JSON.stringify({ companyId: data.activeCompanyId, cashflowCatId }),
         });
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "API hatası");
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || err.message || "API hatası");
         }
       } else {
         // Demo: localStorage e-fatura'yı işaretle + invoices array'e ekle
@@ -80303,11 +80309,44 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
     }
   };
 
+  // ─── Dosyadan içe aktar (GİB e-Fatura HTML / UBL XML) ─────────────────
+  const handleUploadFiles = async (fileList) => {
+    const files = Array.from(fileList || []);
+    if (files.length === 0) return;
+    if (!isLive) { alert("Dosyadan içe aktarma yalnızca canlı modda (backend bağlı) çalışır."); return; }
+    setUploading(true);
+    const uploadDirection = tab === "outbox" ? "outgoing" : "incoming";
+    let ok = 0; const errs = [];
+    try {
+      for (const file of files) {
+        try {
+          const content = await file.text();
+          const res = await fetch(`${apiBase}/v1/finance/einvoice/upload`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+            body: JSON.stringify({ companyId: data.activeCompanyId, content, direction: uploadDirection }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json.error || json.message || `HTTP ${res.status}`);
+          ok += 1;
+          await logAudit("einvoice_upload", { file: file.name, no: json.invoiceNo, format: json.format });
+        } catch (e) {
+          errs.push(`${file.name}: ${e.message}`);
+        }
+      }
+      if (ok > 0) notify(`${ok} fatura içe aktarıldı${errs.length ? `, ${errs.length} hata` : ""}`);
+      if (errs.length) alert("Bazı dosyalar aktarılamadı:\n" + errs.join("\n"));
+      await loadEinvoices();
+    } finally {
+      setUploading(false);
+    }
+  };
+
   // ─── Filtreleme ──────────────────────────────────────────────────────
   const inbox = einvoices.filter(e => (e.direction || "incoming") === "incoming");
   const outbox = einvoices.filter(e => (e.direction || "outgoing") === "outgoing");
-  const inboxPending = inbox.filter(e => !e.imported_invoice_id && !e.ignored);
-  const outboxPending = outbox.filter(e => !e.imported_invoice_id && !e.ignored);
+  const inboxPending = inbox.filter(e => !(e.imported_invoice_id || e.importedInvoiceId) && !e.ignored);
+  const outboxPending = outbox.filter(e => !(e.imported_invoice_id || e.importedInvoiceId) && !e.ignored);
 
   return (
     <div className="space-y-4">
@@ -80327,6 +80366,18 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
           <span style={{ fontSize: 11, color: "var(--ink-faint)" }}>→</span>
           <input type="date" className="input" style={{ width: 130, fontSize: 11.5 }} value={syncRange.to}
             onChange={e => setSyncRange({ ...syncRange, to: e.target.value })}/>
+          {canImport && (
+            <label className="btn btn-ghost" style={{ cursor: uploading ? "wait" : "pointer" }}
+              title={lang === "en" ? "Import downloaded GİB e-Invoice HTML or UBL XML files" : "İndirilen GİB e-Fatura HTML veya UBL XML dosyalarını içe aktar"}>
+              <Upload size={13} className={uploading ? "animate-pulse" : ""}/>
+              {uploading
+                ? (lang === "en" ? "Uploading…" : "Yükleniyor…")
+                : (lang === "en" ? "Upload File" : "Dosya Yükle")}
+              <input type="file" accept=".html,.htm,.xml,text/html,text/xml,application/xml"
+                multiple disabled={uploading} style={{ display: "none" }}
+                onChange={e => { handleUploadFiles(e.target.files); e.target.value = ""; }}/>
+            </label>
+          )}
           <button onClick={triggerSync} disabled={syncing}
             className="btn btn-primary">
             <RefreshCw size={13} className={syncing ? "animate-spin" : ""}/>
@@ -80490,7 +80541,7 @@ function EInvoiceTable({ invoices, direction, cashflowCats, canManage, onImport,
   const [showImported, setShowImported] = useState(false);
 
   const filtered = invoices
-    .filter(e => showImported || !e.imported_invoice_id)
+    .filter(e => showImported || !(e.imported_invoice_id || e.importedInvoiceId))
     .filter(e => {
       if (!search) return true;
       const q = search.toLowerCase();
@@ -80536,7 +80587,7 @@ function EInvoiceTable({ invoices, direction, cashflowCats, canManage, onImport,
             </thead>
             <tbody>
               {filtered.map(einv => {
-                const imported = !!einv.imported_invoice_id;
+                const imported = !!(einv.imported_invoice_id || einv.importedInvoiceId);
                 const ignored = einv.ignored;
                 return (
                   <tr key={einv.id || einv.uuid} style={{ opacity: imported || ignored ? 0.5 : 1 }}>
@@ -80605,12 +80656,14 @@ function ELogoCredentialsModal({ draft, setDraft, isLive, apiBase, session, comp
       return;
     }
     try {
-      const res = await fetch(`${apiBase}/v1/einvoice/connect`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.token}`,
-        },
+      const authHeaders = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.token}`,
+      };
+      // 1) Kimlik bilgilerini kaydet (PUT credentials)
+      const saveRes = await fetch(`${apiBase}/v1/finance/einvoice/credentials`, {
+        method: "PUT",
+        headers: authHeaders,
         body: JSON.stringify({
           companyId,
           provider: "elogo",
@@ -80619,17 +80672,28 @@ function ELogoCredentialsModal({ draft, setDraft, isLive, apiBase, session, comp
             password: draft.password,
             vergiNo: draft.vergiNo,
             env: draft.env || "test",
-            wsdlUrl: draft.wsdlUrl || undefined,
+            ...(draft.wsdlUrl ? { wsdlUrl: draft.wsdlUrl } : {}),
           },
           autoSyncEnabled: draft.autoSyncEnabled,
           autoSyncCron: draft.autoSyncCron || "0 6 * * *",
         }),
       });
-      const json = await res.json();
-      if (json.test?.ok) {
-        notify("eLogo bağlantısı başarıyla kuruldu");
-      } else {
-        notify("Kaydedildi ama bağlantı testi başarısız: " + (json.test?.message || ""), "err");
+      if (!saveRes.ok) {
+        const err = await saveRes.json().catch(() => ({}));
+        throw new Error(err.error || err.message || "Kayıt başarısız");
+      }
+      // 2) Bağlantıyı test et (POST credentials/test)
+      try {
+        const testRes = await fetch(`${apiBase}/v1/finance/einvoice/credentials/test`, {
+          method: "POST",
+          headers: authHeaders,
+          body: JSON.stringify({ companyId, provider: "elogo" }),
+        });
+        const test = await testRes.json().catch(() => ({}));
+        if (test.ok) notify("eLogo bağlantısı başarıyla kuruldu");
+        else notify("Kaydedildi ama bağlantı testi başarısız: " + (test.message || ""), "err");
+      } catch {
+        notify("Kaydedildi (bağlantı testi yapılamadı)", "err");
       }
       onSaved();
     } catch (err) {
@@ -80742,7 +80806,7 @@ function SyncHistory({ isLive, apiBase, session, companyId }) {
       return;
     }
     setLoading(true);
-    fetch(`${apiBase}/v1/einvoice/sync-log?companyId=${companyId}`, {
+    fetch(`${apiBase}/v1/finance/einvoice/sync-log?companyId=${companyId}`, {
       headers: { Authorization: `Bearer ${session.token}` },
     })
       .then(r => r.json())
@@ -80773,13 +80837,17 @@ function SyncHistory({ isLive, apiBase, session, companyId }) {
           </tr>
         </thead>
         <tbody>
-          {logs.map(log => (
-            <tr key={log.id}>
+          {logs.map((log, i) => {
+            const startedAt = log.startedAt || log.started_at;
+            const dateFrom = log.dateFrom || log.date_from;
+            const dateTo = log.dateTo || log.date_to;
+            return (
+            <tr key={log.id || startedAt || i}>
               <td className="label-cell mono">
-                {new Date(log.started_at).toLocaleString("tr-TR")}
+                {startedAt ? new Date(startedAt).toLocaleString("tr-TR") : "—"}
               </td>
               <td className="label-cell mono text-xs">
-                {log.date_from} → {log.date_to}
+                {dateFrom} → {dateTo}
               </td>
               <td className="label-cell">{log.trigger}</td>
               <td className="label-cell">
@@ -80790,13 +80858,14 @@ function SyncHistory({ isLive, apiBase, session, companyId }) {
                   {log.status}
                 </span>
               </td>
-              <td className="num">{log.incoming_new || 0}</td>
-              <td className="num">{log.outgoing_new || 0}</td>
+              <td className="num">{log.incomingNew ?? log.incoming_new ?? 0}</td>
+              <td className="num">{log.outgoingNew ?? log.outgoing_new ?? 0}</td>
               <td className="label-cell text-xs" style={{ color: "var(--negative)" }}>
-                {log.error_message || "—"}
+                {log.errorMessage || log.error_message || "—"}
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

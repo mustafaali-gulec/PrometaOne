@@ -34,6 +34,7 @@ import {
 } from './application/useCases/CredentialUseCases.js';
 import {
   IgnoreEInvoiceUseCase,
+  ImportEInvoiceFromFileUseCase,
   ImportEInvoiceUseCase,
   ListEInvoicesUseCase,
 } from './application/useCases/ImportEInvoiceUseCases.js';
@@ -91,6 +92,7 @@ export function registerEInvoiceModule(pool: Pool): ReturnType<typeof createEInv
       clock,
     ),
     importEInvoice: new ImportEInvoiceUseCase(uow, parties, clock),
+    importEInvoiceFromFile: new ImportEInvoiceFromFileUseCase(einvoices),
     ignoreEInvoice: new IgnoreEInvoiceUseCase(einvoices),
     saveCredential: new SaveCredentialUseCase(credentials, cipher),
     testConnection: new TestConnectionUseCase(credentials, cipher, provider),

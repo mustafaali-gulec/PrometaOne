@@ -15,6 +15,7 @@ import {
   EInvoiceAlreadyImportedError,
   EInvoiceCredentialNotFoundError,
   EInvoiceNotFoundError,
+  GibHtmlParseError,
   InvalidEttnError,
   InvalidProviderTypeError,
   InvalidVknError,
@@ -22,6 +23,7 @@ import {
   ProviderFetchError,
   ProviderInvoiceNotFoundError,
   UblParseError,
+  UnsupportedEInvoiceFileError,
 } from '../domain/errors/EInvoiceErrors.js';
 
 export function mapEInvoiceError(err: unknown): never {
@@ -44,6 +46,8 @@ export function mapEInvoiceError(err: unknown): never {
     err instanceof InvalidEttnError ||
     err instanceof InvalidProviderTypeError ||
     err instanceof UblParseError ||
+    err instanceof GibHtmlParseError ||
+    err instanceof UnsupportedEInvoiceFileError ||
     err instanceof InvalidExchangeRateError
   ) {
     throw new HTTPException(400, { message: err.message });

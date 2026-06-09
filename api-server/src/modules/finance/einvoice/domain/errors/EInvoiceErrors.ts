@@ -82,6 +82,20 @@ export class UblParseError extends FinanceError {
   }
 }
 
+/** GİB e-Fatura HTML görüntüleme dosyası ayrıştırılamadı (gömülü JSON yok/bozuk). */
+export class GibHtmlParseError extends FinanceError {
+  constructor(reason: string) {
+    super(`GİB e-Fatura HTML ayrıştırılamadı: ${reason}`);
+  }
+}
+
+/** Yüklenen dosya ne UBL XML ne de GİB HTML olarak tanınamadı. */
+export class UnsupportedEInvoiceFileError extends FinanceError {
+  constructor(reason: string) {
+    super(`Desteklenmeyen e-fatura dosyası: ${reason} (UBL XML veya GİB e-Fatura HTML bekleniyor)`);
+  }
+}
+
 export class EInvoiceNotFoundError extends FinanceError {
   constructor(id: number) {
     super(`E-fatura bulunamadı: ${id}`);
