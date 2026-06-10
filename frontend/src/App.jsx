@@ -78947,8 +78947,10 @@ function InvoicesUnified({ data, session, canAct, lang, onChange, logAudit, noti
 
   // Badge sayaçları
   const manualCount = (data.invoices || []).filter(i => !i.committedToCells).length;
-  const apiBase = typeof window !== "undefined" ? window.PROMETCF_API : null;
-  const isLive = Boolean(apiBase);
+  // Backend göreli /v1 üzerinden erişilir (login ile aynı yol, Vite proxy / aynı origin).
+  // window.PROMETCF_API tanımlıysa mutlak base olarak onu kullan (eski davranış).
+  const apiBase = (typeof window !== "undefined" && window.PROMETCF_API) || "";
+  const isLive = true;
 
   // Demo / live için e-fatura cache sayısı
   const [einvCounts, setEinvCounts] = useState({ pending: 0, total: 0 });
@@ -80147,17 +80149,16 @@ function InvoicesView({ data, session, canAct, lang, onChange, logAudit, notify,
    E-FATURA ENTEGRASYONU (Logo eLogo)
    ---------------------------------------------------------------------
    İki çalışma modu:
-   1. Bağlı mod (window.PROMETCF_API tanımlı): Backend'e bağlanır,
-      gerçek eLogo çağrıları backend tarafından yapılır.
-   2. Demo mod (default): localStorage'da örnek faturalarla çalışır,
-      bulk-import UI'ı banka Excel import gibi davranır.
+   Canlı mod (varsayılan): backend'e göreli /v1 üzerinden bağlanır (login ile
+   aynı yol — Vite proxy / aynı origin). window.PROMETCF_API tanımlıysa mutlak
+   base olarak o kullanılır. Demo (localStorage) yolu yalnız geriye dönük durur.
 ===================================================================== */
 
 function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, notify, embedded = false }) {
   const canManage = canAct ? canAct("finance.einvoice.update") || canAct("finance.invoices.update") || can(session.role, "manage_invoices") : can(session.role, "manage_invoices");
   const canImport = canAct ? canAct("finance.einvoice.create") || canAct("finance.invoices.create") || can(session.role, "manage_invoices") : can(session.role, "manage_invoices");
-  const apiBase = typeof window !== "undefined" ? window.PROMETCF_API : null;
-  const isLive = Boolean(apiBase);
+  const apiBase = (typeof window !== "undefined" && window.PROMETCF_API) || "";
+  const isLive = true;
 
   const [tab, setTab] = useState("inbox");  // inbox | outbox | sync | settings
   const [einvoices, setEinvoices] = useState([]);
