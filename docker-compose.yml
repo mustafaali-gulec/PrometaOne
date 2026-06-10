@@ -195,24 +195,23 @@ services:
       dockerfile: Dockerfile
     container_name: prometa-construction
     restart: unless-stopped
+    # JWT_SECRET + CORS vb. servisin kendi .env'inden gelir (monolit ile AYNI secret —
+    # token doğrulaması için şart). environment yalnızca container-içi ağ/port override'ı yapar.
+    env_file:
+      - ./construction-service/.env
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: 3002
       HOST: 0.0.0.0
-      DATABASE_URL: postgres://${POSTGRES_USER:-prometa}:${POSTGRES_PASSWORD:-prometa123}@construction-db:5432/prometa_construction
-      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-long-random-string-min-32-chars-please}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
-      KAFKA_BROKERS: kafka:9092
-      KAFKA_CLIENT_ID: construction-service
-      KAFKA_TOPIC_PREFIX: construction
+      # Veri mevcut ana Postgres örneğindeki prometa_construction DB'sinde (ayrı construction-db değil).
+      DATABASE_URL: postgres://${POSTGRES_USER:-prometa}:${POSTGRES_PASSWORD:-prometa123}@postgres:5432/prometa_construction
+      # KAFKA_BROKERS bilinçli olarak set edilmedi → event publisher no-op (mevcut davranışla aynı).
       TZ: Europe/Istanbul
     ports:
       - "3002:3002"
     depends_on:
-      construction-db:
+      postgres:
         condition: service_healthy
-      kafka:
-        condition: service_started
     networks:
       - prometa
 
