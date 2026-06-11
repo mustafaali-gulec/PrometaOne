@@ -37,6 +37,7 @@ interface EInvoiceRow {
   imported_invoice_id: number | null;
   ignored: boolean;
   ignored_reason: string | null;
+  notes: string | null;
   xml_raw: string | null;
 }
 
@@ -47,7 +48,7 @@ const SELECT = `
          to_char(due_date, 'YYYY-MM-DD') AS due_date,
          currency, exchange_rate, subtotal, kdv_total, tevkifat_total,
          konaklama_vergisi, ozel_tuketim_vergisi, payable_amount, gib_status,
-         imported_invoice_id, ignored, ignored_reason, xml_raw
+         imported_invoice_id, ignored, ignored_reason, notes, xml_raw
     FROM einvoice_invoices`;
 
 export class PgEInvoiceRepository implements EInvoiceRepository {
@@ -61,8 +62,8 @@ export class PgEInvoiceRepository implements EInvoiceRepository {
           party_vkn_tckn, party_name, party_alias, issue_date, due_date, currency,
           exchange_rate, subtotal, kdv_total, tevkifat_total, konaklama_vergisi,
           ozel_tuketim_vergisi, payable_amount, gib_status, imported_invoice_id,
-          ignored, ignored_reason, xml_raw)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+          ignored, ignored_reason, notes, xml_raw)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
        ON CONFLICT (company_id, uuid) DO UPDATE SET
          invoice_no = EXCLUDED.invoice_no, direction = EXCLUDED.direction,
          invoice_type = EXCLUDED.invoice_type, scenario = EXCLUDED.scenario,
@@ -74,7 +75,7 @@ export class PgEInvoiceRepository implements EInvoiceRepository {
          konaklama_vergisi = EXCLUDED.konaklama_vergisi,
          ozel_tuketim_vergisi = EXCLUDED.ozel_tuketim_vergisi,
          payable_amount = EXCLUDED.payable_amount, gib_status = EXCLUDED.gib_status,
-         xml_raw = EXCLUDED.xml_raw, updated_at = NOW()
+         notes = EXCLUDED.notes, xml_raw = EXCLUDED.xml_raw, updated_at = NOW()
        RETURNING id`,
       [
         p.companyId,
@@ -101,6 +102,7 @@ export class PgEInvoiceRepository implements EInvoiceRepository {
         p.importedInvoiceId,
         p.ignored,
         p.ignoredReason,
+        p.notes,
         p.xmlRaw,
       ],
     );
@@ -196,6 +198,7 @@ function rowToEInvoice(row: EInvoiceRow): EInvoice {
     importedInvoiceId: row.imported_invoice_id,
     ignored: row.ignored,
     ignoredReason: row.ignored_reason,
+    notes: row.notes,
     lines: [],
     xmlRaw: row.xml_raw,
   });

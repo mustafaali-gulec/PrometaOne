@@ -16,6 +16,8 @@ import { EInvoiceLine } from '../entities/EInvoiceLine.js';
 import { UblParseError } from '../errors/EInvoiceErrors.js';
 import type { InvoiceDirection } from '../valueObjects/InvoiceDirection.js';
 
+import { InvoiceNoteHints } from './InvoiceNoteHints.js';
+
 // GİB vergi tipi kodları
 const TAX_KDV = '0015';
 const TAX_TEVKIFAT = '9015';
@@ -46,6 +48,8 @@ export interface ParsedEInvoice {
   ozelTuketimVergisi: Money;
   payableAmount: Money;
   lines: EInvoiceLine[];
+  /** Belge notları (cbc:Note / GİB "Genel Açıklamalar") — vade/proje ipuçları buradan türetilir. */
+  notes: string | null;
   xmlRaw: string;
 }
 
@@ -151,6 +155,29 @@ export const UblInvoiceParser = {
     const exchangeRaw = text(asObj(inv['PricingExchangeRate'])['CalculationRate']);
     const exchangeRate = exchangeRaw === '' ? null : Number(exchangeRaw) || null;
 
+    // Notlar (cbc:Note, çoklu olabilir) + vade: DueDate yoksa önce
+    // PaymentMeans/PaymentDueDate, o da yoksa not metnindeki "Vade: ..." ipucu.
+    const notesJoined = asArray(inv['Note'])
+      .map((n) => text(n))
+      .filter((s) => s !== '')
+      .join('\n');
+    const notes = notesJoined === '' ? null : notesJoined;
+
+    const issueDate = text(inv['IssueDate']).slice(0, 10);
+    let dueDate = text(inv['DueDate']) ? text(inv['DueDate']).slice(0, 10) : null;
+    if (dueDate === null) {
+      for (const pm of asArray(inv['PaymentMeans'])) {
+        const pdd = text(asObj(pm)['PaymentDueDate']);
+        if (pdd !== '') {
+          dueDate = pdd.slice(0, 10);
+          break;
+        }
+      }
+    }
+    if (dueDate === null) {
+      dueDate = InvoiceNoteHints.extract(notes, issueDate).dueDate;
+    }
+
     return {
       uuid: text(inv['UUID']),
       invoiceNo: text(inv['ID']),
@@ -158,8 +185,8 @@ export const UblInvoiceParser = {
       invoiceType: text(inv['InvoiceTypeCode']) || null,
       scenario: text(inv['ProfileID']) || null,
       party,
-      issueDate: text(inv['IssueDate']).slice(0, 10),
-      dueDate: text(inv['DueDate']) ? text(inv['DueDate']).slice(0, 10) : null,
+      issueDate,
+      dueDate,
       currency,
       exchangeRate,
       subtotal,
@@ -169,6 +196,7 @@ export const UblInvoiceParser = {
       ozelTuketimVergisi: otv,
       payableAmount,
       lines,
+      notes,
       xmlRaw: xml,
     };
   },

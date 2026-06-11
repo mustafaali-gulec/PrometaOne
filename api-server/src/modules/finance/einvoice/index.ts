@@ -44,6 +44,7 @@ import {
 } from './application/useCases/PartyMappingUseCases.js';
 import { SyncEInvoicesUseCase } from './application/useCases/SyncEInvoicesUseCase.js';
 import { AesGcmCredentialCipher } from './infrastructure/crypto/AesGcmCredentialCipher.js';
+import { PdfParseTextExtractor } from './infrastructure/pdf/PdfParseTextExtractor.js';
 import { PgEInvoiceCredentialRepository } from './infrastructure/persistence/PgEInvoiceCredentialRepository.js';
 import { PgEInvoiceRepository } from './infrastructure/persistence/PgEInvoiceRepository.js';
 import { PgPartyMappingRepository } from './infrastructure/persistence/PgPartyMappingRepository.js';
@@ -92,7 +93,10 @@ export function registerEInvoiceModule(pool: Pool): ReturnType<typeof createEInv
       clock,
     ),
     importEInvoice: new ImportEInvoiceUseCase(uow, parties, clock),
-    importEInvoiceFromFile: new ImportEInvoiceFromFileUseCase(einvoices),
+    importEInvoiceFromFile: new ImportEInvoiceFromFileUseCase(
+      einvoices,
+      new PdfParseTextExtractor(),
+    ),
     ignoreEInvoice: new IgnoreEInvoiceUseCase(einvoices),
     saveCredential: new SaveCredentialUseCase(credentials, cipher),
     testConnection: new TestConnectionUseCase(credentials, cipher, provider),

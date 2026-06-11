@@ -81145,6 +81145,109 @@ function InvoicesView({ data, session, canAct, lang, onChange, logAudit, notify,
    base olarak o kullanılır. Demo (localStorage) yolu yalnız geriye dönük durur.
 ===================================================================== */
 
+/* ── e-Fatura otomasyon yardımcıları ──────────────────────────────────────
+   Backend InvoiceNoteHints ile aynı sözleşme: fatura notlarından
+   "Vade: 10.07.2026" / "Vade: 60 gün" → vade tarihi,
+   "Proje: PRJ-001" / "Proje Kodu= X" → proje kodu. */
+function einvNoteHints(notes, issueDate) {
+  // JS /i bayrağı 'İ'↔'i' eşlemez ("VADE TARİHİ" kaçar) → Türkçe İ'yi indirgeriz
+  const text = String(notes || "").replace(/İ/g, "i").trim();
+  if (!text) return { dueDate: null, projectCode: null };
+  let dueDate = null;
+  let m = text.match(/vade(?:si)?(?:\s*tarihi)?\s*[:=]?\s*(\d{4}-\d{2}-\d{2}|\d{1,2}[./-]\d{1,2}[./-]\d{2,4})/i);
+  if (m) {
+    const tok = m[1];
+    const iso = tok.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const tr = tok.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/);
+    if (iso) dueDate = tok;
+    else if (tr) {
+      const yyyy = tr[3].length === 2 ? `20${tr[3]}` : tr[3];
+      dueDate = `${yyyy}-${tr[2].padStart(2, "0")}-${tr[1].padStart(2, "0")}`;
+    }
+  }
+  if (!dueDate && issueDate) {
+    m = text.match(/vade(?:si)?\s*[:=]?\s*(\d{1,3})\s*g[üu]n/i);
+    if (m) {
+      const base = new Date(`${String(issueDate).slice(0, 10)}T00:00:00Z`);
+      if (!isNaN(base)) {
+        base.setUTCDate(base.getUTCDate() + parseInt(m[1], 10));
+        dueDate = base.toISOString().slice(0, 10);
+      }
+    }
+  }
+  let projectCode = null;
+  m = text.match(/proje(?:\s*(?:kodu|kod|no))?\s*[:#=]\s*([A-Za-z0-9ÇĞİÖŞÜçğıöşü][A-Za-z0-9ÇĞİÖŞÜçğıöşü._/-]{0,30})/i);
+  if (m) projectCode = m[1].replace(/[.,;]+$/, "") || null;
+  return { dueDate, projectCode };
+}
+
+/** VKN/TCKN → cari kartı (accParties.taxId tam eşleşme). */
+function einvFindParty(parties, vkn) {
+  const v = String(vkn || "").replace(/\D/g, "");
+  if (!v) return null;
+  return (parties || []).find(p => String(p.taxId || "").replace(/\D/g, "") === v) || null;
+}
+
+/** Proje kodu → proje (data.projects.code, büyük/küçük harf duyarsız). */
+function einvFindProject(projects, code) {
+  if (!code) return null;
+  const c = String(code).trim().toLowerCase();
+  return (projects || []).find(p => String(p.code || "").trim().toLowerCase() === c) || null;
+}
+
+/** e-Fatura karşı tarafından minimal cari kartı (PartyQuickCreateModal şemasıyla aynı). */
+function einvBuildParty(existingParties, { name, taxId, type }) {
+  const cfg = PARTY_TYPES[type] || PARTY_TYPES.other;
+  let maxNum = 0;
+  (existingParties || []).filter(p => p.code?.startsWith(cfg.mainCode)).forEach(p => {
+    const m = String(p.code).match(/\.A?0*(\d+)$/i);
+    if (m) { const n = parseInt(m[1], 10); if (!isNaN(n) && n > maxNum) maxNum = n; }
+  });
+  const cleanTaxId = String(taxId || "").replace(/\D/g, "").slice(0, 11);
+  return {
+    id: `party_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    code: `${cfg.mainCode}.A${String(maxNum + 1).padStart(3, "0")}`,
+    name: String(name || "").trim(),
+    taxId: cleanTaxId,
+    type, personType: cleanTaxId.length === 11 ? "real" : "legal",
+    status: "active", origin: "TR",
+    contactInfo: [], authorizedPersons: [], banks: [],
+    risk: {
+      blacklistBuy: false, blacklistSell: false, bannedFromTender: false,
+      sgkDebt: null, taxDebt: null, debtAmount: 0,
+      statusDescription: "", statusDate: null, details: [],
+    },
+    params: {
+      partialShipment: false, invoicePrintCount: 1,
+      usage: { buying: true, selling: true, export: false, import: false, finance: false },
+      orderApproval: { riskCheck: true, dueCheck: true, agingCheck: false, agingDays: 0 },
+      dueTracking: [],
+      debtCloseControl: { days: 0, action: "continue" },
+    },
+    accounting: {
+      costCenter: "", cariClass: type === "supplier" ? "satici" : "alici",
+      accountCode_alici: "", accountCode_satici: "",
+      accountCode_personel: "", accountCode_diger: "",
+    },
+    guarantees: [],
+    integration: {
+      eFatura: { type: "", labelInfo: "", scenario: "", pBoxLabel: "", senderLabel: "", intermediary: "", isUser: true, isPublic: false, isCustoms: false, replaceDeliveryNote: false, defaultInvoiceType: "", bankAccountNo: "" },
+      eArsiv: { retailAccount: false, deliveryMethod: "", email: "", email2: "", email3: "" },
+      eIrsaliye: { isUser: false, labelInfo: "", scenario: "" },
+    },
+    kvkkFiles: [], formSendPrefs: [],
+    identityInfo: {
+      nCuzdanNo: "", baba: "", anne: "", cinsiyet: "", dogumYeri: "",
+      dogumTarihi: null, olumTarihi: null, medeniHal: "",
+      il: "", ilce: "", mahalle: "", ciltNo: "", siraNo: "", aileSiraNo: "", kayitDurumu: "",
+    },
+    seizureRecords: [],
+    address: "", vatOffice: "", vatOfficeCode: "", mersisNo: "",
+    projectCode: "", specialCode: "", paymentTermDays: 0,
+    createdAt: new Date().toISOString(),
+  };
+}
+
 function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, notify, embedded = false }) {
   const canManage = canAct ? canAct("finance.einvoice.update") || canAct("finance.invoices.update") || can(session.role, "manage_invoices") : can(session.role, "manage_invoices");
   const canImport = canAct ? canAct("finance.einvoice.create") || canAct("finance.invoices.create") || can(session.role, "manage_invoices") : can(session.role, "manage_invoices");
@@ -81250,8 +81353,15 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
   };
 
   // ─── Faturayı nakit akış invoice'larına aktar ────────────────────────
+  // Otomasyon: VKN→cari kartı, notlardaki proje kodu→proje, vade→dueDate
+  // otomatik bağlanır; canlı modda fatura yerel deftere de yansıtılır.
   const importInvoice = async (einv, cashflowCatId) => {
     if (!cashflowCatId) { alert("Nakit Akış Kalemi seçin"); return; }
+    const issueDate = einv.issue_date || einv.issueDate;
+    const hints = einvNoteHints(einv.notes, issueDate);
+    const party = einvFindParty(data.accParties, einv.party_vkn_tckn || einv.partyVknTckn);
+    const project = einvFindProject(data.projects, hints.projectCode);
+    const dueDate = einv.due_date || einv.dueDate || hints.dueDate || issueDate;
     try {
       if (isLive) {
         const res = await fetch(`${apiBase}/v1/finance/einvoice/${einv.id}/import`, {
@@ -81262,9 +81372,35 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
           },
           body: JSON.stringify({ companyId: data.activeCompanyId, cashflowCatId }),
         });
+        const resJson = await res.json().catch(() => ({}));
         if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || err.message || "API hatası");
+          throw new Error(resJson.error || resJson.message || "API hatası");
+        }
+        // Yerel fatura defterine yansıt (cari/proje/vade bağlarıyla) — aynı
+        // e-fatura ikinci kez eklenmesin diye sourceUuid ile korunur.
+        const already = (data.invoices || []).some(i => i.sourceUuid === einv.uuid);
+        if (!already) {
+          const newInv = {
+            id: "inv_" + Date.now() + "_" + Math.random().toString(36).slice(2, 5),
+            backendInvoiceId: resJson.invoiceId ?? null,
+            invoiceNo: einv.invoice_no || einv.invoiceNo,
+            type: (einv.direction || "incoming") === "incoming" ? "AP" : "AR",
+            partyId: party?.id || null,
+            partyName: party?.name || einv.party_name || einv.partyName,
+            partyVkn: einv.party_vkn_tckn || einv.partyVknTckn,
+            projectId: project?.id || null,
+            issueDate,
+            dueDate,
+            currency: einv.currency || "TRY",
+            total: Number(einv.payable_amount || einv.payableAmount) || 0,
+            paidAmount: 0,
+            cashflowCatId,
+            source: "einvoice",
+            sourceUuid: einv.uuid,
+            committedToCells: false,
+            createdAt: new Date().toISOString(),
+          };
+          await onChange({ ...data, invoices: [...(data.invoices || []), newInv] });
         }
       } else {
         // Demo: localStorage e-fatura'yı işaretle + invoices array'e ekle
@@ -81272,10 +81408,12 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
           id: "inv_" + Date.now() + "_" + Math.random().toString(36).slice(2, 5),
           invoiceNo: einv.invoice_no || einv.invoiceNo,
           type: einv.direction === "incoming" ? "AP" : "AR",
-          partyName: einv.party_name || einv.partyName,
+          partyId: party?.id || null,
+          partyName: party?.name || einv.party_name || einv.partyName,
           partyVkn: einv.party_vkn_tckn || einv.partyVknTckn,
-          issueDate: einv.issue_date || einv.issueDate,
-          dueDate: einv.due_date || einv.dueDate || einv.issue_date || einv.issueDate,
+          projectId: project?.id || null,
+          issueDate,
+          dueDate,
           currency: einv.currency || "TRY",
           total: Number(einv.payable_amount || einv.payableAmount) || 0,
           paidAmount: 0,
@@ -81301,7 +81439,10 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
     }
   };
 
-  // ─── Dosyadan içe aktar (GİB e-Fatura HTML / UBL XML) ─────────────────
+  // ─── Dosyadan içe aktar (GİB e-Fatura HTML / UBL XML / PDF) ───────────
+  // Yükleme sonrası otomasyon: VKN/TCKN ile cari kartı eşlenir; kart yoksa
+  // kullanıcı onayıyla müşteri/tedarikçi kartı oluşturulur, notlardaki proje
+  // kodu ve vade saptanıp bildirilir (Aktar adımında otomatik kullanılır).
   const handleUploadFiles = async (fileList) => {
     const files = Array.from(fileList || []);
     if (files.length === 0) return;
@@ -81309,24 +81450,65 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
     setUploading(true);
     const uploadDirection = tab === "outbox" ? "outgoing" : "incoming";
     let ok = 0; const errs = [];
+    const updatedParties = [...(data.accParties || [])];
+    let partiesCreated = 0, projectHits = 0, dueHits = 0;
     try {
       for (const file of files) {
         try {
-          const content = await file.text();
+          const isPdf = /\.pdf$/i.test(file.name) || file.type === "application/pdf";
+          const body = { companyId: data.activeCompanyId, direction: uploadDirection };
+          if (isPdf) {
+            const buf = new Uint8Array(await file.arrayBuffer());
+            let bin = "";
+            for (let i = 0; i < buf.length; i += 0x8000) {
+              bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+            }
+            body.contentBase64 = btoa(bin);
+          } else {
+            body.content = await file.text();
+          }
           const res = await fetch(`${apiBase}/v1/finance/einvoice/upload`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
-            body: JSON.stringify({ companyId: data.activeCompanyId, content, direction: uploadDirection }),
+            body: JSON.stringify(body),
           });
           const json = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(json.error || json.message || `HTTP ${res.status}`);
           ok += 1;
-          await logAudit("einvoice_upload", { file: file.name, no: json.invoiceNo, format: json.format });
+
+          // 1) Cari eşleme / onaylı oluşturma
+          const vkn = String(json.partyVknTckn || "").trim();
+          if (vkn && !einvFindParty(updatedParties, vkn)) {
+            const partyType = uploadDirection === "incoming" ? "supplier" : "customer";
+            const typeLabel = partyType === "supplier" ? "Tedarikçi" : "Müşteri";
+            const pName = json.partyName || vkn;
+            if (window.confirm(`"${pName}" (VKN/TCKN: ${vkn}) cari kartı bulunamadı.\n${typeLabel} kartı oluşturulsun mu?`)) {
+              const newParty = einvBuildParty(updatedParties, { name: pName, taxId: vkn, type: partyType });
+              updatedParties.push(newParty);
+              partiesCreated += 1;
+              await logAudit("party_create", { id: newParty.id, code: newParty.code, name: newParty.name, kaynak: "einvoice_upload" });
+            }
+          }
+          // 2) Proje + vade tespiti (bilgilendirme; Aktar'da otomatik uygulanır)
+          if (einvFindProject(data.projects, json.projectCode)) projectHits += 1;
+          if (json.dueDate) dueHits += 1;
+
+          await logAudit("einvoice_upload", { file: file.name, no: json.invoiceNo, format: json.format, vkn, proje: json.projectCode || "", vade: json.dueDate || "" });
         } catch (e) {
           errs.push(`${file.name}: ${e.message}`);
         }
       }
-      if (ok > 0) notify(`${ok} fatura içe aktarıldı${errs.length ? `, ${errs.length} hata` : ""}`);
+      if (partiesCreated > 0) {
+        await onChange({ ...data, accParties: updatedParties });
+      }
+      if (ok > 0) {
+        const extra = [
+          partiesCreated ? `${partiesCreated} cari kartı oluşturuldu` : "",
+          projectHits ? `${projectHits} proje eşleşti` : "",
+          dueHits ? `${dueHits} vade saptandı` : "",
+        ].filter(Boolean).join(" · ");
+        notify(`${ok} fatura içe aktarıldı${extra ? ` · ${extra}` : ""}${errs.length ? ` · ${errs.length} hata` : ""}`);
+      }
       if (errs.length) alert("Bazı dosyalar aktarılamadı:\n" + errs.join("\n"));
       await loadEinvoices();
     } finally {
@@ -81360,12 +81542,12 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
             onChange={e => setSyncRange({ ...syncRange, to: e.target.value })}/>
           {canImport && (
             <label className="btn btn-ghost" style={{ cursor: uploading ? "wait" : "pointer" }}
-              title={lang === "en" ? "Import downloaded GİB e-Invoice HTML or UBL XML files" : "İndirilen GİB e-Fatura HTML veya UBL XML dosyalarını içe aktar"}>
+              title={lang === "en" ? "Import downloaded GİB e-Invoice HTML, UBL XML or PDF files" : "İndirilen GİB e-Fatura HTML, UBL XML veya PDF dosyalarını içe aktar"}>
               <Upload size={13} className={uploading ? "animate-pulse" : ""}/>
               {uploading
                 ? (lang === "en" ? "Uploading…" : "Yükleniyor…")
                 : (lang === "en" ? "Upload File" : "Dosya Yükle")}
-              <input type="file" accept=".html,.htm,.xml,text/html,text/xml,application/xml"
+              <input type="file" accept=".html,.htm,.xml,.pdf,text/html,text/xml,application/xml,application/pdf"
                 multiple disabled={uploading} style={{ display: "none" }}
                 onChange={e => { handleUploadFiles(e.target.files); e.target.value = ""; }}/>
             </label>
@@ -81486,7 +81668,13 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
       )}
 
       {/* Bulk import modal */}
-      {showImport && (
+      {showImport && (() => {
+        const miIssue = showImport.issue_date || showImport.issueDate;
+        const miHints = einvNoteHints(showImport.notes, miIssue);
+        const miParty = einvFindParty(data.accParties, showImport.party_vkn_tckn || showImport.partyVknTckn);
+        const miProject = einvFindProject(data.projects, miHints.projectCode);
+        const miDue = showImport.due_date || showImport.dueDate || miHints.dueDate;
+        return (
         <Modal title={`Faturayı Aktar · ${showImport.invoice_no || showImport.invoiceNo}`} icon={FileText}
           onClose={() => setShowImport(null)}
           onSave={() => {
@@ -81500,6 +81688,17 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
               <div><b>VKN/TCKN:</b> <span className="mono">{showImport.party_vkn_tckn || showImport.partyVknTckn}</span></div>
               <div><b>Tarih:</b> {new Date(showImport.issue_date || showImport.issueDate).toLocaleDateString("tr-TR")}</div>
               <div><b>Tutar:</b> {fmtTL2(showImport.payable_amount || showImport.payableAmount)} {showImport.currency}</div>
+              <div><b>Cari Kartı:</b> {miParty
+                ? <span style={{ color: "#0f766e" }}>✓ {miParty.code} — {miParty.name}</span>
+                : <span style={{ color: "#b45309" }}>eşleşme yok (dosya yüklerken oluşturulabilir)</span>}</div>
+              <div><b>Proje:</b> {miProject
+                ? <span style={{ color: "#0f766e" }}>✓ {miProject.code} — {miProject.name}</span>
+                : (miHints.projectCode
+                  ? <span style={{ color: "#b45309" }}>"{miHints.projectCode}" kodu projelerde bulunamadı</span>
+                  : <span style={{ color: "var(--ink-mute)" }}>notlarda proje kodu yok</span>)}</div>
+              <div><b>Vade:</b> {miDue
+                ? <span style={{ color: "#0f766e" }}>✓ {new Date(miDue).toLocaleDateString("tr-TR")}</span>
+                : <span style={{ color: "var(--ink-mute)" }}>belirtilmemiş (fatura tarihi kullanılır)</span>}</div>
             </div>
             <div>
               <div className="label mb-1">Nakit Akış Kalemi *</div>
@@ -81512,7 +81711,8 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
             </div>
           </div>
         </Modal>
-      )}
+        );
+      })()}
 
       {/* Credentials modal */}
       {credsDraft && (

@@ -58,6 +58,7 @@ function makeEInvoice(uuid: string): EInvoice {
     importedInvoiceId: null,
     ignored: false,
     ignoredReason: null,
+    notes: null,
     lines: [],
     xmlRaw: '<Invoice/>',
   });

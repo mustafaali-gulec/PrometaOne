@@ -78,4 +78,71 @@ describe('ImportEInvoiceFromFileUseCase', () => {
       UnsupportedEInvoiceFileError,
     );
   });
+
+  it('yanıt otomasyon bağlamı taşır: parti + notlardan vade/proje', async () => {
+    const htmlWithNotes = HTML.replace(
+      '</body>',
+      `<table id="notesTable"><tr><td>Genel Açıklamalar</td></tr>
+       <tr><td>Proje: PRJ-77 Vade: 30 gün</td></tr></table></body>`,
+    );
+    const repo = new InMemoryEInvoiceRepository();
+    const uc = new ImportEInvoiceFromFileUseCase(repo);
+    const res = await uc.execute({ companyId: 7, content: htmlWithNotes });
+
+    assert.equal(res.direction, 'incoming');
+    assert.equal(res.partyVknTckn, '1700020847');
+    assert.equal(res.payableAmount, '18120.00');
+    assert.equal(res.projectCode, 'PRJ-77');
+    assert.equal(res.dueDate, '2026-07-09'); // 2026-06-09 + 30 gün
+    assert.match(res.notes ?? '', /Proje: PRJ-77/);
+  });
+
+  it('PDF (contentBase64) → metin çıkarıcı üzerinden parse, format=pdf', async () => {
+    const pdfText = `SATICI FİRMA LTD. ŞTİ.
+VKN: 1112223334
+SAYIN
+ALICI A.Ş.
+VKN: 7330959937
+Fatura No: PDF2026000000001
+Fatura Tarihi: 01-06-2026
+ETTN: 11111111-2222-3333-4444-555555555555
+Mal Hizmet Toplam Tutarı 1.000,00 TL
+Ödenecek Tutar 1.200,00 TL
+Genel Açıklamalar
+Vade: 15 gün`;
+    const fakePdf = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.from('dummy')]);
+    const repo = new InMemoryEInvoiceRepository();
+    const uc = new ImportEInvoiceFromFileUseCase(repo, {
+      extractText: async () => pdfText,
+    });
+    const res = await uc.execute({ companyId: 7, contentBase64: fakePdf.toString('base64') });
+
+    assert.equal(res.format, 'pdf');
+    assert.equal(res.invoiceNo, 'PDF2026000000001');
+    assert.equal(res.partyVknTckn, '1112223334'); // incoming → satıcı
+    assert.equal(res.dueDate, '2026-06-16');
+    const stored = await repo.findById(res.einvoiceId, 7);
+    assert.equal(stored!.payableAmount.toDecimalString(), '1200.00');
+  });
+
+  it('PDF yüklenir ama extractor yapılandırılmamış → UnsupportedEInvoiceFileError', async () => {
+    const repo = new InMemoryEInvoiceRepository();
+    const uc = new ImportEInvoiceFromFileUseCase(repo);
+    const fakePdf = Buffer.from('%PDF-1.4 dummy');
+    await assert.rejects(
+      () => uc.execute({ companyId: 7, contentBase64: fakePdf.toString('base64') }),
+      UnsupportedEInvoiceFileError,
+    );
+  });
+
+  it('contentBase64 ile gelen PDF olmayan içerik UTF-8 metin sayılır (HTML)', async () => {
+    const repo = new InMemoryEInvoiceRepository();
+    const uc = new ImportEInvoiceFromFileUseCase(repo);
+    const res = await uc.execute({
+      companyId: 7,
+      contentBase64: Buffer.from(HTML, 'utf8').toString('base64'),
+    });
+    assert.equal(res.format, 'html');
+    assert.equal(res.invoiceNo, 'BIL2026000000193');
+  });
 });

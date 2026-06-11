@@ -23,6 +23,8 @@ import { EInvoiceLine } from '../entities/EInvoiceLine.js';
 import { GibHtmlParseError } from '../errors/EInvoiceErrors.js';
 import type { InvoiceDirection } from '../valueObjects/InvoiceDirection.js';
 
+import { GibTextInvoiceParser } from './GibTextInvoiceParser.js';
+import { InvoiceNoteHints } from './InvoiceNoteHints.js';
 import type { ParsedEInvoice, ParsedParty } from './UblInvoiceParser.js';
 
 interface QrValue {
@@ -80,7 +82,9 @@ export const GibHtmlInvoiceParser = {
   parse(html: string, direction: InvoiceDirection): ParsedEInvoice {
     const qr = extractQrValue(html);
     if (qr === null) {
-      throw new GibHtmlParseError('gömülü qrvalue JSON bloğu bulunamadı/çözülemedi');
+      // qrvalue JSON'u olmayan/bozuk entegratör şablonları: tag'leri sıyırıp
+      // düz-metin GİB parser'ına düş (etiket-tabanlı best-effort).
+      return GibTextInvoiceParser.parse(htmlToText(html), direction, html);
     }
 
     const currencyRaw = (qr.parabirimi ?? 'TRY').toUpperCase();
@@ -116,6 +120,10 @@ export const GibHtmlInvoiceParser = {
         ? { vknTckn: sellerVkn, name: names.seller, alias: null }
         : { vknTckn: buyerVkn, name: names.buyer, alias: null };
 
+    const issueDate = normalizeDate(qr.tarih ?? '');
+    const notes = extractNotesFromHtml(html);
+    const hints = InvoiceNoteHints.extract(notes, issueDate);
+
     return {
       uuid: uuid === '' ? invoiceNo : uuid,
       invoiceNo,
@@ -123,8 +131,8 @@ export const GibHtmlInvoiceParser = {
       invoiceType: qr.tip ?? null,
       scenario: qr.senaryo ?? null,
       party,
-      issueDate: normalizeDate(qr.tarih ?? ''),
-      dueDate: null,
+      issueDate,
+      dueDate: hints.dueDate,
       currency,
       exchangeRate: null,
       subtotal,
@@ -134,10 +142,46 @@ export const GibHtmlInvoiceParser = {
       ozelTuketimVergisi: Money.zero(currency),
       payableAmount,
       lines: extractLines(html, currency),
+      notes,
       xmlRaw: html,
     };
   },
 } as const;
+
+/** HTML'i kabaca düz metne çevirir (satır yapısı blok tag'lerden korunur). */
+function htmlToText(html: string): string {
+  return decodeEntities(
+    html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<(?:br|\/tr|\/p|\/div|\/h[1-6]|\/li|\/td)[^>]*>/gi, '\n')
+      .replace(/<[^>]*>/g, ' '),
+  )
+    .split('\n')
+    .map((l) => l.replace(/\s+/g, ' ').trim())
+    .join('\n');
+}
+
+/**
+ * `#notesTable` ("Genel Açıklamalar") hücre metinlerini satır satır toplar.
+ * IBAN satırları atılır; tutar-yazıyla satırı ("# Yalnız ... #") kalır — zararsız.
+ */
+function extractNotesFromHtml(html: string): string | null {
+  const start = html.search(/id=["']notesTable["']/i);
+  if (start < 0) return null;
+  const endIdx = html.slice(start).search(/<\/table>/i);
+  const region = endIdx > 0 ? html.slice(start, start + endIdx) : html.slice(start, start + 4000);
+
+  const lines: string[] = [];
+  for (const td of region.matchAll(/<td[\s\S]*?<\/td>/gi)) {
+    const cell = stripTags(td[0]).replace(/^Genel\s*Açıklamalar\s*/i, '');
+    if (cell === '') continue;
+    if (/^TR\d{2}[\d ]{10,}$/.test(cell)) continue; // IBAN
+    lines.push(cell);
+  }
+  const joined = lines.join('\n').trim();
+  return joined === '' ? null : joined;
+}
 
 /** `<p id="qrvalue" …> { … } </p>` içeriğini çekip JSON parse eder. */
 function extractQrValue(html: string): QrValue | null {
@@ -177,12 +221,20 @@ function extractPartyNames(html: string): { seller: string; buyer: string } {
   if (buyerMatch && buyerMatch[1] !== undefined) {
     buyer = buyerMatch[1].trim();
   }
-  // Satıcı: <h1>/<h2>/<b> içindeki ilk anlamlı firma adı, yoksa boş.
+  // Satıcı: <h1>/<h2>/<b> içindeki ilk anlamlı firma adı; yoksa "SAYIN"
+  // bloğundan önceki, şirket eki (A.Ş./LTD. ŞTİ.) taşıyan ilk metin satırı.
   let seller = '';
   const sellerMatch = html.match(/<(?:h1|h2|b|strong)[^>]*>([\s\S]*?)<\/(?:h1|h2|b|strong)>/i);
   if (sellerMatch && sellerMatch[1] !== undefined) {
     const t = stripTags(sellerMatch[1]);
     if (t !== '' && !/e-?fatura/i.test(t)) seller = t;
+  }
+  if (seller === '') {
+    const txt = htmlToText(html);
+    const sayinIdx = txt.search(/SAYIN\b/i);
+    const head = sayinIdx > 0 ? txt.slice(0, sayinIdx) : txt;
+    const m = head.match(/^\s*(.{3,160}?(?:A\.Ş\.?|LTD\.?\s*ŞTİ\.?|ŞTİ\.?|A\.S\.?))\s*$/im);
+    if (m && m[1] !== undefined) seller = m[1].trim();
   }
   return { seller, buyer };
 }

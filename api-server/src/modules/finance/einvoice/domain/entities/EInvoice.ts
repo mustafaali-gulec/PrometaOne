@@ -39,6 +39,8 @@ export interface EInvoiceProps {
   importedInvoiceId: number | null;
   ignored: boolean;
   ignoredReason: string | null;
+  /** Belge notları (Genel Açıklamalar / cbc:Note). */
+  notes: string | null;
   /** Transient — DB'de satır olarak tutulmaz; parse sonrası bellekte. */
   lines: ReadonlyArray<EInvoiceLine>;
   xmlRaw: string | null;
@@ -82,6 +84,7 @@ export class EInvoice {
       importedInvoiceId: null,
       ignored: false,
       ignoredReason: null,
+      notes: parsed.notes,
       lines: parsed.lines,
       xmlRaw: parsed.xmlRaw,
     });
@@ -135,6 +138,9 @@ export class EInvoice {
   get lines(): ReadonlyArray<EInvoiceLine> {
     return this.props.lines;
   }
+  get notes(): string | null {
+    return this.props.notes;
+  }
 
   withId(id: number): EInvoice {
     return new EInvoice({ ...this.props, id });
@@ -176,6 +182,7 @@ export class EInvoice {
     importedInvoiceId: number | null;
     ignored: boolean;
     ignoredReason: string | null;
+    notes: string | null;
     xmlRaw: string | null;
   } {
     return {
@@ -203,6 +210,7 @@ export class EInvoice {
       importedInvoiceId: this.props.importedInvoiceId,
       ignored: this.props.ignored,
       ignoredReason: this.props.ignoredReason,
+      notes: this.props.notes,
       xmlRaw: this.props.xmlRaw,
     };
   }
@@ -233,6 +241,7 @@ export class EInvoice {
       gibStatus: this.props.gibStatus,
       importedInvoiceId: this.props.importedInvoiceId,
       ignored: this.props.ignored,
+      notes: this.props.notes,
       lines: this.props.lines.map((l) => l.toJSON()),
     };
   }

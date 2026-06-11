@@ -136,25 +136,34 @@ export function createEInvoiceRouter(deps: EInvoiceRouterDeps): Hono {
     },
   );
 
-  // Elle dosya yükleme (UBL XML veya GİB e-Fatura HTML) → cache'e 'manual' kayıt.
+  // Elle dosya yükleme (UBL XML, GİB e-Fatura HTML veya PDF) → cache'e 'manual'
+  // kayıt. PDF'ler contentBase64 ile gelir; yanıt frontend otomasyonu için
+  // parti/vade/proje/kalem bağlamını içerir.
   app.post(
     '/einvoice/upload',
     requireWrite,
     zValidator(
       'json',
-      z.object({
-        companyId: z.number().int().positive(),
-        /** Dosya içeriği (UTF-8 metin). */
-        content: z.string().min(1),
-        direction: direction.optional(),
-      }),
+      z
+        .object({
+          companyId: z.number().int().positive(),
+          /** Dosya içeriği (UTF-8 metin — HTML/XML). */
+          content: z.string().min(1).optional(),
+          /** İkili dosya içeriği (PDF) — base64. */
+          contentBase64: z.string().min(1).optional(),
+          direction: direction.optional(),
+        })
+        .refine((b) => b.content !== undefined || b.contentBase64 !== undefined, {
+          message: 'content veya contentBase64 zorunlu',
+        }),
     ),
     async (c) => {
       const b = c.req.valid('json');
       try {
         const res = await deps.importEInvoiceFromFile.execute({
           companyId: b.companyId,
-          content: b.content,
+          ...(b.content !== undefined ? { content: b.content } : {}),
+          ...(b.contentBase64 !== undefined ? { contentBase64: b.contentBase64 } : {}),
           ...(b.direction !== undefined ? { direction: b.direction } : {}),
         });
         return c.json(res, 201);

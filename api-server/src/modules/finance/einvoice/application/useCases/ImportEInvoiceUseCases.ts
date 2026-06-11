@@ -14,10 +14,13 @@ import {
 } from '../../domain/errors/EInvoiceErrors.js';
 import { EInvoiceToInvoicePolicy } from '../../domain/services/EInvoiceToInvoicePolicy.js';
 import { GibHtmlInvoiceParser } from '../../domain/services/GibHtmlInvoiceParser.js';
+import { GibTextInvoiceParser } from '../../domain/services/GibTextInvoiceParser.js';
+import { InvoiceNoteHints } from '../../domain/services/InvoiceNoteHints.js';
 import { UblInvoiceParser } from '../../domain/services/UblInvoiceParser.js';
 import type { InvoiceDirection } from '../../domain/valueObjects/InvoiceDirection.js';
 import type { EInvoiceRepository, PartyMappingRepository } from '../ports/EInvoiceRepositories.js';
 import type { EInvoiceUnitOfWork } from '../ports/EInvoiceUnitOfWork.js';
+import type { PdfTextExtractor } from '../ports/PdfTextExtractor.js';
 
 export interface ImportEInvoiceResult {
   einvoiceId: number;
@@ -71,33 +74,80 @@ export interface UploadEInvoiceResult {
   einvoiceId: number;
   uuid: string;
   invoiceNo: string;
-  format: 'xml' | 'html';
+  format: 'xml' | 'html' | 'pdf';
+  /** Frontend otomasyonu (cari eşleme/oluşturma, proje, vade) için zengin bağlam. */
+  direction: InvoiceDirection;
+  partyVknTckn: string | null;
+  partyName: string | null;
+  issueDate: string;
+  dueDate: string | null;
+  currency: string;
+  payableAmount: string;
+  notes: string | null;
+  /** Notlardan türetilen proje kodu ("Proje: PRJ-001") — yoksa null. */
+  projectCode: string | null;
+  /** Kalemler (transient) — ileride malzeme/hizmet kartı eşlemesi için. */
+  lines: ReadonlyArray<Record<string, unknown>>;
 }
 
 /**
- * ImportEInvoiceFromFileUseCase — elle yüklenen bir UBL XML veya GİB e-Fatura
- * HTML dosyasını parse edip cache'e (einvoice_invoices) `provider='manual'`
- * olarak yazar. Sonrasında kullanıcı normal "Aktar" akışıyla `invoices`'a
- * geçirir. (companyId, uuid) UNIQUE üzerinden idempotent — aynı fatura iki kez
- * yüklenirse mevcut kayıt güncellenir.
+ * ImportEInvoiceFromFileUseCase — elle yüklenen bir UBL XML, GİB e-Fatura HTML
+ * veya GİB e-Fatura/e-Arşiv PDF dosyasını parse edip cache'e
+ * (einvoice_invoices) `provider='manual'` olarak yazar. Sonrasında kullanıcı
+ * normal "Aktar" akışıyla `invoices`'a geçirir. (companyId, uuid) UNIQUE
+ * üzerinden idempotent — aynı fatura iki kez yüklenirse mevcut kayıt güncellenir.
+ *
+ * PDF için içerik base64 gelir (contentBase64); metin pdfText port'u ile
+ * çıkarılıp GibTextInvoiceParser'a verilir.
  */
 export class ImportEInvoiceFromFileUseCase {
-  constructor(private readonly einvoices: EInvoiceRepository) {}
+  constructor(
+    private readonly einvoices: EInvoiceRepository,
+    private readonly pdfText?: PdfTextExtractor,
+  ) {}
 
   async execute(input: {
     companyId: number;
-    content: string;
+    /** UTF-8 metin içerik (HTML/XML). */
+    content?: string;
+    /** İkili içerik (PDF) — base64. Verilirse content yok sayılır. */
+    contentBase64?: string;
     /** İndirilen gelen faturalar için varsayılan 'incoming'. */
     direction?: InvoiceDirection;
   }): Promise<UploadEInvoiceResult> {
     const direction = input.direction ?? 'incoming';
-    const content = input.content.trim();
 
-    const format = detectFormat(content);
-    const parsed =
-      format === 'xml'
-        ? UblInvoiceParser.parse(content, direction)
-        : GibHtmlInvoiceParser.parse(content, direction);
+    let format: 'xml' | 'html' | 'pdf';
+    let parsed;
+    if (input.contentBase64 !== undefined && input.contentBase64 !== '') {
+      const buf = Buffer.from(input.contentBase64, 'base64');
+      if (buf.subarray(0, 5).toString('latin1') === '%PDF-') {
+        if (!this.pdfText) {
+          throw new UnsupportedEInvoiceFileError('PDF metin çıkarıcı yapılandırılmamış');
+        }
+        const text = await this.pdfText.extractText(buf);
+        format = 'pdf';
+        parsed = GibTextInvoiceParser.parse(text, direction, text);
+      } else {
+        // base64 ile gelen ama PDF olmayan içerik: UTF-8 metin say.
+        const content = buf.toString('utf8').trim();
+        format = detectFormat(content);
+        parsed =
+          format === 'xml'
+            ? UblInvoiceParser.parse(content, direction)
+            : GibHtmlInvoiceParser.parse(content, direction);
+      }
+    } else {
+      const content = (input.content ?? '').trim();
+      if (content === '') {
+        throw new UnsupportedEInvoiceFileError('içerik boş — content veya contentBase64 gerekli');
+      }
+      format = detectFormat(content);
+      parsed =
+        format === 'xml'
+          ? UblInvoiceParser.parse(content, direction)
+          : GibHtmlInvoiceParser.parse(content, direction);
+    }
 
     const stored = await this.einvoices.upsert(
       EInvoice.fromParsed(parsed, {
@@ -107,11 +157,23 @@ export class ImportEInvoiceFromFileUseCase {
       }),
     );
 
+    const projectCode = InvoiceNoteHints.extract(stored.notes, stored.issueDate).projectCode;
+
     return {
       einvoiceId: stored.id!,
       uuid: stored.uuid,
       invoiceNo: stored.invoiceNo,
       format,
+      direction: stored.direction,
+      partyVknTckn: stored.partyVknTckn,
+      partyName: stored.partyName,
+      issueDate: stored.issueDate,
+      dueDate: stored.dueDate,
+      currency: stored.currency,
+      payableAmount: stored.payableAmount.toDecimalString(),
+      notes: stored.notes,
+      projectCode,
+      lines: parsed.lines.map((l) => l.toJSON() as Record<string, unknown>),
     };
   }
 }
