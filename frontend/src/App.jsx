@@ -79950,8 +79950,8 @@ function InvoicesUnified({ data, session, canAct, lang, onChange, logAudit, noti
     (async () => {
       try {
         if (isLive) {
-          const res = await fetch(`${apiBase}/v1/finance/einvoice?companyId=${data.activeCompanyId}&pendingOnly=true`, {
-            headers: { Authorization: `Bearer ${session.token}` },
+          const res = await fetch(`${apiBase}/v1/finance/einvoice?companyId=${einvBackendCompanyId(data, session)}&pendingOnly=true`, {
+            headers: { Authorization: `Bearer ${einvAuthToken(session)}` },
           });
           const json = await res.json();
           if (mounted) setEinvCounts({
@@ -81181,6 +81181,27 @@ function einvNoteHints(notes, issueDate) {
   return { dueDate, projectCode };
 }
 
+/** Backend JWT'si login köprüsünde localStorage'a yazılır (promet_access_token);
+    legacy session objesinde token alanı YOK. e-Fatura fetch'leri bunu kullanır. */
+function einvAuthToken(session) {
+  try {
+    return session?.token || localStorage.getItem("promet_access_token") || "";
+  } catch {
+    return session?.token || "";
+  }
+}
+
+/** Backend e-Fatura API'si TAMSAYI companyId ister; legacy activeCompanyId ise
+    "comp_promet" gibi yerel string olabilir. Sayısal aday sırası:
+    activeCompanyId → session.activeCompanyId → session.companyId → 1. */
+function einvBackendCompanyId(data, session) {
+  for (const c of [data?.activeCompanyId, session?.activeCompanyId, session?.companyId]) {
+    const n = Number(c);
+    if (Number.isInteger(n) && n > 0) return n;
+  }
+  return 1;
+}
+
 /** VKN/TCKN → cari kartı (accParties.taxId tam eşleşme). */
 function einvFindParty(parties, vkn) {
   const v = String(vkn || "").replace(/\D/g, "");
@@ -81253,6 +81274,8 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
   const canImport = canAct ? canAct("finance.einvoice.create") || canAct("finance.invoices.create") || can(session.role, "manage_invoices") : can(session.role, "manage_invoices");
   const apiBase = (typeof window !== "undefined" && window.PROMETCF_API) || "";
   const isLive = true;
+  // Backend tamsayı companyId ister; "comp_promet" gibi yerel id'ler 400 döndürür.
+  const backendCompanyId = einvBackendCompanyId(data, session);
 
   const [tab, setTab] = useState("inbox");  // inbox | outbox | sync | settings
   const [einvoices, setEinvoices] = useState([]);
@@ -81277,15 +81300,15 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
     setLoading(true);
     try {
       if (isLive) {
-        const res = await fetch(`${apiBase}/v1/finance/einvoice?companyId=${data.activeCompanyId}`, {
-          headers: { Authorization: `Bearer ${session.token}` },
+        const res = await fetch(`${apiBase}/v1/finance/einvoice?companyId=${backendCompanyId}`, {
+          headers: { Authorization: `Bearer ${einvAuthToken(session)}` },
         });
         const json = await res.json();
         setEinvoices(json.einvoices || []);
         // Provider durumu: gerçek backend'de ayrı /status yok; sync-log'dan türet.
         try {
-          const sRes = await fetch(`${apiBase}/v1/finance/einvoice/sync-log?companyId=${data.activeCompanyId}`, {
-            headers: { Authorization: `Bearer ${session.token}` },
+          const sRes = await fetch(`${apiBase}/v1/finance/einvoice/sync-log?companyId=${backendCompanyId}`, {
+            headers: { Authorization: `Bearer ${einvAuthToken(session)}` },
           });
           const sJson = await sRes.json();
           const last = (sJson.logs || [])[0];
@@ -81304,7 +81327,7 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
     } finally {
       setLoading(false);
     }
-  }, [isLive, apiBase, data.activeCompanyId, session.token, notify]);
+  }, [isLive, apiBase, backendCompanyId, data.activeCompanyId, session.token, notify]);
 
   useEffect(() => { loadEinvoices(); }, [loadEinvoices]);
 
@@ -81317,10 +81340,10 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session.token}`,
+            Authorization: `Bearer ${einvAuthToken(session)}`,
           },
           body: JSON.stringify({
-            companyId: data.activeCompanyId,
+            companyId: backendCompanyId,
             provider: "elogo",
             dateFrom: syncRange.from,
             dateTo: syncRange.to,
@@ -81368,9 +81391,9 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session.token}`,
+            Authorization: `Bearer ${einvAuthToken(session)}`,
           },
-          body: JSON.stringify({ companyId: data.activeCompanyId, cashflowCatId }),
+          body: JSON.stringify({ companyId: backendCompanyId, cashflowCatId }),
         });
         const resJson = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -81456,7 +81479,7 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
       for (const file of files) {
         try {
           const isPdf = /\.pdf$/i.test(file.name) || file.type === "application/pdf";
-          const body = { companyId: data.activeCompanyId, direction: uploadDirection };
+          const body = { companyId: backendCompanyId, direction: uploadDirection };
           if (isPdf) {
             const buf = new Uint8Array(await file.arrayBuffer());
             let bin = "";
@@ -81469,7 +81492,7 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
           }
           const res = await fetch(`${apiBase}/v1/finance/einvoice/upload`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${einvAuthToken(session)}` },
             body: JSON.stringify(body),
           });
           const json = await res.json().catch(() => ({}));
@@ -81664,7 +81687,7 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
           onShowImport={(einv) => setShowImport(einv)}
         />
       ) : (
-        <SyncHistory isLive={isLive} apiBase={apiBase} session={session} companyId={data.activeCompanyId}/>
+        <SyncHistory isLive={isLive} apiBase={apiBase} session={session} companyId={backendCompanyId}/>
       )}
 
       {/* Bulk import modal */}
@@ -81717,7 +81740,7 @@ function EInvoiceManager({ data, session, canAct, lang, onChange, logAudit, noti
       {/* Credentials modal */}
       {credsDraft && (
         <ELogoCredentialsModal draft={credsDraft} setDraft={setCredsDraft}
-          isLive={isLive} apiBase={apiBase} session={session} companyId={data.activeCompanyId}
+          isLive={isLive} apiBase={apiBase} session={session} companyId={backendCompanyId}
           onClose={() => setCredsDraft(null)}
           onSaved={() => { setCredsDraft(null); loadEinvoices(); }}
           notify={notify}/>
@@ -81850,7 +81873,7 @@ function ELogoCredentialsModal({ draft, setDraft, isLive, apiBase, session, comp
     try {
       const authHeaders = {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.token}`,
+        Authorization: `Bearer ${einvAuthToken(session)}`,
       };
       // 1) Kimlik bilgilerini kaydet (PUT credentials)
       const saveRes = await fetch(`${apiBase}/v1/finance/einvoice/credentials`, {
@@ -81999,7 +82022,7 @@ function SyncHistory({ isLive, apiBase, session, companyId }) {
     }
     setLoading(true);
     fetch(`${apiBase}/v1/finance/einvoice/sync-log?companyId=${companyId}`, {
-      headers: { Authorization: `Bearer ${session.token}` },
+      headers: { Authorization: `Bearer ${einvAuthToken(session)}` },
     })
       .then(r => r.json())
       .then(j => setLogs(j.logs || []))
