@@ -66336,7 +66336,9 @@ function ManualPlannedPaymentModal({ payment, data, lang, onSave, onClose }) {
     status: "open",
   });
   const update = (k, v) => setDraft(d => ({ ...d, [k]: v }));
-  const parties = data.accParties || [];
+  const [picker, setPicker] = useState(null); // null | "party" | "category"
+  const parties = (data.accParties || []).filter(p => p.active !== false);
+  const categories = data.kasaCategories || [];
 
   const handleSave = () => {
     if (!draft.dueDate) { alert(lang === "en" ? "Due date is required" : "Vade tarihi zorunlu"); return; }
@@ -66373,12 +66375,13 @@ function ManualPlannedPaymentModal({ payment, data, lang, onSave, onClose }) {
 
         <div>
           <div className="label mb-1">{lang === "en" ? "Counterparty *" : "Cari / Taraf *"}</div>
-          <input className="input w-full" list="payment-plan-party-list" value={draft.counterparty}
-            placeholder={lang === "en" ? "Company or person name" : "Firma veya kişi adı"}
-            onChange={e => update("counterparty", e.target.value)}/>
-          <datalist id="payment-plan-party-list">
-            {parties.map(p => <option key={p.id} value={p.name}/>)}
-          </datalist>
+          <button type="button" className="input w-full" onClick={() => setPicker("party")}
+            style={{ cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: draft.counterparty ? "inherit" : "var(--ink-mute)" }}>
+              {draft.counterparty || (lang === "en" ? "Select counterparty…" : "Cari seçin…")}
+            </span>
+            <ChevronsUpDown size={13} style={{ flexShrink: 0, color: "var(--ink-mute)" }}/>
+          </button>
         </div>
 
         <div>
@@ -66390,9 +66393,13 @@ function ManualPlannedPaymentModal({ payment, data, lang, onSave, onClose }) {
         <div className="grid grid-cols-2 gap-2">
           <div>
             <div className="label mb-1">{lang === "en" ? "Category" : "Kategori"}</div>
-            <input className="input w-full" value={draft.category}
-              placeholder={lang === "en" ? "e.g. Rent, Tax, Salary" : "örn. Kira, Vergi, Maaş"}
-              onChange={e => update("category", e.target.value)}/>
+            <button type="button" className="input w-full" onClick={() => setPicker("category")}
+              style={{ cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: draft.category ? "inherit" : "var(--ink-mute)" }}>
+                {draft.category || (lang === "en" ? "Select category…" : "Kategori seçin…")}
+              </span>
+              <ChevronsUpDown size={13} style={{ flexShrink: 0, color: "var(--ink-mute)" }}/>
+            </button>
           </div>
           <div>
             <div className="label mb-1">{lang === "en" ? "Description" : "Açıklama"}</div>
@@ -66401,7 +66408,95 @@ function ManualPlannedPaymentModal({ payment, data, lang, onSave, onClose }) {
           </div>
         </div>
       </div>
+
+      {picker === "party" && (
+        <PlanPickerPopup
+          title={lang === "en" ? "Select Counterparty" : "Cari / Taraf Seç"}
+          icon={Building2} lang={lang}
+          options={parties.map(p => ({ id: p.id, name: p.name, hint: p.code || "" }))}
+          allowCustom
+          onSelect={(opt) => { update("counterparty", opt.name); setPicker(null); }}
+          onClose={() => setPicker(null)}
+        />
+      )}
+      {picker === "category" && (
+        <PlanPickerPopup
+          title={lang === "en" ? "Select Category" : "Kategori Seç"}
+          icon={Tag} lang={lang}
+          options={categories.map(c => ({ id: c.id, name: c.name }))}
+          allowCustom
+          onSelect={(opt) => { update("category", opt.name); setPicker(null); }}
+          onClose={() => setPicker(null)}
+        />
+      )}
     </Modal>
+  );
+}
+
+/* === Popup Seçici (cari / kategori) — aranabilir liste + serbest değer === */
+function PlanPickerPopup({ title, icon: Ic, options, lang, onSelect, onClose, allowCustom = false }) {
+  const [query, setQuery] = useState("");
+  const inputRef = useRef(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const q = query.toLowerCase().trim();
+  const filtered = q
+    ? options.filter(o => (o.name || "").toLowerCase().includes(q) || (o.hint || "").toLowerCase().includes(q))
+    : options;
+  const exactMatch = options.some(o => (o.name || "").toLowerCase() === q);
+
+  return (
+    <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position: "fixed", inset: 0, zIndex: 1100, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div className="card" style={{ width: "100%", maxWidth: 420, maxHeight: "70vh", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "var(--shadow)", background: "var(--bg)" }}>
+        <div className="p-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--line)" }}>
+          <div className="flex items-center gap-2 font-semibold text-sm">
+            {Ic && <Ic size={14} style={{ color: "var(--accent)" }}/>}
+            {title}
+          </div>
+          <button onClick={onClose} className="btn-ghost" style={{ padding: 4, cursor: "pointer" }}><X size={14}/></button>
+        </div>
+        <div className="p-2" style={{ borderBottom: "1px solid var(--line)" }}>
+          <div className="relative">
+            <Search size={13} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "var(--ink-mute)" }}/>
+            <input ref={inputRef} className="input w-full" style={{ paddingLeft: 26 }}
+              placeholder={lang === "en" ? "Search…" : "Ara…"}
+              value={query} onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (filtered.length === 1) onSelect(filtered[0]);
+                  else if (allowCustom && q && !exactMatch && filtered.length === 0) onSelect({ id: null, name: query.trim() });
+                }
+                if (e.key === "Escape") { e.stopPropagation(); onClose(); }
+              }}/>
+          </div>
+        </div>
+        <div style={{ overflowY: "auto", flex: 1 }}>
+          {filtered.length === 0 && (
+            <div className="p-4 text-center text-xs" style={{ color: "var(--ink-mute)" }}>
+              {lang === "en" ? "No results" : "Sonuç bulunamadı"}
+            </div>
+          )}
+          {filtered.map(o => (
+            <button key={o.id ?? o.name} type="button" onClick={() => onSelect(o)}
+              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--line)", cursor: "pointer", fontSize: 12.5, textAlign: "left", color: "inherit" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "var(--accent-soft)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</span>
+              {o.hint && <span className="mono" style={{ fontSize: 10, color: "var(--ink-mute)", flexShrink: 0 }}>{o.hint}</span>}
+            </button>
+          ))}
+        </div>
+        {allowCustom && q && !exactMatch && (
+          <div className="p-2" style={{ borderTop: "1px solid var(--line)" }}>
+            <button type="button" onClick={() => onSelect({ id: null, name: query.trim() })} className="btn w-full" style={{ justifyContent: "center" }}>
+              <Plus size={12}/> {lang === "en" ? `Use "${query.trim()}"` : `"${query.trim()}" olarak ekle`}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
