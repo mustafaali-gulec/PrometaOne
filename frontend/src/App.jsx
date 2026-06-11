@@ -167,6 +167,7 @@ const I18N_DICT = {
     "menu.banks": "Bankalar",
     "menu.kasa": "Kasa",
     "menu.loans": "Krediler",
+    "menu.payments": "Ödemeler Listesi",
     "menu.invoices": "Faturalar",
     "menu.transfers": "Transferler",
     "menu.hr": "HR",
@@ -1070,6 +1071,7 @@ const I18N_DICT = {
     "menu.banks": "Banks",
     "menu.kasa": "Cash Box",
     "menu.loans": "Loans",
+    "menu.payments": "Payments List",
     "menu.invoices": "Invoices",
     "menu.transfers": "Transfers",
     "menu.hr": "HR",
@@ -1934,6 +1936,7 @@ const I18N_DICT = {
     "menu.banks": "Banken",
     "menu.kasa": "Kasse",
     "menu.loans": "Kredite",
+    "menu.payments": "Zahlungsliste",
     "menu.invoices": "Rechnungen",
     "menu.transfers": "Transfers",
     "menu.hr": "HR",
@@ -2791,6 +2794,7 @@ const I18N_DICT = {
     "menu.banks": "البنوك",
     "menu.kasa": "الصندوق",
     "menu.loans": "القروض",
+    "menu.payments": "قائمة المدفوعات",
     "menu.invoices": "الفواتير",
     "menu.transfers": "التحويلات",
     "menu.hr": "الموارد البشرية",
@@ -3797,6 +3801,7 @@ const RESOURCES = {
   "finance.loans":       { module: "Finans", label: "Krediler",        actions: ["view","create","update","delete"], legacyPerm: "view_loans" },
   "finance.invoices":    { module: "Finans", label: "Faturalar (Manuel)", actions: ["view","create","update","delete","export"], legacyPerm: "view_invoices" },
   "finance.einvoice":    { module: "Finans", label: "e-Fatura (Logo eLogo)", actions: ["view","create","update"], legacyPerm: "view_invoices" },
+  "finance.payments":    { module: "Finans", label: "Ödemeler Listesi", actions: ["view","create","update","delete","export"], legacyPerm: "view_invoices" },
   "finance.transfers":   { module: "Finans", label: "Transferler",     actions: ["view","create","update","delete"], legacyPerm: "view_transfers" },
   "finance.fx":          { module: "Finans", label: "Kur Farkı Değerlemesi", actions: ["view","create","update","delete"], legacyPerm: "view_fx_revaluation" },
   "finance.ai_prediction": { module: "Finans", label: "AI Tahmin",     actions: ["view"],                       legacyPerm: "view_ai_prediction" },
@@ -10036,6 +10041,7 @@ const PER_COMPANY_FIELDS = [
   "kasaAccounts", "kasaEntries", "kasaCategories",
   "transfers", "invoices", "revaluations",
   "loans", "loanTransactions",
+  "manualPayments", "paymentInstructions",
   "hrOrgUnits", "hrDepartments", "hrJobTitles", "hrEmployees",
   "hrPositions", "hrCandidates", "hrApplications", "hrInterviews",
   "hrCustomRoles", "hrRoleGrants", "hrPermOverrides",
@@ -10117,6 +10123,8 @@ function createEmptyCompanyData(opts = {}) {
     revaluations: [],
     loans: [],
     loanTransactions: [],
+    manualPayments: [],
+    paymentInstructions: [],
     hrOrgUnits: opts.hrOrgUnits || [...DEFAULT_HR_ORG_UNITS],
     hrDepartments: opts.hrDepartments || [...DEFAULT_HR_DEPARTMENTS],
     hrJobTitles: [],
@@ -10376,6 +10384,8 @@ const DEFAULT_SEED = {
       revaluations: [],
       loans: [],
       loanTransactions: [],
+      manualPayments: [],
+      paymentInstructions: [],
       hrOrgUnits: [...DEFAULT_HR_ORG_UNITS],
       hrDepartments: [...DEFAULT_HR_DEPARTMENTS],
       hrJobTitles: [],
@@ -12354,6 +12364,13 @@ export default function App() {
             }}
           />
         )}
+        {view === "payments" && canView("view_invoices", "finance.payments") && (
+          <PaymentsListManager
+            data={effectiveData} session={session} canAct={canAct} lang={lang}
+            onChange={saveData} logAudit={logAudit} notify={notify}
+            onNavigate={(v) => setView(v)}
+          />
+        )}
         {view === "transfers" && canView("view_transfers", "finance.transfers") && (
           <TransfersView
             data={effectiveData} session={session} canAct={canAct} lang={lang}
@@ -13340,6 +13357,7 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
     { id: "loans",      label: t("menu.loans", lang),      icon: Banknote,        perm: "view_loans",     resource: "finance.loans", group: "finance" },
     { id: "checks",     label: lang === "en" ? "Checks & Notes" : lang === "de" ? "Schecks & Wechsel" : lang === "ar" ? "الشيكات والسندات" : "Çek/Senet", icon: FileCheck, perm: "view_banks", resource: "finance.banks", group: "finance" },
     { id: "invoices",   label: t("menu.invoices", lang),   icon: Receipt,         perm: "view_invoices",  resource: "finance.invoices", group: "finance" },
+    { id: "payments",   label: t("menu.payments", lang),   icon: CreditCard,      perm: "view_invoices",  resource: "finance.payments", group: "finance" },
     { id: "parties",    label: lang === "en" ? "Parties (AR/AP)" : lang === "de" ? "Geschäftspartner" : lang === "ar" ? "العملاء" : "Cari Yönetimi", icon: Building2, perm: "view_accounting", resource: "accounting.parties", group: "finance" },
     { id: "transfers",  label: t("menu.transfers", lang),  icon: ArrowLeftRight,  perm: "view_transfers", resource: "finance.transfers", group: "finance" },
     { id: "budget",     label: lang === "en" ? "Budget" : lang === "de" ? "Budget" : lang === "ar" ? "الميزانية" : "Bütçe", icon: Target, perm: "view_budget", resource: "accounting.budget", group: "finance" },
@@ -27876,6 +27894,7 @@ function TopBar({ session, onLogout, view, setView, data, onChangeData, canAct, 
     { id: "kasa",       label: t("menu.kasa", lang),       icon: Wallet,          perm: "view_kasa",      resource: "finance.kasa" },
     { id: "loans",      label: t("menu.loans", lang),      icon: Banknote,        perm: "view_loans",     resource: "finance.loans" },
     { id: "invoices",   label: t("menu.invoices", lang),   icon: Receipt,         perm: "view_invoices",  resource: "finance.invoices", badge: invoiceAlertCount },
+    { id: "payments",   label: t("menu.payments", lang),   icon: CreditCard,      perm: "view_invoices",  resource: "finance.payments" },
     { id: "transfers",  label: t("menu.transfers", lang),  icon: ArrowLeftRight,  perm: "view_transfers", resource: "finance.transfers" },
     { id: "parties",    label: lang === "en" ? "Parties (AR/AP)" : lang === "de" ? "Geschäftspartner" : lang === "ar" ? "العملاء" : "Cari Yönetimi", icon: Building2, perm: "view_accounting", resource: "accounting.parties" },
     { id: "hr",         label: t("menu.hr", lang),         icon: Briefcase,       perm: "view_hr",        resource: "hr.organization" },
@@ -65632,6 +65651,883 @@ function TaskDetailModal({ task, users, session, lang, onClose, onAddComment, on
           {task.completedAt && (
             <> · ✓ {lang === "en" ? "Completed" : "Tamamlandı"}: {new Date(task.completedAt).toLocaleString(lang === "en" ? "en-US" : "tr-TR")}</>
           )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* =====================================================================
+   ÖDEMELER LİSTESİ — Ödeme Planı & Talimat (Payment Plan / Instructions)
+   ---------------------------------------------------------------------
+   VADESİ GELECEK ödemeleri tek planda toplar (gerçekleşenleri değil):
+   - cari   : Açık GELEN faturalar (kalan = total - paidAmount > 0)
+   - loan   : Ödenmemiş kredi taksitleri (schedule[].paid === false)
+   - check  : Portföyde/bankada bekleyen VERİLEN çek & senetler
+   - manual : Elle eklenen planlı ödemeler (data.manualPayments, CRUD)
+   Ödeme gerçekleştiğinde kaynak modülde işlenir (fatura ödemesi girilir,
+   taksit paid olur, çek status=paid) ve kalem plandan OTOMATİK düşer.
+   Aksiyonlar (seçili kalemler üzerinden):
+   - BANKA TALİMATI hazırla → data.paymentInstructions kaydı + CSV indirme
+   - KASA TEDİYE düzenle    → kasaEntries'e çıkış + kaynak modüle geri yazım
+===================================================================== */
+const PAYMENT_PLAN_SOURCES = {
+  cari:   { tr: "Cari / Fatura", en: "Invoice (AP)",  de: "Rechnung",       ar: "فاتورة",    color: "#1d4ed8", view: "invoices" },
+  loan:   { tr: "Banka Kredisi", en: "Bank Loan",     de: "Bankkredit",     ar: "قرض بنكي",  color: "#0f766e", view: "loans" },
+  check:  { tr: "Çek / Senet",   en: "Check / Note",  de: "Scheck/Wechsel", ar: "شيك / سند", color: "#7c3aed", view: "checks" },
+  manual: { tr: "Manuel",        en: "Manual",        de: "Manuell",        ar: "يدوي",      color: "#b45309", view: null },
+};
+
+const PAYMENT_PLAN_STATUSES = {
+  overdue:    { tr: "Gecikmiş",        en: "Overdue",     color: "#b91c1c" },
+  upcoming:   { tr: "Yaklaşan (7g)",   en: "Due Soon",    color: "#ca8a04" },
+  planned:    { tr: "Planlı",          en: "Planned",     color: "#0ea5e9" },
+  instructed: { tr: "Talimat Verildi", en: "Instructed",  color: "#7c3aed" },
+};
+
+function collectPlannedPayments(data) {
+  const rows = [];
+
+  // 1) Açık GELEN faturalar → ödenecek cari borçlar
+  (data.invoices || []).forEach(inv => {
+    if (inv.type !== "in") return;
+    const remaining = (Number(inv.total) || 0) - (Number(inv.paidAmount) || 0);
+    if (remaining <= 0.009) return;
+    rows.push({
+      key: `cari_${inv.id}`,
+      source: "cari",
+      dueDate: inv.dueDate || inv.issueDate || "",
+      amount: round2(remaining),
+      currency: inv.currency || "TRY",
+      counterparty: inv.counterparty || "",
+      description: inv.invoiceNo ? `Fatura ${inv.invoiceNo}` : "Fatura",
+      refView: "invoices",
+      invRef: { invoiceId: inv.id },
+    });
+  });
+
+  // 2) Ödenmemiş kredi taksitleri
+  (data.loans || []).forEach(loan => {
+    const bank = (data.banks || []).find(b => b.id === loan.bankId);
+    const n = (loan.schedule || []).length;
+    (loan.schedule || []).forEach(s => {
+      if (s.paid) return;
+      rows.push({
+        key: `loan_${loan.id}_s${s.idx}`,
+        source: "loan",
+        dueDate: s.dueDate || "",
+        amount: Number(s.total) || 0,
+        currency: loan.currency || "TRY",
+        counterparty: bank?.name || loan.name || "",
+        description: `${loan.name || (LOAN_TYPES[loan.type]?.label ?? "Kredi")} — Taksit ${s.idx + 1}/${n}`,
+        refView: "loans",
+        loanRef: { loanId: loan.id, idx: s.idx },
+      });
+    });
+  });
+
+  // 3) Verilen çek & senetler (portföyde/bankada → ödenecek)
+  (data.checks || []).forEach(chk => {
+    if (!["given_check", "given_note"].includes(chk.checkType)) return;
+    if (!["portfolio", "in_bank"].includes(chk.status)) return;
+    const typeInfo = CHECK_TYPES[chk.checkType] || {};
+    rows.push({
+      key: `check_${chk.id}`,
+      source: "check",
+      dueDate: chk.dueDate || "",
+      amount: Number(chk.amount) || 0,
+      currency: chk.currency || "TRY",
+      counterparty: chk.partyName || chk.drawer || "",
+      description: `${typeInfo.tr || "Çek"} ${chk.serialNo || ""}`.trim() + (chk.bankName ? ` · ${chk.bankName}` : ""),
+      refView: "checks",
+      checkRef: { checkId: chk.id },
+    });
+  });
+
+  // 4) Manuel planlı ödemeler (henüz ödenmemiş olanlar)
+  (data.manualPayments || []).forEach(mp => {
+    if (mp.status === "paid") return;
+    rows.push({
+      key: `manual_${mp.id}`,
+      source: "manual",
+      dueDate: mp.dueDate || mp.date || "",
+      amount: Number(mp.amount) || 0,
+      currency: mp.currency || "TRY",
+      counterparty: mp.counterparty || "",
+      description: [mp.category, mp.description].filter(Boolean).join(" — "),
+      iban: mp.iban || "",
+      refView: null,
+      manual: mp,
+    });
+  });
+
+  return rows
+    .filter(r => r.amount > 0)
+    .sort((a, b) => (a.dueDate || "9999").localeCompare(b.dueDate || "9999"));
+}
+
+function PaymentsListManager({ data, session, canAct, lang, onChange, logAudit, notify, onNavigate }) {
+  const canCreate = canAct ? canAct("finance.payments.create") || can(session.role, "manage_invoices") : can(session.role, "manage_invoices");
+  const canUpdate = canAct ? canAct("finance.payments.update") || can(session.role, "manage_invoices") : can(session.role, "manage_invoices");
+  const canDelete = canAct ? canAct("finance.payments.delete") || can(session.role, "manage_invoices") : can(session.role, "manage_invoices");
+  const canExport = canAct ? canAct("finance.payments.export") || can(session.role, "manage_invoices") : can(session.role, "manage_invoices");
+
+  const [filterSource, setFilterSource] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all"); // all | overdue | upcoming | planned | instructed
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selected, setSelected] = useState({});            // key -> true
+  const [editingPayment, setEditingPayment] = useState(null); // null | "new" | manuel kayıt
+  const [instructionModal, setInstructionModal] = useState(false);
+  const [tediyeModal, setTediyeModal] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+
+  const instructions = data.paymentInstructions || [];
+  const instructedKeys = useMemo(() => {
+    const s = new Set();
+    instructions.forEach(ins => (ins.items || []).forEach(it => s.add(it.key)));
+    return s;
+  }, [instructions]);
+
+  const allRows = useMemo(() => collectPlannedPayments(data), [data]);
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const weekIso = useMemo(() => {
+    const d = new Date(); d.setDate(d.getDate() + 7);
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  const statusOf = useCallback((r) => {
+    if (instructedKeys.has(r.key)) return "instructed";
+    if (r.dueDate && r.dueDate < todayIso) return "overdue";
+    if (r.dueDate && r.dueDate <= weekIso) return "upcoming";
+    return "planned";
+  }, [instructedKeys, todayIso, weekIso]);
+
+  const filtered = useMemo(() => {
+    let result = allRows;
+    if (filterSource !== "all") result = result.filter(r => r.source === filterSource);
+    if (filterStatus !== "all") result = result.filter(r => statusOf(r) === filterStatus);
+    if (dateFrom) result = result.filter(r => r.dueDate >= dateFrom);
+    if (dateTo) result = result.filter(r => r.dueDate <= dateTo);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(r =>
+        (r.counterparty || "").toLowerCase().includes(q) ||
+        (r.description || "").toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [allRows, filterSource, filterStatus, dateFrom, dateTo, searchQuery, statusOf]);
+
+  // Para birimi bazında toplam etiketi (kur çevrimi YAPILMAZ)
+  const sumByCur = (rows) => {
+    const m = {};
+    rows.forEach(r => { m[r.currency] = (m[r.currency] || 0) + r.amount; });
+    const entries = Object.entries(m);
+    if (entries.length === 0) return "0,00 ₺";
+    return entries
+      .sort(([a], [b]) => (a === "TRY" ? -1 : b === "TRY" ? 1 : a.localeCompare(b)))
+      .map(([cur, sum]) => `${fmtTL(sum)} ${CURRENCY_SYMBOLS[cur] || cur}`)
+      .join("  +  ");
+  };
+
+  const kpi = useMemo(() => ({
+    overdue: sumByCur(filtered.filter(r => statusOf(r) === "overdue")),
+    upcoming: sumByCur(filtered.filter(r => statusOf(r) === "upcoming")),
+    total: sumByCur(filtered),
+    count: filtered.length,
+  }), [filtered, statusOf]);
+
+  const selectedRows = useMemo(() => filtered.filter(r => selected[r.key]), [filtered, selected]);
+  const allSelected = filtered.length > 0 && filtered.every(r => selected[r.key]);
+  const toggleAll = () => {
+    if (allSelected) { setSelected({}); return; }
+    const next = {};
+    filtered.forEach(r => { next[r.key] = true; });
+    setSelected(next);
+  };
+  const toggleRow = (key) => setSelected(s => ({ ...s, [key]: !s[key] }));
+
+  // ----- Manuel planlı ödeme CRUD -----
+  const saveManualPayment = async (draft) => {
+    const isNew = !draft.id;
+    const record = {
+      ...draft,
+      id: draft.id || ("mpay_" + Date.now() + "_" + Math.random().toString(36).slice(2, 5)),
+      amount: Number(draft.amount),
+      status: draft.status || "open",
+      createdBy: draft.createdBy || session.username,
+      ts: draft.ts || new Date().toISOString(),
+    };
+    const list = data.manualPayments || [];
+    const updated = isNew ? [...list, record] : list.map(p => p.id === record.id ? record : p);
+    await onChange({ ...data, manualPayments: updated });
+    await logAudit(isNew ? "payment_plan_manual_add" : "payment_plan_manual_update", {
+      taraf: record.counterparty, tutar: record.amount, birim: record.currency, vade: record.dueDate,
+    });
+    notify(isNew
+      ? (lang === "en" ? "Planned payment added" : "Planlı ödeme eklendi")
+      : (lang === "en" ? "Planned payment updated" : "Planlı ödeme güncellendi"));
+    setEditingPayment(null);
+  };
+
+  const deleteManualPayment = async (mp) => {
+    if (!confirm(lang === "en" ? "Delete this planned payment?" : "Bu planlı ödemeyi silmek istediğinizden emin misiniz?")) return;
+    const updated = (data.manualPayments || []).filter(p => p.id !== mp.id);
+    await onChange({ ...data, manualPayments: updated });
+    await logAudit("payment_plan_manual_delete", { taraf: mp.counterparty, tutar: mp.amount });
+    notify(lang === "en" ? "Planned payment deleted" : "Planlı ödeme silindi");
+  };
+
+  // ----- Banka talimatı oluştur -----
+  const createInstruction = async ({ bankAccountId, date, note }) => {
+    const rowsSel = selectedRows;
+    if (rowsSel.length === 0) return;
+    const curs = [...new Set(rowsSel.map(r => r.currency))];
+    if (curs.length > 1) {
+      notify(lang === "en" ? "Select items in a single currency" : "Talimat için tek para biriminde kalem seçin", "err");
+      return;
+    }
+    const acc = (data.bankAccounts || []).find(a => a.id === bankAccountId);
+    if (!acc) { notify(lang === "en" ? "Select a bank account" : "Banka hesabı seçin", "err"); return; }
+    if ((acc.currency || "TRY") !== curs[0]) {
+      notify(lang === "en" ? "Bank account currency does not match" : `Hesap para birimi (${acc.currency}) seçili kalemlerle (${curs[0]}) uyuşmuyor`, "err");
+      return;
+    }
+    const bank = (data.banks || []).find(b => b.id === acc.bankId);
+    const no = `TAL-${new Date().getFullYear()}-${String(instructions.length + 1).padStart(3, "0")}`;
+    const ins = {
+      id: "pins_" + Date.now() + "_" + Math.random().toString(36).slice(2, 5),
+      no, date, note: note || "",
+      bankAccountId, bankLabel: `${bank?.name || ""} ${acc.name}`.trim(),
+      currency: curs[0],
+      total: round2(rowsSel.reduce((s, r) => s + r.amount, 0)),
+      items: rowsSel.map(r => ({
+        key: r.key, source: r.source, counterparty: r.counterparty,
+        amount: r.amount, currency: r.currency, dueDate: r.dueDate,
+        description: r.description, iban: r.iban || "",
+      })),
+      createdBy: session.username,
+      ts: new Date().toISOString(),
+      status: "prepared",
+    };
+    await onChange({ ...data, paymentInstructions: [...instructions, ins] });
+    await logAudit("payment_instruction_create", { no, banka: ins.bankLabel, adet: ins.items.length, toplam: ins.total, birim: ins.currency });
+    downloadInstructionCSV(ins, lang);
+    notify(lang === "en" ? `Instruction ${no} prepared & downloaded` : `${no} talimatı hazırlandı ve indirildi`);
+    setSelected({});
+    setInstructionModal(false);
+  };
+
+  const deleteInstruction = async (ins) => {
+    if (!confirm(lang === "en" ? "Delete this instruction? Items return to planned state." : "Bu talimat silinsin mi? Kalemler planlı durumuna döner.")) return;
+    await onChange({ ...data, paymentInstructions: instructions.filter(i => i.id !== ins.id) });
+    await logAudit("payment_instruction_delete", { no: ins.no, adet: (ins.items || []).length });
+    notify(lang === "en" ? "Instruction deleted" : "Talimat silindi");
+  };
+
+  // ----- Kasa tediye düzenle (kasa çıkışı + kaynak modüle geri yazım) -----
+  const createTediye = async ({ kasaAccountId, date, note }) => {
+    const rowsSel = selectedRows;
+    if (rowsSel.length === 0) return;
+    const kasa = (data.kasaAccounts || []).find(k => k.id === kasaAccountId);
+    if (!kasa) { notify(lang === "en" ? "Select a kasa" : "Kasa seçin", "err"); return; }
+    const badCur = rowsSel.find(r => r.currency !== (kasa.currency || "TRY"));
+    if (badCur) {
+      notify(lang === "en" ? "All items must match kasa currency" : `Tüm kalemler kasa para birimiyle (${kasa.currency || "TRY"}) aynı olmalı`, "err");
+      return;
+    }
+
+    let invoices = data.invoices || [];
+    let loans = data.loans || [];
+    let checks = data.checks || [];
+    let manualPayments = data.manualPayments || [];
+    const kasaEntries = [...(data.kasaEntries || [])];
+    const nowTs = new Date().toISOString();
+
+    rowsSel.forEach((r, i) => {
+      const entryId = "ke_" + Date.now() + "_" + i + "_" + Math.random().toString(36).slice(2, 4);
+      kasaEntries.push({
+        id: entryId, kasaAccountId, date, type: "out",
+        amount: r.amount,
+        description: `Tediye — ${r.counterparty}${r.description ? " · " + r.description : ""}${note ? " · " + note : ""}`,
+        category: "Ödeme Planı Tediyesi",
+        createdBy: session.username, ts: nowTs,
+      });
+      if (r.source === "cari" && r.invRef) {
+        invoices = invoices.map(inv => {
+          if (inv.id !== r.invRef.invoiceId) return inv;
+          const payment = {
+            id: "pay_" + Date.now() + "_" + i, date,
+            amount: r.amount, currency: inv.currency,
+            fromType: "kasa", fromId: kasaAccountId,
+            description: lang === "en" ? "Cash disbursement (payment plan)" : "Kasa tediye (ödeme planı)",
+            ts: nowTs,
+          };
+          return { ...inv, paidAmount: round2((Number(inv.paidAmount) || 0) + r.amount), payments: [...(inv.payments || []), payment] };
+        });
+      } else if (r.source === "loan" && r.loanRef) {
+        loans = loans.map(loan => {
+          if (loan.id !== r.loanRef.loanId) return loan;
+          const schedule = (loan.schedule || []).map(s =>
+            s.idx === r.loanRef.idx ? { ...s, paid: true, paidDate: date, paidAmount: r.amount } : s
+          );
+          return { ...loan, schedule };
+        });
+      } else if (r.source === "check" && r.checkRef) {
+        checks = checks.map(chk => {
+          if (chk.id !== r.checkRef.checkId) return chk;
+          return {
+            ...chk, status: "paid",
+            statusHistory: [
+              ...(chk.statusHistory || []),
+              { status: "paid", date: nowTs, eventDate: date, by: session.username, note: lang === "en" ? "Cash disbursement (payment plan)" : "Kasa tediye (ödeme planı)" },
+            ],
+          };
+        });
+      } else if (r.source === "manual" && r.manual) {
+        manualPayments = manualPayments.map(mp =>
+          mp.id === r.manual.id ? { ...mp, status: "paid", paidDate: date, kasaEntryId: entryId } : mp
+        );
+      }
+    });
+
+    await onChange({ ...data, kasaEntries, invoices, loans, checks, manualPayments });
+    await logAudit("payment_plan_tediye", {
+      kasa: kasa.name, adet: rowsSel.length,
+      toplam: round2(rowsSel.reduce((s, r) => s + r.amount, 0)), birim: kasa.currency || "TRY",
+    });
+    notify(lang === "en"
+      ? `${rowsSel.length} item(s) paid from kasa & written back to sources`
+      : `${rowsSel.length} kalem kasadan ödendi, kaynak modüllere işlendi`);
+    setSelected({});
+    setTediyeModal(false);
+  };
+
+  // ----- Plan listesi CSV -----
+  const exportCSV = () => {
+    const headers = lang === "en"
+      ? ["Due Date", "Status", "Source", "Counterparty", "Description", "Amount", "Currency"]
+      : ["Vade", "Durum", "Kaynak", "Cari / Taraf", "Açıklama", "Tutar", "Para Birimi"];
+    exportReportToCSV({
+      filename: `odeme_plani_${todayIso}.csv`,
+      headers,
+      rows: filtered.map(r => {
+        const st = PAYMENT_PLAN_STATUSES[statusOf(r)] || {};
+        return [
+          r.dueDate, st[lang] || st.tr || "",
+          PAYMENT_PLAN_SOURCES[r.source]?.[lang] || PAYMENT_PLAN_SOURCES[r.source]?.tr || r.source,
+          r.counterparty, r.description,
+          String(r.amount).replace(".", ","), r.currency,
+        ];
+      }),
+    });
+    logAudit("payment_plan_export", { adet: filtered.length });
+  };
+
+  const srcLabel = (s) => PAYMENT_PLAN_SOURCES[s]?.[lang] || PAYMENT_PLAN_SOURCES[s]?.tr || s;
+
+  return (
+    <div className="space-y-5">
+      <PageHeader
+        breadcrumb={`${t("menu.finance", lang)} › ${t("menu.payments", lang)}`}
+        icon={CreditCard}
+        title={t("menu.payments", lang)}
+        subtitle={lang === "en"
+          ? "Payment plan from open invoices, loan installments, given checks and manual items — prepare bank instructions or cash disbursements"
+          : "Açık cari faturalar, kredi taksitleri, verilen çek/senetler ve manuel kalemlerden ödeme planı — banka talimatı hazırlayın veya kasa tediyesi düzenleyin"}
+        actions={
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowHistory(h => !h)} className="btn">
+              <FileClock size={13}/> {lang === "en" ? "Instructions" : "Talimatlar"} ({instructions.length})
+            </button>
+            {canExport && filtered.length > 0 && (
+              <button onClick={exportCSV} className="btn">
+                <FileDown size={13}/> CSV
+              </button>
+            )}
+            {canCreate && (
+              <button onClick={() => setEditingPayment("new")} className="btn btn-primary">
+                <Plus size={13}/> {lang === "en" ? "Planned Payment" : "Planlı Ödeme Ekle"}
+              </button>
+            )}
+          </div>
+        }
+      />
+
+      {/* Özet kartları */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="kpi-card">
+          <div className="flex items-start justify-between">
+            <div className="kpi-label">{lang === "en" ? "Overdue" : "Vadesi Geçmiş"}</div>
+            <AlertTriangle size={14} strokeWidth={1.5} style={{ color: "#b91c1c" }}/>
+          </div>
+          <div className="kpi-value mt-1.5" style={{ color: "#b91c1c", fontSize: 16 }}>{kpi.overdue}</div>
+        </div>
+        <div className="kpi-card">
+          <div className="flex items-start justify-between">
+            <div className="kpi-label">{lang === "en" ? "Due in 7 Days" : "7 Gün İçinde"}</div>
+            <Clock size={14} strokeWidth={1.5} style={{ color: "#ca8a04" }}/>
+          </div>
+          <div className="kpi-value mt-1.5" style={{ color: "#ca8a04", fontSize: 16 }}>{kpi.upcoming}</div>
+        </div>
+        <div className="kpi-card">
+          <div className="flex items-start justify-between">
+            <div className="kpi-label">{lang === "en" ? "Total Open" : "Toplam Açık"}</div>
+            <CircleDollarSign size={14} strokeWidth={1.5} style={{ color: "var(--ink-mute)" }}/>
+          </div>
+          <div className="kpi-value mt-1.5" style={{ fontSize: 16 }}>{kpi.total}</div>
+        </div>
+        <div className="kpi-card">
+          <div className="flex items-start justify-between">
+            <div className="kpi-label">{lang === "en" ? "Items" : "Kalem"}</div>
+            <ClipboardList size={14} strokeWidth={1.5} style={{ color: "var(--ink-mute)" }}/>
+          </div>
+          <div className="kpi-value mt-1.5" style={{ fontSize: 16 }}>{kpi.count}</div>
+        </div>
+      </div>
+
+      {/* Talimat geçmişi */}
+      {showHistory && (
+        <div className="card" style={{ overflow: "hidden" }}>
+          <div className="p-3 font-semibold text-sm" style={{ borderBottom: "1px solid var(--line)" }}>
+            {lang === "en" ? "Prepared Bank Instructions" : "Hazırlanan Banka Talimatları"}
+          </div>
+          {instructions.length === 0 ? (
+            <div className="p-4 text-sm" style={{ color: "var(--ink-mute)" }}>
+              {lang === "en" ? "No instructions prepared yet." : "Henüz talimat hazırlanmadı."}
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table className="grid" style={{ minWidth: 700 }}>
+                <thead>
+                  <tr>
+                    <th className="label-cell">No</th>
+                    <th>{lang === "en" ? "Date" : "Tarih"}</th>
+                    <th className="label-cell">{lang === "en" ? "Bank Account" : "Banka Hesabı"}</th>
+                    <th>{lang === "en" ? "Items" : "Kalem"}</th>
+                    <th>{lang === "en" ? "Total" : "Toplam"}</th>
+                    <th style={{ minWidth: 90 }}>{lang === "en" ? "Actions" : "İşlem"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...instructions].reverse().map(ins => (
+                    <tr key={ins.id}>
+                      <td className="mono text-xs" style={{ fontWeight: 700 }}>{ins.no}</td>
+                      <td className="mono text-xs">{ins.date}</td>
+                      <td className="label-cell text-xs">{ins.bankLabel}</td>
+                      <td className="mono text-xs">{(ins.items || []).length}</td>
+                      <td className="mono text-xs" style={{ fontWeight: 700 }}>{fmtTL(ins.total)} {CURRENCY_SYMBOLS[ins.currency] || ins.currency}</td>
+                      <td className="label-cell">
+                        <div className="flex gap-1">
+                          <button onClick={() => downloadInstructionCSV(ins, lang)} className="btn-ghost text-xs" title={lang === "en" ? "Download CSV" : "CSV indir"}
+                            style={{ padding: "3px 6px", background: "#cffafe", color: "#0891b2", borderRadius: 3, fontSize: 10 }}>
+                            <FileDown size={10}/>
+                          </button>
+                          {canDelete && (
+                            <button onClick={() => deleteInstruction(ins)} className="btn-ghost text-xs" title={lang === "en" ? "Delete" : "Sil"}
+                              style={{ padding: "3px 6px", background: "#fee2e2", color: "#b91c1c", borderRadius: 3, fontSize: 10 }}>
+                              <Trash2 size={10}/>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Filtreler */}
+      <div className="card p-3 flex flex-col md:flex-row md:items-center gap-2 flex-wrap">
+        <div className="relative" style={{ minWidth: 200, flex: 1 }}>
+          <Search size={13} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "var(--ink-mute)" }}/>
+          <input
+            className="input w-full" style={{ paddingLeft: 26 }}
+            placeholder={lang === "en" ? "Search counterparty, description…" : "Cari, açıklama ara…"}
+            value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <select className="input" value={filterSource} onChange={e => setFilterSource(e.target.value)}>
+          <option value="all">{lang === "en" ? "All Sources" : "Tüm Kaynaklar"}</option>
+          {Object.keys(PAYMENT_PLAN_SOURCES).map(k => (
+            <option key={k} value={k}>{srcLabel(k)}</option>
+          ))}
+        </select>
+        <select className="input" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+          <option value="all">{lang === "en" ? "All Statuses" : "Tüm Durumlar"}</option>
+          {Object.entries(PAYMENT_PLAN_STATUSES).map(([k, v]) => (
+            <option key={k} value={k}>{v[lang] || v.tr}</option>
+          ))}
+        </select>
+        <input type="date" className="input mono" value={dateFrom} onChange={e => setDateFrom(e.target.value)}/>
+        <span style={{ color: "var(--ink-mute)", fontSize: 12 }}>—</span>
+        <input type="date" className="input mono" value={dateTo} onChange={e => setDateTo(e.target.value)}/>
+      </div>
+
+      {/* Seçim aksiyon çubuğu */}
+      {selectedRows.length > 0 && (
+        <div className="card p-3 flex flex-col md:flex-row md:items-center gap-2" style={{ background: "var(--accent-soft)", border: "1px solid var(--accent)" }}>
+          <div className="text-sm" style={{ fontWeight: 700, flex: 1 }}>
+            {selectedRows.length} {lang === "en" ? "item(s) selected" : "kalem seçildi"} · {sumByCur(selectedRows)}
+          </div>
+          {canCreate && (
+            <button onClick={() => setInstructionModal(true)} className="btn btn-primary">
+              <Landmark size={13}/> {lang === "en" ? "Prepare Bank Instruction" : "Banka Talimatı Hazırla"}
+            </button>
+          )}
+          {canUpdate && (
+            <button onClick={() => setTediyeModal(true)} className="btn">
+              <Wallet size={13}/> {lang === "en" ? "Cash Disbursement (Tediye)" : "Kasa Tediye Düzenle"}
+            </button>
+          )}
+          <button onClick={() => setSelected({})} className="btn-ghost text-xs" style={{ padding: "4px 8px" }}>
+            <X size={12}/> {lang === "en" ? "Clear" : "Temizle"}
+          </button>
+        </div>
+      )}
+
+      {/* Plan tablosu */}
+      <div className="card" style={{ overflow: "hidden" }}>
+        <div style={{ overflowX: "auto" }}>
+          <table className="grid" style={{ minWidth: 1000 }}>
+            <thead>
+              <tr>
+                <th style={{ width: 34 }}>
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll} style={{ cursor: "pointer" }}/>
+                </th>
+                <th>{lang === "en" ? "Due Date" : "Vade"}</th>
+                <th className="label-cell">{lang === "en" ? "Source" : "Kaynak"}</th>
+                <th className="label-cell">{lang === "en" ? "Counterparty" : "Cari / Taraf"}</th>
+                <th className="label-cell">{lang === "en" ? "Description" : "Açıklama"}</th>
+                <th>{lang === "en" ? "Amount" : "Tutar"}</th>
+                <th className="label-cell">{lang === "en" ? "Status" : "Durum"}</th>
+                <th style={{ minWidth: 70 }}>{lang === "en" ? "Actions" : "İşlem"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={8} className="text-center" style={{ padding: 30, color: "var(--ink-mute)" }}>
+                  {lang === "en" ? "No planned payments match the filters" : "Filtrelere uyan planlı ödeme bulunamadı"}
+                </td></tr>
+              ) : filtered.map(r => {
+                const src = PAYMENT_PLAN_SOURCES[r.source] || {};
+                const st = statusOf(r);
+                const stInfo = PAYMENT_PLAN_STATUSES[st] || {};
+                const overdueDays = st === "overdue" && r.dueDate
+                  ? Math.floor((new Date(todayIso) - new Date(r.dueDate)) / 86400000)
+                  : null;
+                return (
+                  <tr key={r.key} style={selected[r.key] ? { background: "var(--accent-soft)" } : undefined}>
+                    <td>
+                      <input type="checkbox" checked={!!selected[r.key]} onChange={() => toggleRow(r.key)} style={{ cursor: "pointer" }}/>
+                    </td>
+                    <td className="mono text-xs" style={{ whiteSpace: "nowrap", color: st === "overdue" ? "#b91c1c" : st === "upcoming" ? "#ca8a04" : "inherit", fontWeight: (st === "overdue" || st === "upcoming") ? 700 : 400 }}>
+                      {r.dueDate ? fmtDate(r.dueDate, { lang }) : "—"}
+                      {overdueDays !== null && overdueDays > 0 && (
+                        <span style={{ fontSize: 9, display: "block" }}>({overdueDays} {lang === "en" ? "d late" : "g geç"})</span>
+                      )}
+                    </td>
+                    <td className="label-cell">
+                      <span className="chip" style={{ background: (src.color || "#64748b") + "20", color: src.color || "#64748b", padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>
+                        {srcLabel(r.source)}
+                      </span>
+                    </td>
+                    <td className="label-cell text-xs" style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.counterparty || "—"}</td>
+                    <td className="label-cell text-xs" style={{ maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--ink-mute)" }} title={r.description}>{r.description || "—"}</td>
+                    <td className="mono" style={{ fontWeight: 700, whiteSpace: "nowrap" }}>
+                      {fmtTL(r.amount)} {CURRENCY_SYMBOLS[r.currency] || r.currency}
+                    </td>
+                    <td className="label-cell">
+                      <span className="chip" style={{ background: (stInfo.color || "#64748b") + "20", color: stInfo.color || "#64748b", padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>
+                        {stInfo[lang] || stInfo.tr || st}
+                      </span>
+                    </td>
+                    <td className="label-cell">
+                      <div className="flex gap-1">
+                        {r.source === "manual" ? (
+                          <>
+                            {canUpdate && (
+                              <button onClick={() => setEditingPayment(r.manual)} className="btn-ghost text-xs" title={lang === "en" ? "Edit" : "Düzenle"}
+                                style={{ padding: "3px 6px", background: "var(--bg-alt)", borderRadius: 3, fontSize: 10 }}>
+                                <Edit3 size={10}/>
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button onClick={() => deleteManualPayment(r.manual)} className="btn-ghost text-xs" title={lang === "en" ? "Delete" : "Sil"}
+                                style={{ padding: "3px 6px", background: "#fee2e2", color: "#b91c1c", borderRadius: 3, fontSize: 10 }}>
+                                <Trash2 size={10}/>
+                              </button>
+                            )}
+                          </>
+                        ) : (r.refView && onNavigate && (
+                          <button onClick={() => onNavigate(r.refView)} className="btn-ghost text-xs" title={lang === "en" ? "Go to source" : "Kaynağa git"}
+                            style={{ padding: "3px 6px", background: "#cffafe", color: "#0891b2", borderRadius: 3, fontSize: 10 }}>
+                            <ExternalLink size={10}/>
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {editingPayment && (
+        <ManualPlannedPaymentModal
+          payment={editingPayment === "new" ? null : editingPayment}
+          data={data} lang={lang}
+          onSave={saveManualPayment}
+          onClose={() => setEditingPayment(null)}
+        />
+      )}
+      {instructionModal && (
+        <BankInstructionModal
+          data={data} lang={lang} rows={selectedRows}
+          onSave={createInstruction}
+          onClose={() => setInstructionModal(false)}
+        />
+      )}
+      {tediyeModal && (
+        <KasaTediyeModal
+          data={data} lang={lang} rows={selectedRows}
+          onSave={createTediye}
+          onClose={() => setTediyeModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* === Talimat CSV indirme (banka toplu ödeme yüklemesi için) === */
+function downloadInstructionCSV(ins, lang = "tr") {
+  const headers = lang === "en"
+    ? ["#", "Beneficiary", "IBAN", "Amount", "Currency", "Due Date", "Description"]
+    : ["Sıra", "Alıcı", "IBAN", "Tutar", "Para Birimi", "Vade", "Açıklama"];
+  exportReportToCSV({
+    filename: `talimat_${ins.no}_${ins.date}.csv`,
+    headers,
+    rows: (ins.items || []).map((it, i) => [
+      i + 1, it.counterparty, it.iban || "",
+      String(it.amount).replace(".", ","), it.currency,
+      it.dueDate || "", it.description || "",
+    ]),
+  });
+}
+
+/* === Manuel Planlı Ödeme Modal === */
+function ManualPlannedPaymentModal({ payment, data, lang, onSave, onClose }) {
+  const [draft, setDraft] = useState(payment || {
+    dueDate: new Date().toISOString().slice(0, 10),
+    amount: "",
+    currency: "TRY",
+    counterparty: "",
+    iban: "",
+    category: "",
+    description: "",
+    status: "open",
+  });
+  const update = (k, v) => setDraft(d => ({ ...d, [k]: v }));
+  const parties = data.accParties || [];
+
+  const handleSave = () => {
+    if (!draft.dueDate) { alert(lang === "en" ? "Due date is required" : "Vade tarihi zorunlu"); return; }
+    if (!draft.amount || Number(draft.amount) <= 0) { alert(lang === "en" ? "Amount must be positive" : "Tutar pozitif olmalı"); return; }
+    if (!draft.counterparty?.trim()) { alert(lang === "en" ? "Counterparty is required" : "Cari / taraf zorunlu"); return; }
+    onSave({ ...draft, counterparty: draft.counterparty.trim() });
+  };
+
+  return (
+    <Modal
+      title={payment
+        ? (lang === "en" ? "Edit Planned Payment" : "Planlı Ödeme Düzenle")
+        : (lang === "en" ? "New Planned Payment" : "Yeni Planlı Ödeme")}
+      icon={CreditCard} maxWidth="max-w-xl"
+      onClose={onClose} onSave={handleSave}
+      saveLabel={lang === "en" ? "Save" : "Kaydet"}>
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <div className="label mb-1">{lang === "en" ? "Due Date *" : "Vade Tarihi *"}</div>
+            <input type="date" className="input w-full mono" value={draft.dueDate} onChange={e => update("dueDate", e.target.value)}/>
+          </div>
+          <div>
+            <div className="label mb-1">{lang === "en" ? "Amount *" : "Tutar *"}</div>
+            <div className="flex gap-1">
+              <input type="number" min="0" step="0.01" className="input w-full mono" value={draft.amount}
+                onChange={e => update("amount", e.target.value)}/>
+              <select className="input" style={{ width: 80 }} value={draft.currency} onChange={e => update("currency", e.target.value)}>
+                {["TRY", "USD", "EUR"].map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="label mb-1">{lang === "en" ? "Counterparty *" : "Cari / Taraf *"}</div>
+          <input className="input w-full" list="payment-plan-party-list" value={draft.counterparty}
+            placeholder={lang === "en" ? "Company or person name" : "Firma veya kişi adı"}
+            onChange={e => update("counterparty", e.target.value)}/>
+          <datalist id="payment-plan-party-list">
+            {parties.map(p => <option key={p.id} value={p.name}/>)}
+          </datalist>
+        </div>
+
+        <div>
+          <div className="label mb-1">{lang === "en" ? "Beneficiary IBAN (for bank instruction)" : "Alıcı IBAN (banka talimatı için)"}</div>
+          <input className="input w-full mono" value={draft.iban} placeholder="TR__ ____ ____ ____ ____ ____ __"
+            onChange={e => update("iban", e.target.value)}/>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <div className="label mb-1">{lang === "en" ? "Category" : "Kategori"}</div>
+            <input className="input w-full" value={draft.category}
+              placeholder={lang === "en" ? "e.g. Rent, Tax, Salary" : "örn. Kira, Vergi, Maaş"}
+              onChange={e => update("category", e.target.value)}/>
+          </div>
+          <div>
+            <div className="label mb-1">{lang === "en" ? "Description" : "Açıklama"}</div>
+            <input className="input w-full" value={draft.description}
+              onChange={e => update("description", e.target.value)}/>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* === Banka Talimatı Modal === */
+function BankInstructionModal({ data, lang, rows, onSave, onClose }) {
+  const [bankAccountId, setBankAccountId] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [note, setNote] = useState("");
+
+  const bankAccounts = (data.bankAccounts || []).filter(a => a.active !== false);
+  const curs = [...new Set(rows.map(r => r.currency))];
+  const total = round2(rows.reduce((s, r) => s + r.amount, 0));
+  const missingIban = rows.filter(r => r.source === "manual" ? !r.iban : true).length;
+
+  return (
+    <Modal
+      title={lang === "en" ? "Prepare Bank Instruction" : "Banka Talimatı Hazırla"}
+      icon={Landmark} maxWidth="max-w-xl"
+      onClose={onClose}
+      onSave={() => onSave({ bankAccountId: Number(bankAccountId) || bankAccountId, date, note })}
+      saveLabel={lang === "en" ? "Prepare & Download" : "Hazırla ve İndir"}>
+      <div className="space-y-3">
+        <div className="card p-3" style={{ background: "var(--bg-alt)" }}>
+          <div className="text-sm" style={{ fontWeight: 700 }}>
+            {rows.length} {lang === "en" ? "item(s)" : "kalem"} · {fmtTL(total)} {curs.length === 1 ? (CURRENCY_SYMBOLS[curs[0]] || curs[0]) : ""}
+          </div>
+          {curs.length > 1 && (
+            <div className="text-xs mt-1" style={{ color: "#b91c1c", fontWeight: 600 }}>
+              <AlertTriangle size={11} style={{ display: "inline", marginRight: 4 }}/>
+              {lang === "en" ? "Multiple currencies selected — select a single currency." : "Birden fazla para birimi seçili — tek para biriminde kalem seçin."}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div className="label mb-1">{lang === "en" ? "Paying Bank Account *" : "Ödemenin Yapılacağı Banka Hesabı *"}</div>
+          <select className="input w-full" value={bankAccountId} onChange={e => setBankAccountId(e.target.value)}>
+            <option value="">— {lang === "en" ? "Select" : "Seçin"} —</option>
+            {bankAccounts.map(a => {
+              const bank = (data.banks || []).find(b => b.id === a.bankId);
+              return <option key={a.id} value={a.id}>{(bank?.name ? bank.name + " — " : "") + a.name} ({a.currency || "TRY"})</option>;
+            })}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <div className="label mb-1">{lang === "en" ? "Instruction Date" : "Talimat Tarihi"}</div>
+            <input type="date" className="input w-full mono" value={date} onChange={e => setDate(e.target.value)}/>
+          </div>
+          <div>
+            <div className="label mb-1">{lang === "en" ? "Note" : "Not"}</div>
+            <input className="input w-full" value={note} onChange={e => setNote(e.target.value)}/>
+          </div>
+        </div>
+
+        <div className="text-xs" style={{ color: "var(--ink-mute)" }}>
+          {lang === "en"
+            ? "A CSV instruction file will be downloaded for bank bulk-payment upload. Items are marked as 'Instructed'; record the actual payment in the source module when the bank confirms."
+            : "Bankaya toplu ödeme yüklemesi için CSV talimat dosyası indirilecek. Kalemler 'Talimat Verildi' olarak işaretlenir; banka ödemeyi gerçekleştirdiğinde ödemeyi kaynak modülde kayda alın."}
+          {missingIban > 0 && (
+            <span style={{ display: "block", marginTop: 4, color: "#ca8a04", fontWeight: 600 }}>
+              {lang === "en"
+                ? `${missingIban} item(s) without IBAN — fill them in the bank file before sending.`
+                : `${missingIban} kalemde IBAN bilgisi yok — göndermeden önce banka dosyasında doldurun.`}
+            </span>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* === Kasa Tediye Modal === */
+function KasaTediyeModal({ data, lang, rows, onSave, onClose }) {
+  const [kasaAccountId, setKasaAccountId] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [note, setNote] = useState("");
+
+  const kasaAccounts = (data.kasaAccounts || []).filter(k => k.active !== false);
+  const curs = [...new Set(rows.map(r => r.currency))];
+  const total = round2(rows.reduce((s, r) => s + r.amount, 0));
+
+  return (
+    <Modal
+      title={lang === "en" ? "Cash Disbursement (Tediye)" : "Kasa Tediye Düzenle"}
+      icon={Wallet} maxWidth="max-w-xl"
+      onClose={onClose}
+      onSave={() => onSave({ kasaAccountId, date, note })}
+      saveLabel={lang === "en" ? "Create Disbursement" : "Tediyeyi Oluştur"}>
+      <div className="space-y-3">
+        <div className="card p-3" style={{ background: "var(--bg-alt)" }}>
+          <div className="text-sm" style={{ fontWeight: 700 }}>
+            {rows.length} {lang === "en" ? "item(s)" : "kalem"} · {fmtTL(total)} {curs.length === 1 ? (CURRENCY_SYMBOLS[curs[0]] || curs[0]) : ""}
+          </div>
+          {curs.length > 1 && (
+            <div className="text-xs mt-1" style={{ color: "#b91c1c", fontWeight: 600 }}>
+              <AlertTriangle size={11} style={{ display: "inline", marginRight: 4 }}/>
+              {lang === "en" ? "Multiple currencies selected — select a single currency." : "Birden fazla para birimi seçili — tek para biriminde kalem seçin."}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div className="label mb-1">{lang === "en" ? "Kasa Account *" : "Kasa *"}</div>
+          <select className="input w-full" value={kasaAccountId} onChange={e => setKasaAccountId(e.target.value)}>
+            <option value="">— {lang === "en" ? "Select" : "Seçin"} —</option>
+            {kasaAccounts.map(k => <option key={k.id} value={k.id}>{k.name} ({k.currency || "TRY"})</option>)}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <div className="label mb-1">{lang === "en" ? "Payment Date" : "Ödeme Tarihi"}</div>
+            <input type="date" className="input w-full mono" value={date} onChange={e => setDate(e.target.value)}/>
+          </div>
+          <div>
+            <div className="label mb-1">{lang === "en" ? "Note" : "Not"}</div>
+            <input className="input w-full" value={note} onChange={e => setNote(e.target.value)}/>
+          </div>
+        </div>
+
+        <div className="text-xs" style={{ color: "var(--ink-mute)" }}>
+          {lang === "en"
+            ? "Creates one cash-out entry per item AND writes the payment back to the source module (invoice payment, loan installment paid, check status paid, manual item closed)."
+            : "Her kalem için kasadan çıkış kaydı oluşturur VE ödemeyi kaynak modüle geri işler (fatura ödemesi, taksit ödendi, çek ödendi, manuel kalem kapandı)."}
         </div>
       </div>
     </Modal>

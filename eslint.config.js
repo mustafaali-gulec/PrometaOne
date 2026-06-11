@@ -168,6 +168,14 @@ export default [
     },
   },
 
+  // 6a) Repo araclari (tools/) — Node ortami
+  {
+    files: ['tools/**/*.{js,cjs,mjs}'],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
+
   // 6b) Tooling + e2e — TS build project'ine dahil degil (tsconfig include disi).
   // Type-aware parser bu dosyalari cozemiyor; tip-aware lint'i kapatiyoruz.
   {
