@@ -12570,7 +12570,7 @@ function Theme() {
       .chip { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:2px; font-size:11px; font-weight:500; letter-spacing:0.04em; text-transform:uppercase; }
       table.grid { width:100%; border-collapse: collapse; }
       table.grid th, table.grid td { border-bottom: 1px solid var(--line-soft); padding: 9px 10px; font-size: 12.5px; text-align: right; vertical-align: middle; }
-      table.grid th { background: var(--bg); font-weight: 500; color: var(--ink-soft); border-bottom-color: var(--line); position: sticky; top: 56px; z-index:5; }
+      table.grid th { background: var(--bg); font-weight: 500; color: var(--ink-soft); border-bottom-color: var(--line); position: sticky; top: 0; z-index:5; }
       @media (max-width: 768px) {
         table.grid th, table.grid td { padding: 7px 8px; font-size: 11.5px; }
         .display { letter-spacing: -0.01em; }

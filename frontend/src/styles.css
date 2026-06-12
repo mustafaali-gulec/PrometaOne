@@ -277,6 +277,8 @@ select.input {
    Aksi takdirde tarayıcı sütun genişliklerini farklı hesaplar.
 ===================================================================== */
 table.grid {
+  display: table;                /* KRİTİK: Tailwind .grid utility'si (display:grid) tabloyu bozuyor —
+                                    thead/tbody ayrı anonim tablolara dönüşüp başlıklar veriden kopuyordu */
   width: 100%;
   border-collapse: collapse;     /* separate yerine collapse — kenarlar netleşir */
   border-spacing: 0;
