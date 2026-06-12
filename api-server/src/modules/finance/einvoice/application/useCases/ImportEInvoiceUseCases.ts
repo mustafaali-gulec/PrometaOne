@@ -82,6 +82,8 @@ export interface UploadEInvoiceResult {
   issueDate: string;
   dueDate: string | null;
   currency: string;
+  subtotal: string;
+  kdvTotal: string;
   payableAmount: string;
   notes: string | null;
   /** Notlardan türetilen proje kodu ("Proje: PRJ-001") — yoksa null. */
@@ -170,6 +172,8 @@ export class ImportEInvoiceFromFileUseCase {
       issueDate: stored.issueDate,
       dueDate: stored.dueDate,
       currency: stored.currency,
+      subtotal: stored.subtotal.toDecimalString(),
+      kdvTotal: stored.kdvTotal.toDecimalString(),
       payableAmount: stored.payableAmount.toDecimalString(),
       notes: stored.notes,
       projectCode,
