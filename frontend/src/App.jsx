@@ -16,7 +16,7 @@ import {
   Landmark, Coins, CreditCard, Copy, ArrowDownToLine, ArrowUpFromLine,
   Banknote, CircleDollarSign, ChevronsUpDown, Filter,
   ArrowLeftRight, ArrowRightLeft, Tag, Layers,
-  Receipt, FileCheck, FileClock, Menu, LineChart as LineChartIcon,
+  Receipt, FileCheck, FileClock, Printer, Menu, LineChart as LineChartIcon,
   Mail, Bell, Sparkles, BellRing, ClipboardCopy,
   Briefcase, UserPlus, UserCheck, UserX, GripVertical, MapPin,
   Phone, AtSign, GraduationCap, Award, MessageSquare, Star,
@@ -65782,6 +65782,7 @@ function PaymentsListManager({ data, session, canAct, lang, onChange, logAudit, 
   const [instructionModal, setInstructionModal] = useState(false);
   const [tediyeModal, setTediyeModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
   const instructions = data.paymentInstructions || [];
   const instructedKeys = useMemo(() => {
@@ -66028,6 +66029,221 @@ function PaymentsListManager({ data, session, canAct, lang, onChange, logAudit, 
   };
 
   const srcLabel = (s) => PAYMENT_PLAN_SOURCES[s]?.[lang] || PAYMENT_PLAN_SOURCES[s]?.tr || s;
+  const statusLabel = (st) => PAYMENT_PLAN_STATUSES[st]?.[lang] || PAYMENT_PLAN_STATUSES[st]?.tr || st;
+
+  // ----- Rapor ortak yardımcıları -----
+  const reportMeta = () => {
+    const activeCompany = (data.companies || []).find(c => c.id === data.activeCompanyId);
+    const companyName = activeCompany?.name || "—";
+    const today = new Date().toLocaleDateString("tr-TR");
+    const periodText = (dateFrom || dateTo)
+      ? `${dateFrom || "…"} — ${dateTo || "…"}`
+      : (lang === "en" ? "All upcoming payments" : "Tüm vadesi gelecek ödemeler");
+    const filterBits = [];
+    if (filterSource !== "all") filterBits.push(srcLabel(filterSource));
+    if (filterStatus !== "all") filterBits.push(statusLabel(filterStatus));
+    if (searchQuery) filterBits.push(`"${searchQuery}"`);
+    const filterText = filterBits.length ? filterBits.join(" · ") : (lang === "en" ? "None" : "Yok");
+    return { companyName, today, periodText, filterText };
+  };
+
+  // Plan satırlarını ortak bir matrise indirger (Excel/CSV/HTML hepsi bunu kullanır)
+  const reportRows = () => filtered.map(r => ({
+    dueDate: r.dueDate || "",
+    status: statusLabel(statusOf(r)),
+    source: srcLabel(r.source),
+    counterparty: r.counterparty || "",
+    description: r.description || "",
+    amount: r.amount,
+    currency: r.currency,
+  }));
+
+  const reportCurrencyTotals = () => {
+    const m = {};
+    filtered.forEach(r => { m[r.currency] = (m[r.currency] || 0) + r.amount; });
+    return Object.entries(m)
+      .sort(([a], [b]) => (a === "TRY" ? -1 : b === "TRY" ? 1 : a.localeCompare(b)));
+  };
+
+  // ----- Yazdırılabilir / Word HTML raporu üretir -----
+  const buildReportHTML = () => {
+    const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const { companyName, today, periodText, filterText } = reportMeta();
+
+    const bodyRows = filtered.map((r, i) => {
+      const st = PAYMENT_PLAN_STATUSES[statusOf(r)] || {};
+      return `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${esc(r.dueDate) || "—"}</td>
+        <td><span class="badge" style="background:${st.color || "#6b7280"}">${esc(st[lang] || st.tr || "")}</span></td>
+        <td>${esc(srcLabel(r.source))}</td>
+        <td>${esc(r.counterparty) || "—"}</td>
+        <td>${esc(r.description) || "—"}</td>
+        <td class="num">${fmtTL(r.amount)}</td>
+        <td>${esc(CURRENCY_SYMBOLS[r.currency] || r.currency)}</td>
+      </tr>`;
+    }).join("");
+
+    // Para birimi bazında toplam (kur çevrimi YAPILMAZ)
+    const totalRows = reportCurrencyTotals()
+      .map(([cur, sum]) => `<div class="summary-row"><span>${lang === "en" ? "Total" : "Toplam"} (${esc(cur)})</span><strong>${fmtTL(sum)} ${esc(CURRENCY_SYMBOLS[cur] || cur)}</strong></div>`)
+      .join("") || `<div class="summary-row"><span>${lang === "en" ? "Total" : "Toplam"}</span><strong>0,00 ₺</strong></div>`;
+
+    const html = `
+<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+<meta charset="UTF-8">
+<title>${lang === "en" ? "Payment Plan Report" : "Ödeme Planı Raporu"} - ${esc(companyName)}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica', 'Arial', sans-serif; padding: 30px; color: #1f2937; font-size: 11px; line-height: 1.5; }
+  h1 { font-size: 18px; margin-bottom: 4px; color: #0f766e; }
+  h2 { font-size: 13px; margin: 16px 0 8px; color: #374151; border-bottom: 2px solid #0f766e; padding-bottom: 4px; }
+  .header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #0f766e; }
+  .header-info { font-size: 10px; color: #6b7280; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; margin-bottom: 16px; padding: 10px 12px; background: #f3f4f6; border-radius: 4px; font-size: 10px; }
+  .info-label { color: #6b7280; font-weight: 600; text-transform: uppercase; font-size: 9px; }
+  .info-value { font-weight: 600; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .kpi { padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 4px; }
+  .kpi .lbl { font-size: 9px; text-transform: uppercase; color: #6b7280; font-weight: 600; }
+  .kpi .val { font-size: 13px; font-weight: 700; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 12px; }
+  th { background: #0f766e; color: #fff; padding: 8px 6px; text-align: left; font-weight: 600; font-size: 10px; }
+  td { padding: 6px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .badge { display: inline-block; color: #fff; padding: 2px 7px; border-radius: 10px; font-size: 9px; font-weight: 600; white-space: nowrap; }
+  .summary { margin: 16px 0; padding: 12px 16px; background: #ecfdf5; border: 1px solid #0f766e; border-radius: 4px; max-width: 360px; margin-left: auto; }
+  .summary-row { display: flex; justify-content: space-between; gap: 24px; margin: 4px 0; font-size: 11px; }
+  .summary-row strong { color: #0f766e; }
+  .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 9px; color: #9ca3af; }
+  @media print { body { padding: 15mm; } .no-print { display: none; } }
+  .btn-print { position: fixed; top: 20px; right: 20px; padding: 10px 18px; background: #0f766e; color: #fff; border: none; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+</style>
+</head>
+<body>
+  <button class="btn-print no-print" onclick="window.print()">${lang === "en" ? "Print / Save PDF" : "Yazdır / PDF Kaydet"}</button>
+
+  <div class="header">
+    <div>
+      <h1>${lang === "en" ? "PAYMENT PLAN REPORT" : "ÖDEME PLANI RAPORU"}</h1>
+      <div class="header-info">${esc(companyName)}</div>
+      <div class="header-info">${lang === "en" ? "Issue Date:" : "Düzenleme Tarihi:"} ${today}</div>
+    </div>
+    <div style="text-align: right; font-size: 9px; color: #6b7280;">
+      ${lang === "en" ? "Items" : "Kalem"}: ${filtered.length}
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div>
+      <div class="info-label">${lang === "en" ? "Period" : "Dönem"}</div>
+      <div class="info-value">${esc(periodText)}</div>
+    </div>
+    <div>
+      <div class="info-label">${lang === "en" ? "Active Filters" : "Aktif Filtreler"}</div>
+      <div class="info-value">${esc(filterText)}</div>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="lbl">${lang === "en" ? "Overdue" : "Vadesi Geçmiş"}</div><div class="val" style="color:#b91c1c">${esc(kpi.overdue)}</div></div>
+    <div class="kpi"><div class="lbl">${lang === "en" ? "Due in 7 Days" : "7 Gün İçinde"}</div><div class="val" style="color:#ca8a04">${esc(kpi.upcoming)}</div></div>
+    <div class="kpi"><div class="lbl">${lang === "en" ? "Total" : "Toplam"}</div><div class="val" style="color:#0f766e">${esc(kpi.total)}</div></div>
+  </div>
+
+  <h2>${lang === "en" ? "Planned Payments" : "Planlı Ödemeler"}</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>${lang === "en" ? "Due Date" : "Vade"}</th>
+        <th>${lang === "en" ? "Status" : "Durum"}</th>
+        <th>${lang === "en" ? "Source" : "Kaynak"}</th>
+        <th>${lang === "en" ? "Counterparty" : "Cari / Taraf"}</th>
+        <th>${lang === "en" ? "Description" : "Açıklama"}</th>
+        <th class="num">${lang === "en" ? "Amount" : "Tutar"}</th>
+        <th>${lang === "en" ? "Currency" : "P.B."}</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${bodyRows || `<tr><td colspan="8" style="text-align:center; padding: 20px; color: #6b7280;">${lang === "en" ? "No payments found" : "Kayıt bulunamadı"}</td></tr>`}
+    </tbody>
+  </table>
+
+  <div class="summary">
+    ${totalRows}
+  </div>
+
+  <div class="footer">
+    ${esc(companyName)} · ${lang === "en" ? "Payment Plan Report" : "Ödeme Planı Raporu"} · ${today}
+  </div>
+</body>
+</html>`;
+
+    return html;
+  };
+
+  // ----- PDF (yazdırma penceresi) -----
+  const printReport = () => {
+    const win = window.open("", "_blank", "width=900,height=700");
+    if (!win) { alert(lang === "en" ? "Popup blocked!" : "Popup engellendi! İzin verin."); return; }
+    win.document.write(buildReportHTML());
+    win.document.close();
+    logAudit("payment_plan_export", { format: "pdf", adet: filtered.length });
+  };
+
+  // ----- Word (.doc — HTML tabanlı, Word sorunsuz açar) -----
+  const exportWord = () => {
+    const blob = new Blob(["﻿" + buildReportHTML()], { type: "application/msword;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `odeme_plani_${todayIso}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    logAudit("payment_plan_export", { format: "word", adet: filtered.length });
+  };
+
+  // ----- Excel (.xlsx — gerçek çalışma kitabı) -----
+  const exportExcel = () => {
+    const { companyName, today, periodText, filterText } = reportMeta();
+    const headers = lang === "en"
+      ? ["Due Date", "Status", "Source", "Counterparty", "Description", "Amount", "Currency"]
+      : ["Vade", "Durum", "Kaynak", "Cari / Taraf", "Açıklama", "Tutar", "Para Birimi"];
+    const aoa = [
+      [lang === "en" ? "PAYMENT PLAN REPORT" : "ÖDEME PLANI RAPORU"],
+      [companyName],
+      [`${lang === "en" ? "Issue Date" : "Düzenleme Tarihi"}: ${today}`],
+      [`${lang === "en" ? "Period" : "Dönem"}: ${periodText}`],
+      [`${lang === "en" ? "Active Filters" : "Aktif Filtreler"}: ${filterText}`],
+      [],
+      headers,
+      ...reportRows().map(r => [
+        r.dueDate, r.status, r.source, r.counterparty, r.description,
+        round2(r.amount), r.currency,
+      ]),
+    ];
+    // Para birimi bazında toplam satırları
+    const totals = reportCurrencyTotals();
+    if (totals.length) {
+      aoa.push([]);
+      totals.forEach(([cur, sum]) => {
+        aoa.push(["", "", "", "", lang === "en" ? `Total (${cur})` : `Toplam (${cur})`, round2(sum), cur]);
+      });
+    }
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = [{ wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 28 }, { wch: 40 }, { wch: 16 }, { wch: 10 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, lang === "en" ? "Payment Plan" : "Odeme Plani");
+    XLSX.writeFile(wb, `odeme_plani_${todayIso}.xlsx`);
+    logAudit("payment_plan_export", { format: "excel", adet: filtered.length });
+  };
 
   return (
     <div className="space-y-5">
@@ -66044,9 +66260,31 @@ function PaymentsListManager({ data, session, canAct, lang, onChange, logAudit, 
               <FileClock size={13}/> {lang === "en" ? "Instructions" : "Talimatlar"} ({instructions.length})
             </button>
             {canExport && filtered.length > 0 && (
-              <button onClick={exportCSV} className="btn">
-                <FileDown size={13}/> CSV
-              </button>
+              <div className="relative">
+                <button onClick={() => setExportMenuOpen(o => !o)} className="btn">
+                  <FileDown size={13}/> {lang === "en" ? "Export" : "Rapor / Dışa Aktar"}
+                  <ChevronDown size={11} className={exportMenuOpen ? "rotate-180 transition-transform" : "transition-transform"}/>
+                </button>
+                {exportMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setExportMenuOpen(false)}/>
+                    <div className="absolute right-0 mt-1 rounded shadow-lg z-30 min-w-[180px] py-1"
+                      style={{ background: "var(--paper)", border: "1px solid var(--line)" }}>
+                      {[
+                        { icon: Printer,         label: "PDF",  onClick: printReport },
+                        { icon: FileText,        label: "Word (.doc)",  onClick: exportWord },
+                        { icon: FileSpreadsheet, label: "Excel (.xlsx)", onClick: exportExcel },
+                        { icon: FileDown,        label: "CSV (.csv)",    onClick: exportCSV },
+                      ].map(({ icon: Icon, label, onClick }) => (
+                        <button key={label} onClick={() => { onClick(); setExportMenuOpen(false); }}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-stone-50 text-left">
+                          <Icon size={13}/> {label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             )}
             {canCreate && (
               <button onClick={() => setEditingPayment("new")} className="btn btn-primary">
