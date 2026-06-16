@@ -66029,12 +66029,28 @@ function PaymentsListManager({ data, session, canAct, lang, onChange, logAudit, 
       .join("  +  ");
   };
 
+  // Nakit varlıklar (kasa + banka), gecikmiş ödemeler ve aradaki fark — hepsi
+  // gösterim para birimine (displayCurrency) çevrilerek tek değer olarak sunulur.
+  const dc = data.displayCurrency || "TRY";
+  const rates = data.exchangeRates || {};
+  const cashAssetsTRY = useMemo(() => {
+    const bank = (data.bankAccounts || []).reduce((s, a) => s + convertToTRY(computeBankAccountBalance(a.id, data), a.currency, rates), 0);
+    const kasa = (data.kasaAccounts || []).reduce((s, k) => s + convertToTRY(computeKasaBalance(k.id, data), k.currency, rates), 0);
+    return bank + kasa;
+  }, [data, rates]);
+  const overdueTRY = useMemo(() =>
+    filtered.filter(r => statusOf(r) === "overdue")
+      .reduce((s, r) => s + convertToTRY(r.amount, r.currency, rates), 0),
+  [filtered, statusOf, rates]);
+
   const kpi = useMemo(() => ({
+    cashAssets: cashAssetsTRY,
     overdue: sumByCur(filtered.filter(r => statusOf(r) === "overdue")),
     upcoming: sumByCur(filtered.filter(r => statusOf(r) === "upcoming")),
     total: sumByCur(filtered),
+    netAfterOverdue: cashAssetsTRY - overdueTRY,
     count: filtered.length,
-  }), [filtered, statusOf]);
+  }), [filtered, statusOf, cashAssetsTRY, overdueTRY]);
 
   const selectedRows = useMemo(() => filtered.filter(r => selected[r.key]), [filtered, selected]);
   const allSelected = filtered.length > 0 && filtered.every(r => selected[r.key]);
@@ -66491,7 +66507,16 @@ function PaymentsListManager({ data, session, canAct, lang, onChange, logAudit, 
       />
 
       {/* Özet kartları */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="kpi-card">
+          <div className="flex items-start justify-between">
+            <div className="kpi-label">{lang === "en" ? "Cash Assets" : "Nakit Varlıklar"}</div>
+            <Banknote size={14} strokeWidth={1.5} style={{ color: "#0f766e" }}/>
+          </div>
+          <div className="kpi-value mt-1.5" style={{ color: "#0f766e", fontSize: 16 }}>
+            {fmtMoneySign(kpi.cashAssets, dc, rates)} {CURRENCY_SYMBOLS[dc] || dc}
+          </div>
+        </div>
         <div className="kpi-card">
           <div className="flex items-start justify-between">
             <div className="kpi-label">{lang === "en" ? "Overdue" : "Vadesi Geçmiş"}</div>
@@ -66508,10 +66533,12 @@ function PaymentsListManager({ data, session, canAct, lang, onChange, logAudit, 
         </div>
         <div className="kpi-card">
           <div className="flex items-start justify-between">
-            <div className="kpi-label">{lang === "en" ? "Total Open" : "Toplam Açık"}</div>
+            <div className="kpi-label">{lang === "en" ? "Cash − Overdue" : "Nakit − Gecikmiş"}</div>
             <CircleDollarSign size={14} strokeWidth={1.5} style={{ color: "var(--ink-mute)" }}/>
           </div>
-          <div className="kpi-value mt-1.5" style={{ fontSize: 16 }}>{kpi.total}</div>
+          <div className="kpi-value mt-1.5" style={{ color: kpi.netAfterOverdue >= 0 ? "#15803d" : "#b91c1c", fontSize: 16 }}>
+            {fmtMoneySign(kpi.netAfterOverdue, dc, rates)} {CURRENCY_SYMBOLS[dc] || dc}
+          </div>
         </div>
         <div className="kpi-card">
           <div className="flex items-start justify-between">
