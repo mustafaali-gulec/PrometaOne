@@ -9656,47 +9656,79 @@ function generateVoucherFromCheck(check, action, accounts, entries, party, bank)
 }
 
 // Auto-voucher: Fatura → Yevmiye fişi
-function generateVoucherFromInvoice(invoice, accounts, entries) {
+function generateVoucherFromInvoice(invoice, accounts, entries, overrides = {}) {
   // Fatura tipi belirle: satış mı alış mı?
-  const isSales = invoice.kind === "sale" || invoice.type === "sale" || invoice.type === "sales";
-  const amt = Number(invoice.totalAmount || invoice.amount || invoice.grossAmount) || 0;
-  const vatAmt = Number(invoice.vatAmount || invoice.vat) || 0;
+  // Veri modeli: type="out" → Giden/Satış, type="in" → Gelen/Alış
+  const isSales = invoice.type === "out" || invoice.kind === "sale" || invoice.type === "sale" || invoice.type === "sales";
+  const amt = Number(invoice.total ?? invoice.totalAmount ?? invoice.amount ?? invoice.grossAmount) || 0;
+  const vatAmt = Number(invoice.vatAmount ?? invoice.vat) || 0;
   const netAmt = amt - vatAmt;
   const currency = invoice.currency || "TRY";
+  const partyName = invoice.counterparty || invoice.partyName || "";
 
-  if (amt <= 0) return { success: false, error: "Fatura tutarı sıfır veya negatif" };
+  if (amt <= 0) return { success: false, reason: "zero_amount", error: "Fatura tutarı sıfır veya negatif" };
+
+  // Manuel hesap kodu seçimleri (modal'dan gelir) — varsa öncelikli
+  const ov = overrides || {};
+  const byCode = (code) => code ? accounts.find(a => a.code === code) : null;
 
   let mainAcc, partyAcc, vatAcc;
 
   if (isSales) {
     // SATIŞ FATURASI: 120 (Alıcılar) Borç → 600 (Yurtiçi Satışlar) Alacak + 391 (Hesaplanan KDV) Alacak
-    partyAcc = findAccountByModule("invoice", accounts, { description: invoice.partyName, partyType: "customer", currency }) ||
+    partyAcc = byCode(ov.party) ||
+               findAccountByModule("invoice", accounts, { description: partyName, partyType: "customer", currency }) ||
                accounts.find(a => String(a.code).startsWith("120") && a.allowTransaction !== false);
-    mainAcc = findAccountByModule("invoice", accounts, { description: invoice.description, currency }) ||
+    mainAcc = byCode(ov.main) ||
+              findAccountByModule("invoice", accounts, { description: invoice.description, currency }) ||
               accounts.find(a => a.code === "600");
     if (vatAmt > 0) {
-      vatAcc = accounts.find(a => a.code === "391" && a.allowTransaction !== false) ||
+      vatAcc = byCode(ov.vat) ||
+               accounts.find(a => a.code === "391" && a.allowTransaction !== false) ||
                accounts.find(a => String(a.code).startsWith("391") && a.allowTransaction !== false);
     }
   } else {
     // ALIŞ FATURASI: 153/770 (Stok/Gider) Borç + 191 (İndirilecek KDV) Borç → 320 (Satıcılar) Alacak
-    partyAcc = findAccountByModule("invoice", accounts, { description: invoice.partyName, partyType: "vendor", currency }) ||
+    partyAcc = byCode(ov.party) ||
+               findAccountByModule("invoice", accounts, { description: partyName, partyType: "vendor", currency }) ||
                accounts.find(a => String(a.code).startsWith("320") && a.allowTransaction !== false);
-    mainAcc = findAccountByModule("invoice", accounts, { description: invoice.description, currency }) ||
+    mainAcc = byCode(ov.main) ||
+              findAccountByModule("invoice", accounts, { description: invoice.description, currency }) ||
               accounts.find(a => a.code === "153") ||
               accounts.find(a => a.code === "770");
     if (vatAmt > 0) {
-      vatAcc = accounts.find(a => a.code === "191" && a.allowTransaction !== false) ||
+      vatAcc = byCode(ov.vat) ||
+               accounts.find(a => a.code === "191" && a.allowTransaction !== false) ||
                accounts.find(a => String(a.code).startsWith("191") && a.allowTransaction !== false);
     }
   }
 
-  if (!partyAcc) return { success: false, error: isSales ? "120 Alıcılar hesabı bulunamadı" : "320 Satıcılar hesabı bulunamadı" };
-  if (!mainAcc) return { success: false, error: isSales ? "600 Satış hesabı bulunamadı" : "153/770 Stok/Gider hesabı bulunamadı" };
+  // Eksik hesapları topla → modal manuel seçim sunabilsin (KDV dahil; aksi halde fiş dengesiz kalır)
+  const missing = {};
+  if (!partyAcc) missing.party = true;
+  if (!mainAcc) missing.main = true;
+  if (vatAmt > 0 && !vatAcc) missing.vat = true;
+  if (missing.party || missing.main || missing.vat) {
+    const labels = [];
+    if (missing.party) labels.push(isSales ? "120 Alıcılar" : "320 Satıcılar");
+    if (missing.main) labels.push(isSales ? "600 Satış" : "153/770 Stok/Gider");
+    if (missing.vat) labels.push(isSales ? "391 Hesaplanan KDV" : "191 İndirilecek KDV");
+    return {
+      success: false,
+      reason: "missing_account",
+      missing,
+      expected: {
+        party: isSales ? "120" : "320",
+        main: isSales ? "600" : "153/770",
+        vat: isSales ? "391" : "191",
+      },
+      error: `${labels.join(", ")} hesabı bulunamadı`,
+    };
+  }
 
   const lines = [];
   let idx = 0;
-  const desc = `${invoice.invoiceNo || ""} - ${invoice.partyName || ""}`.trim();
+  const desc = `${invoice.invoiceNo || ""} - ${partyName}`.trim();
 
   if (isSales) {
     // 120 Alıcılar Borç (toplam)
@@ -9711,7 +9743,7 @@ function generateVoucherFromInvoice(invoice, accounts, entries) {
     lines.push({
       id: `line_${++idx}_${Date.now() + 1}`,
       accountCode: mainAcc.code,
-      description: invoice.description || invoice.partyName || "",
+      description: invoice.description || partyName,
       debit: 0, credit: netAmt,
       currency,
     });
@@ -9730,7 +9762,7 @@ function generateVoucherFromInvoice(invoice, accounts, entries) {
     lines.push({
       id: `line_${++idx}_${Date.now()}`,
       accountCode: mainAcc.code,
-      description: invoice.description || invoice.partyName || "",
+      description: invoice.description || partyName,
       debit: netAmt, credit: 0,
       currency,
     });
@@ -9764,7 +9796,7 @@ function generateVoucherFromInvoice(invoice, accounts, entries) {
       voucherNo,
       voucherType,
       date: invoice.date || invoice.invoiceDate,
-      description: `${isSales ? "Satış" : "Alış"} Fat. ${invoice.invoiceNo || ""} - ${invoice.partyName || ""}`,
+      description: `${isSales ? "Satış" : "Alış"} Fat. ${invoice.invoiceNo || ""} - ${partyName}`,
       source: "invoice",
       sourceId: invoice.id,
       lines,
@@ -30097,7 +30129,90 @@ function PostToAccountingButton({ source, sourceData, data, session, lang, onCha
    ---------------------------------------------------------------------
    Kasa/Banka/Fatura için toplu muhasebeleştirme modal'ı
 ===================================================================== */
-function BulkPostingButton({ source, items, data, session, lang, onChange, logAudit, notify }) {
+
+// Modal içinde tutarı satır-içi düzenleme hücresi
+function BulkAmountCell({ amount, onSave, lang }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(String(amount ?? ""));
+
+  if (!editing) {
+    return (
+      <div className="flex items-center justify-end gap-1">
+        <span>{fmtTL(amount)} ₺</span>
+        <button
+          onClick={() => { setVal(String(amount ?? "")); setEditing(true); }}
+          className="p-0.5 rounded hover:bg-stone-100"
+          title={lang === "en" ? "Edit amount" : "Tutarı düzenle"}
+        >
+          <Edit3 size={11}/>
+        </button>
+      </div>
+    );
+  }
+
+  const commit = () => {
+    const n = Number(val);
+    if (!Number.isFinite(n)) return;
+    onSave(n);
+    setEditing(false);
+  };
+
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <input
+        type="number"
+        step="0.01"
+        value={val}
+        autoFocus
+        onChange={e => setVal(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
+        className="input"
+        style={{ width: 90, fontSize: 11, padding: "2px 4px", textAlign: "right" }}
+      />
+      <button onClick={commit} className="p-0.5 rounded hover:bg-green-50" title={lang === "en" ? "Save" : "Kaydet"}>
+        <Check size={12} style={{ color: "var(--positive)" }}/>
+      </button>
+      <button onClick={() => setEditing(false)} className="p-0.5 rounded hover:bg-stone-100" title={lang === "en" ? "Cancel" : "İptal"}>
+        <X size={12}/>
+      </button>
+    </div>
+  );
+}
+
+// Eksik hesap kodları için hesap planından manuel seçim
+function MissingAccountPicker({ missing, expected, accountOptions, value, onPick, lang }) {
+  const roles = [
+    { key: "party", label: lang === "en" ? "Party" : "Cari" },
+    { key: "main", label: lang === "en" ? "Main" : "Ana" },
+    { key: "vat", label: "KDV" },
+  ].filter(r => missing[r.key]);
+
+  return (
+    <div className="flex flex-col gap-1">
+      {roles.map(r => (
+        <div key={r.key} className="flex items-center gap-1">
+          <span style={{ fontSize: 9, color: "var(--ink-mute)", width: 34 }}>{r.label}</span>
+          <select
+            value={(value && value[r.key]) || ""}
+            onChange={e => onPick(r.key, e.target.value)}
+            className="input"
+            style={{ fontSize: 10, padding: "2px 4px", flex: 1, minWidth: 0,
+                     borderColor: (value && value[r.key]) ? "var(--positive)" : "#b91c1c" }}
+          >
+            <option value="">
+              {(lang === "en" ? "Select" : "Hesap seç")}{expected?.[r.key] ? ` (${expected[r.key]}…)` : ""}
+            </option>
+            {accountOptions.map(a => (
+              <option key={a.code} value={a.code}>{a.code} — {a.name}</option>
+            ))}
+          </select>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BulkPostingButton({ source, items, data, session, lang, onChange, logAudit, notify, onPatchItem, onEditItem, onDeleteItem }) {
   const [showModal, setShowModal] = useState(false);
 
   // Muhasebeleşmemiş kayıtları say
@@ -30140,6 +30255,9 @@ function BulkPostingButton({ source, items, data, session, lang, onChange, logAu
           onChange={onChange}
           logAudit={logAudit}
           notify={notify}
+          onPatchItem={onPatchItem}
+          onEditItem={onEditItem}
+          onDeleteItem={onDeleteItem}
           onClose={() => setShowModal(false)}
         />
       )}
@@ -30147,9 +30265,23 @@ function BulkPostingButton({ source, items, data, session, lang, onChange, logAu
   );
 }
 
-function BulkPostingModal({ source, items, data, session, lang, onChange, logAudit, notify, onClose }) {
+function BulkPostingModal({ source, items, data, session, lang, onChange, logAudit, notify, onPatchItem, onEditItem, onDeleteItem, onClose }) {
   const accounts = data.accChartOfAccounts || [];
   const entries = data.accJournalEntries || [];
+
+  // Fatura kaynağı için satır-içi düzenle/sil ve manuel hesap kodu seçimi
+  const canEditItems = source === "invoice";
+
+  // Manuel hesap kodu seçimleri: { [itemId]: { party, main, vat } }
+  const [overrides, setOverrides] = useState({});
+
+  // Hesap planından işlem yapılabilen hesaplar (manuel seçim için)
+  const accountOptions = useMemo(() =>
+    accounts
+      .filter(a => a.allowTransaction !== false)
+      .slice()
+      .sort((a, b) => String(a.code).localeCompare(String(b.code), undefined, { numeric: true })),
+  [accounts]);
 
   // Muhasebeleşmiş source ID'leri set
   const existingSourceIds = useMemo(() => new Set(
@@ -30179,7 +30311,7 @@ function BulkPostingModal({ source, items, data, session, lang, onChange, logAud
             result = generateVoucherFromKasaEntry(enrichedItem, data.kasaAccounts || [], accounts, entries);
             break;
           case "invoice":
-            result = generateVoucherFromInvoice(enrichedItem, accounts, entries);
+            result = generateVoucherFromInvoice(enrichedItem, accounts, entries, overrides[item.id]);
             break;
           default:
             result = { success: false, error: "Bilinmeyen kaynak" };
@@ -30189,7 +30321,7 @@ function BulkPostingModal({ source, items, data, session, lang, onChange, logAud
       }
       return { item, result };
     });
-  }, [candidates, source, data.bankAccounts, data.kasaAccounts, accounts, entries]);
+  }, [candidates, source, data.bankAccounts, data.kasaAccounts, accounts, entries, overrides]);
 
   // Selection state — başlangıçta tüm başarılılar seçili
   const [selected, setSelected] = useState(() => {
@@ -30227,6 +30359,18 @@ function BulkPostingModal({ source, items, data, session, lang, onChange, logAud
       else next.add(id);
       return next;
     });
+  };
+
+  // Manuel hesap kodu seçimi — seçilince fiş yeniden üretilir, satır otomatik işaretlenir
+  const handlePick = (id, role, code) => {
+    setOverrides(prev => ({ ...prev, [id]: { ...(prev[id] || {}), [role]: code } }));
+    if (code) setSelected(prev => new Set(prev).add(id));
+  };
+
+  // Satır-içi tutar düzenleme (fatura kaynağı)
+  const handlePatchAmount = (item, total) => {
+    if (!onPatchItem) return;
+    onPatchItem(item.id, { total });
   };
 
   const handleProcess = async () => {
@@ -30406,19 +30550,24 @@ function BulkPostingModal({ source, items, data, session, lang, onChange, logAud
                 <th style={{ padding: "8px 6px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--ink-mute)", textTransform: "uppercase", width: 100 }}>
                   {lang === "en" ? "Status" : "Durum"}
                 </th>
+                {canEditItems && (
+                  <th style={{ padding: "8px 6px", textAlign: "center", fontSize: 10, fontWeight: 700, color: "var(--ink-mute)", textTransform: "uppercase", width: 70 }}>
+                    {lang === "en" ? "Actions" : "İşlem"}
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
               {generated.length === 0 ? (
-                <tr><td colSpan="6" style={{ padding: 30, textAlign: "center", color: "var(--ink-mute)" }}>
+                <tr><td colSpan={canEditItems ? 7 : 6} style={{ padding: 30, textAlign: "center", color: "var(--ink-mute)" }}>
                   {lang === "en" ? "No items to process" : "İşlenecek öğe yok"}
                 </td></tr>
               ) : generated.map(({ item, result }, idx) => {
                 const success = result.success;
                 const isSelected = selected.has(item.id);
-                const amount = item.amount || item.totalAmount || item.grossAmount || 0;
-                const desc = item.description || item.invoiceNo || `${item.partyName || ""}`;
-                const date = item.date || item.invoiceDate || "—";
+                const amount = Number(item.total ?? item.amount ?? item.totalAmount ?? item.grossAmount) || 0;
+                const desc = item.description || item.invoiceNo || item.counterparty || item.partyName || "";
+                const date = item.date || item.invoiceDate || item.dueDate || "—";
 
                 return (
                   <tr key={item.id || idx}
@@ -30453,7 +30602,11 @@ function BulkPostingModal({ source, items, data, session, lang, onChange, logAud
                       )}
                     </td>
                     <td className="mono text-right" style={{ padding: "5px 6px", fontSize: 11, fontWeight: 600 }}>
-                      {fmtTL(amount)} ₺
+                      {canEditItems && onPatchItem ? (
+                        <BulkAmountCell amount={amount} lang={lang} onSave={(v) => handlePatchAmount(item, v)} />
+                      ) : (
+                        `${fmtTL(amount)} ₺`
+                      )}
                     </td>
                     <td style={{ padding: "5px 6px", fontSize: 10 }}>
                       {success && result.suggestedAccounts ? (
@@ -30465,6 +30618,26 @@ function BulkPostingModal({ source, items, data, session, lang, onChange, logAud
                               <span style={{ color: "var(--ink-mute)", marginLeft: 4 }}>{acc.name.substring(0, 24)}</span>
                             </div>
                           ))}
+                        </div>
+                      ) : result.reason === "missing_account" && canEditItems ? (
+                        <div className="flex flex-col gap-1">
+                          <div style={{ fontSize: 9, color: "#b91c1c", fontWeight: 600 }}>
+                            {lang === "en" ? "Account not found — pick manually:" : "Hesap bulunamadı — manuel seçin:"}
+                          </div>
+                          <MissingAccountPicker
+                            missing={result.missing}
+                            expected={result.expected}
+                            accountOptions={accountOptions}
+                            value={overrides[item.id]}
+                            onPick={(role, code) => handlePick(item.id, role, code)}
+                            lang={lang}
+                          />
+                        </div>
+                      ) : result.reason === "zero_amount" ? (
+                        <div style={{ fontSize: 10, color: "#b45309", fontWeight: 600 }}>
+                          {lang === "en"
+                            ? "Amount is zero/negative — edit the amount or delete the invoice."
+                            : "Tutar sıfır/negatif — tutarı düzenleyin ya da faturayı silin."}
                         </div>
                       ) : (
                         <div style={{ fontSize: 10, color: "#b91c1c", fontWeight: 600 }}>
@@ -30489,6 +30662,28 @@ function BulkPostingModal({ source, items, data, session, lang, onChange, logAud
                         </span>
                       )}
                     </td>
+                    {canEditItems && (
+                      <td style={{ padding: "5px 6px", textAlign: "center", whiteSpace: "nowrap" }}>
+                        {onEditItem && (
+                          <button
+                            onClick={() => onEditItem(item)}
+                            className="p-1 rounded hover:bg-stone-100"
+                            title={lang === "en" ? "Open full invoice form" : "Tam fatura formunu aç"}
+                          >
+                            <Edit3 size={12}/>
+                          </button>
+                        )}
+                        {onDeleteItem && (
+                          <button
+                            onClick={() => onDeleteItem(item)}
+                            className="p-1 rounded hover:bg-red-50"
+                            title={lang === "en" ? "Delete invoice" : "Faturayı sil"}
+                          >
+                            <Trash2 size={12} style={{ color: "var(--negative)" }}/>
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -80732,6 +80927,25 @@ function InvoicesView({ data, session, canAct, lang, onChange, logAudit, notify,
                 onChange={onChange}
                 logAudit={logAudit}
                 notify={notify}
+                onPatchItem={async (id, patch) => {
+                  const next = (data.invoices || []).map(x => {
+                    if (x.id !== id) return x;
+                    const merged = { ...x, ...patch };
+                    if (patch.total !== undefined) {
+                      merged.total = Number(patch.total) || 0;
+                      merged.netAmount = +(merged.total - (Number(merged.vatAmount) || 0)).toFixed(2);
+                    }
+                    return merged;
+                  });
+                  await onChange({ ...data, invoices: next });
+                  notify(lang === "en" ? "Invoice amount updated" : "Fatura tutarı güncellendi");
+                }}
+                onEditItem={(inv) => setInvoiceDraft({
+                  ...inv,
+                  _originalTotal: inv.total,
+                  _originalProjectId: inv.projectId,
+                })}
+                onDeleteItem={(inv) => removeInvoice(inv)}
               />
             )}
           </div>
