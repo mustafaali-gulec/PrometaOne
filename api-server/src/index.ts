@@ -16,6 +16,7 @@ import { errorHandler } from './middleware/error.js';
 import { registerAccessModule } from './modules/access/index.js';
 import { registerAiModule } from './modules/ai/index.js';
 import { PgUserRepository, registerAuthModule } from './modules/auth/index.js';
+import { registerEdefterModule } from './modules/finance/edefter/index.js';
 import { registerEInvoiceModule } from './modules/finance/einvoice/index.js';
 import { registerFinanceModule } from './modules/finance/index.js';
 import { registerHrModule } from './modules/hr/index.js';
@@ -111,6 +112,7 @@ const accessModule = registerAccessModule({ pool });
 // ============================================================================
 const financeModule = registerFinanceModule(pool);
 const einvoiceModule = registerEInvoiceModule(pool);
+const edefterModule = registerEdefterModule();
 
 // ============================================================================
 // Routes — /v1 prefix
@@ -145,6 +147,7 @@ v1.route('/hr', hrModule.router);
 v1.route('/access', accessModule.router);
 v1.route('/finance', financeModule);
 v1.route('/finance', einvoiceModule); // e-fatura + fx (Faz 6) — aynı prefix, /einvoice/* ve /fx/* yolları
+v1.route('/finance', edefterModule); // e-defter imzalama (Faz 3) — /edefter/* yolu
 
 // Companies + cells + invoices
 v1.route('/companies', companiesRoutes);

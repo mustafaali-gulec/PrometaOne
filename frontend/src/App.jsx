@@ -6,6 +6,11 @@ import {
 } from "recharts";
 import { FinanceDemoPage } from './modules/finance';
 import { ConstructionPage } from './modules/construction-site';
+import { MoneyInput, RateInput } from './shared/ui/MoneyInput';
+import {
+  buildYevmiyeXbrl, buildKebirXbrl, gibDefterFileName,
+  selectPeriodEntries, missingProfileFields,
+} from './shared/edefter/edefterXbrl.js';
 import {
   Lock, LogOut, LayoutDashboard, Table2, FolderTree, Users, History,
   Settings, Plus, Trash2, Edit3, Save, X, ChevronRight, ChevronDown,
@@ -8731,6 +8736,290 @@ function validateJournalEntry(entry, accounts) {
   return { valid: true };
 }
 
+/* =====================================================================
+   e-DEFTER / GİB MUHASEBE FİŞİ UYUMU
+   ---------------------------------------------------------------------
+   Dayanak: "Elektronik Ortamda Düzenlenen Muhasebe Fişlerine İlişkin
+   Kılavuz" (GİB, Nisan 2020).
+     • Bölüm 2 — fişte ASGARİ olarak bulunması zorunlu bilgiler
+     • Bölüm 3 — standart dosya formatı (xml/pdf/txt/csv/json) ve onay
+   GİB yalnızca 3 fiş türü tanır: Tahsil / Tediye / Mahsup. Uygulamadaki
+   Açılış/Kapanış fişleri kasayı ilgilendirmediği için Mahsup'a eşlenir.
+===================================================================== */
+
+// Uygulama fiş tipi → GİB resmi fiş türü
+const GIB_VOUCHER_TYPE = {
+  receipt: "Tahsil",
+  payment: "Tediye",
+  compound: "Mahsup",
+  opening: "Mahsup",
+  closing: "Mahsup",
+};
+function gibVoucherType(voucherType) {
+  return GIB_VOUCHER_TYPE[voucherType] || "Mahsup";
+}
+
+// Fişin düzenleme zamanı için varsayılan (saat:dakika)
+function nowHHMM() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+// Satırın hesap adı (kayıtlı değilse hesap planından çöz)
+function lineAccountName(line, accounts) {
+  if (line.accountName) return line.accountName;
+  const acc = (accounts || []).find(a => a.code === line.accountCode);
+  return acc ? acc.name : "";
+}
+
+// GİB asgari-bilgi denetimi — onay (post) öncesi eksikleri döndürür.
+// Yevmiye madde no fiş düzenlenirken bilinmeyebilir (45 gün içinde deftere
+// işlenir) → bloklamaz; eksikse "uyarı" olarak ayrı döner.
+function validateGibFis(entry) {
+  const missing = [];
+  if (!entry.date) missing.push("Fişin düzenleme tarihi");
+  if (!entry.entryTime) missing.push("Fişin düzenleme zamanı (saat:dakika)");
+  if (!entry.voucherNo) missing.push("Fişin numarası");
+  if (!entry.voucherType) missing.push("Fişin türü");
+  const lines = entry.lines || [];
+  if (lines.some(l => !(l.description && String(l.description).trim()))) {
+    missing.push("Hesap bazında açıklama (her satırda)");
+  }
+  const warnings = [];
+  if (!entry.yevmiyeMaddeNo) warnings.push("Ait olduğu yevmiye madde numarası");
+  return { valid: missing.length === 0, missing, warnings };
+}
+
+// Aktif şirketin mükellef bilgisi (unvan + VKN/TCKN)
+function gibMukellef(data) {
+  const companies = data.companies || [];
+  const co = companies.find(c => c.id === data.activeCompanyId) || companies[0] || {};
+  return {
+    unvan: co.name || data.legal?.legalName || "",
+    vknTckn: co.taxNo || data.legal?.taxNumber || "",
+  };
+}
+
+// e-Defter XBRL-GL üretimi için mükellef profili (Faz 2). Aktif şirket + ilk
+// org birimi adres/iletişim/hukuki bilgilerinden derlenir; eksikler modalda
+// elle tamamlanabilir (missingProfileFields ile uyarılır).
+function gibProfile(data) {
+  const m = gibMukellef(data);
+  const ous = data.orgUnits || [];
+  const ou = ous.find(o => o.address || o.contact || o.legal) || ous[0] || {};
+  const adr = ou.address || {};
+  const con = ou.contact || {};
+  const legal = ou.legal || data.legal || {};
+  return {
+    vkn: m.vknTckn,
+    unvan: m.unvan || legal.legalName || "",
+    isPerson: false,
+    phone: con.phone || con.primaryPhone || "",
+    email: con.email || con.primaryEmail || "",
+    address: {
+      buildingNumber: adr.buildingNumber || "",
+      street: adr.fullAddress || [adr.neighborhood, adr.district].filter(Boolean).join(" ") || "",
+      city: adr.city || "",
+      zip: adr.postalCode || "",
+      country: adr.country || "Türkiye",
+    },
+    naceCode: legal.naceCode || "",
+    accountant: { name: legal.accountantName || "", engagement: legal.accountantEngagement || "" },
+    creator: "",
+    fiscalYearStart: "",
+    fiscalYearEnd: "",
+    softwareProducer: "Promet Bilisim",
+    softwareName: "Prometa One e-Defter",
+    softwareVersion: "1.0",
+  };
+}
+
+function gibXmlEsc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+function gibNum(v) {
+  return (Number(v) || 0).toFixed(2);
+}
+
+// CSV (noktalı virgül ayraçlı, Excel/TR uyumlu) — her hesap satırı 1 kayıt
+function buildGibFisCsv(entries, mukellef, accounts) {
+  const headers = [
+    "Mukellef Unvani", "VKN/TCKN", "Fis Turu", "Fis Tarihi", "Fis Saati", "Fis No",
+    "Yevmiye Madde No", "Satir No", "Hesap Kodu", "Hesap Adi", "Borc", "Alacak",
+    "Satir Aciklamasi", "Fis Borc Toplami", "Fis Alacak Toplami", "Onaylayan",
+  ];
+  const esc = (v) => {
+    const s = String(v == null ? "" : v);
+    return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const rows = [headers.join(";")];
+  entries.forEach(e => {
+    const totals = calculateEntryTotals(e.lines);
+    (e.lines || []).forEach((l, i) => {
+      rows.push([
+        mukellef.unvan, mukellef.vknTckn, gibVoucherType(e.voucherType),
+        e.date || "", e.entryTime || "", e.voucherNo || "",
+        e.yevmiyeMaddeNo || "", i + 1, l.accountCode || "",
+        lineAccountName(l, accounts), gibNum(l.debit), gibNum(l.credit),
+        l.description || "", gibNum(totals.totalDebit), gibNum(totals.totalCredit),
+        e.approvedByName || e.postedBy || "",
+      ].map(esc).join(";"));
+    });
+  });
+  return rows.join("\r\n");
+}
+
+// JSON — yapısal (mükellef + fişler)
+function buildGibFisJson(entries, mukellef, accounts) {
+  return JSON.stringify({
+    kilavuz: "Elektronik Muhasebe Fişi (GİB Nisan 2020)",
+    mukellef,
+    olusturmaZamani: new Date().toISOString(),
+    fisSayisi: entries.length,
+    fisler: entries.map(e => {
+      const totals = calculateEntryTotals(e.lines);
+      return {
+        fisTuru: gibVoucherType(e.voucherType),
+        fisTarihi: e.date || null,
+        fisZamani: e.entryTime || null,
+        fisNo: e.voucherNo || null,
+        yevmiyeMaddeNo: e.yevmiyeMaddeNo || null,
+        aciklama: e.description || "",
+        satirlar: (e.lines || []).map((l, i) => ({
+          satirNo: i + 1,
+          hesapKodu: l.accountCode || "",
+          hesapAdi: lineAccountName(l, accounts),
+          borc: Number(l.debit) || 0,
+          alacak: Number(l.credit) || 0,
+          aciklama: l.description || "",
+        })),
+        borcToplami: totals.totalDebit,
+        alacakToplami: totals.totalCredit,
+        onaylayan: e.approvedByName || e.postedBy || null,
+      };
+    }),
+  }, null, 2);
+}
+
+// XML — standart belge formatı (GİB Bölüm 3'ün izin verdiği "xml ... vb.")
+function buildGibFisXml(entries, mukellef, accounts) {
+  const fisXml = entries.map(e => {
+    const totals = calculateEntryTotals(e.lines);
+    const satirlar = (e.lines || []).map((l, i) => `
+      <Satir>
+        <SatirNo>${i + 1}</SatirNo>
+        <HesapKodu>${gibXmlEsc(l.accountCode)}</HesapKodu>
+        <HesapAdi>${gibXmlEsc(lineAccountName(l, accounts))}</HesapAdi>
+        <Borc>${gibNum(l.debit)}</Borc>
+        <Alacak>${gibNum(l.credit)}</Alacak>
+        <Aciklama>${gibXmlEsc(l.description)}</Aciklama>
+      </Satir>`).join("");
+    return `
+  <Fis>
+    <FisTuru>${gibXmlEsc(gibVoucherType(e.voucherType))}</FisTuru>
+    <FisTarihi>${gibXmlEsc(e.date)}</FisTarihi>
+    <FisZamani>${gibXmlEsc(e.entryTime)}</FisZamani>
+    <FisNo>${gibXmlEsc(e.voucherNo)}</FisNo>
+    <YevmiyeMaddeNo>${gibXmlEsc(e.yevmiyeMaddeNo)}</YevmiyeMaddeNo>
+    <Aciklama>${gibXmlEsc(e.description)}</Aciklama>
+    <Satirlar>${satirlar}
+    </Satirlar>
+    <BorcToplami>${gibNum(totals.totalDebit)}</BorcToplami>
+    <AlacakToplami>${gibNum(totals.totalCredit)}</AlacakToplami>
+    <Onaylayan>${gibXmlEsc(e.approvedByName || e.postedBy)}</Onaylayan>
+  </Fis>`;
+  }).join("");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<MuhasebeFisleri kilavuz="GIB-Elektronik-Muhasebe-Fisi-2020">
+  <Mukellef>
+    <Unvan>${gibXmlEsc(mukellef.unvan)}</Unvan>
+    <VknTckn>${gibXmlEsc(mukellef.vknTckn)}</VknTckn>
+  </Mukellef>${fisXml}
+</MuhasebeFisleri>`;
+}
+
+// PDF için yazdırılabilir HTML — her fiş ayrı sayfa, sayfa no (x/y) ile
+function buildGibFisPrintHtml(entries, mukellef, accounts, lang) {
+  const total = entries.length;
+  const pages = entries.map((e, idx) => {
+    const totals = calculateEntryTotals(e.lines);
+    const satirlar = (e.lines || []).map((l, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td class="mono">${gibXmlEsc(l.accountCode)}</td>
+        <td>${gibXmlEsc(lineAccountName(l, accounts))}</td>
+        <td>${gibXmlEsc(l.description)}</td>
+        <td class="num">${(Number(l.debit) || 0) > 0 ? fmtTL(l.debit) + " ₺" : "—"}</td>
+        <td class="num">${(Number(l.credit) || 0) > 0 ? fmtTL(l.credit) + " ₺" : "—"}</td>
+      </tr>`).join("");
+    return `
+  <section class="fis">
+    <div class="head">
+      <div>
+        <div class="muk">${gibXmlEsc(mukellef.unvan)}</div>
+        <div class="vkn">VKN/TCKN: ${gibXmlEsc(mukellef.vknTckn)}</div>
+      </div>
+      <div class="pageno">Sayfa: ${idx + 1} / ${total}</div>
+    </div>
+    <h1>${gibXmlEsc(gibVoucherType(e.voucherType)).toUpperCase()} FİŞİ</h1>
+    <div class="meta">
+      <div><span>Fiş No:</span> ${gibXmlEsc(e.voucherNo)}</div>
+      <div><span>Tarih:</span> ${gibXmlEsc(e.date)}</div>
+      <div><span>Saat:</span> ${gibXmlEsc(e.entryTime || "—")}</div>
+      <div><span>Yevmiye Madde No:</span> ${gibXmlEsc(e.yevmiyeMaddeNo || "—")}</div>
+    </div>
+    ${e.description ? `<div class="desc">${gibXmlEsc(e.description)}</div>` : ""}
+    <table>
+      <thead><tr>
+        <th style="width:28px">#</th><th style="width:90px">Hesap Kodu</th>
+        <th>Hesap Adı</th><th>Açıklama</th>
+        <th class="num" style="width:100px">Borç</th><th class="num" style="width:100px">Alacak</th>
+      </tr></thead>
+      <tbody>${satirlar}</tbody>
+      <tfoot><tr>
+        <td colspan="4" class="num">TOPLAM</td>
+        <td class="num">${fmtTL(totals.totalDebit)} ₺</td>
+        <td class="num">${fmtTL(totals.totalCredit)} ₺</td>
+      </tr></tfoot>
+    </table>
+    <div class="sig">
+      <div class="sig-line">Fişi Onaylayan<br><b>${gibXmlEsc(e.approvedByName || e.postedBy || "")}</b></div>
+      <div class="sig-line">İmza</div>
+    </div>
+  </section>`;
+  }).join("");
+  return `<!DOCTYPE html>
+<html lang="${lang}"><head><meta charset="UTF-8"><title>Muhasebe Fişleri</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica','Arial',sans-serif; color: #1f2937; font-size: 11px; }
+  .btn-print { position: fixed; top: 16px; right: 16px; padding: 9px 16px; background: #0f766e; color: #fff; border: none; border-radius: 4px; font-weight: 700; cursor: pointer; }
+  .fis { padding: 18mm; page-break-after: always; }
+  .head { display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #0f766e; padding-bottom: 8px; }
+  .muk { font-size: 13px; font-weight: 700; color: #0f766e; }
+  .vkn { font-size: 10px; color: #6b7280; }
+  .pageno { font-size: 10px; color: #6b7280; }
+  h1 { font-size: 16px; margin: 14px 0 10px; letter-spacing: 1px; }
+  .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; background: #f3f4f6; padding: 8px 12px; border-radius: 4px; font-size: 10px; margin-bottom: 8px; }
+  .meta span { color: #6b7280; font-weight: 600; }
+  .desc { font-size: 10.5px; margin-bottom: 10px; font-style: italic; color: #374151; }
+  table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  th { background: #0f766e; color: #fff; padding: 7px 6px; text-align: left; }
+  td { padding: 6px; border-bottom: 1px solid #e5e7eb; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .mono { font-family: 'Courier New', monospace; }
+  tfoot td { background: #1f2937; color: #fff; font-weight: 700; }
+  .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; margin-top: 50px; }
+  .sig-line { border-top: 1px solid #1f2937; padding-top: 5px; text-align: center; font-size: 10px; color: #6b7280; }
+  @media print { .no-print { display: none; } .fis { padding: 12mm; } }
+</style></head><body>
+<button class="btn-print no-print" onclick="window.print()">${lang === "en" ? "Print / Save PDF" : "Yazdır / PDF Kaydet"}</button>
+${pages}
+</body></html>`;
+}
+
 // AI: Bir açıklamadan hesap önerisi (keyword matching)
 function suggestAccountByDescription(description, accounts, maxResults = 5) {
   if (!description || !description.trim()) return [];
@@ -11672,13 +11961,25 @@ async function fetchTcmbRates({ apiKey, rateType = "selling", date, corsProxy })
 }
 
 /* ===================================================================== */
+// Oturum hareketsizlik zaman aşımı: kullanıcı bu süre boyunca hiçbir işlem
+// yapmazsa (fare/klavye/dokunma/scroll) otomatik çıkış yapılıp LOGIN ekranına
+// dönülür. Backend access token süresi (15dk) ile uyumlu, makul bir varsayılan.
+const SESSION_IDLE_MS = 30 * 60 * 1000; // 30 dakika
+
 export default function App() {
   const [boot, setBoot] = useState({ loading: true });
   const [session, setSession] = useState(null);
+  const [sessionExpired, setSessionExpired] = useState(false); // hareketsizlikten çıkış → login ekranında uyarı
   const [data, setData] = useState(null);
   const [users, setUsers] = useState([]);
   const [audit, setAudit] = useState([]);
   const [view, setView] = useState("dashboard");
+  // Menüden seçilebilen modül alt-sekmeleri (akordeon) — her modülün iç sekmesini buradan kontrol ederiz
+  const [moduleTabs, setModuleTabs] = useState({
+    hr: "organization", users: "users", invoices: "manual",
+    accounting: "coa", parties: "list", approvals: "requests", reports: "reports",
+  });
+  const setModuleTab = (id, val) => setModuleTabs(s => ({ ...s, [id]: val }));
   const [toast, setToast] = useState(null);
   const [lang, setLang] = useState("tr");  // default TR, useEffect içinde tarayıcı/saklanmış değere göre güncellenecek
 
@@ -12108,6 +12409,7 @@ export default function App() {
   const login = async (username, password) => {
     const u = users.find(x => x.username === username && x.password === password && x.active);
     if (!u) return false;
+    setSessionExpired(false); // başarılı giriş → "süre doldu" uyarısını temizle
     const sess = { username: u.username, role: u.role, fullName: u.fullName, userId: u.id, ts: Date.now() };
     setSession(sess);
     await S.set("promet:session", sess);
@@ -12185,16 +12487,42 @@ export default function App() {
 
     return true;
   };
-  const logout = async () => {
-    await logAudit("logout", { username: session?.username });
+  // opts.expired === true → hareketsizlik zaman aşımı; aksi halde elle çıkış.
+  // (onLogout butonları logout'u event ile çağırır; event.expired undefined olduğundan normal çıkış sayılır.)
+  const logout = async (opts) => {
+    const expired = opts?.expired === true;
+    await logAudit(expired ? "session_timeout" : "logout", { username: session?.username });
     setSession(null);
     await S.del("promet:session");
     // Köprülenen backend JWT'yi de temizle
     try { localStorage.removeItem("promet_access_token"); localStorage.removeItem("promet_refresh_token"); } catch {}
+    if (expired) setSessionExpired(true);
   };
 
+  // === OTURUM HAREKETSİZLİK ZAMAN AŞIMI ===
+  // Aktif oturumda kullanıcı SESSION_IDLE_MS boyunca hiçbir etkileşim yapmazsa
+  // otomatik çıkış yapılır ve LOGIN ekranına dönülür. Her etkileşimde sayaç sıfırlanır.
+  useEffect(() => {
+    if (!session) return;
+    let timer;
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { logout({ expired: true }); }, SESSION_IDLE_MS);
+    };
+    const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "click", "wheel"];
+    events.forEach((ev) => window.addEventListener(ev, reset, { passive: true }));
+    reset(); // sayacı başlat
+    return () => {
+      clearTimeout(timer);
+      events.forEach((ev) => window.removeEventListener(ev, reset));
+    };
+    // logout her render'da yeniden oluşur ama yalnızca session'a bağlıyız;
+    // session değiştiğinde (giriş/çıkış) efekt yeniden kurulur — bu yeterli.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
   if (boot.loading || !data || !effectiveData) return <BootScreen />;
-  if (!session) return <LoginScreen onLogin={login} lang={lang} changeLang={changeLang} users={users} setUsers={setUsers} />;
+  if (!session) return <LoginScreen onLogin={login} lang={lang} changeLang={changeLang} users={users} setUsers={setUsers} notice={sessionExpired ? "session_timeout" : null} />;
 
   // Self-service mode: çalışan rolündeki kullanıcılar için ayrı görünüm
   // (Yönetici rolündeki kullanıcılar isterse self-service'e geçebilir)
@@ -12315,6 +12643,7 @@ export default function App() {
 
       {/* Sol kalıcı menü */}
       <SideMenu session={session} view={view} setView={setView}
+        moduleTabs={moduleTabs} setModuleTab={setModuleTab} users={users}
         data={effectiveData} canAct={canAct} lang={lang} onLogout={logout}
         isMobile={isMobile}/>
 
@@ -12414,6 +12743,7 @@ export default function App() {
             data={effectiveData} session={session} users={users} canAct={canAct} lang={lang}
             onChange={saveData} logAudit={logAudit} notify={notify}
             navigateToEntity={navigateToEntity}
+            activeTab={moduleTabs.approvals} setActiveTab={(v) => setModuleTab("approvals", v)}
           />
         )}
         {view === "tasks" && (
@@ -12457,18 +12787,21 @@ export default function App() {
           <ReportsCenter
             data={effectiveData} session={session} users={users} lang={lang}
             onChange={saveData} notify={notify}
+            activeTab={moduleTabs.reports} setActiveTab={(v) => setModuleTab("reports", v)}
           />
         )}
         {view === "hr" && canView("view_hr", "hr.organization") && (
           <HRModule
             data={effectiveData} session={session} users={users} canAct={canAct} lang={lang}
             onChange={saveData} logAudit={logAudit} notify={notify}
+            subTab={moduleTabs.hr} setSubTab={(v) => setModuleTab("hr", v)}
           />
         )}
         {view === "accounting" && canView("manage_categories", "accounting.coa") && (
           <AccountingModule
             data={effectiveData} session={session} canAct={canAct} lang={lang}
             onChange={saveData} logAudit={logAudit} notify={notify}
+            activeTab={moduleTabs.accounting} setActiveTab={(v) => setModuleTab("accounting", v)}
           />
         )}
         {view === "parties" && canView("view_accounting", "accounting.parties") && (
@@ -12477,6 +12810,7 @@ export default function App() {
             onChange={saveData} logAudit={logAudit} notify={notify}
             setView={setView}
             navigateToEntity={navigateToEntity}
+            activeView={moduleTabs.parties} setActiveView={(v) => setModuleTab("parties", v)}
           />
         )}
         {view === "budget" && canView("view_budget", "accounting.budget") && (
@@ -12501,6 +12835,7 @@ export default function App() {
             data={effectiveData} session={session} canAct={canAct} lang={lang}
             onChange={saveData} logAudit={logAudit} notify={notify}
             navigateToEntity={navigateToEntity}
+            subTab={moduleTabs.invoices} setSubTab={(v) => setModuleTab("invoices", v)}
           />
         )}
         {view === "categories" && canView("manage_categories", "finance.categories") && (
@@ -12515,6 +12850,7 @@ export default function App() {
             users={users} setUsers={setUsers}
             onChange={saveData}
             logAudit={logAudit} notify={notify}
+            subTab={moduleTabs.users} setSubTab={(v) => setModuleTab("users", v)}
           />
         )}
         {view === "audit" && canView("view_audit", "system.audit") && (
@@ -12910,7 +13246,7 @@ function BootScreen() {
 }
 
 /* ===================================================================== */
-function LoginScreen({ onLogin, lang, changeLang, users, setUsers }) {
+function LoginScreen({ onLogin, lang, changeLang, users, setUsers, notice }) {
   // Mode: "login" | "forgot" | "reset"
   const [mode, setMode] = useState("login");
 
@@ -13063,6 +13399,18 @@ function LoginScreen({ onLogin, lang, changeLang, users, setUsers }) {
                 <h2 className="display" style={{ fontSize: 26, marginBottom: 6 }}>{t("login.title", lang)}</h2>
                 <p style={{ fontSize: 13, color: "var(--ink-mute)" }}>{t("login.subtitle", lang)}</p>
               </div>
+              {notice === "session_timeout" && (
+                <div className="flex items-center gap-2 text-xs px-3 py-2 rounded mb-5" style={{ background: "#fef3c7", color: "#92400e" }}>
+                  <AlertCircle size={13}/>
+                  {lang === "en"
+                    ? "Your session timed out due to inactivity. Please sign in again."
+                    : lang === "de"
+                    ? "Ihre Sitzung ist wegen Inaktivität abgelaufen. Bitte melden Sie sich erneut an."
+                    : lang === "ar"
+                    ? "انتهت جلستك بسبب عدم النشاط. يرجى تسجيل الدخول مرة أخرى."
+                    : "Hareketsizlik nedeniyle oturum süreniz doldu. Lütfen tekrar giriş yapın."}
+                </div>
+              )}
               <div className="space-y-4">
                 <div>
                   <div className="label mb-1.5">{t("login.username", lang)}</div>
@@ -13326,8 +13674,29 @@ function ResetPasswordForm({ lang, users, setUsers, onBack, onSuccess }) {
    - Scroll desteği (uzun menü için)
    - Mobile'da bottom-nav ve hamburger yok
 ===================================================================== */
-function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobile = false }) {
+// "view-modlu" akordeonlar: alt öğe doğrudan ayrı bir üst-seviye view'a gider (parent sentetiktir)
+const VIEW_MODE_ACCORDIONS = new Set(["sales", "purchase"]);
+// Alt-view → sentetik parent eşlemesi (aktif/otomatik-açma hesabı için)
+const VIEW_PARENT = {
+  sales_pipeline: "sales", sales_leads: "sales", sales_activities: "sales",
+  purchase_requests: "purchase", purchase_orders: "purchase", purchase_vendors: "purchase",
+};
+
+function SideMenu({ session, view, setView, moduleTabs = {}, setModuleTab = () => {}, users = [], data, canAct, lang, onLogout, isMobile = false }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Hangi akordeonların açık olduğu (modül id seti). Aktif modül otomatik açık.
+  const [expandedMenus, setExpandedMenus] = useState(() => new Set([VIEW_PARENT[view] || view]));
+  const toggleMenu = (id) => setExpandedMenus(prev => {
+    const n = new Set(prev);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+
+  // Bir modül sayfasına geçilince o modülün (veya sentetik parent'ının) akordeonunu otomatik aç
+  useEffect(() => {
+    const parent = VIEW_PARENT[view] || view;
+    setExpandedMenus(prev => prev.has(parent) ? prev : new Set(prev).add(parent));
+  }, [view]);
 
   // View değişince mobile menüyü kapat
   useEffect(() => {
@@ -13364,15 +13733,11 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
     { id: "cashflow_dashboard", label: lang === "en" ? "Cash Flow" : lang === "de" ? "Cashflow" : lang === "ar" ? "التدفق النقدي" : "Nakit Akışı", icon: LineChartIcon, perm: "view_dashboard", resource: "finance.dashboard", group: "overview" },
     { id: "grid",       label: t("menu.cashflow", lang),   icon: Table2,          perm: "view_grid",      resource: "finance.cashflow", group: "overview" },
 
-    // === SATIŞ & CRM ===
-    { id: "sales_pipeline", label: lang === "en" ? "Sales Pipeline" : lang === "de" ? "Verkaufspipeline" : lang === "ar" ? "خط المبيعات" : "Satış Pipeline", icon: Target, perm: "view_dashboard", resource: "finance.dashboard", group: "sales" },
-    { id: "sales_leads",    label: lang === "en" ? "Leads / Deals" : lang === "de" ? "Leads / Deals" : lang === "ar" ? "العملاء المحتملون" : "Fırsatlar", icon: Briefcase, perm: "view_dashboard", resource: "finance.dashboard", group: "sales" },
-    { id: "sales_activities", label: lang === "en" ? "Activities" : lang === "de" ? "Aktivitäten" : lang === "ar" ? "الأنشطة" : "Aktiviteler", icon: MessageCircle, perm: "view_dashboard", resource: "finance.dashboard", group: "sales" },
+    // === SATIŞ & CRM === (akordeon — alt öğeler: Pipeline / Fırsatlar / Aktiviteler)
+    { id: "sales", label: lang === "en" ? "Sales & CRM" : lang === "de" ? "Vertrieb & CRM" : lang === "ar" ? "المبيعات و CRM" : "Satış & CRM", icon: Target, perm: "view_dashboard", resource: "finance.dashboard", group: "sales" },
 
-    // === SATINALMA ===
-    { id: "purchase_requests", label: lang === "en" ? "Purchase Requests" : lang === "de" ? "Bestellanforderungen" : lang === "ar" ? "طلبات الشراء" : "Talepler", icon: ClipboardList, perm: "view_dashboard", resource: "finance.dashboard", group: "purchase" },
-    { id: "purchase_orders",   label: lang === "en" ? "Purchase Orders" : lang === "de" ? "Bestellungen" : lang === "ar" ? "أوامر الشراء" : "Siparişler", icon: Receipt, perm: "view_dashboard", resource: "finance.dashboard", group: "purchase" },
-    { id: "purchase_vendors",  label: lang === "en" ? "Vendors" : lang === "de" ? "Lieferanten" : lang === "ar" ? "الموردون" : "Tedarikçiler", icon: Building2, perm: "view_accounting", resource: "accounting.parties", group: "purchase" },
+    // === SATINALMA === (akordeon — alt öğeler: Talepler / Siparişler / Tedarikçiler)
+    { id: "purchase", label: lang === "en" ? "Purchasing" : lang === "de" ? "Einkauf" : lang === "ar" ? "المشتريات" : "Satınalma", icon: ClipboardList, perm: "view_dashboard", resource: "finance.dashboard", group: "purchase" },
 
     // === ŞANTİYE YÖNETİM (bağımsız mikroservis) ===
     { id: "cs_projects",  label: lang === "en" ? "Projects" : lang === "de" ? "Projekte" : lang === "ar" ? "المشاريع" : "Projeler", icon: Building2, perm: "view_dashboard", resource: "construction.projects", group: "construction" },
@@ -13422,6 +13787,74 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
     hr:         { tr: "İnsan Kaynakları",   en: "Human Resources", de: "Personal",      ar: "الموارد البشرية" },
     accounting: { tr: "Muhasebe & Analiz",  en: "Accounting",     de: "Buchhaltung",   ar: "المحاسبة" },
     system:     { tr: "Sistem",             en: "System",         de: "System",        ar: "النظام" },
+  };
+
+  // İç bölüm sidebar'ı olan modüllerin menü-akordeon tanımı (her modülün kendi sayfasındaki sol sekmelerle birebir aynı).
+  // Bir alt öğeye tıklayınca ilgili modüle gidilir ve o sekme açılır.
+  const L = (l) => (typeof l === "string" ? l : (l[lang] || l.tr || l.en));  // {tr,en,..} veya düz string
+  const canManageApprovalRules = can(session.role, "manage_approval_rules") || (canAct && canAct("system.approvals.update"));
+  const accordionConfig = {
+    hr: [
+      { id: "organization", icon: Building2,     badgeColor: "#7c2d12", label: t("menu.organization", lang), badge: (data.hrOrgUnits || []).length || null },
+      { id: "recruitment",  icon: UserPlus,      badgeColor: "#0ea5e9", label: t("menu.recruitment", lang),   badge: (data.hrPositions || []).filter(p => p.status === "open").length || null },
+      { id: "employees",    icon: Users,         badgeColor: "#15803d", label: t("menu.employees", lang),     badge: (data.hrEmployees || []).filter(e => e.status === "active" || e.status === "probation").length || null },
+      { id: "compensation", icon: Coins,         badgeColor: "#ca8a04", label: lang === "en" ? "Compensation & Benefits" : lang === "de" ? "Vergütung & Zusatzleistungen" : lang === "ar" ? "التعويضات والمزايا" : "Ücret ve Yan Haklar", badge: (data.hrCompPolicies || []).filter(p => p.active).length || null },
+      { id: "payroll",      icon: Wallet,        badgeColor: "#7c3aed", label: lang === "en" ? "Payroll" : lang === "de" ? "Gehaltsabrechnung" : lang === "ar" ? "الرواتب" : "Bordro", badge: (data.hrPayrollRuns || []).length || null },
+      { id: "attendance",   icon: CalendarClock, badgeColor: "#0891b2", label: lang === "en" ? "Attendance/Leave" : lang === "de" ? "Anwesenheit/Urlaub" : lang === "ar" ? "الحضور/الإجازة" : "Devam/İzin", badge: ((data.hrAttendanceSheets || []).filter(s => s.status === "draft").length + (data.hrLeaveRequests || []).filter(r => r.status === "pending").length) || null },
+      { id: "requests",     icon: ClipboardList, badgeColor: "#ca8a04", label: lang === "en" ? "Requests" : lang === "de" ? "Anfragen" : lang === "ar" ? "الطلبات" : "Talepler", badge: (data.hrRequests || []).filter(r => r.status === "pending").length || null },
+    ],
+    users: [
+      { id: "users",     icon: Users,     label: t("auth.users", lang),     badge: users.length || null },
+      { id: "roles",     icon: Shield,    label: t("auth.roles", lang),     badge: (data.hrCustomRoles || []).length || null,   badgeColor: "#7c3aed" },
+      { id: "grants",    icon: UserCheck, label: t("auth.grants", lang),    badge: (data.hrRoleGrants || []).length || null,    badgeColor: "#0ea5e9" },
+      { id: "overrides", icon: UserX,     label: t("auth.overrides", lang), badge: (data.hrPermOverrides || []).length || null, badgeColor: "#ea580c" },
+    ],
+    invoices: [
+      { id: "manual",   icon: Receipt,  label: lang === "en" ? "Manual Invoices" : lang === "de" ? "Manuelle Rechnungen" : lang === "ar" ? "الفواتير اليدوية" : "Manuel Faturalar", badge: (data.invoices || []).filter(i => !i.committedToCells).length || null },
+      { id: "einvoice", icon: FileText, label: "e-Fatura (Logo eLogo)", badgeColor: "#b45309" },
+    ],
+    accounting: [
+      { id: "coa",      icon: ClipboardList, label: { tr: "Hesap Planı",     en: "Chart of Accounts" } },
+      { id: "journal",  icon: FileText,      label: { tr: "Yevmiye Fişleri", en: "Journal Entries" } },
+      { id: "ledger",   icon: BookOpen,      label: { tr: "Defter-i Kebir",  en: "General Ledger" } },
+      { id: "trial",    icon: Scale,         label: { tr: "Mizan",           en: "Trial Balance" } },
+      { id: "balance",  icon: Landmark,      label: { tr: "Bilanço",         en: "Balance Sheet" } },
+      { id: "income",   icon: TrendingUp,    label: { tr: "Gelir Tablosu",   en: "Income Statement" } },
+      { id: "cashflow", icon: Banknote,      label: { tr: "Nakit Akış",      en: "Cash Flow" } },
+      { id: "yearend",  icon: Lock,          label: { tr: "Yıl Kapanışı",    en: "Year-End Close" } },
+      { id: "ai",       icon: Sparkles,      label: { tr: "AI Öğrenme",      en: "AI Learning" } },
+    ],
+    parties: [
+      { id: "list",         icon: Users,         label: { tr: "Cari Kart Listesi",   en: "Party List" } },
+      { id: "muavin",       icon: FileText,      label: { tr: "Cari Muavin Defteri", en: "Subsidiary Ledger" } },
+      { id: "voucher_list", icon: ClipboardList, label: { tr: "Cari Fiş Listesi",    en: "Voucher List" } },
+      { id: "aging",        icon: Clock,         label: { tr: "Yaşlandırma",         en: "Aging Report" } },
+    ],
+    approvals: [
+      { id: "requests", icon: Clock,    label: { tr: "Bekleyen Onaylar", en: "Pending Approvals" }, badge: (data.approvalRequests || []).filter(r => r.status === "pending").length || null },
+      { id: "history",  icon: BookOpen, label: { tr: "Onay Geçmişi",     en: "History" } },
+      ...(canManageApprovalRules ? [{ id: "rules", icon: Settings, label: { tr: "Onay Kuralları", en: "Rules" } }] : []),
+    ],
+    reports: [
+      { id: "reports",    icon: BarChart3,       label: { tr: "Raporlar",            en: "Reports" } },
+      { id: "dashboards", icon: LayoutDashboard, label: { tr: "Özel Dashboard'lar",  en: "Custom Dashboards" } },
+    ],
+    // view-modlu: alt öğeler ayrı birer üst-seviye view'a gider (parent sentetik öğedir)
+    sales: [
+      { id: "sales_pipeline",   icon: Target,        label: { tr: "Satış Pipeline", en: "Sales Pipeline" }, perm: "view_dashboard", resource: "finance.dashboard" },
+      { id: "sales_leads",      icon: Briefcase,     label: { tr: "Fırsatlar",      en: "Leads / Deals" },  perm: "view_dashboard", resource: "finance.dashboard" },
+      { id: "sales_activities", icon: MessageCircle, label: { tr: "Aktiviteler",    en: "Activities" },     perm: "view_dashboard", resource: "finance.dashboard" },
+    ],
+    purchase: [
+      { id: "purchase_requests", icon: ClipboardList, label: { tr: "Talepler",     en: "Purchase Requests" }, perm: "view_dashboard",   resource: "finance.dashboard" },
+      { id: "purchase_orders",   icon: Receipt,       label: { tr: "Siparişler",   en: "Purchase Orders" },   perm: "view_dashboard",   resource: "finance.dashboard" },
+      { id: "purchase_vendors",  icon: Building2,     label: { tr: "Tedarikçiler", en: "Vendors" },           perm: "view_accounting",  resource: "accounting.parties" },
+    ],
+  };
+  // İzin kontrol yardımcı (alt öğe filtreleme için)
+  const isVisible = (resource, perm) => {
+    if (canAct && resource && canAct(`${resource}.view`)) return true;
+    return can(session.role, perm);
   };
 
   // Bildirim sayısı: 7 gün içinde vadesi olan veya geçmiş açık faturalar
@@ -13475,8 +13908,11 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
 
   // Görünür item'lar
   const visibleItems = items.filter(i => {
-    if (canAct && i.resource && canAct(`${i.resource}.view`)) return true;
-    return can(session.role, i.perm);
+    // view-modlu akordeon parent'ı: alt görünümlerden en az biri görünürse göster
+    if (VIEW_MODE_ACCORDIONS.has(i.id)) {
+      return (accordionConfig[i.id] || []).some(s => isVisible(s.resource, s.perm));
+    }
+    return isVisible(i.resource, i.perm);
   });
 
   return (
@@ -13543,19 +13979,24 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
             let lastGroup = null;
             return visibleItems.map(i => {
               const Ic = i.icon;
-              const isActive = view === i.id;
+              const subCfg = accordionConfig[i.id];
+              const isViewMode = VIEW_MODE_ACCORDIONS.has(i.id);
+              // view-modlu parent kendi başına bir view değil — aktiflik alt görünümlerden gelir
+              const isActive = isViewMode
+                ? (subCfg || []).some(s => s.id === view)
+                : view === i.id;
               const badge = i.id === "invoices" ? invoiceAlertCount
                           : i.id === "approvals" ? pendingApprovalCount
                           : i.id === "tasks" ? myTasksCount
-                          : i.id === "sales_pipeline" ? openDealsCount
-                          : i.id === "purchase_requests" ? activePRCount
+                          : i.id === "sales" ? openDealsCount
+                          : i.id === "purchase" ? activePRCount
                           : 0;
               const groupChanged = i.group && i.group !== lastGroup;
               lastGroup = i.group;
               return (
                 <React.Fragment key={i.id}>
-                  {/* Grup başlığı */}
-                  {groupChanged && (
+                  {/* Grup başlığı (view-modlu akordeon parent'larında gizli — etiket zaten bölümü temsil eder) */}
+                  {groupChanged && !isViewMode && (
                     <div style={{
                       padding: "8px 10px 4px",
                       fontSize: 9,
@@ -13568,31 +14009,99 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
                       {groupLabels[i.group]?.[lang] || groupLabels[i.group]?.tr || i.group}
                     </div>
                   )}
-                  <button onClick={() => setView(i.id)}
-                    className="w-full flex items-center gap-2 text-left transition-all"
-                    style={{
-                      padding: "8px 10px",
-                      borderRadius: 4,
-                      fontSize: 12.5,
-                      fontWeight: isActive ? 700 : 500,
-                      color: isActive ? "var(--bg)" : "var(--ink)",
-                      background: isActive ? "var(--ink)" : "transparent",
-                      border: "none",
-                      cursor: "pointer",
-                    }}
-                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "var(--bg-alt)"; }}
-                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}>
-                    <Ic size={13} strokeWidth={isActive ? 2 : 1.75} style={{ flexShrink: 0 }}/>
-                    <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {i.label}
-                    </span>
-                    {badge > 0 && (
-                      <span className="rounded-full text-white font-bold flex items-center justify-center flex-shrink-0"
-                        style={{ background: "#dc2626", fontSize: 9, minWidth: 16, height: 16, padding: "0 4px" }}>
-                        {badge > 99 ? "99+" : badge}
+                  {subCfg ? (
+                    /* === Akordeon (açılır/kapanır alt menü) — iç bölüm sidebar'ı olan modüller === */
+                    <>
+                      <button onClick={() => { toggleMenu(i.id); }}
+                        className="w-full flex items-center gap-2 text-left transition-all"
+                        style={{
+                          padding: "8px 10px",
+                          borderRadius: 4,
+                          fontSize: 12.5,
+                          fontWeight: isActive ? 700 : 500,
+                          color: isActive ? "var(--bg)" : "var(--ink)",
+                          background: isActive ? "var(--ink)" : "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                        onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "var(--bg-alt)"; }}
+                        onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}>
+                        <Ic size={13} strokeWidth={isActive ? 2 : 1.75} style={{ flexShrink: 0 }}/>
+                        <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {i.label}
+                        </span>
+                        {badge > 0 && (
+                          <span className="rounded-full text-white font-bold flex items-center justify-center flex-shrink-0"
+                            style={{ background: isActive ? "#fff" : "#dc2626", color: isActive ? "#dc2626" : "#fff", fontSize: 9, minWidth: 16, height: 16, padding: "0 4px" }}>
+                            {badge > 99 ? "99+" : badge}
+                          </span>
+                        )}
+                        {expandedMenus.has(i.id)
+                          ? <ChevronDown size={13} style={{ flexShrink: 0, opacity: 0.7 }}/>
+                          : <ChevronRight size={13} style={{ flexShrink: 0, opacity: 0.7 }}/>}
+                      </button>
+                      {expandedMenus.has(i.id) && subCfg
+                        .filter(s => !isViewMode || isVisible(s.resource, s.perm))
+                        .map(s => {
+                        const SubIc = s.icon;
+                        const subActive = isViewMode ? view === s.id : (view === i.id && moduleTabs[i.id] === s.id);
+                        return (
+                          <button key={s.id}
+                            onClick={() => { if (isViewMode) { setView(s.id); } else { setModuleTab(i.id, s.id); setView(i.id); } }}
+                            className="w-full flex items-center gap-2 text-left transition-all"
+                            style={{
+                              padding: "7px 10px 7px 26px",
+                              borderRadius: 4,
+                              fontSize: 12,
+                              fontWeight: subActive ? 700 : 500,
+                              color: subActive ? "var(--accent)" : "var(--ink-mute)",
+                              background: subActive ? "var(--bg-alt)" : "transparent",
+                              border: "none",
+                              cursor: "pointer",
+                            }}
+                            onMouseEnter={e => { if (!subActive) e.currentTarget.style.background = "var(--bg-alt)"; }}
+                            onMouseLeave={e => { if (!subActive) e.currentTarget.style.background = "transparent"; }}>
+                            <SubIc size={12} strokeWidth={subActive ? 2 : 1.75} style={{ flexShrink: 0 }}/>
+                            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {L(s.label)}
+                            </span>
+                            {s.badge != null && (
+                              <span className="text-white font-bold flex items-center justify-center flex-shrink-0"
+                                style={{ background: s.badgeColor || "#64748b", fontSize: 9, minWidth: 16, height: 16, padding: "0 4px", borderRadius: 4 }}>
+                                {s.badge > 99 ? "99+" : s.badge}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <button onClick={() => setView(i.id)}
+                      className="w-full flex items-center gap-2 text-left transition-all"
+                      style={{
+                        padding: "8px 10px",
+                        borderRadius: 4,
+                        fontSize: 12.5,
+                        fontWeight: isActive ? 700 : 500,
+                        color: isActive ? "var(--bg)" : "var(--ink)",
+                        background: isActive ? "var(--ink)" : "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "var(--bg-alt)"; }}
+                      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}>
+                      <Ic size={13} strokeWidth={isActive ? 2 : 1.75} style={{ flexShrink: 0 }}/>
+                      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {i.label}
                       </span>
-                    )}
-                  </button>
+                      {badge > 0 && (
+                        <span className="rounded-full text-white font-bold flex items-center justify-center flex-shrink-0"
+                          style={{ background: "#dc2626", fontSize: 9, minWidth: 16, height: 16, padding: "0 4px" }}>
+                          {badge > 99 ? "99+" : badge}
+                        </span>
+                      )}
+                    </button>
+                  )}
                 </React.Fragment>
               );
             });
@@ -13632,8 +14141,11 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
    tekrar tanim olusturmamak icin haric birakildi; HR onlara mevcut
    tanimlar uzerinden referans verir.
    ===================================================================== */
-function HRModule({ data, session, users = [], canAct, lang, onChange, logAudit, notify }) {
-  const [subTab, setSubTab] = useState("organization");
+function HRModule({ data, session, users = [], canAct, lang, onChange, logAudit, notify, subTab: subTabProp, setSubTab: setSubTabProp }) {
+  const [subTabState, setSubTabState] = useState("organization");
+  // Menüden (akordeon) gelen kontrollü sekme varsa onu kullan; yoksa içsel state
+  const subTab = subTabProp ?? subTabState;
+  const setSubTab = setSubTabProp ?? setSubTabState;
 
   const positions   = data.hrPositions   || [];
   const candidates  = data.hrCandidates  || [];
@@ -13655,64 +14167,8 @@ function HRModule({ data, session, users = [], canAct, lang, onChange, logAudit,
         accentColor="#7c2d12"
       />
 
-      {/* Sol Sidebar + Sağ İçerik */}
+      {/* İçerik — alt sekme navigasyonu menüye taşındı (akordeon) */}
       <div className="flex gap-3" style={{ minHeight: 600 }}>
-        {/* Sol Sidebar */}
-        <div style={{
-          width: 220, flexShrink: 0,
-          background: "var(--paper)",
-          borderRadius: 8,
-          border: "1px solid var(--line)",
-          padding: 8,
-          alignSelf: "flex-start",
-          position: "sticky", top: 8,
-        }}>
-          <div className="space-y-1">
-            <SidebarTabButton
-              active={subTab === "organization"} onClick={() => setSubTab("organization")}
-              icon={Building2} label={t("menu.organization", lang)}
-              badge={orgUnits.length > 0 ? orgUnits.length : null}
-              badgeColor="#7c2d12"
-            />
-            <SidebarTabButton
-              active={subTab === "recruitment"} onClick={() => setSubTab("recruitment")}
-              icon={UserPlus} label={t("menu.recruitment", lang)}
-              badge={openPositionsCount > 0 ? openPositionsCount : null}
-              badgeColor="#0ea5e9"
-            />
-            <SidebarTabButton
-              active={subTab === "employees"} onClick={() => setSubTab("employees")}
-              icon={Users} label={t("menu.employees", lang)}
-              badge={activeEmployeeCount > 0 ? activeEmployeeCount : null}
-              badgeColor="#15803d"
-            />
-            <SidebarTabButton
-              active={subTab === "compensation"} onClick={() => setSubTab("compensation")}
-              icon={Coins} label={lang === "en" ? "Compensation & Benefits" : lang === "de" ? "Vergütung & Zusatzleistungen" : lang === "ar" ? "التعويضات والمزايا" : "Ücret ve Yan Haklar"}
-              badge={(data.hrCompPolicies || []).filter(p => p.active).length || null}
-              badgeColor="#ca8a04"
-            />
-            <SidebarTabButton
-              active={subTab === "payroll"} onClick={() => setSubTab("payroll")}
-              icon={Wallet} label={lang === "en" ? "Payroll" : lang === "de" ? "Gehaltsabrechnung" : lang === "ar" ? "الرواتب" : "Bordro"}
-              badge={(data.hrPayrollRuns || []).length || null}
-              badgeColor="#7c3aed"
-            />
-            <SidebarTabButton
-              active={subTab === "attendance"} onClick={() => setSubTab("attendance")}
-              icon={CalendarClock} label={lang === "en" ? "Attendance/Leave" : lang === "de" ? "Anwesenheit/Urlaub" : lang === "ar" ? "الحضور/الإجازة" : "Devam/İzin"}
-              badge={((data.hrAttendanceSheets || []).filter(s => s.status === "draft").length + (data.hrLeaveRequests || []).filter(r => r.status === "pending").length) || null}
-              badgeColor="#0891b2"
-            />
-            <SidebarTabButton
-              active={subTab === "requests"} onClick={() => setSubTab("requests")}
-              icon={ClipboardList} label={lang === "en" ? "Requests" : lang === "de" ? "Anfragen" : lang === "ar" ? "الطلبات" : "Talepler"}
-              badge={(data.hrRequests || []).filter(r => r.status === "pending").length || null}
-              badgeColor="#ca8a04"
-            />
-          </div>
-        </div>
-
         {/* Sağ İçerik */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {subTab === "organization" && (
@@ -15285,9 +15741,9 @@ function OrgUnitFormModal({ draft, setDraft, orgUnits, employees, users, canMana
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <div className="label mb-1">{lang === "en" ? "Capital (TL)" : "Sermaye (TL)"}</div>
-                <input type="number" className="input w-full mono text-right"
+                <MoneyInput className="input w-full mono text-right"
                   value={draft.legal?.capital || ""}
-                  onChange={e => setLegal("capital", parseFloat(e.target.value) || 0)}/>
+                  onChange={v => setLegal("capital", v === '' ? 0 : v)}/>
               </div>
               <div>
                 <div className="label mb-1">{lang === "en" ? "VAT Number (intl)" : "KDV Numarası (yurtdışı)"}</div>
@@ -15465,20 +15921,20 @@ function OrgUnitFormModal({ draft, setDraft, orgUnits, employees, users, canMana
                   </div>
                   <div>
                     <div className="label mb-1">{lang === "en" ? "GV Stopaj Exemption %" : "GV Stopaj İstisna %"}</div>
-                    <input type="number" className="input w-full mono"
+                    <RateInput className="input w-full mono"
                       value={draft.incentive?.gvStopajRate || 95}
                       placeholder="80-100"
-                      onChange={e => setIncentive("gvStopajRate", parseFloat(e.target.value) || 0)}/>
+                      onChange={v => setIncentive("gvStopajRate", v === '' ? 0 : v)}/>
                     <div className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>
                       {lang === "en" ? "Standard: 80%, PhD: 95%, Top 25%: 100%" : "Standart %80, Doktoralı %95, En çok %100"}
                     </div>
                   </div>
                   <div>
                     <div className="label mb-1">{lang === "en" ? "SGK Employer Support %" : "SGK İşveren Desteği %"}</div>
-                    <input type="number" className="input w-full mono"
+                    <RateInput className="input w-full mono"
                       value={draft.incentive?.sgkSupportRate || 50}
                       placeholder="50"
-                      onChange={e => setIncentive("sgkSupportRate", parseFloat(e.target.value) || 0)}/>
+                      onChange={v => setIncentive("sgkSupportRate", v === '' ? 0 : v)}/>
                   </div>
                 </div>
                 <div className="mt-3">
@@ -15815,9 +16271,9 @@ function OrgUnitFormModal({ draft, setDraft, orgUnits, employees, users, canMana
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Annual Budget (TL)" : "Yıllık Bütçe (TL)"}</div>
-                  <input type="number" className="input w-full mono text-right"
+                  <MoneyInput className="input w-full mono text-right"
                     value={draft.finance?.annualBudget || ""}
-                    onChange={e => setFinance("annualBudget", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setFinance("annualBudget", v === '' ? 0 : v)}/>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Budget Currency" : "Bütçe Para Birimi"}</div>
@@ -16094,9 +16550,9 @@ function JobTitleFormModal({ draft, setDraft, departments, jobTitles, users, can
           </div>
           <div>
             <div className="label mb-1">{lang === "en" ? "Standard Gross (TL)" : lang === "de" ? "Standard-Brutto (TL)" : lang === "ar" ? "الإجمالي القياسي (TL)" : "Standart Brüt (TL)"}</div>
-            <input className="input w-full mono text-right" placeholder="0,00"
+            <MoneyInput className="input w-full mono text-right" placeholder="0,00"
               value={draft.standardBrutSalary || ""}
-              onChange={e => setDraft({ ...draft, standardBrutSalary: e.target.value })}/>
+              onChange={v => setDraft({ ...draft, standardBrutSalary: v })}/>
           </div>
         </div>
 
@@ -16279,9 +16735,9 @@ function EmployeeFormModal({ draft, setDraft, jobTitles, departments, employees,
               </div>
               <div>
                 <div className="label mb-1">{t("empForm.brutSalary", lang)} (TL)</div>
-                <input className="input w-full mono text-right" placeholder="0,00"
+                <MoneyInput className="input w-full mono text-right" placeholder="0,00"
                   value={draft.brutSalary || ""}
-                  onChange={e => setDraft({ ...draft, brutSalary: e.target.value })}/>
+                  onChange={v => setDraft({ ...draft, brutSalary: v })}/>
               </div>
             </div>
 
@@ -17050,23 +17506,23 @@ function CompensationManager({ data, session, canAct, lang, onChange, logAudit, 
       )}
       {view === "employees" && (
         <CompensationEmployeeList employees={employeesEnriched} records={records} departments={departments} jobTitles={jobTitles}
-          data={data} session={session} onChange={onChange} logAudit={logAudit} notify={notify} canManage={canAct("hr.employees", "update")} lang={lang}/>
+          data={data} session={session} onChange={onChange} logAudit={logAudit} notify={notify} canManage={canAct("hr.employees.update")} lang={lang}/>
       )}
       {view === "policies" && (
-        <CompensationPolicyList data={data} session={session} onChange={onChange} logAudit={logAudit} notify={notify} canManage={canAct("hr.employees", "update")} lang={lang}/>
+        <CompensationPolicyList data={data} session={session} onChange={onChange} logAudit={logAudit} notify={notify} canManage={canAct("hr.employees.update")} lang={lang}/>
       )}
       {view === "apply" && (
-        <CompensationApplyView data={data} session={session} onChange={onChange} logAudit={logAudit} notify={notify} canManage={canAct("hr.employees", "update")} lang={lang}
+        <CompensationApplyView data={data} session={session} onChange={onChange} logAudit={logAudit} notify={notify} canManage={canAct("hr.employees.update")} lang={lang}
           employeesEnriched={employeesEnriched}/>
       )}
       {view === "components" && (
-        <PayrollComponentsManager data={data} session={session} onChange={onChange} logAudit={logAudit} notify={notify} canManage={canAct("hr.employees", "update")} lang={lang}/>
+        <PayrollComponentsManager data={data} session={session} onChange={onChange} logAudit={logAudit} notify={notify} canManage={canAct("hr.employees.update")} lang={lang}/>
       )}
       {view === "benefits" && (
-        <BenefitContractsManager data={data} session={session} onChange={onChange} logAudit={logAudit} notify={notify} canManage={canAct("hr.employees", "update")} lang={lang}/>
+        <BenefitContractsManager data={data} session={session} onChange={onChange} logAudit={logAudit} notify={notify} canManage={canAct("hr.employees.update")} lang={lang}/>
       )}
       {view === "params" && (
-        <PayrollParamsManager data={data} session={session} onChange={onChange} logAudit={logAudit} notify={notify} canManage={canAct("hr.employees", "update")} lang={lang}/>
+        <PayrollParamsManager data={data} session={session} onChange={onChange} logAudit={logAudit} notify={notify} canManage={canAct("hr.employees.update")} lang={lang}/>
       )}
     </div>
   );
@@ -17089,7 +17545,7 @@ function PayrollManager({ data, session, canAct, lang, onChange, logAudit, notif
   const [selectedSlip, setSelectedSlip] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
 
-  const canManage = canAct("hr.employees", "update");
+  const canManage = canAct("hr.employees.update");
   const runs = data?.hrPayrollRuns || [];
   const activeEmployees = (data?.hrEmployees || []).filter(e => e.status === "active");
   const params = getActivePayrollParams(data, `${year}-${String(month).padStart(2, "0")}-15`);
@@ -17640,7 +18096,7 @@ function AttendanceManager({ data, session, users = [], canAct, lang, onChange, 
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
 
-  const canManage = canAct("hr.employees", "update");
+  const canManage = canAct("hr.employees.update");
   const activeEmployees = (data?.hrEmployees || []).filter(e => e.status === "active");
 
   const tabs = [
@@ -18060,7 +18516,7 @@ function BulkAttendanceView({ data, session, year, month, setYear, setMonth, emp
                         <td key={c.code} className="text-center p-1" style={{
                           background: c.category === "special_income" ? "#dbeafe20" : "#ffedd520",
                         }}>
-                          <input type="number" step="0.01" className="input mono text-center"
+                          <MoneyInput className="input mono text-center"
                             disabled={!canManage || isInPayroll}
                             style={{
                               width: 65, fontSize: 11, padding: "2px 4px",
@@ -18069,7 +18525,7 @@ function BulkAttendanceView({ data, session, year, month, setYear, setMonth, emp
                             }}
                             placeholder={expectedAmount > 0 ? fmtTL(expectedAmount) : ""}
                             value={sheet.componentValues?.[c.code] != null ? sheet.componentValues[c.code] : ""}
-                            onChange={e => updateComponentValue(emp.id, c.code, e.target.value === "" ? null : parseFloat(e.target.value) || 0)}
+                            onChange={v => updateComponentValue(emp.id, c.code, v === "" ? null : v)}
                             title={hasContract
                               ? `🔗 ${benefit?.contractName || (lang === "en" ? "From contract" : "Sözleşmeden")}: ${fmtTL(expectedAmount)} ₺`
                               : `${lang === "en" ? "Default" : "Varsayılan"}: ${fmtTL(c.calc?.value || 0)}`}/>
@@ -20332,18 +20788,18 @@ function CompensationRaiseModal({ employee, policies, lang, onClose, onSave }) {
         {draft._mode === "amount" && (
           <div>
             <div className="label mb-1">{lang === "en" ? "New Salary (TL)" : "Yeni Brüt Maaş (TL)"} *</div>
-            <input className="input w-full mono text-right" style={{ fontSize: 14 }}
+            <MoneyInput className="input w-full mono text-right" style={{ fontSize: 14 }}
               value={draft.newBrutSalary || ""}
-              onChange={e => setDraft({ ...draft, newBrutSalary: parseFloat(e.target.value) || 0 })}/>
+              onChange={v => setDraft({ ...draft, newBrutSalary: v === '' ? 0 : v })}/>
           </div>
         )}
         {draft._mode === "percent" && (
           <div>
             <div className="label mb-1">{lang === "en" ? "Raise %" : "Zam Yüzdesi"} *</div>
             <div className="flex gap-2 items-center">
-              <input type="number" className="input mono text-right" style={{ fontSize: 14, width: 100 }}
+              <RateInput className="input mono text-right" style={{ fontSize: 14, width: 100 }}
                 value={draft._percent || 0}
-                onChange={e => applyPercent(e.target.value)}/>
+                onChange={v => applyPercent(v)}/>
               <span style={{ fontSize: 13 }}>%</span>
               <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--ink-mute)" }}>
                 {lang === "en" ? "Quick:" : "Hızlı:"}
@@ -20642,18 +21098,18 @@ function CompensationPolicyEditor({ draft, setDraft, lang, onClose, onSave }) {
         {(draft.type === "fixed_percent" || draft.type === "promotion" || draft.type === "annual") && (
           <div>
             <div className="label mb-1">{lang === "en" ? "Raise Percentage" : "Zam Yüzdesi"} (%) *</div>
-            <input type="number" className="input w-full mono"
+            <RateInput className="input w-full mono"
               value={draft.percent || ""}
-              onChange={e => setDraft({ ...draft, percent: parseFloat(e.target.value) || 0 })}/>
+              onChange={v => setDraft({ ...draft, percent: v === '' ? 0 : v })}/>
           </div>
         )}
 
         {draft.type === "fixed_amount" && (
           <div>
             <div className="label mb-1">{lang === "en" ? "Amount (TL)" : "Tutar (TL)"} *</div>
-            <input type="number" className="input w-full mono"
+            <MoneyInput className="input w-full mono"
               value={draft.amount || ""}
-              onChange={e => setDraft({ ...draft, amount: parseFloat(e.target.value) || 0 })}/>
+              onChange={v => setDraft({ ...draft, amount: v === '' ? 0 : v })}/>
           </div>
         )}
 
@@ -20661,17 +21117,17 @@ function CompensationPolicyEditor({ draft, setDraft, lang, onClose, onSave }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <div className="label mb-1">{lang === "en" ? "CPI Rate (%)" : "TÜFE Oranı (%)"}</div>
-              <input type="number" className="input w-full mono"
+              <RateInput className="input w-full mono"
                 value={draft.cpiRate || ""}
                 placeholder="65"
-                onChange={e => setDraft({ ...draft, cpiRate: parseFloat(e.target.value) || 0 })}/>
+                onChange={v => setDraft({ ...draft, cpiRate: v === '' ? 0 : v })}/>
             </div>
             <div>
               <div className="label mb-1">{lang === "en" ? "Apply % of CPI" : "TÜFE'nin Uygulanan %'si"}</div>
-              <input type="number" className="input w-full mono"
+              <RateInput className="input w-full mono"
                 value={draft.percent || ""}
                 placeholder="50"
-                onChange={e => setDraft({ ...draft, percent: parseFloat(e.target.value) || 0 })}/>
+                onChange={v => setDraft({ ...draft, percent: v === '' ? 0 : v })}/>
               <div className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>
                 {lang === "en" ? `Effective rate: ${((draft.cpiRate || 0) * (draft.percent || 0) / 100).toFixed(1)}%` : `Etkili oran: %${((draft.cpiRate || 0) * (draft.percent || 0) / 100).toFixed(1)}`}
               </div>
@@ -20682,10 +21138,10 @@ function CompensationPolicyEditor({ draft, setDraft, lang, onClose, onSave }) {
         {draft.type === "minimum_wage" && (
           <div>
             <div className="label mb-1">{lang === "en" ? "Minimum Wage (TL)" : "Asgari Ücret (TL)"} *</div>
-            <input type="number" className="input w-full mono"
+            <MoneyInput className="input w-full mono"
               value={draft.minimumWage || ""}
               placeholder="22104"
-              onChange={e => setDraft({ ...draft, minimumWage: parseFloat(e.target.value) || 0 })}/>
+              onChange={v => setDraft({ ...draft, minimumWage: v === '' ? 0 : v })}/>
             <div className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>
               {lang === "en" ? "Anyone below this will be raised to this amount" : "Bu tutarın altında kalanlar bu seviyeye yükseltilir"}
             </div>
@@ -20695,9 +21151,9 @@ function CompensationPolicyEditor({ draft, setDraft, lang, onClose, onSave }) {
         {draft.type === "market_adjustment" && (
           <div>
             <div className="label mb-1">{lang === "en" ? "Target Salary (TL)" : "Hedef Maaş (TL)"} *</div>
-            <input type="number" className="input w-full mono"
+            <MoneyInput className="input w-full mono"
               value={draft.targetSalary || ""}
-              onChange={e => setDraft({ ...draft, targetSalary: parseFloat(e.target.value) || 0 })}/>
+              onChange={v => setDraft({ ...draft, targetSalary: v === '' ? 0 : v })}/>
           </div>
         )}
 
@@ -20710,15 +21166,15 @@ function CompensationPolicyEditor({ draft, setDraft, lang, onClose, onSave }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <div className="label mb-1">{lang === "en" ? "Percentage (%)" : "Yüzde (%)"}</div>
-              <input type="number" className="input w-full mono"
+              <RateInput className="input w-full mono"
                 value={draft.percent || ""}
-                onChange={e => setDraft({ ...draft, percent: parseFloat(e.target.value) || 0 })}/>
+                onChange={v => setDraft({ ...draft, percent: v === '' ? 0 : v })}/>
             </div>
             <div>
               <div className="label mb-1">{lang === "en" ? "Plus Amount (TL)" : "Ek Tutar (TL)"}</div>
-              <input type="number" className="input w-full mono"
+              <MoneyInput className="input w-full mono"
                 value={draft.amount || ""}
-                onChange={e => setDraft({ ...draft, amount: parseFloat(e.target.value) || 0 })}/>
+                onChange={v => setDraft({ ...draft, amount: v === '' ? 0 : v })}/>
             </div>
           </div>
         )}
@@ -20808,9 +21264,9 @@ function PerformanceTierEditor({ tiers, onChange, lang }) {
             <input type="number" className="input col-span-2 mono text-center" style={{ fontSize: 11.5 }}
               value={t.maxScore || 100}
               onChange={e => updateTier(idx, "maxScore", parseFloat(e.target.value) || 0)}/>
-            <input type="number" className="input col-span-3 mono text-center" style={{ fontSize: 11.5 }}
+            <RateInput className="input col-span-3 mono text-center" style={{ fontSize: 11.5 }}
               value={t.percent || 0}
-              onChange={e => updateTier(idx, "percent", parseFloat(e.target.value) || 0)}/>
+              onChange={v => updateTier(idx, "percent", v === '' ? 0 : v)}/>
             <button type="button" onClick={() => removeTier(idx)} className="col-span-1"
               style={{ color: "var(--negative)" }}>
               <X size={11}/>
@@ -21577,9 +22033,9 @@ function PayrollComponentEditor({ draft, setDraft, lang, onClose, onSave }) {
           {draft.calc?.method === "fixed_amount" && (
             <div>
               <div className="label mb-1">{lang === "en" ? "Fixed Amount (TL)" : "Sabit Tutar (TL)"}</div>
-              <input type="number" className="input w-full mono text-right" style={{ fontSize: 13 }}
+              <MoneyInput className="input w-full mono text-right" style={{ fontSize: 13 }}
                 value={draft.calc?.value || 0}
-                onChange={e => setCalc("value", parseFloat(e.target.value) || 0)}/>
+                onChange={v => setCalc("value", v === '' ? 0 : v)}/>
               <div className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>
                 {lang === "en" ? "Or use formula source like 'employee_brutSalary'" : "Veya 'employee_brutSalary' gibi bir kaynak kullanın"}
               </div>
@@ -21590,9 +22046,9 @@ function PayrollComponentEditor({ draft, setDraft, lang, onClose, onSave }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <div className="label mb-1">{lang === "en" ? "Percentage (%)" : "Yüzde (%)"}</div>
-                <input type="number" step="0.001" className="input w-full mono" style={{ fontSize: 13 }}
+                <RateInput className="input w-full mono" style={{ fontSize: 13 }}
                   value={draft.calc?.value || 0}
-                  onChange={e => setCalc("value", parseFloat(e.target.value) || 0)}/>
+                  onChange={v => setCalc("value", v === '' ? 0 : v)}/>
               </div>
               <div>
                 <div className="label mb-1">{lang === "en" ? "of (Base)" : "Çarpılan (Matrah)"}</div>
@@ -21610,9 +22066,9 @@ function PayrollComponentEditor({ draft, setDraft, lang, onClose, onSave }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <div className="label mb-1">{lang === "en" ? "Daily Amount (TL)" : "Günlük Tutar (TL)"}</div>
-                <input type="number" className="input w-full mono" style={{ fontSize: 13 }}
+                <MoneyInput className="input w-full mono" style={{ fontSize: 13 }}
                   value={draft.calc?.value || 0}
-                  onChange={e => setCalc("value", parseFloat(e.target.value) || 0)}/>
+                  onChange={v => setCalc("value", v === '' ? 0 : v)}/>
               </div>
               <div>
                 <div className="label mb-1">{lang === "en" ? "Day Type" : "Gün Tipi (Çarpılan)"}</div>
@@ -21630,9 +22086,9 @@ function PayrollComponentEditor({ draft, setDraft, lang, onClose, onSave }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <div className="label mb-1">{lang === "en" ? "Hourly Factor" : "Saatlik Çarpan"}</div>
-                <input type="number" step="0.1" className="input w-full mono"
+                <RateInput className="input w-full mono"
                   value={draft.calc?.value || 1.5}
-                  onChange={e => setCalc("value", parseFloat(e.target.value) || 0)}/>
+                  onChange={v => setCalc("value", v === '' ? 0 : v)}/>
                 <div className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>
                   {lang === "en" ? "1.5 = +50% overtime, 2.0 = +100%" : "1.5 = %50 fazla, 2.0 = %100 fazla"}
                 </div>
@@ -21703,9 +22159,9 @@ function PayrollComponentEditor({ draft, setDraft, lang, onClose, onSave }) {
                 <div className="label mb-1" style={{ fontSize: 11 }}>
                   {lang === "en" ? "Income Tax Exemption (TL)" : "GV İstisna Tutarı (TL)"}
                 </div>
-                <input type="number" className="input w-full mono"
+                <MoneyInput className="input w-full mono"
                   value={draft.exemption?.gvAmount || 0}
-                  onChange={e => setExemption("gvAmount", parseFloat(e.target.value) || 0)}/>
+                  onChange={v => setExemption("gvAmount", v === '' ? 0 : v)}/>
                 <div style={{ fontSize: 10, color: "#854d0e", marginTop: 2 }}>
                   {draft.calc?.method === "per_day" ? (lang === "en" ? "per day" : "günlük") : (lang === "en" ? "per month" : "aylık")}
                 </div>
@@ -21714,17 +22170,17 @@ function PayrollComponentEditor({ draft, setDraft, lang, onClose, onSave }) {
                 <div className="label mb-1" style={{ fontSize: 11 }}>
                   {lang === "en" ? "Stamp Duty Exemption (TL)" : "DV İstisna Tutarı (TL)"}
                 </div>
-                <input type="number" className="input w-full mono"
+                <MoneyInput className="input w-full mono"
                   value={draft.exemption?.dvAmount || 0}
-                  onChange={e => setExemption("dvAmount", parseFloat(e.target.value) || 0)}/>
+                  onChange={v => setExemption("dvAmount", v === '' ? 0 : v)}/>
               </div>
               <div>
                 <div className="label mb-1" style={{ fontSize: 11 }}>
                   {lang === "en" ? "SGK Exemption (TL)" : "SGK İstisna Tutarı (TL)"}
                 </div>
-                <input type="number" className="input w-full mono"
+                <MoneyInput className="input w-full mono"
                   value={draft.exemption?.sgkAmount || 0}
-                  onChange={e => setExemption("sgkAmount", parseFloat(e.target.value) || 0)}/>
+                  onChange={v => setExemption("sgkAmount", v === '' ? 0 : v)}/>
               </div>
             </div>
             <div className="text-xs mt-2" style={{ color: "#854d0e" }}>
@@ -22317,33 +22773,33 @@ function PayrollParamsEditor({ draft, setDraft, lang, onClose, onSave }) {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div>
                 <div className="label mb-1">{lang === "en" ? "Gross Monthly (TL)" : "Brüt Aylık (TL)"} *</div>
-                <input type="number" step="0.01" className="input w-full mono text-right"
+                <MoneyInput className="input w-full mono text-right"
                   value={draft.minimumWage?.gross || ""}
-                  onChange={e => setMinWage("gross", parseFloat(e.target.value) || 0)}/>
+                  onChange={v => setMinWage("gross", v === '' ? 0 : v)}/>
               </div>
               <div>
                 <div className="label mb-1">{lang === "en" ? "Net Monthly (TL)" : "Net Aylık (TL)"}</div>
-                <input type="number" step="0.01" className="input w-full mono text-right"
+                <MoneyInput className="input w-full mono text-right"
                   value={draft.minimumWage?.net || ""}
-                  onChange={e => setMinWage("net", parseFloat(e.target.value) || 0)}/>
+                  onChange={v => setMinWage("net", v === '' ? 0 : v)}/>
               </div>
               <div>
                 <div className="label mb-1">{lang === "en" ? "Employer Cost (TL)" : "İşveren Maliyeti (TL)"}</div>
-                <input type="number" step="0.01" className="input w-full mono text-right"
+                <MoneyInput className="input w-full mono text-right"
                   value={draft.minimumWage?.employerCost || ""}
-                  onChange={e => setMinWage("employerCost", parseFloat(e.target.value) || 0)}/>
+                  onChange={v => setMinWage("employerCost", v === '' ? 0 : v)}/>
               </div>
               <div>
                 <div className="label mb-1">{lang === "en" ? "Daily (TL)" : "Günlük (TL)"}</div>
-                <input type="number" step="0.01" className="input w-full mono text-right"
+                <MoneyInput className="input w-full mono text-right"
                   value={draft.minimumWage?.daily || ((draft.minimumWage?.gross || 0) / 30).toFixed(2)}
-                  onChange={e => setMinWage("daily", parseFloat(e.target.value) || 0)}/>
+                  onChange={v => setMinWage("daily", v === '' ? 0 : v)}/>
               </div>
               <div>
                 <div className="label mb-1">{lang === "en" ? "Hourly (TL)" : "Saatlik (TL)"}</div>
-                <input type="number" step="0.01" className="input w-full mono text-right"
+                <MoneyInput className="input w-full mono text-right"
                   value={draft.minimumWage?.hourly || ((draft.minimumWage?.gross || 0) / 225).toFixed(2)}
-                  onChange={e => setMinWage("hourly", parseFloat(e.target.value) || 0)}/>
+                  onChange={v => setMinWage("hourly", v === '' ? 0 : v)}/>
               </div>
               <div>
                 <button type="button" onClick={() => {
@@ -22394,15 +22850,15 @@ function PayrollParamsEditor({ draft, setDraft, lang, onClose, onSave }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className="label mb-1">{lang === "en" ? "SGK Employee (%)" : "SGK İşçi (%)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.sgkRates?.employeeRate || ""}
-                    onChange={e => setSGK("employeeRate", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setSGK("employeeRate", v === '' ? 0 : v)}/>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Unemployment Employee (%)" : "İşsizlik İşçi (%)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.sgkRates?.employeeUnempRate || ""}
-                    onChange={e => setSGK("employeeUnempRate", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setSGK("employeeUnempRate", v === '' ? 0 : v)}/>
                 </div>
               </div>
             </div>
@@ -22414,24 +22870,24 @@ function PayrollParamsEditor({ draft, setDraft, lang, onClose, onSave }) {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <div className="label mb-1">{lang === "en" ? "SGK Employer (%)" : "SGK İşveren (%)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.sgkRates?.employerRate || ""}
-                    onChange={e => setSGK("employerRate", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setSGK("employerRate", v === '' ? 0 : v)}/>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "5510 5-pt Discounted (%)" : "5510 İndirimli (%)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.sgkRates?.employerRateDiscounted || ""}
-                    onChange={e => setSGK("employerRateDiscounted", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setSGK("employerRateDiscounted", v === '' ? 0 : v)}/>
                   <div className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>
                     {lang === "en" ? "After 5510 incentive" : "5510 teşvikli oran"}
                   </div>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Unemployment Employer (%)" : "İşsizlik İşveren (%)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.sgkRates?.employerUnempRate || ""}
-                    onChange={e => setSGK("employerUnempRate", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setSGK("employerUnempRate", v === '' ? 0 : v)}/>
                 </div>
               </div>
             </div>
@@ -22446,9 +22902,9 @@ function PayrollParamsEditor({ draft, setDraft, lang, onClose, onSave }) {
                     <div className="label mb-1" style={{ fontSize: 10.5 }}>
                       {v.labels[lang] || v.labels.tr}
                     </div>
-                    <input type="number" step="0.01" className="input w-full mono"
+                    <RateInput className="input w-full mono"
                       value={draft.sgkRates?.hazardRates?.[k] ?? v.rate}
-                      onChange={e => setSGKHazard(k, parseFloat(e.target.value) || 0)}/>
+                      onChange={val => setSGKHazard(k, val === '' ? 0 : val)}/>
                     <div style={{ fontSize: 9.5, color: "var(--ink-mute)", marginTop: 2 }}>%</div>
                   </div>
                 ))}
@@ -22462,9 +22918,9 @@ function PayrollParamsEditor({ draft, setDraft, lang, onClose, onSave }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className="label mb-1">{lang === "en" ? "SGK Ceiling Multiplier" : "SGK Tavan Çarpanı"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.sgkRates?.sgkCeilingMultiplier || 7.5}
-                    onChange={e => setSGK("sgkCeilingMultiplier", parseFloat(e.target.value) || 7.5)}/>
+                    onChange={v => setSGK("sgkCeilingMultiplier", v === '' ? 7.5 : v)}/>
                   <div className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>
                     {lang === "en" ? "Multiplied by minimum wage" : "Asgari ücret ile çarpılır"}
                   </div>
@@ -22520,15 +22976,15 @@ function PayrollParamsEditor({ draft, setDraft, lang, onClose, onSave }) {
                     <tr key={idx} style={{ borderTop: "1px solid var(--line-soft)" }}>
                       <td className="text-center p-1.5 mono font-bold">{idx + 1}</td>
                       <td className="p-1">
-                        <input type="number" className="input w-full mono text-right" style={{ fontSize: 11.5 }}
+                        <MoneyInput className="input w-full mono text-right" style={{ fontSize: 11.5 }}
                           value={b.from || 0}
-                          onChange={e => updateBracket(idx, "from", e.target.value)}/>
+                          onChange={v => updateBracket(idx, "from", v)}/>
                       </td>
                       <td className="p-1">
-                        <input type="number" className="input w-full mono text-right" style={{ fontSize: 11.5 }}
+                        <MoneyInput className="input w-full mono text-right" style={{ fontSize: 11.5 }}
                           value={b.to == null ? "" : b.to}
                           placeholder={lang === "en" ? "∞ (top)" : "∞ (üst)"}
-                          onChange={e => updateBracket(idx, "to", e.target.value)}/>
+                          onChange={v => updateBracket(idx, "to", v)}/>
                       </td>
                       <td className="p-1">
                         <input type="number" step="0.01" className="input w-full mono text-center"
@@ -22554,10 +23010,10 @@ function PayrollParamsEditor({ draft, setDraft, lang, onClose, onSave }) {
               </div>
               <div>
                 <div className="label mb-1">{lang === "en" ? "Stamp Duty Rate (%)" : "Damga Vergisi Oranı (%)"}</div>
-                <input type="number" step="0.001" className="input w-full mono"
+                <RateInput className="input w-full mono"
                   value={draft.stampDutyRate || ""}
-                  placeholder="0.759"
-                  onChange={e => setDraft({ ...draft, stampDutyRate: parseFloat(e.target.value) || 0 })}/>
+                  placeholder="0,759"
+                  onChange={v => setDraft({ ...draft, stampDutyRate: v === '' ? 0 : v })}/>
                 <div className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>
                   {lang === "en" ? "Standard rate: 0.759% (‰7.59)" : "Standart oran: %0,759 (‰7,59)"}
                 </div>
@@ -22576,27 +23032,27 @@ function PayrollParamsEditor({ draft, setDraft, lang, onClose, onSave }) {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Meal Daily (TL)" : "Yemek Günlük (TL)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <MoneyInput className="input w-full mono"
                     value={draft.exemptions?.mealDailyExemption || ""}
-                    onChange={e => setExemption("mealDailyExemption", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setExemption("mealDailyExemption", v === '' ? 0 : v)}/>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Meal Monthly (TL)" : "Yemek Aylık (TL)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <MoneyInput className="input w-full mono"
                     value={draft.exemptions?.mealMonthlyExemption || ""}
-                    onChange={e => setExemption("mealMonthlyExemption", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setExemption("mealMonthlyExemption", v === '' ? 0 : v)}/>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Transport Daily (TL)" : "Yol Günlük (TL)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <MoneyInput className="input w-full mono"
                     value={draft.exemptions?.transportDailyExemption || ""}
-                    onChange={e => setExemption("transportDailyExemption", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setExemption("transportDailyExemption", v === '' ? 0 : v)}/>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Transport Monthly (TL)" : "Yol Aylık (TL)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <MoneyInput className="input w-full mono"
                     value={draft.exemptions?.transportMonthlyExemption || ""}
-                    onChange={e => setExemption("transportMonthlyExemption", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setExemption("transportMonthlyExemption", v === '' ? 0 : v)}/>
                 </div>
               </div>
             </div>
@@ -22642,15 +23098,15 @@ function PayrollParamsEditor({ draft, setDraft, lang, onClose, onSave }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Severance Ceiling (TL)" : "Kıdem Tazminatı Tavanı (TL)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <MoneyInput className="input w-full mono"
                     value={draft.exemptions?.severanceCeiling || ""}
-                    onChange={e => setExemption("severanceCeiling", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setExemption("severanceCeiling", v === '' ? 0 : v)}/>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Child Allowance Rate (%)" : "Çocuk Yardımı Oranı (%)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.exemptions?.childAllowanceRate || 2}
-                    onChange={e => setExemption("childAllowanceRate", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setExemption("childAllowanceRate", v === '' ? 0 : v)}/>
                   <div className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>
                     {lang === "en" ? "0-2 yo: GV exemption" : "0-2 yaş GV istisnası"}
                   </div>
@@ -22679,15 +23135,15 @@ function PayrollParamsEditor({ draft, setDraft, lang, onClose, onSave }) {
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Employee Contribution (%)" : "Çalışan Payı (%)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.bes?.employeeRate || 3}
-                    onChange={e => setBES("employeeRate", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setBES("employeeRate", v === '' ? 0 : v)}/>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Employer Match (%)" : "İşveren Eşleştirme (%)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.bes?.employerMatchRate || 0}
-                    onChange={e => setBES("employerMatchRate", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setBES("employerMatchRate", v === '' ? 0 : v)}/>
                 </div>
               </div>
             </div>
@@ -22699,33 +23155,33 @@ function PayrollParamsEditor({ draft, setDraft, lang, onClose, onSave }) {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Standard GV Stopaj %" : "Standart GV Stopaj %"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.rdIncentive?.gvStopajRateStandard || 80}
-                    onChange={e => setRD("gvStopajRateStandard", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setRD("gvStopajRateStandard", v === '' ? 0 : v)}/>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "PhD GV Stopaj %" : "Doktoralı GV Stopaj %"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.rdIncentive?.gvStopajRatePhD || 95}
-                    onChange={e => setRD("gvStopajRatePhD", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setRD("gvStopajRatePhD", v === '' ? 0 : v)}/>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Top-25% GV Stopaj %" : "En Çok %25 GV Stopaj %"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.rdIncentive?.gvStopajRateTop25 || 100}
-                    onChange={e => setRD("gvStopajRateTop25", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setRD("gvStopajRateTop25", v === '' ? 0 : v)}/>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "SGK Employer Support %" : "SGK İşveren Desteği %"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.rdIncentive?.sgkEmployerSupportRate || 50}
-                    onChange={e => setRD("sgkEmployerSupportRate", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setRD("sgkEmployerSupportRate", v === '' ? 0 : v)}/>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Max Outside Time %" : "Maks. Bölge Dışı %"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.rdIncentive?.maxOutsideTimeRate || 20}
-                    onChange={e => setRD("maxOutsideTimeRate", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setRD("maxOutsideTimeRate", v === '' ? 0 : v)}/>
                 </div>
               </div>
             </div>
@@ -22762,21 +23218,21 @@ function PayrollParamsEditor({ draft, setDraft, lang, onClose, onSave }) {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Normal (×)" : "Normal (×)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.laborLaw?.overtimeRateNormal || 1.5}
-                    onChange={e => setLabor("overtimeRateNormal", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setLabor("overtimeRateNormal", v === '' ? 0 : v)}/>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Weekend (×)" : "Hafta Tatili (×)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.laborLaw?.overtimeRateWeekend || 2.0}
-                    onChange={e => setLabor("overtimeRateWeekend", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setLabor("overtimeRateWeekend", v === '' ? 0 : v)}/>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Holiday (×)" : "Resmi Tatil (×)"}</div>
-                  <input type="number" step="0.01" className="input w-full mono"
+                  <RateInput className="input w-full mono"
                     value={draft.laborLaw?.overtimeRateHoliday || 2.0}
-                    onChange={e => setLabor("overtimeRateHoliday", parseFloat(e.target.value) || 0)}/>
+                    onChange={v => setLabor("overtimeRateHoliday", v === '' ? 0 : v)}/>
                 </div>
               </div>
             </div>
@@ -23558,21 +24014,21 @@ function BenefitContractFormModal({ draft, setDraft, employees, components, lang
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <div className="label mb-1">{lang === "en" ? "Monthly Total (TL)" : "Aylık Toplam (TL)"}</div>
-                <input type="number" step="0.01" className="input w-full mono text-right"
+                <MoneyInput className="input w-full mono text-right"
                   value={draft.premiumMonthly || ""}
-                  onChange={e => setDraft({ ...draft, premiumMonthly: parseFloat(e.target.value) || 0 })}/>
+                  onChange={v => setDraft({ ...draft, premiumMonthly: v === '' ? 0 : v })}/>
               </div>
               <div>
                 <div className="label mb-1">{lang === "en" ? "Employer Share (TL)" : "İşveren Payı (TL)"}</div>
-                <input type="number" step="0.01" className="input w-full mono text-right"
+                <MoneyInput className="input w-full mono text-right"
                   value={draft.employerShare || ""}
-                  onChange={e => setDraft({ ...draft, employerShare: parseFloat(e.target.value) || 0 })}/>
+                  onChange={v => setDraft({ ...draft, employerShare: v === '' ? 0 : v })}/>
               </div>
               <div>
                 <div className="label mb-1">{lang === "en" ? "Employee Share (TL)" : "Çalışan Payı (TL)"}</div>
-                <input type="number" step="0.01" className="input w-full mono text-right"
+                <MoneyInput className="input w-full mono text-right"
                   value={draft.employeeShare || ""}
-                  onChange={e => setDraft({ ...draft, employeeShare: parseFloat(e.target.value) || 0 })}/>
+                  onChange={v => setDraft({ ...draft, employeeShare: v === '' ? 0 : v })}/>
               </div>
             </div>
 
@@ -23773,7 +24229,7 @@ function RequestsManager({ data, session, users = [], canAct, lang, onChange, lo
   const [searchTerm, setSearchTerm] = useState("");
   const [modal, setModal] = useState(null);
 
-  const canManage = canAct("hr.employees", "update");
+  const canManage = canAct("hr.employees.update");
   const employees = (data?.hrEmployees || []).filter(e => e.status === "active");
   const requests = data?.hrRequests || [];
 
@@ -24514,9 +24970,9 @@ function RequestFormModal({ draft, setDraft, employees, assets, data, lang, onCl
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Amount" : "Tutar"} *</div>
-                  <input type="number" step="0.01" className="input w-full mono text-right"
+                  <MoneyInput className="input w-full mono text-right"
                     value={draft.amount || ""}
-                    onChange={e => setDraft({ ...draft, amount: parseFloat(e.target.value) || 0 })}/>
+                    onChange={v => setDraft({ ...draft, amount: v === '' ? 0 : v })}/>
                 </div>
                 <div>
                   <div className="label mb-1">{lang === "en" ? "Currency" : "Para"}</div>
@@ -24634,9 +25090,9 @@ function RequestFormModal({ draft, setDraft, employees, assets, data, lang, onCl
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <div className="label mb-1">{lang === "en" ? "VAT" : "KDV"}</div>
-                    <input type="number" step="0.01" className="input w-full mono text-right"
+                    <MoneyInput className="input w-full mono text-right"
                       value={draft.vatAmount || ""}
-                      onChange={e => setDraft({ ...draft, vatAmount: parseFloat(e.target.value) || 0 })}/>
+                      onChange={v => setDraft({ ...draft, vatAmount: v === '' ? 0 : v })}/>
                   </div>
                   <div>
                     <div className="label mb-1">{lang === "en" ? "Receipt URL" : "Belge URL"}</div>
@@ -25683,15 +26139,15 @@ function PositionFormModal({ draft, setDraft, departments, lang, onClose, onSave
           <div className="grid grid-cols-3 gap-3">
             <div>
               <div className="label mb-1 text-xs">{t("pos.brutMin", lang)}</div>
-              <input className="input w-full mono text-right" type="text" placeholder="0,00"
+              <MoneyInput className="input w-full mono text-right" placeholder="0,00"
                 value={draft.brutMinSalary || ""}
-                onChange={e => setDraft({ ...draft, brutMinSalary: e.target.value })}/>
+                onChange={v => setDraft({ ...draft, brutMinSalary: v })}/>
             </div>
             <div>
               <div className="label mb-1 text-xs">{t("pos.brutMax", lang)}</div>
-              <input className="input w-full mono text-right" type="text" placeholder="0,00"
+              <MoneyInput className="input w-full mono text-right" placeholder="0,00"
                 value={draft.brutMaxSalary || ""}
-                onChange={e => setDraft({ ...draft, brutMaxSalary: e.target.value })}/>
+                onChange={v => setDraft({ ...draft, brutMaxSalary: v })}/>
             </div>
             <div>
               <div className="label mb-1 text-xs">{t("banks.currency", lang)}</div>
@@ -27410,10 +27866,10 @@ function SelfServiceRequestModal({ draft, setDraft, employee, data, kind, lang, 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <div className="label mb-1">{lang === "en" ? "Amount" : "Tutar"} *</div>
-              <input type="number" step="0.01" className="input w-full mono text-right"
+              <MoneyInput className="input w-full mono text-right"
                 value={draft.amount || ""}
-                placeholder="0.00"
-                onChange={e => setDraft({ ...draft, amount: parseFloat(e.target.value) || 0 })}/>
+                placeholder="0,00"
+                onChange={v => setDraft({ ...draft, amount: v === '' ? 0 : v })}/>
             </div>
             <div>
               <div className="label mb-1">{lang === "en" ? "Currency" : "Para"}</div>
@@ -27501,9 +27957,9 @@ function SelfServiceRequestModal({ draft, setDraft, employee, data, kind, lang, 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <div className="label mb-1">{lang === "en" ? "VAT" : "KDV"}</div>
-                <input type="number" step="0.01" className="input w-full mono text-right"
+                <MoneyInput className="input w-full mono text-right"
                   value={draft.vatAmount || ""}
-                  onChange={e => setDraft({ ...draft, vatAmount: parseFloat(e.target.value) || 0 })}/>
+                  onChange={v => setDraft({ ...draft, vatAmount: v === '' ? 0 : v })}/>
               </div>
               <div>
                 <div className="label mb-1">{lang === "en" ? "Receipt URL" : "Belge URL"}</div>
@@ -28159,8 +28615,10 @@ function TopBar({ session, onLogout, view, setView, data, onChangeData, canAct, 
    ---------------------------------------------------------------------
    Hesap Planı | Yevmiye Fişleri | Mizan | Bilanço | Gelir Tablosu
 ===================================================================== */
-function AccountingModule({ data, session, canAct, lang, onChange, logAudit, notify }) {
-  const [activeTab, setActiveTab] = useState("coa");
+function AccountingModule({ data, session, canAct, lang, onChange, logAudit, notify, activeTab: activeTabProp, setActiveTab: setActiveTabProp }) {
+  const [activeTabState, setActiveTabState] = useState("coa");
+  const activeTab = activeTabProp ?? activeTabState;
+  const setActiveTab = setActiveTabProp ?? setActiveTabState;
 
   // Çek/Senet veya başka modülden yönlendirme: localStorage kontrolü
   useEffect(() => {
@@ -28199,50 +28657,8 @@ function AccountingModule({ data, session, canAct, lang, onChange, logAudit, not
         </div>
       </div>
 
-      {/* Sol Sidebar + Sağ İçerik */}
+      {/* İçerik — alt sekme navigasyonu menüye taşındı (akordeon) */}
       <div className="flex gap-3" style={{ minHeight: 600 }}>
-        {/* Sol Sidebar */}
-        <div style={{
-          width: 220, flexShrink: 0,
-          background: "var(--paper)",
-          borderRadius: 8,
-          border: "1px solid var(--line)",
-          padding: 8,
-          alignSelf: "flex-start",
-          position: "sticky", top: 8,
-        }}>
-          <div className="space-y-1">
-            {tabs.map(tab => {
-              const isActive = activeTab === tab.id;
-              const Icon = tab.icon || ClipboardList;
-              const tabColor = tab.accent || "var(--accent)";
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className="w-full flex items-center gap-2 text-left"
-                  style={{
-                    padding: "9px 12px",
-                    borderRadius: 6,
-                    fontSize: 12.5,
-                    fontWeight: isActive ? 700 : 500,
-                    color: isActive ? "#fff" : "var(--ink)",
-                    background: isActive ? tabColor : "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "var(--bg-alt)"; }}
-                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
-                >
-                  <Icon size={13} style={{ flexShrink: 0 }}/>
-                  <span style={{ flex: 1 }}>{tab.label[lang] || tab.label.tr}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Sağ İçerik */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {activeTab === "coa" && (
@@ -28327,6 +28743,7 @@ function JournalEntriesManager({ data, session, canAct, lang, onChange, logAudit
   const [editingEntry, setEditingEntry] = useState(null); // { mode, data }
   const [viewingEntry, setViewingEntry] = useState(null);
   const [highlightVoucherNo, setHighlightVoucherNo] = useState(null);
+  const [showEdefter, setShowEdefter] = useState(false); // e-Defter XBRL-GL üretim modalı
 
   // Çek/Senet modülünden yönlendirme: localStorage'dan hedef fişi al
   useEffect(() => {
@@ -28369,15 +28786,27 @@ function JournalEntriesManager({ data, session, canAct, lang, onChange, logAudit
       notify(validation.error, "err");
       return;
     }
+    // GİB asgari-bilgi denetimi (Elektronik Muhasebe Fişi Kılavuzu, Bölüm 2)
+    const gib = validateGibFis(entry);
+    if (!gib.valid) {
+      notify((lang === "en" ? "GİB required fields missing: " : "GİB zorunlu alanları eksik: ") + gib.missing.join(", "), "err");
+      return;
+    }
     const next = entries.map(e => e.id === entry.id ? {
       ...e,
       status: "posted",
+      entryTime: e.entryTime || nowHHMM(),
       postedAt: new Date().toISOString(),
       postedBy: session.username,
+      approvedByName: session.fullName || session.username, // GİB: fişi onaylayanın adı soyadı
     } : e);
     await onChange({ ...data, accJournalEntries: next });
     logAudit && logAudit("post", "journal_entry", { voucherNo: entry.voucherNo });
-    notify(lang === "en" ? "Entry posted" : "Fiş onaylandı");
+    if (gib.warnings && gib.warnings.length) {
+      notify((lang === "en" ? "Posted. Pending: " : "Onaylandı. Eksik (deftere işlenince tamamlanır): ") + gib.warnings.join(", "));
+    } else {
+      notify(lang === "en" ? "Entry posted" : "Fiş onaylandı");
+    }
   };
 
   const handleCancel = async (entry) => {
@@ -28453,6 +28882,8 @@ function JournalEntriesManager({ data, session, canAct, lang, onChange, logAudit
         voucherNo,
         voucherType: formData.voucherType,
         date: formData.date,
+        entryTime: formData.entryTime || nowHHMM(),
+        yevmiyeMaddeNo: formData.yevmiyeMaddeNo || "",
         description: formData.description || "",
         projectId: formData.projectId || null,
         lines: formData.lines,
@@ -28467,17 +28898,25 @@ function JournalEntriesManager({ data, session, canAct, lang, onChange, logAudit
         createdBy: session.username,
       };
       if (newEntry.status === "posted") {
+        const gib = validateGibFis(newEntry);
+        if (!gib.valid) {
+          notify((lang === "en" ? "GİB required fields missing: " : "GİB zorunlu alanları eksik: ") + gib.missing.join(", "), "err");
+          return;
+        }
         newEntry.postedAt = new Date().toISOString();
         newEntry.postedBy = session.username;
+        newEntry.approvedByName = session.fullName || session.username; // GİB: fişi onaylayanın adı soyadı
       }
       next = [...entries, newEntry];
       logAudit && logAudit("create", "journal_entry", { voucherNo });
       notify(lang === "en" ? "Entry created" : "Yevmiye fişi oluşturuldu");
     } else {
-      next = entries.map(e => e.id === editingEntry.data.id ? {
-        ...e,
+      const updated = {
+        ...editingEntry.data,
         voucherType: formData.voucherType,
         date: formData.date,
+        entryTime: formData.entryTime || editingEntry.data.entryTime || nowHHMM(),
+        yevmiyeMaddeNo: formData.yevmiyeMaddeNo || "",
         description: formData.description || "",
         projectId: formData.projectId || null,
         lines: formData.lines,
@@ -28486,13 +28925,59 @@ function JournalEntriesManager({ data, session, canAct, lang, onChange, logAudit
         status: formData.status || "draft",
         updatedAt: new Date().toISOString(),
         updatedBy: session.username,
-      } : e);
+      };
+      // Taslak → Onaylı geçişinde GİB denetimi + onay bilgisi
+      if (updated.status === "posted" && editingEntry.data.status !== "posted") {
+        const gib = validateGibFis(updated);
+        if (!gib.valid) {
+          notify((lang === "en" ? "GİB required fields missing: " : "GİB zorunlu alanları eksik: ") + gib.missing.join(", "), "err");
+          return;
+        }
+        updated.postedAt = new Date().toISOString();
+        updated.postedBy = session.username;
+        updated.approvedByName = session.fullName || session.username;
+      }
+      next = entries.map(e => e.id === editingEntry.data.id ? updated : e);
       logAudit && logAudit("update", "journal_entry", { voucherNo: editingEntry.data.voucherNo });
       notify(lang === "en" ? "Entry updated" : "Yevmiye fişi güncellendi");
     }
 
     await onChange({ ...data, accJournalEntries: next });
     setEditingEntry(null);
+  };
+
+  // === e-Defter / GİB dışa aktarım (Elektronik Muhasebe Fişi Kılavuzu, Bölüm 3) ===
+  const gibDownload = (content, filename, mime, bom = false) => {
+    const blob = new Blob([bom ? "﻿" + content : content], { type: mime });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+
+  const handleGibExport = (format) => {
+    const list = filteredEntries.filter(e => e.status !== "cancelled");
+    if (list.length === 0) {
+      notify(lang === "en" ? "No entries to export" : "Dışa aktarılacak fiş yok", "err");
+      return;
+    }
+    const mukellef = gibMukellef(data);
+    const stamp = new Date().toISOString().slice(0, 10);
+    if (format === "csv") {
+      gibDownload(buildGibFisCsv(list, mukellef, accounts), `muhasebe_fisleri_${stamp}.csv`, "text/csv;charset=utf-8", true);
+    } else if (format === "json") {
+      gibDownload(buildGibFisJson(list, mukellef, accounts), `muhasebe_fisleri_${stamp}.json`, "application/json;charset=utf-8");
+    } else if (format === "xml") {
+      gibDownload(buildGibFisXml(list, mukellef, accounts), `muhasebe_fisleri_${stamp}.xml`, "application/xml;charset=utf-8");
+    } else if (format === "pdf") {
+      const win = window.open("", "_blank", "width=900,height=700");
+      if (!win) { notify(lang === "en" ? "Popup blocked!" : "Popup engellendi! İzin verin.", "err"); return; }
+      win.document.write(buildGibFisPrintHtml(list, mukellef, accounts, lang));
+      win.document.close();
+    }
+    logAudit && logAudit("export", "journal_entry", { format, count: list.length });
+    notify(lang === "en" ? `Exported ${list.length} entries (${format.toUpperCase()})` : `${list.length} fiş dışa aktarıldı (${format.toUpperCase()})`);
   };
 
   // === Filtreleme ===
@@ -28579,9 +29064,33 @@ function JournalEntriesManager({ data, session, canAct, lang, onChange, logAudit
             ))}
           </select>
 
+          {/* e-Defter / GİB dışa aktarım */}
+          <select
+            className="input text-xs ml-auto"
+            style={{ minWidth: 150 }}
+            value=""
+            onChange={e => { if (e.target.value) { handleGibExport(e.target.value); e.target.value = ""; } }}
+            title={lang === "en" ? "Export per GİB e-Ledger voucher format" : "GİB Elektronik Muhasebe Fişi formatında dışa aktar"}
+          >
+            <option value="">⬇ {lang === "en" ? "e-Ledger Export" : "e-Defter Dışa Aktar"}</option>
+            <option value="xml">XML</option>
+            <option value="csv">CSV</option>
+            <option value="json">JSON</option>
+            <option value="pdf">PDF {lang === "en" ? "(print)" : "(yazdır)"}</option>
+          </select>
+
+          {/* e-Defter XBRL-GL üretimi (Faz 2) */}
+          <button
+            onClick={() => setShowEdefter(true)}
+            className="btn btn-ghost text-xs"
+            title={lang === "en" ? "Generate e-Ledger (XBRL-GL) journal & ledger books" : "e-Defter (XBRL-GL) Yevmiye & Kebir üret"}
+          >
+            <BookOpen size={13}/> e-Defter
+          </button>
+
           {/* Yeni fiş butonları */}
           {canEdit && (
-            <div className="flex items-center gap-1 ml-auto">
+            <div className="flex items-center gap-1">
               <NewVoucherDropdown onNew={handleNew} lang={lang}/>
             </div>
           )}
@@ -28799,6 +29308,211 @@ function JournalEntriesManager({ data, session, canAct, lang, onChange, logAudit
           onSave={handleSave}
         />
       )}
+
+      {/* e-Defter (XBRL-GL) Üretim Modalı */}
+      {showEdefter && (
+        <EdefterGenerateModal
+          data={data}
+          session={session}
+          entries={entries}
+          accounts={accounts}
+          lang={lang}
+          notify={notify}
+          logAudit={logAudit}
+          onClose={() => setShowEdefter(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ---------- e-Defter (XBRL-GL) Üretim Modalı (Faz 2) ---------- */
+function EdefterGenerateModal({ data, session, entries, accounts, lang, notify, logAudit, onClose }) {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [profile, setProfile] = useState(() => gibProfile(data));
+
+  const setP = (k, v) => setProfile(p => ({ ...p, [k]: v }));
+  const setAdr = (k, v) => setProfile(p => ({ ...p, address: { ...p.address, [k]: v } }));
+  const setAcc = (k, v) => setProfile(p => ({ ...p, accountant: { ...p.accountant, [k]: v } }));
+
+  const periodEntries = useMemo(
+    () => selectPeriodEntries(entries, year, month),
+    [entries, year, month],
+  );
+  const missing = useMemo(() => missingProfileFields(profile), [profile]);
+
+  const download = (xml, filename) => {
+    const blob = new Blob([xml], { type: "application/xml;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+
+  const generate = (kind) => {
+    if (periodEntries.length === 0) {
+      notify(lang === "en" ? "No posted entries in this period" : "Bu dönemde onaylı fiş yok", "err");
+      return;
+    }
+    if (!profile.vkn) {
+      notify(lang === "en" ? "VKN/TCKN required" : "VKN/TCKN zorunlu", "err");
+      return;
+    }
+    if (kind === "yevmiye" || kind === "both") {
+      download(buildYevmiyeXbrl({ profile, year, month, entries, accounts }),
+        gibDefterFileName(profile.vkn, year, month, "Y"));
+    }
+    if (kind === "kebir" || kind === "both") {
+      download(buildKebirXbrl({ profile, year, month, entries, accounts }),
+        gibDefterFileName(profile.vkn, year, month, "K"));
+    }
+    logAudit && logAudit("export", "edefter_xbrl", { kind, period: `${year}-${month}`, count: periodEntries.length });
+    notify(lang === "en" ? "e-Ledger XML generated" : "e-Defter XML üretildi (imzasız)");
+  };
+
+  const [signing, setSigning] = useState(false);
+  // Faz 3: imzasız defteri backend'e gönder, Mali Mühür ile imzalat, imzalı
+  // defter + beratı indir. Sertifika yoksa backend 503 döner (anlamlı mesaj).
+  const signViaBackend = async (kind) => {
+    if (periodEntries.length === 0) {
+      notify(lang === "en" ? "No posted entries in this period" : "Bu dönemde onaylı fiş yok", "err");
+      return;
+    }
+    if (!profile.vkn || profile.vkn.length < 10) {
+      notify(lang === "en" ? "VKN/TCKN required" : "VKN/TCKN zorunlu", "err");
+      return;
+    }
+    const apiBase = (typeof window !== "undefined" && window.PROMETCF_API) || "";
+    const token = session?.token || (typeof localStorage !== "undefined" ? localStorage.getItem("promet_access_token") : "") || "";
+    const unsignedDefterXml = kind === "journal"
+      ? buildYevmiyeXbrl({ profile, year, month, entries, accounts })
+      : buildKebirXbrl({ profile, year, month, entries, accounts });
+    setSigning(true);
+    try {
+      const res = await fetch(`${apiBase}/v1/finance/edefter/sign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ kind, unsignedDefterXml, profile, year, month }),
+      });
+      if (res.status === 503) {
+        const j = await res.json().catch(() => ({}));
+        notify(j.message || (lang === "en" ? "Mali Mühür certificate not configured" : "Mali Mühür sertifikası yapılandırılmamış"), "err");
+        return;
+      }
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        notify(j.message || (lang === "en" ? "Signing failed" : "İmzalama başarısız"), "err");
+        return;
+      }
+      const j = await res.json();
+      download(j.signedDefterXml, j.defterFileName);
+      download(j.signedBeratXml, j.beratFileName);
+      logAudit && logAudit("sign", "edefter_xbrl", { kind, period: `${year}-${month}` });
+      notify(lang === "en" ? "Signed ledger + berat downloaded" : "İmzalı defter + berat indirildi");
+    } catch (e) {
+      notify((lang === "en" ? "Backend unreachable: " : "Backend'e ulaşılamadı: ") + (e?.message || ""), "err");
+    } finally {
+      setSigning(false);
+    }
+  };
+
+  const inp = (label, value, onChange, ph) => (
+    <div>
+      <div className="label mb-1">{label}</div>
+      <input className="input w-full" value={value || ""} onChange={e => onChange(e.target.value)} placeholder={ph || ""}/>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
+        <div className="px-5 py-3 border-b flex items-center justify-between" style={{ background: "#0f766e10" }}>
+          <div className="flex items-center gap-2">
+            <BookOpen size={18} style={{ color: "#0f766e" }}/>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>e-Defter (XBRL-GL) {lang === "en" ? "Generate" : "Üret"}</div>
+              <div style={{ fontSize: 10.5, color: "var(--ink-mute)" }}>
+                {lang === "en" ? "Journal & Ledger books — unsigned XBRL-GL instance" : "Yevmiye & Kebir — imzasız XBRL-GL örneği"}
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 rounded hover:bg-bg"><X size={16}/></button>
+        </div>
+
+        <div className="p-4 overflow-y-auto flex-1 space-y-3">
+          {/* Dönem */}
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <div className="label mb-1">{lang === "en" ? "Year" : "Yıl"}</div>
+              <input type="number" className="input w-full mono" value={year}
+                onChange={e => setYear(Number(e.target.value))}/>
+            </div>
+            <div>
+              <div className="label mb-1">{lang === "en" ? "Month" : "Ay"}</div>
+              <select className="input w-full" value={month} onChange={e => setMonth(Number(e.target.value))}>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                  <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <div className="label mb-1">{lang === "en" ? "Posted entries" : "Onaylı fiş"}</div>
+              <div className="input w-full" style={{ display: "flex", alignItems: "center", fontWeight: 700,
+                color: periodEntries.length ? "#15803d" : "#b91c1c" }}>
+                {periodEntries.length}
+              </div>
+            </div>
+          </div>
+
+          {/* Eksik alan uyarısı */}
+          {missing.length > 0 && (
+            <div className="card p-2" style={{ background: "#fef3c7", border: "1px solid #ca8a04", fontSize: 11.5 }}>
+              ⚠ {lang === "en" ? "GİB-required fields missing (file won't validate until completed):" : "GİB zorunlu alanları eksik (tamamlanmadan doğrulamadan geçmez):"} <b>{missing.join(", ")}</b>
+            </div>
+          )}
+
+          {/* Mükellef bilgileri */}
+          <div className="label" style={{ fontWeight: 700, marginTop: 4 }}>{lang === "en" ? "Taxpayer info" : "Mükellef Bilgileri"}</div>
+          <div className="grid grid-cols-2 gap-2">
+            {inp(lang === "en" ? "Legal name" : "Unvan", profile.unvan, v => setP("unvan", v))}
+            {inp("VKN/TCKN", profile.vkn, v => setP("vkn", v.replace(/\D/g, "")))}
+            {inp(lang === "en" ? "Phone" : "Telefon", profile.phone, v => setP("phone", v))}
+            {inp(lang === "en" ? "Email" : "E-posta", profile.email, v => setP("email", v))}
+            {inp(lang === "en" ? "Building no" : "Bina No", profile.address.buildingNumber, v => setAdr("buildingNumber", v))}
+            {inp(lang === "en" ? "Street" : "Cadde/Sokak", profile.address.street, v => setAdr("street", v))}
+            {inp(lang === "en" ? "City" : "İl", profile.address.city, v => setAdr("city", v))}
+            {inp(lang === "en" ? "Zip" : "Posta Kodu", profile.address.zip, v => setAdr("zip", v))}
+            {inp(lang === "en" ? "Accountant (SMMM)" : "Muhasebeci (SMMM)", profile.accountant.name, v => setAcc("name", v))}
+            {inp(lang === "en" ? "Engagement" : "Sözleşme/İlişki", profile.accountant.engagement, v => setAcc("engagement", v))}
+          </div>
+
+          <div className="card p-2" style={{ background: "var(--bg-alt)", fontSize: 11, color: "var(--ink-mute)" }}>
+            {lang === "en"
+              ? "Note: This is the unsigned XBRL-GL instance. To upload to GİB it must be signed with your Mali Mühür/NES (XAdES) and a berat created — that is Faz 3 and requires your certificate."
+              : "Not: Bu imzasız XBRL-GL örneğidir. GİB'e yüklemek için Mali Mühür/NES (XAdES) ile imzalanıp berat üretilmelidir — bu Faz 3'tür ve sertifikanızı gerektirir."}
+          </div>
+        </div>
+
+        <div className="px-4 py-3 border-t flex items-center justify-end gap-2">
+          <button onClick={onClose} className="btn btn-ghost text-xs">{lang === "en" ? "Close" : "Kapat"}</button>
+          <button onClick={() => generate("yevmiye")} className="btn text-xs">
+            <Download size={12}/> {lang === "en" ? "Journal (Y)" : "Yevmiye (Y)"}
+          </button>
+          <button onClick={() => generate("kebir")} className="btn text-xs">
+            <Download size={12}/> {lang === "en" ? "Ledger (K)" : "Kebir (K)"}
+          </button>
+          <button onClick={() => generate("both")} className="btn text-xs">
+            <Download size={12}/> {lang === "en" ? "Both (unsigned)" : "İkisi (imzasız)"}
+          </button>
+          <button onClick={() => signViaBackend("journal")} disabled={signing} className="btn btn-primary text-xs"
+            title={lang === "en" ? "Sign journal book + berat with Mali Mühür (backend)" : "Yevmiye + beratı Mali Mühür ile imzala (backend)"}>
+            <Lock size={12}/> {signing ? (lang === "en" ? "Signing…" : "İmzalanıyor…") : (lang === "en" ? "Sign (Mali Mühür)" : "Mali Mühür ile İmzala")}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -28883,6 +29597,14 @@ function JournalEntryViewModal({ entry, accounts, lang, onClose, onEdit }) {
               <div className="mono" style={{ fontSize: 13, fontWeight: 600 }}>{entry.date}</div>
             </div>
             <div>
+              <div className="label">{lang === "en" ? "Time" : "Saat"}</div>
+              <div className="mono" style={{ fontSize: 13, fontWeight: 600 }}>{entry.entryTime || "—"}</div>
+            </div>
+            <div>
+              <div className="label">{lang === "en" ? "Journal Line No" : "Yevmiye Madde No"}</div>
+              <div className="mono" style={{ fontSize: 13 }}>{entry.yevmiyeMaddeNo || "—"}</div>
+            </div>
+            <div>
               <div className="label">{lang === "en" ? "Source" : "Kaynak"}</div>
               <div style={{ fontSize: 13 }}>
                 {VOUCHER_SOURCES[entry.source]?.label[lang] || entry.source || "—"}
@@ -28891,6 +29613,10 @@ function JournalEntryViewModal({ entry, accounts, lang, onClose, onEdit }) {
             <div>
               <div className="label">{lang === "en" ? "Created By" : "Oluşturan"}</div>
               <div style={{ fontSize: 13 }}>{entry.createdBy || "—"}</div>
+            </div>
+            <div>
+              <div className="label">{lang === "en" ? "Approved By" : "Onaylayan"}</div>
+              <div style={{ fontSize: 13 }}>{entry.approvedByName || entry.postedBy || "—"}</div>
             </div>
           </div>
 
@@ -28997,6 +29723,8 @@ function JournalEntryFormModal({ mode, voucherType, entryData, accounts, entries
         voucherNo: entryData.voucherNo,
         voucherType: entryData.voucherType,
         date: entryData.date,
+        entryTime: entryData.entryTime || nowHHMM(),
+        yevmiyeMaddeNo: entryData.yevmiyeMaddeNo || "",
         description: entryData.description || "",
         source: entryData.source || "manual",
         projectId: entryData.projectId || "",
@@ -29016,6 +29744,8 @@ function JournalEntryFormModal({ mode, voucherType, entryData, accounts, entries
       voucherNo: "",
       voucherType,
       date: today,
+      entryTime: nowHHMM(),
+      yevmiyeMaddeNo: "",
       description: "",
       source: "manual",
       projectId: "",
@@ -29231,6 +29961,26 @@ function JournalEntryFormModal({ mode, voucherType, entryData, accounts, entries
                   className="input w-full mono"
                   value={form.date}
                   onChange={e => setForm({ ...form, date: e.target.value })}
+                />
+              </div>
+              <div>
+                <div className="label mb-1">{lang === "en" ? "Time (HH:mm)" : "Saat (SS:DD)"} *</div>
+                <input
+                  type="time"
+                  className="input w-full mono"
+                  value={form.entryTime || ""}
+                  onChange={e => setForm({ ...form, entryTime: e.target.value })}
+                  title={lang === "en" ? "GİB: voucher issue time" : "GİB: fişin düzenleme zamanı (zorunlu)"}
+                />
+              </div>
+              <div>
+                <div className="label mb-1">{lang === "en" ? "Journal Line No" : "Yevmiye Madde No"}</div>
+                <input
+                  className="input w-full mono"
+                  value={form.yevmiyeMaddeNo || ""}
+                  onChange={e => setForm({ ...form, yevmiyeMaddeNo: e.target.value })}
+                  placeholder={lang === "en" ? "Assigned when posted to ledger" : "Deftere işlenince atanır"}
+                  title={lang === "en" ? "GİB: related journal line number" : "GİB: fişin ait olduğu yevmiye madde numarası"}
                 />
               </div>
               <div>
@@ -29747,35 +30497,31 @@ function JournalEntryLineRow({ line, idx, account, accounts, entries = [], isAct
 
       {/* Borç */}
       <div style={{ width: 110, flexShrink: 0 }}>
-        <input
-          type="number"
+        <MoneyInput
           className="input w-full mono text-right text-xs"
           style={{ padding: "4px 6px", fontSize: 11, color: line.debit > 0 ? "#0f766e" : "var(--ink)" }}
           value={line.debit || ""}
           onFocus={onFocus}
-          onChange={e => {
-            const v = Number(e.target.value) || 0;
+          onChange={val => {
+            const v = val === '' ? 0 : val;
             onUpdate({ debit: v, credit: v > 0 ? 0 : line.credit });
           }}
           placeholder="0,00"
-          step="0.01"
         />
       </div>
 
       {/* Alacak */}
       <div style={{ width: 110, flexShrink: 0 }}>
-        <input
-          type="number"
+        <MoneyInput
           className="input w-full mono text-right text-xs"
           style={{ padding: "4px 6px", fontSize: 11, color: line.credit > 0 ? "#b91c1c" : "var(--ink)" }}
           value={line.credit || ""}
           onFocus={onFocus}
-          onChange={e => {
-            const v = Number(e.target.value) || 0;
+          onChange={val => {
+            const v = val === '' ? 0 : val;
             onUpdate({ credit: v, debit: v > 0 ? 0 : line.debit });
           }}
           placeholder="0,00"
-          step="0.01"
         />
       </div>
 
@@ -36864,7 +37610,7 @@ function NewPartyModal({ onClose, onSave, lang, categories, accounts }) {
             </div>
             <div>
               <div className="label mb-1">{lang === "en" ? "Opening Balance" : "Açılış Bakiyesi"} (TRY)</div>
-              <input type="text" inputMode="decimal" value={openingBalance} onChange={e => setOpeningBalance(e.target.value)} className="input w-full mono" placeholder="0,00"/>
+              <MoneyInput value={openingBalance} onChange={v => setOpeningBalance(v)} className="input w-full mono" placeholder="0,00"/>
             </div>
           </div>
 
@@ -37285,7 +38031,7 @@ function AgingReportView({ parties = [], invoices = [], lang = "tr", onPartyClic
   );
 }
 
-function PartiesModule({ data, session, canAct, lang, onChange, logAudit, notify, setView }) {
+function PartiesModule({ data, session, canAct, lang, onChange, logAudit, notify, setView, activeView: activeViewProp, setActiveView: setActiveViewProp }) {
   const parties = data.accParties || [];
   const cariVouchers = data.accCariVouchers || [];
   const entries = data.accJournalEntries || [];
@@ -37293,11 +38039,22 @@ function PartiesModule({ data, session, canAct, lang, onChange, logAudit, notify
   const banks = data.bankAccounts || [];
 
   // State
-  const [activeView, setActiveView] = useState("list");
+  const [activeViewState, setActiveViewState] = useState("list");
+  const activeView = activeViewProp ?? activeViewState;
+  const setActiveView = setActiveViewProp ?? setActiveViewState;
   const [selectedPartyId, setSelectedPartyId] = useState(null);
   const [selectedVoucherId, setSelectedVoucherId] = useState(null);
   const [showNewPartyModal, setShowNewPartyModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
+
+  // Kontrollü activeView menüden besleniyor; modül yeniden açıldığında seçim
+  // gerektiren bir drill-down state (detail/edit/voucher_edit) kalmışsa listeye dön
+  useEffect(() => {
+    if (!["list", "muavin", "voucher_list", "aging"].includes(activeView)) {
+      setActiveView("list");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Çek/Senet'ten gelen yönlendirmeyi yakala
   useEffect(() => {
@@ -37361,48 +38118,8 @@ function PartiesModule({ data, session, canAct, lang, onChange, logAudit, notify
         )}
       </div>
 
-      {/* Sol Sidebar + Sağ İçerik */}
+      {/* İçerik — alt sekme navigasyonu menüye taşındı (akordeon) */}
       <div className="flex gap-3" style={{ minHeight: 600 }}>
-        {/* Sol Sidebar — sadece liste/muavin/voucher_list görünümlerinde göster */}
-        {["list", "muavin", "voucher_list", "aging"].includes(activeView) && (
-          <div style={{
-            width: 220, flexShrink: 0,
-            background: "var(--paper)",
-            borderRadius: 8,
-            border: "1px solid var(--line)",
-            padding: 8,
-            alignSelf: "flex-start",
-            position: "sticky", top: 8,
-          }}>
-            <div className="space-y-1">
-              {moduleTabs.map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeView === tab.id;
-                return (
-                  <button key={tab.id} onClick={() => setActiveView(tab.id)}
-                    className="w-full flex items-center gap-2 text-left"
-                    style={{
-                      padding: "9px 12px",
-                      borderRadius: 6,
-                      fontSize: 12.5,
-                      fontWeight: isActive ? 700 : 500,
-                      color: isActive ? "#fff" : "var(--ink)",
-                      background: isActive ? "#0891b2" : "transparent",
-                      border: "none",
-                      cursor: "pointer",
-                      transition: "all 0.15s",
-                    }}
-                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "var(--bg-alt)"; }}
-                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}>
-                    <Icon size={13} style={{ flexShrink: 0 }}/>
-                    <span style={{ flex: 1 }}>{tab.label[lang] || tab.label.tr}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {/* Sağ İçerik */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* Görünüm Render */}
@@ -38476,7 +39193,7 @@ function TabRiskBilgileri({ party, updateField, lang }) {
           </div>
           <div>
             <div className="label mb-1">{lang === "en" ? "Debt Amount" : "Borç Tutar"}</div>
-            <input type="text" inputMode="decimal" className="input w-full mono" value={risk.debtAmount || ""} onChange={e => updateField("risk.debtAmount", Number(e.target.value) || 0)}/>
+            <MoneyInput className="input w-full mono" value={risk.debtAmount || ""} onChange={v => updateField("risk.debtAmount", v === '' ? 0 : v)}/>
           </div>
           <div>
             <div className="label mb-1">{lang === "en" ? "Status Date" : "Durum Açıklama Tarihi"}</div>
@@ -38531,8 +39248,8 @@ function TabRiskBilgileri({ party, updateField, lang }) {
                     </select>
                   </td>
                   <td style={{ padding: "4px" }}>
-                    <input type="text" inputMode="decimal" className="input text-xs w-full mono text-right" value={d.limit || ""} onChange={e => {
-                      const newList = [...details]; newList[idx] = { ...d, limit: Number(e.target.value) || 0 }; updateField("risk.details", newList);
+                    <MoneyInput className="input text-xs w-full mono text-right" value={d.limit || ""} onChange={v => {
+                      const newList = [...details]; newList[idx] = { ...d, limit: v === '' ? 0 : v }; updateField("risk.details", newList);
                     }}/>
                   </td>
                   <td style={{ padding: "4px" }}>
@@ -38684,8 +39401,8 @@ function TabParametreler({ party, updateField, lang }) {
                       onChange={e => { const newList = [...dueTracking]; newList[idx] = { ...d, trackingDays: Number(e.target.value) || 0 }; updateField("params.dueTracking", newList); }}/>
                   </td>
                   <td style={{ padding: "4px" }}>
-                    <input type="text" inputMode="decimal" className="input text-xs w-full mono text-right" value={d.trackingAmount || ""}
-                      onChange={e => { const newList = [...dueTracking]; newList[idx] = { ...d, trackingAmount: Number(e.target.value) || 0 }; updateField("params.dueTracking", newList); }}/>
+                    <MoneyInput className="input text-xs w-full mono text-right" value={d.trackingAmount || ""}
+                      onChange={v => { const newList = [...dueTracking]; newList[idx] = { ...d, trackingAmount: v === '' ? 0 : v }; updateField("params.dueTracking", newList); }}/>
                   </td>
                   <td style={{ padding: "4px" }}>
                     <select className="input text-xs w-full" value={d.action} onChange={e => {
@@ -38876,8 +39593,8 @@ function TabTeminat({ party, updateField, lang }) {
                     }}/>
                   </td>
                   <td style={{ padding: "4px" }}>
-                    <input type="text" inputMode="decimal" className="input text-xs w-full mono text-right" value={g.amount || ""} onChange={e => {
-                      const newList = [...guarantees]; newList[idx] = { ...g, amount: Number(e.target.value) || 0 }; updateField("guarantees", newList);
+                    <MoneyInput className="input text-xs w-full mono text-right" value={g.amount || ""} onChange={v => {
+                      const newList = [...guarantees]; newList[idx] = { ...g, amount: v === '' ? 0 : v }; updateField("guarantees", newList);
                     }}/>
                   </td>
                   <td style={{ padding: "4px" }}>
@@ -39448,13 +40165,13 @@ function TabHaciz({ party, updateField, lang }) {
                     }}/>
                   </td>
                   <td style={{ padding: "4px" }}>
-                    <input type="text" inputMode="decimal" className="input text-xs w-full mono text-right" value={r.debtAmount || ""} onChange={e => {
-                      const newList = [...records]; newList[idx] = { ...r, debtAmount: Number(e.target.value) || 0 }; updateField("seizureRecords", newList);
+                    <MoneyInput className="input text-xs w-full mono text-right" value={r.debtAmount || ""} onChange={v => {
+                      const newList = [...records]; newList[idx] = { ...r, debtAmount: v === '' ? 0 : v }; updateField("seizureRecords", newList);
                     }}/>
                   </td>
                   <td style={{ padding: "4px" }}>
-                    <input type="text" inputMode="decimal" className="input text-xs w-full mono text-right" value={r.paidAmount || ""} onChange={e => {
-                      const newList = [...records]; newList[idx] = { ...r, paidAmount: Number(e.target.value) || 0 }; updateField("seizureRecords", newList);
+                    <MoneyInput className="input text-xs w-full mono text-right" value={r.paidAmount || ""} onChange={v => {
+                      const newList = [...records]; newList[idx] = { ...r, paidAmount: v === '' ? 0 : v }; updateField("seizureRecords", newList);
                     }}/>
                   </td>
                   <td style={{ padding: "4px" }}>
@@ -40606,16 +41323,16 @@ function CariVoucherEditor({ voucher, parties, accounts, data, session, lang, on
                         </select>
                       </td>
                       <td style={{ padding: "2px 4px" }}>
-                        <input type="text" inputMode="decimal" className="input text-xs w-full mono text-right" value={line.debit || ""}
-                          onChange={e => updateLine(idx, "debit", Number(e.target.value) || 0)}/>
+                        <MoneyInput className="input text-xs w-full mono text-right" value={line.debit || ""}
+                          onChange={v => updateLine(idx, "debit", v === '' ? 0 : v)}/>
                       </td>
                       <td style={{ padding: "2px 4px" }}>
-                        <input type="text" inputMode="decimal" className="input text-xs w-full mono text-right" value={line.credit || ""}
-                          onChange={e => updateLine(idx, "credit", Number(e.target.value) || 0)}/>
+                        <MoneyInput className="input text-xs w-full mono text-right" value={line.credit || ""}
+                          onChange={v => updateLine(idx, "credit", v === '' ? 0 : v)}/>
                       </td>
                       <td style={{ padding: "2px 4px" }}>
-                        <input type="text" inputMode="decimal" className="input text-xs w-full mono text-right" value={line.fxAmount || ""}
-                          onChange={e => updateLine(idx, "fxAmount", Number(e.target.value) || 0)}/>
+                        <MoneyInput className="input text-xs w-full mono text-right" value={line.fxAmount || ""}
+                          onChange={v => updateLine(idx, "fxAmount", v === '' ? 0 : v)}/>
                       </td>
                       <td style={{ padding: "2px 4px" }}>
                         <input type="text" inputMode="decimal" className="input text-xs w-full mono text-right" value={line.fxRate || ""}
@@ -46809,11 +47526,10 @@ function AccountFormModal({ mode, parentCode, accountData, accounts, lang, onClo
                       <div className="text-xs mb-1" style={{ color: "var(--ink-mute)" }}>
                         {lang === "en" ? "Annual Budget Limit (₺)" : "Yıllık Bütçe Limiti (₺)"}
                       </div>
-                      <input
-                        type="number"
+                      <MoneyInput
                         className="input w-full mono"
                         value={form.budgetLimit ?? ""}
-                        onChange={e => setForm({ ...form, budgetLimit: e.target.value === "" ? null : Number(e.target.value) })}
+                        onChange={v => setForm({ ...form, budgetLimit: v === "" ? null : v })}
                         placeholder="500000"
                       />
                     </div>
@@ -46821,12 +47537,10 @@ function AccountFormModal({ mode, parentCode, accountData, accounts, lang, onClo
                       <div className="text-xs mb-1" style={{ color: "var(--ink-mute)" }}>
                         {lang === "en" ? "Warning Threshold (%)" : "Uyarı Eşiği (%)"}
                       </div>
-                      <input
-                        type="number"
+                      <RateInput
                         className="input w-full mono"
                         value={form.budgetWarningThreshold}
-                        onChange={e => setForm({ ...form, budgetWarningThreshold: Number(e.target.value) })}
-                        min="0" max="100"
+                        onChange={v => setForm({ ...form, budgetWarningThreshold: v === '' ? 0 : v })}
                       />
                     </div>
                   </div>
@@ -52728,8 +53442,8 @@ function BanksManager({ data, session, canAct, lang, onChange, logAudit, notify 
               </div>
               <div>
                 <div className="label mb-1">{t("kasa.opening", lang)}</div>
-                <input className="input num" type="number" value={accountDraft.openingBalance}
-                  onChange={e => setAccountDraft({ ...accountDraft, openingBalance: e.target.value })}/>
+                <MoneyInput className="input num" value={accountDraft.openingBalance}
+                  onChange={v => setAccountDraft({ ...accountDraft, openingBalance: v })}/>
               </div>
             </div>
             <div>
@@ -52835,8 +53549,8 @@ function AccountRow({ acc, canManage, canTransfer, canEntry, canImport, onUpdate
             <option value="EUR">EUR</option>
           </select>
         </td>
-        <td><input className="input num text-right" type="number" value={draft.openingBalance}
-          onChange={e => setDraft({ ...draft, openingBalance: e.target.value })}/></td>
+        <td><MoneyInput className="input num text-right" value={draft.openingBalance}
+          onChange={v => setDraft({ ...draft, openingBalance: v })}/></td>
         <td>
           <div className="flex items-center gap-1 justify-end">
             <button onClick={() => { onUpdate(acc.id, { name: draft.name, iban: draft.iban.replace(/\s+/g, ""), currency: draft.currency, openingBalance: Number(draft.openingBalance) || 0 }); setEditing(false); }}
@@ -53157,15 +53871,8 @@ function BankEntryModal({ draft, setDraft, account, cashflowCats, onClose, onSav
           </div>
           <div>
             <div className="label mb-1">Tutar ({sym}) *</div>
-            <input className="input w-full mono text-right" type="text" placeholder="0,00"
-              value={draft.amount} onChange={e => setDraft({ ...draft, amount: e.target.value })}
-              onBlur={e => {
-                // Türk format'a normalize et: girilen değeri parse edip 2 ondalıklı göster
-                const parsed = parseTRNumber(e.target.value);
-                if (parsed > 0) {
-                  setDraft({ ...draft, amount: fmtTL2(parsed) });
-                }
-              }}/>
+            <MoneyInput className="input w-full mono text-right" placeholder="0,00"
+              value={draft.amount} onChange={v => setDraft({ ...draft, amount: v })}/>
             <div className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>
               Format: 1.234,56 (nokta binlik, virgül ondalık)
             </div>
@@ -54292,8 +54999,8 @@ function CheckEditorModal({ check, parties, banks, lang, onSave, onClose }) {
           </div>
           <div>
             <label className="label text-xs">{lang === "en" ? "Amount" : "Tutar"} *</label>
-            <input type="number" step="0.01" value={draft.amount} onChange={e => update("amount", e.target.value)}
-              className="input text-sm w-full mono text-right" placeholder="0.00"/>
+            <MoneyInput value={draft.amount} onChange={v => update("amount", v)}
+              className="input text-sm w-full mono text-right" placeholder="0,00"/>
           </div>
           <div>
             <label className="label text-xs">{lang === "en" ? "Currency" : "Para Birimi"}</label>
@@ -55025,8 +55732,10 @@ const APPROVAL_STATUS = {
 };
 
 /* === ApprovalsModule — Onaylar Ana Sayfa (sol sidebar ile) === */
-function ApprovalsModule({ data, session, users = [], canAct, lang, onChange, logAudit, notify, navigateToEntity }) {
-  const [activeTab, setActiveTab] = useState("requests");
+function ApprovalsModule({ data, session, users = [], canAct, lang, onChange, logAudit, notify, navigateToEntity, activeTab: activeTabProp, setActiveTab: setActiveTabProp }) {
+  const [activeTabState, setActiveTabState] = useState("requests");
+  const activeTab = activeTabProp ?? activeTabState;
+  const setActiveTab = setActiveTabProp ?? setActiveTabState;
 
   const canManageRules = can(session.role, "manage_approval_rules") ||
     (canAct && canAct("system.approvals.update"));
@@ -55054,50 +55763,8 @@ function ApprovalsModule({ data, session, users = [], canAct, lang, onChange, lo
         accentColor="#0f766e"
       />
 
+      {/* İçerik — alt sekme navigasyonu menüye taşındı (akordeon) */}
       <div className="flex gap-3" style={{ minHeight: 500 }}>
-        {/* Sol Sidebar */}
-        <div style={{
-          width: 220, flexShrink: 0,
-          background: "var(--paper)",
-          borderRadius: 8,
-          border: "1px solid var(--line)",
-          padding: 8,
-          alignSelf: "flex-start",
-          position: "sticky", top: 8,
-        }}>
-          <div className="space-y-1">
-            {tabs.map(tab => {
-              const isActive = activeTab === tab.id;
-              const Ic = tab.icon;
-              return (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                  className="w-full flex items-center gap-2 text-left"
-                  style={{
-                    padding: "9px 12px",
-                    borderRadius: 6,
-                    fontSize: 12.5,
-                    fontWeight: isActive ? 700 : 500,
-                    color: isActive ? "#fff" : "var(--ink)",
-                    background: isActive ? "#0f766e" : "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                  }}
-                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "var(--bg-alt)"; }}
-                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}>
-                  <Ic size={13} style={{ flexShrink: 0 }}/>
-                  <span style={{ flex: 1 }}>{tab.label[lang] || tab.label.tr}</span>
-                  {tab.badge > 0 && (
-                    <span className="rounded-full text-white font-bold flex items-center justify-center"
-                      style={{ background: "#dc2626", fontSize: 9, minWidth: 16, height: 16, padding: "0 4px" }}>
-                      {tab.badge > 99 ? "99+" : tab.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Sağ İçerik */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {activeTab === "requests" && (
@@ -55797,8 +56464,8 @@ function ApprovalRuleEditor({ rule, lang, onSave, onClose }) {
           </div>
           <div>
             <label className="label text-xs">{lang === "en" ? "Min Amount *" : "Min Tutar *"}</label>
-            <input type="number" step="0.01" value={draft.minAmount}
-              onChange={e => update("minAmount", e.target.value)}
+            <MoneyInput value={draft.minAmount}
+              onChange={v => update("minAmount", v)}
               className="input text-sm w-full mono text-right"/>
           </div>
           <div>
@@ -57393,41 +58060,9 @@ function SalesModule({ data, session, users = [], canAct, lang, onChange, logAud
         </button>
       </div>
 
-      {/* View Switcher + Filtreler */}
+      {/* Filtreler — görünüm anahtarı menüye taşındı (akordeon) */}
       <div className="card p-3">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
-          <div>
-            <label className="label text-xs">{lang === "en" ? "View" : "Görünüm"}</label>
-            <div className="flex gap-1">
-              <button onClick={() => setActiveView("pipeline")}
-                className="btn text-xs"
-                style={{
-                  background: activeView === "pipeline" ? "#7c3aed" : "var(--bg-alt)",
-                  color: activeView === "pipeline" ? "#fff" : "var(--ink)",
-                  padding: "6px 8px", fontWeight: 700, flex: 1, fontSize: 11,
-                }}>
-                📊 Kanban
-              </button>
-              <button onClick={() => setActiveView("list")}
-                className="btn text-xs"
-                style={{
-                  background: activeView === "list" ? "#7c3aed" : "var(--bg-alt)",
-                  color: activeView === "list" ? "#fff" : "var(--ink)",
-                  padding: "6px 8px", fontWeight: 700, flex: 1, fontSize: 11,
-                }}>
-                {lang === "en" ? "List" : "Liste"}
-              </button>
-              <button onClick={() => setActiveView("activities")}
-                className="btn text-xs"
-                style={{
-                  background: activeView === "activities" ? "#7c3aed" : "var(--bg-alt)",
-                  color: activeView === "activities" ? "#fff" : "var(--ink)",
-                  padding: "6px 8px", fontWeight: 700, flex: 1, fontSize: 11,
-                }}>
-                📅
-              </button>
-            </div>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
           <div>
             <label className="label text-xs">{lang === "en" ? "Owner" : "Sahip"}</label>
             <select value={filterOwner} onChange={e => setFilterOwner(e.target.value)}
@@ -58003,8 +58638,8 @@ function DealEditorModal({ deal, parties, users, session, lang, onSave, onClose 
         <div className="grid grid-cols-3 gap-2">
           <div>
             <label className="label text-xs">{lang === "en" ? "Deal Value" : "Fırsat Değeri"}</label>
-            <input type="number" step="0.01" value={draft.value || ""}
-              onChange={e => update("value", Number(e.target.value))}
+            <MoneyInput value={draft.value || ""}
+              onChange={v => update("value", v === '' ? 0 : v)}
               className="input text-sm w-full mono text-right"/>
           </div>
           <div>
@@ -58827,41 +59462,9 @@ function PurchaseModule({ data, session, users = [], canAct, lang, onChange, log
         </button>
       </div>
 
-      {/* View Switcher + Filtreler */}
+      {/* Filtreler — görünüm anahtarı menüye taşındı (akordeon) */}
       <div className="card p-3">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
-          <div>
-            <label className="label text-xs">{lang === "en" ? "View" : "Görünüm"}</label>
-            <div className="flex gap-1">
-              <button onClick={() => setActiveView("requests")}
-                className="btn text-xs"
-                style={{
-                  background: activeView === "requests" ? "#ea580c" : "var(--bg-alt)",
-                  color: activeView === "requests" ? "#fff" : "var(--ink)",
-                  padding: "6px 8px", fontWeight: 700, flex: 1, fontSize: 11,
-                }}>
-                📋 {lang === "en" ? "PRs" : "Talep"}
-              </button>
-              <button onClick={() => setActiveView("orders")}
-                className="btn text-xs"
-                style={{
-                  background: activeView === "orders" ? "#ea580c" : "var(--bg-alt)",
-                  color: activeView === "orders" ? "#fff" : "var(--ink)",
-                  padding: "6px 8px", fontWeight: 700, flex: 1, fontSize: 11,
-                }}>
-                🛒 {lang === "en" ? "POs" : "Sipariş"}
-              </button>
-              <button onClick={() => setActiveView("vendors")}
-                className="btn text-xs"
-                style={{
-                  background: activeView === "vendors" ? "#ea580c" : "var(--bg-alt)",
-                  color: activeView === "vendors" ? "#fff" : "var(--ink)",
-                  padding: "6px 8px", fontWeight: 700, flex: 1, fontSize: 11,
-                }}>
-                🏢
-              </button>
-            </div>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
           {activeView === "requests" && (
             <div>
               <label className="label text-xs">{lang === "en" ? "Requester" : "Talep Eden"}</label>
@@ -59383,8 +59986,8 @@ function PREditorModal({ pr, users, departments, session, lang, onSave, onClose 
                   </div>
                   <div>
                     <label className="text-xs" style={{ color: "var(--ink-mute)" }}>{lang === "en" ? "Unit Price" : "Birim Fiyat"}</label>
-                    <input type="number" step="0.01" value={item.unitPrice}
-                      onChange={e => updateItem(idx, "unitPrice", e.target.value)}
+                    <MoneyInput value={item.unitPrice}
+                      onChange={v => updateItem(idx, "unitPrice", v)}
                       className="input text-xs w-full mono text-right" style={{ padding: "4px 6px" }}/>
                   </div>
                   <div style={{ gridColumn: "span 2" }}>
@@ -59558,8 +60161,8 @@ function POEditorModal({ po, vendors, users, session, lang, projects = [], onSav
                     onChange={e => updateItem(idx, "quantity", e.target.value)}
                     placeholder={lang === "en" ? "Qty" : "Adet"}
                     className="input text-xs mono text-right" style={{ padding: "4px 6px" }}/>
-                  <input type="number" step="0.01" value={item.unitPrice}
-                    onChange={e => updateItem(idx, "unitPrice", e.target.value)}
+                  <MoneyInput value={item.unitPrice}
+                    onChange={v => updateItem(idx, "unitPrice", v)}
                     placeholder={lang === "en" ? "Unit" : "Birim"}
                     className="input text-xs mono text-right" style={{ padding: "4px 6px" }}/>
                   <input type="number" step="0.01" value={item.receivedQty}
@@ -61041,11 +61644,13 @@ function ProjectsReportsView({ projects, parties, users, lang }) {
 /* =====================================================================
    REPORTS CENTER — Tüm raporlar tek merkezde + Excel export + Email schedule
 ===================================================================== */
-function ReportsCenter({ data, session, users, lang, onChange, notify }) {
+function ReportsCenter({ data, session, users, lang, onChange, notify, activeTab: activeTabProp, setActiveTab: setActiveTabProp }) {
   const [activeReport, setActiveReport] = useState(null);
   const [scheduleModal, setScheduleModal] = useState(null);
   const [feedbackStatsOpen, setFeedbackStatsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("reports"); // reports | dashboards
+  const [activeTabState, setActiveTabState] = useState("reports"); // reports | dashboards
+  const activeTab = activeTabProp ?? activeTabState;
+  const setActiveTab = setActiveTabProp ?? setActiveTabState;
 
   // Mevcut zamanlanmış raporlar
   const scheduledReports = data.scheduledReports || [];
@@ -61197,31 +61802,7 @@ function ReportsCenter({ data, session, users, lang, onChange, notify }) {
         accentColor="#7c3aed"
       />
 
-      {/* Sekme şeridi */}
-      <div className="flex items-center gap-1" style={{ borderBottom: "2px solid var(--line)" }}>
-        {[
-          { id: "reports",    icon: "📊", labelTr: "Raporlar",        labelEn: "Reports" },
-          { id: "dashboards", icon: "🎨", labelTr: "Özel Dashboard'lar", labelEn: "Custom Dashboards" },
-        ].map(tab => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: "6px 14px",
-                background: isActive ? "#7c3aed" : "transparent",
-                color: isActive ? "#fff" : "var(--ink)",
-                border: "none",
-                borderRadius: "4px 4px 0 0",
-                fontSize: 12, fontWeight: 700,
-                cursor: "pointer",
-                marginBottom: -2,
-                borderBottom: isActive ? "2px solid #7c3aed" : "2px solid transparent",
-              }}>
-              {tab.icon} {lang === "en" ? tab.labelEn : tab.labelTr}
-            </button>
-          );
-        })}
-      </div>
+      {/* Sekme şeridi menüye taşındı (akordeon: Raporlar / Özel Dashboard'lar) */}
 
       {activeTab === "dashboards" && (
         <CustomDashboardBuilder
@@ -62702,8 +63283,8 @@ function ProjectEditorModal({ project, customers, users, deals, session, lang, a
         <div className="grid grid-cols-3 gap-2">
           <div>
             <label className="label text-xs">{lang === "en" ? "Budget" : "Bütçe"}</label>
-            <input type="number" step="0.01" value={draft.budget || ""}
-              onChange={e => update("budget", Number(e.target.value))}
+            <MoneyInput value={draft.budget || ""}
+              onChange={v => update("budget", v === '' ? 0 : v)}
               className="input text-sm w-full mono text-right"/>
           </div>
           <div>
@@ -62719,8 +63300,8 @@ function ProjectEditorModal({ project, customers, users, deals, session, lang, a
           {draft.type === "time_material" && (
             <div>
               <label className="label text-xs">{lang === "en" ? "Hourly Rate" : "Saatlik Ücret"}</label>
-              <input type="number" step="0.01" value={draft.hourlyRate || ""}
-                onChange={e => update("hourlyRate", Number(e.target.value))}
+              <MoneyInput value={draft.hourlyRate || ""}
+                onChange={v => update("hourlyRate", v === '' ? 0 : v)}
                 className="input text-sm w-full mono text-right"/>
             </div>
           )}
@@ -62837,10 +63418,10 @@ function ProjectEditorModal({ project, customers, users, deals, session, lang, a
                       }}
                       className="input mono"
                       style={{ width: 110, padding: "2px 6px", fontSize: 10 }}/>
-                    <input type="number" step="0.01" value={m.amount || ""}
-                      onChange={e => {
+                    <MoneyInput value={m.amount || ""}
+                      onChange={v => {
                         const ms = [...draft.milestones];
-                        ms[idx] = { ...ms[idx], amount: Number(e.target.value) };
+                        ms[idx] = { ...ms[idx], amount: v === '' ? 0 : v };
                         update("milestones", ms);
                       }}
                       className="input mono text-right"
@@ -63482,8 +64063,8 @@ function ProjectDetailModal({ project, enriched, parties, users, lang, session, 
               </div>
               <div>
                 <label className="label text-xs">{lang === "en" ? "Amount (optional)" : "Tutar (ops)"}</label>
-                <input type="number" step="0.01" value={newMilestone.amount}
-                  onChange={e => setNewMilestone({ ...newMilestone, amount: Number(e.target.value) })}
+                <MoneyInput value={newMilestone.amount}
+                  onChange={v => setNewMilestone({ ...newMilestone, amount: v === '' ? 0 : v })}
                   className="input text-sm w-full mono text-right"/>
               </div>
             </div>
@@ -64588,8 +65169,8 @@ function RiskEditorModal({ risk, users, lang, onSave, onDelete, onClose }) {
           </div>
           <div>
             <label className="label text-xs">{lang === "en" ? "Contingency Budget" : "Acil Bütçe"}</label>
-            <input type="number" step="0.01" value={draft.contingencyBudget || 0}
-              onChange={e => update("contingencyBudget", Number(e.target.value))}
+            <MoneyInput value={draft.contingencyBudget || 0}
+              onChange={v => update("contingencyBudget", v === '' ? 0 : v)}
               className="input text-sm w-full mono text-right"/>
           </div>
         </div>
@@ -64918,8 +65499,8 @@ function CREditorModal({ cr, users, lang, onSave, onDelete, onClose }) {
             </div>
             <div>
               <label className="label text-xs">💰 {lang === "en" ? "Cost" : "Maliyet"}</label>
-              <input type="number" step="0.01" value={draft.impact?.cost || 0}
-                onChange={e => updateImpact("cost", Number(e.target.value))}
+              <MoneyInput value={draft.impact?.cost || 0}
+                onChange={v => updateImpact("cost", v === '' ? 0 : v)}
                 className="input text-xs w-full mono text-right" style={{ padding: "4px 8px" }}/>
             </div>
           </div>
@@ -66824,8 +67405,8 @@ function ManualPlannedPaymentModal({ payment, data, lang, onSave, onClose }) {
           <div>
             <div className="label mb-1">{lang === "en" ? "Amount *" : "Tutar *"}</div>
             <div className="flex gap-1">
-              <input type="number" min="0" step="0.01" className="input w-full mono" value={draft.amount}
-                onChange={e => update("amount", e.target.value)}/>
+              <MoneyInput className="input w-full mono" value={draft.amount}
+                onChange={v => update("amount", v)}/>
               <select className="input" style={{ width: 80 }} value={draft.currency} onChange={e => update("currency", e.target.value)}>
                 {["TRY", "USD", "EUR"].map(c => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -67111,6 +67692,8 @@ function LoansManager({ data, session, canAct, lang, onChange, logAudit, notify 
   const [txDraft, setTxDraft] = useState(null);
   const [editLoanId, setEditLoanId] = useState(null);
   const [paySchedIdx, setPaySchedIdx] = useState(null);
+  const [docBusy, setDocBusy] = useState(false);          // belge AI ile okunuyor
+  const [prefillMeta, setPrefillMeta] = useState(null);   // AI ön-doldurma bilgisi (form vurguları)
 
   useEffect(() => {
     if (!activeId && loans.length) setActiveId(loans[0].id);
@@ -67190,10 +67773,110 @@ function LoansManager({ data, session, canAct, lang, onChange, logAudit, notify 
       });
       notify(`Kredi eklendi: ${newLoan.name}`);
       setLoanDraft(null);
+      setPrefillMeta(null);
       setActiveId(newLoan.id);
     } catch (err) {
       console.error("Kredi kaydetme hatası:", err);
       alert("Kredi kaydedilemedi: " + (err?.message || "bilinmeyen hata"));
+    }
+  };
+
+  // ----- Belgeden AI ile kredi oluştur (PDF/Excel) -----
+  const closeLoanForm = () => { setLoanDraft(null); setPrefillMeta(null); };
+
+  const handleLoanDocUpload = async (file) => {
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) { alert("Dosya çok büyük (en fazla 15 MB)"); return; }
+    setDocBusy(true);
+    try {
+      const apiBase = (typeof window !== "undefined" && window.PROMETCF_API) || "";
+      const token = session?.token || (typeof localStorage !== "undefined" ? localStorage.getItem("promet_access_token") : "") || "";
+
+      // Dosyayı base64'e çevir
+      const buf = new Uint8Array(await file.arrayBuffer());
+      let bin = "";
+      for (let i = 0; i < buf.length; i += 0x8000) {
+        bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+      }
+      const contentBase64 = btoa(bin);
+
+      const res = await fetch(`${apiBase}/v1/ai/parse-loan-document`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ fileName: file.name, mimeType: file.type, contentBase64 }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || json.error || `HTTP ${res.status}`);
+
+      const f = json.fields || {};
+
+      // Banka adı → kayıtlı banka eşle (büyük/küçük harf duyarsız, kısmi)
+      let bankId = "", bankMatched = false;
+      if (f.bankName) {
+        const needle = String(f.bankName).toLocaleLowerCase("tr").trim();
+        const hit = banks.find(b => {
+          const n = String(b.name || "").toLocaleLowerCase("tr").trim();
+          return n && (n === needle || n.includes(needle) || needle.includes(n));
+        });
+        if (hit) { bankId = hit.id; bankMatched = true; }
+      }
+
+      const base = emptyLoanDraft();
+      const draft = {
+        ...base,
+        type: f.type || base.type,
+        name: f.name || "",
+        contractNo: f.contractNo || "",
+        bankId,
+        principal: f.principal != null ? String(f.principal) : "",
+        currency: f.currency || base.currency,
+        interestRate: f.interestRate != null ? f.interestRate : base.interestRate,
+        bsmvRate: f.bsmvRate != null ? f.bsmvRate : base.bsmvRate,
+        kkdfRate: f.kkdfRate != null ? f.kkdfRate : base.kkdfRate,
+        disbursementDate: f.disbursementDate || base.disbursementDate,
+        termMonths: f.termMonths != null ? f.termMonths : base.termMonths,
+        paymentDay: f.paymentDay != null ? f.paymentDay : base.paymentDay,
+        note: f.note || "",
+      };
+
+      // AI'ın doldurduğu form alanları (vurgu için)
+      const filled = [];
+      const mark = (k, ok) => { if (ok) filled.push(k); };
+      mark("type", !!f.type);
+      mark("name", !!f.name);
+      mark("contractNo", !!f.contractNo);
+      mark("bankId", bankMatched);
+      mark("principal", f.principal != null);
+      mark("currency", !!f.currency);
+      mark("interestRate", f.interestRate != null);
+      mark("bsmvRate", f.bsmvRate != null);
+      mark("kkdfRate", f.kkdfRate != null);
+      mark("disbursementDate", !!f.disbursementDate);
+      mark("termMonths", f.termMonths != null);
+      mark("paymentDay", f.paymentDay != null);
+      mark("note", !!f.note);
+
+      // Zorunlu ama eksik kalan alanlar (kullanıcı doldurmalı)
+      const missing = [];
+      if (!draft.name) missing.push("name");
+      if (!draft.bankId) missing.push("bankId");
+      if (!(Number(String(draft.principal).replace(",", ".")) > 0)) missing.push("principal");
+
+      setPrefillMeta({
+        filled,
+        missing,
+        bankNameRaw: f.bankName && !bankMatched ? f.bankName : null,
+        fileName: file.name,
+        format: json.format,
+        count: filled.length,
+      });
+      setLoanDraft(draft);
+      notify(`Belge okundu: ${filled.length} alan AI ile dolduruldu${missing.length ? `, ${missing.length} zorunlu alan eksik` : ""}`);
+    } catch (e) {
+      console.error("Kredi belgesi okuma hatası:", e);
+      alert("Belge okunamadı: " + (e?.message || "bilinmeyen hata"));
+    } finally {
+      setDocBusy(false);
     }
   };
 
@@ -67303,11 +67986,22 @@ function LoansManager({ data, session, canAct, lang, onChange, logAudit, notify 
             <div className="label mb-1">Kredi Portföyü</div>
             <h1 className="display text-2xl md:text-3xl">Krediler</h1>
           </div>
-          {canManage && (
-            <button onClick={() => setLoanDraft(emptyLoanDraft())} className="btn btn-primary">
-              <Plus size={13}/> Yeni Kredi
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {canCreate && (
+              <label className="btn" style={{ cursor: docBusy ? "wait" : "pointer", opacity: docBusy ? 0.6 : 1 }}
+                title="PDF veya Excel kredi belgesi yükleyin; AI alanları doldursun">
+                {docBusy ? <RefreshCw size={13} className="animate-spin"/> : <Sparkles size={13}/>}
+                {docBusy ? "Belge okunuyor…" : "Belgeden Yükle (AI)"}
+                <input type="file" accept=".pdf,.xlsx,.xls" style={{ display: "none" }} disabled={docBusy}
+                  onChange={e => { const file = e.target.files?.[0]; e.target.value = ""; handleLoanDocUpload(file); }}/>
+              </label>
+            )}
+            {canManage && (
+              <button onClick={() => setLoanDraft(emptyLoanDraft())} className="btn btn-primary">
+                <Plus size={13}/> Yeni Kredi
+              </button>
+            )}
+          </div>
         </div>
         <div className="card p-10 text-center" style={{ boxShadow: "var(--shadow)" }}>
           <Banknote size={32} className="mx-auto mb-3" style={{ color: "var(--ink-mute)" }}/>
@@ -67323,7 +68017,8 @@ function LoansManager({ data, session, canAct, lang, onChange, logAudit, notify 
             draft={loanDraft} setDraft={setLoanDraft}
             banks={banks} bankAccounts={bankAccounts}
             cashflowCats={allCashflowCats}
-            onClose={() => setLoanDraft(null)}
+            prefillMeta={prefillMeta}
+            onClose={closeLoanForm}
             onSave={saveNewLoan}
           />
         )}
@@ -67344,11 +68039,22 @@ function LoansManager({ data, session, canAct, lang, onChange, logAudit, notify 
         title={t("loans.title", lang)}
         subtitle={t("loans.subtitle", lang)}
         actions={
-          canManage && (
-            <button onClick={() => setLoanDraft(emptyLoanDraft())} className="btn btn-primary">
-              <Plus size={13}/> {t("loans.new", lang)}
-            </button>
-          )
+          <div className="flex items-center gap-2">
+            {canCreate && (
+              <label className="btn" style={{ cursor: docBusy ? "wait" : "pointer", opacity: docBusy ? 0.6 : 1 }}
+                title="PDF veya Excel kredi belgesi yükleyin; AI alanları doldursun">
+                {docBusy ? <RefreshCw size={13} className="animate-spin"/> : <Sparkles size={13}/>}
+                {docBusy ? "Belge okunuyor…" : "Belgeden Yükle (AI)"}
+                <input type="file" accept=".pdf,.xlsx,.xls" style={{ display: "none" }} disabled={docBusy}
+                  onChange={e => { const file = e.target.files?.[0]; e.target.value = ""; handleLoanDocUpload(file); }}/>
+              </label>
+            )}
+            {canManage && (
+              <button onClick={() => setLoanDraft(emptyLoanDraft())} className="btn btn-primary">
+                <Plus size={13}/> {t("loans.new", lang)}
+              </button>
+            )}
+          </div>
         }
       />
 
@@ -67530,7 +68236,8 @@ function LoansManager({ data, session, canAct, lang, onChange, logAudit, notify 
           draft={loanDraft} setDraft={setLoanDraft}
           banks={banks} bankAccounts={bankAccounts}
           cashflowCats={allCashflowCats}
-          onClose={() => setLoanDraft(null)}
+          prefillMeta={prefillMeta}
+          onClose={closeLoanForm}
           onSave={saveNewLoan}
         />
       )}
@@ -67726,9 +68433,24 @@ function LoanTransactionList({ loan, data, sym, canAdd, cashflowCats, onAdd, onD
 }
 
 /* ---------- Loan Form Modal (Yeni kredi) ---------- */
-function LoanFormModal({ draft, setDraft, banks, bankAccounts, cashflowCats, onClose, onSave }) {
+function LoanFormModal({ draft, setDraft, banks, bankAccounts, cashflowCats, prefillMeta, onClose, onSave }) {
   const isInstallment = draft.type === "installment" || draft.type === "spot";
   const filteredAccts = bankAccounts.filter(a => a.bankId === draft.bankId && a.currency === draft.currency);
+
+  // AI ön-doldurma vurguları
+  const filledSet = new Set(prefillMeta?.filled || []);
+  const missingSet = new Set(prefillMeta?.missing || []);
+  const ringCls = (key) =>
+    missingSet.has(key) ? " ring-2 ring-amber-400" : (filledSet.has(key) ? " ring-1 ring-violet-300" : "");
+  const FieldBadge = ({ k }) =>
+    missingSet.has(k)
+      ? <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded" style={{ background: "#fef3c7", color: "#92400e" }}>doldurun</span>
+      : filledSet.has(k)
+        ? <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded" style={{ background: "#ede9fe", color: "#6d28d9" }}>AI</span>
+        : null;
+  const missingLabels = {
+    name: "Kredi Adı", bankId: "Banka", principal: "Anapara/Limit",
+  };
 
   // Önizleme schedule
   const previewSchedule = useMemo(() => {
@@ -67751,8 +68473,31 @@ function LoanFormModal({ draft, setDraft, banks, bankAccounts, cashflowCats, onC
   const totalBsmv = previewSchedule.reduce((s, x) => s + (x.bsmv || 0), 0);
 
   return (
-    <Modal title="Yeni Kredi" icon={Banknote} onClose={onClose} onSave={onSave} maxWidth="max-w-3xl">
+    <Modal title={prefillMeta ? "Yeni Kredi (Belgeden)" : "Yeni Kredi"} icon={Banknote} onClose={onClose} onSave={onSave} maxWidth="max-w-3xl">
       <div className="space-y-4">
+        {/* AI ön-doldurma bilgi şeridi */}
+        {prefillMeta && (
+          <div className="rounded-lg p-3 text-xs" style={{ background: "#f5f3ff", border: "1px solid #ddd6fe" }}>
+            <div className="flex items-center gap-1.5 font-semibold" style={{ color: "#6d28d9" }}>
+              <Sparkles size={13}/> AI belgeden {prefillMeta.count} alanı doldurdu — lütfen kontrol edin.
+            </div>
+            <div className="mt-1" style={{ color: "var(--ink-mute)" }}>
+              Kaynak: {prefillMeta.fileName} ({prefillMeta.format === "excel" ? "Excel" : "PDF"}).
+              {" "}<span style={{ color: "#6d28d9" }}>Mor</span> = AI doldurdu, {" "}
+              <span style={{ color: "#b45309" }}>turuncu</span> = zorunlu, eksik.
+            </div>
+            {prefillMeta.missing?.length > 0 && (
+              <div className="mt-1.5" style={{ color: "#92400e" }}>
+                Eksik zorunlu alanlar: {prefillMeta.missing.map(k => missingLabels[k] || k).join(", ")}.
+              </div>
+            )}
+            {prefillMeta.bankNameRaw && (
+              <div className="mt-1.5" style={{ color: "#92400e" }}>
+                Belgede "{prefillMeta.bankNameRaw}" bankası bulundu ancak kayıtlı bankalarla eşleşmedi — lütfen seçin.
+              </div>
+            )}
+          </div>
+        )}
         {/* Tür seçici */}
         <div>
           <div className="label mb-2">Kredi Türü *</div>
@@ -67778,14 +68523,14 @@ function LoanFormModal({ draft, setDraft, banks, bankAccounts, cashflowCats, onC
         {/* Ad ve sözleşme no */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <div className="label mb-1">Kredi Adı *</div>
-            <input className="input w-full" placeholder="Yatırım Kredisi 2026"
+            <div className="label mb-1">Kredi Adı *<FieldBadge k="name"/></div>
+            <input className={"input w-full" + ringCls("name")} placeholder="Yatırım Kredisi 2026"
               value={draft.name}
               onChange={e => setDraft({ ...draft, name: e.target.value })}/>
           </div>
           <div>
-            <div className="label mb-1">Sözleşme No</div>
-            <input className="input w-full" placeholder="K-123456"
+            <div className="label mb-1">Sözleşme No<FieldBadge k="contractNo"/></div>
+            <input className={"input w-full" + ringCls("contractNo")} placeholder="K-123456"
               value={draft.contractNo}
               onChange={e => setDraft({ ...draft, contractNo: e.target.value })}/>
           </div>
@@ -67794,8 +68539,8 @@ function LoanFormModal({ draft, setDraft, banks, bankAccounts, cashflowCats, onC
         {/* Banka + hesap */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <div className="label mb-1">Banka *</div>
-            <select className="input w-full" value={draft.bankId}
+            <div className="label mb-1">Banka *<FieldBadge k="bankId"/></div>
+            <select className={"input w-full" + ringCls("bankId")} value={draft.bankId}
               onChange={e => setDraft({ ...draft, bankId: e.target.value, accountId: "" })}>
               <option value="">Seçiniz</option>
               {banks.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -67818,15 +68563,15 @@ function LoanFormModal({ draft, setDraft, banks, bankAccounts, cashflowCats, onC
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="md:col-span-2">
             <div className="label mb-1">
-              {isInstallment ? "Anapara" : "Limit/Anapara"} *
+              {isInstallment ? "Anapara" : "Limit/Anapara"} *<FieldBadge k="principal"/>
             </div>
-            <input className="input w-full" type="number" step="0.01" placeholder="0,00"
+            <MoneyInput className={"input w-full" + ringCls("principal")} placeholder="0,00"
               value={draft.principal}
-              onChange={e => setDraft({ ...draft, principal: e.target.value })}/>
+              onChange={v => setDraft({ ...draft, principal: v })}/>
           </div>
           <div>
-            <div className="label mb-1">Para Birimi</div>
-            <select className="input w-full" value={draft.currency}
+            <div className="label mb-1">Para Birimi<FieldBadge k="currency"/></div>
+            <select className={"input w-full" + ringCls("currency")} value={draft.currency}
               onChange={e => setDraft({ ...draft, currency: e.target.value, accountId: "" })}>
               <option value="TRY">₺ TRY</option>
               <option value="USD">$ USD</option>
@@ -67838,26 +68583,26 @@ function LoanFormModal({ draft, setDraft, banks, bankAccounts, cashflowCats, onC
         {/* Faiz */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
-            <div className="label mb-1">Yıllık Faiz (oran)</div>
-            <input className="input w-full" type="number" step="0.0001" placeholder="0,045"
+            <div className="label mb-1">Yıllık Faiz (oran)<FieldBadge k="interestRate"/></div>
+            <RateInput className={"input w-full" + ringCls("interestRate")} placeholder="0,045"
               value={draft.interestRate}
-              onChange={e => setDraft({ ...draft, interestRate: e.target.value })}/>
+              onChange={v => setDraft({ ...draft, interestRate: v })}/>
             <div className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>
               Örnek: 0.045 = %4.5 yıllık · Aylık %{(loanMonthlyRate(draft) * 100).toFixed(3)}
             </div>
           </div>
           <div>
-            <div className="label mb-1">BSMV Oranı</div>
-            <input className="input w-full" type="number" step="0.01"
+            <div className="label mb-1">BSMV Oranı<FieldBadge k="bsmvRate"/></div>
+            <RateInput className={"input w-full" + ringCls("bsmvRate")}
               value={draft.bsmvRate}
-              onChange={e => setDraft({ ...draft, bsmvRate: Number(e.target.value) })}/>
+              onChange={v => setDraft({ ...draft, bsmvRate: v === '' ? 0 : v })}/>
             <div className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>Genelde 0.10 (%10)</div>
           </div>
           <div>
-            <div className="label mb-1">KKDF Oranı</div>
-            <input className="input w-full" type="number" step="0.01"
+            <div className="label mb-1">KKDF Oranı<FieldBadge k="kkdfRate"/></div>
+            <RateInput className={"input w-full" + ringCls("kkdfRate")}
               value={draft.kkdfRate}
-              onChange={e => setDraft({ ...draft, kkdfRate: Number(e.target.value) })}/>
+              onChange={v => setDraft({ ...draft, kkdfRate: v === '' ? 0 : v })}/>
             <div className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>Ticari: 0, bireysel: 0.15</div>
           </div>
         </div>
@@ -67865,22 +68610,22 @@ function LoanFormModal({ draft, setDraft, banks, bankAccounts, cashflowCats, onC
         {/* Tarih + vade */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
-            <div className="label mb-1">{isInstallment ? "Kullandırım Tarihi" : "Başlangıç Tarihi"}</div>
-            <input className="input w-full" type="date"
+            <div className="label mb-1">{isInstallment ? "Kullandırım Tarihi" : "Başlangıç Tarihi"}<FieldBadge k="disbursementDate"/></div>
+            <input className={"input w-full" + ringCls("disbursementDate")} type="date"
               value={draft.disbursementDate}
               onChange={e => setDraft({ ...draft, disbursementDate: e.target.value })}/>
           </div>
           {isInstallment && (
             <>
               <div>
-                <div className="label mb-1">Vade (Ay) *</div>
-                <input className="input w-full" type="number" min="1" placeholder="36"
+                <div className="label mb-1">Vade (Ay) *<FieldBadge k="termMonths"/></div>
+                <input className={"input w-full" + ringCls("termMonths")} type="number" min="1" placeholder="36"
                   value={draft.termMonths}
                   onChange={e => setDraft({ ...draft, termMonths: e.target.value })}/>
               </div>
               <div>
-                <div className="label mb-1">Ödeme Günü</div>
-                <input className="input w-full" type="number" min="1" max="28" placeholder="15"
+                <div className="label mb-1">Ödeme Günü<FieldBadge k="paymentDay"/></div>
+                <input className={"input w-full" + ringCls("paymentDay")} type="number" min="1" max="28" placeholder="15"
                   value={draft.paymentDay}
                   onChange={e => setDraft({ ...draft, paymentDay: e.target.value })}/>
                 <div className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>1-28 arası</div>
@@ -67934,8 +68679,8 @@ function LoanFormModal({ draft, setDraft, banks, bankAccounts, cashflowCats, onC
         )}
 
         <div>
-          <div className="label mb-1">Not</div>
-          <textarea className="input w-full" rows={2}
+          <div className="label mb-1">Not<FieldBadge k="note"/></div>
+          <textarea className={"input w-full" + ringCls("note")} rows={2}
             value={draft.note}
             onChange={e => setDraft({ ...draft, note: e.target.value })}/>
         </div>
@@ -67990,15 +68735,15 @@ function LoanEditModal({ loan, banks, bankAccounts, cashflowCats, onClose, onSav
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
             <div className="label mb-1">{isInstallment ? "Anapara" : "Limit"}</div>
-            <input className="input w-full" type="number" step="0.01"
+            <MoneyInput className="input w-full"
               value={draft.principal}
-              onChange={e => setDraft({ ...draft, principal: Number(e.target.value) })}/>
+              onChange={v => setDraft({ ...draft, principal: v === '' ? 0 : v })}/>
           </div>
           <div>
             <div className="label mb-1">Yıllık Faiz</div>
-            <input className="input w-full" type="number" step="0.0001"
+            <RateInput className="input w-full"
               value={draft.interestRate}
-              onChange={e => setDraft({ ...draft, interestRate: Number(e.target.value) })}/>
+              onChange={v => setDraft({ ...draft, interestRate: v === '' ? 0 : v })}/>
           </div>
           {isInstallment && (
             <div>
@@ -68065,9 +68810,9 @@ function LoanTxModal({ draft, setDraft, loan, cashflowCats, onClose, onSave }) {
           </div>
           <div>
             <div className="label mb-1">Tutar ({sym}) *</div>
-            <input className="input w-full" type="number" step="0.01" placeholder="0,00"
+            <MoneyInput className="input w-full" placeholder="0,00"
               value={draft.amount}
-              onChange={e => setDraft({ ...draft, amount: e.target.value })}/>
+              onChange={v => setDraft({ ...draft, amount: v })}/>
           </div>
         </div>
         <div>
@@ -68360,9 +69105,9 @@ function TransferModal({ data, prefill, onClose, onSave }) {
             <div className="label mb-1.5">
               Tutar {fromInfo && `(${CURRENCY_SYMBOLS[fromInfo.currency]} ${fromInfo.currency})`} *
             </div>
-            <input className="input num text-right" type="number" step="0.01" autoFocus
+            <MoneyInput className="input num text-right" autoFocus
               value={form.fromAmount}
-              onChange={e => setForm({ ...form, fromAmount: e.target.value })}
+              onChange={v => setForm({ ...form, fromAmount: v })}
               placeholder="0"/>
           </div>
           {currencyMismatch && (
@@ -68370,9 +69115,9 @@ function TransferModal({ data, prefill, onClose, onSave }) {
               <div className="label mb-1.5">
                 Hedef Tutar ({CURRENCY_SYMBOLS[toInfo.currency]} {toInfo.currency})
               </div>
-              <input className="input num text-right" type="number" step="0.01"
+              <MoneyInput className="input num text-right"
                 value={form.toAmount}
-                onChange={e => setForm({ ...form, toAmount: e.target.value })}/>
+                onChange={v => setForm({ ...form, toAmount: v })}/>
               <p className="text-xs mt-1" style={{ color: "var(--ink-mute)" }}>
                 Otomatik hesaplandı — istersen elle düzenleyebilirsin
               </p>
@@ -69241,10 +69986,10 @@ function CandidateFormModal({ draft, setDraft, lang, onClose, onSave }) {
           </div>
           <div>
             <div className="label mb-1">{t("cand.expSalary", lang)}</div>
-            <input className="input w-full mono text-right"
+            <MoneyInput className="input w-full mono text-right"
               value={draft.expectedBrutSalary || ""}
               placeholder="0,00"
-              onChange={e => setDraft({ ...draft, expectedBrutSalary: e.target.value })}/>
+              onChange={v => setDraft({ ...draft, expectedBrutSalary: v })}/>
           </div>
           <div>
             <div className="label mb-1">{t("cand.source", lang)}</div>
@@ -69788,9 +70533,9 @@ function HiredEmployeeFormModal({ draft, setDraft, jobTitles, departments, emplo
                 💡 {lang === "en" ? "from position" : "pozisyondan"}
               </span>}
             </div>
-            <input className="input w-full mono text-right" placeholder="0,00"
+            <MoneyInput className="input w-full mono text-right" placeholder="0,00"
               value={draft.brutSalary || ""}
-              onChange={e => setDraft({ ...draft, brutSalary: e.target.value })}/>
+              onChange={v => setDraft({ ...draft, brutSalary: v })}/>
           </div>
         </div>
 
@@ -72941,8 +73686,10 @@ function renderInline(text) {
      • Yetki Atamaları (Grants)
      • İstisnalar (Overrides)
 ===================================================================== */
-function AccessControlView({ data, session, users, setUsers, lang, onChange, logAudit, notify }) {
-  const [subTab, setSubTab] = useState("users");
+function AccessControlView({ data, session, users, setUsers, lang, onChange, logAudit, notify, subTab: subTabProp, setSubTab: setSubTabProp }) {
+  const [subTabState, setSubTabState] = useState("users");
+  const subTab = subTabProp ?? subTabState;
+  const setSubTab = setSubTabProp ?? setSubTabState;
   const [showMyPerms, setShowMyPerms] = useState(false);
 
   const customRoles = data.hrCustomRoles || [];
@@ -73036,29 +73783,8 @@ function AccessControlView({ data, session, users, setUsers, lang, onChange, log
         )}
       </SectionCard>
 
+      {/* İçerik — alt sekme navigasyonu menüye taşındı (akordeon) */}
       <div className="flex gap-3" style={{ minHeight: 400 }}>
-        {/* Sol Sidebar */}
-        <div style={{
-          width: 220, flexShrink: 0,
-          background: "var(--paper)",
-          borderRadius: 8,
-          border: "1px solid var(--line)",
-          padding: 8,
-          alignSelf: "flex-start",
-          position: "sticky", top: 8,
-        }}>
-          <div className="space-y-1">
-            <SidebarTabButton active={subTab === "users"} onClick={() => setSubTab("users")}
-              icon={Users} label={t("auth.users", lang)} badge={users.length || null}/>
-            <SidebarTabButton active={subTab === "roles"} onClick={() => setSubTab("roles")}
-              icon={Shield} label={t("auth.roles", lang)} badge={customRoles.length || null} badgeColor="#7c3aed"/>
-            <SidebarTabButton active={subTab === "grants"} onClick={() => setSubTab("grants")}
-              icon={UserCheck} label={t("auth.grants", lang)} badge={grants.length || null} badgeColor="#0ea5e9"/>
-            <SidebarTabButton active={subTab === "overrides"} onClick={() => setSubTab("overrides")}
-              icon={UserX} label={t("auth.overrides", lang)} badge={overrides.length || null} badgeColor="#ea580c"/>
-          </div>
-        </div>
-
         {/* Sağ İçerik */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {subTab === "users" && (
@@ -74850,7 +75576,7 @@ function SettingsView({ data, onChange, audit, users, notify, logAudit, session,
           </div>
           <div>
             <div className="label mb-1.5">{lang === "en" ? "Opening Cash" : lang === "de" ? "Anfangsbestand" : lang === "ar" ? "النقد الافتتاحي" : "Açılış Nakdi"} (₺)</div>
-            <input className="input num" type="number" value={openingDraft} onChange={e => setOpeningDraft(e.target.value)}/>
+            <MoneyInput className="input num" value={openingDraft} onChange={v => setOpeningDraft(v)}/>
           </div>
         </div>
         <button onClick={savePeriod} className="btn btn-primary mt-4"><Save size={13}/> {t("common.save", lang)}</button>
@@ -74882,8 +75608,8 @@ function SettingsView({ data, onChange, audit, users, notify, logAudit, session,
             <div className="flex items-center gap-2">
               <span className="text-sm" style={{ color: "var(--ink-mute)" }}>1 $</span>
               <span style={{ color: "var(--ink-mute)" }}>=</span>
-              <input className="input num text-right" type="number" step="0.001" value={usdDraft}
-                onChange={e => setUsdDraft(e.target.value)}/>
+              <RateInput className="input num text-right" value={usdDraft}
+                onChange={v => setUsdDraft(v)}/>
               <span className="text-sm">₺</span>
             </div>
           </div>
@@ -74892,8 +75618,8 @@ function SettingsView({ data, onChange, audit, users, notify, logAudit, session,
             <div className="flex items-center gap-2">
               <span className="text-sm" style={{ color: "var(--ink-mute)" }}>1 €</span>
               <span style={{ color: "var(--ink-mute)" }}>=</span>
-              <input className="input num text-right" type="number" step="0.001" value={eurDraft}
-                onChange={e => setEurDraft(e.target.value)}/>
+              <RateInput className="input num text-right" value={eurDraft}
+                onChange={v => setEurDraft(v)}/>
               <span className="text-sm">₺</span>
             </div>
           </div>
@@ -76305,9 +77031,9 @@ function CloseYearModal({ data, onClose, onConfirm }) {
                 Yeni Açılış Nakdi
                 <span className="ml-1 opacity-70">(varsayılan: önceki yıl kapanışı)</span>
               </div>
-              <input type="number" step="0.01" className="input num text-right"
+              <MoneyInput className="input num text-right"
                 value={form.newOpeningCash}
-                onChange={e => setForm({ ...form, newOpeningCash: e.target.value })}/>
+                onChange={v => setForm({ ...form, newOpeningCash: v })}/>
             </div>
           </div>
         </div>
@@ -80273,8 +80999,8 @@ function KasaManager({ data, session, canAct, lang, onChange, logAudit, notify }
               </div>
               <div>
                 <div className="label mb-1">Tutar ({kasaSym}) *</div>
-                <input className="input num text-right" type="number" autoFocus value={entryDraft.amount}
-                  onChange={e => setEntryDraft({ ...entryDraft, amount: e.target.value })}
+                <MoneyInput className="input num text-right" autoFocus value={entryDraft.amount}
+                  onChange={v => setEntryDraft({ ...entryDraft, amount: v })}
                   placeholder="0"/>
               </div>
             </div>
@@ -80343,8 +81069,8 @@ function KasaManager({ data, session, canAct, lang, onChange, logAudit, notify }
               </div>
               <div>
                 <div className="label mb-1">Açılış Bakiyesi</div>
-                <input className="input num text-right" type="number" value={kasaDraft.openingBalance}
-                  onChange={e => setKasaDraft({ ...kasaDraft, openingBalance: e.target.value })}/>
+                <MoneyInput className="input num text-right" value={kasaDraft.openingBalance}
+                  onChange={v => setKasaDraft({ ...kasaDraft, openingBalance: v })}/>
               </div>
             </div>
           </div>
@@ -80393,8 +81119,10 @@ function KasaManager({ data, session, canAct, lang, onChange, logAudit, notify }
    Protesto, İptal
 ===================================================================== */
 
-function InvoicesUnified({ data, session, canAct, lang, onChange, logAudit, notify, navigateToEntity }) {
-  const [subTab, setSubTab] = useState("manual");
+function InvoicesUnified({ data, session, canAct, lang, onChange, logAudit, notify, navigateToEntity, subTab: subTabProp, setSubTab: setSubTabProp }) {
+  const [subTabState, setSubTabState] = useState("manual");
+  const subTab = subTabProp ?? subTabState;
+  const setSubTab = setSubTabProp ?? setSubTabState;
 
   // Badge sayaçları
   const manualCount = (data.invoices || []).filter(i => !i.committedToCells).length;
@@ -80439,40 +81167,8 @@ function InvoicesUnified({ data, session, canAct, lang, onChange, logAudit, noti
         subtitle={t("inv.subtitle", lang)}
       />
 
-      {/* Sol Sidebar + Sağ İçerik */}
+      {/* İçerik — alt sekme navigasyonu menüye taşındı (akordeon) */}
       <div className="flex gap-3" style={{ minHeight: 600 }}>
-        {/* Sol Sidebar */}
-        <div style={{
-          width: 220, flexShrink: 0,
-          background: "var(--paper)",
-          borderRadius: 8,
-          border: "1px solid var(--line)",
-          padding: 8,
-          alignSelf: "flex-start",
-          position: "sticky", top: 8,
-        }}>
-          <div className="space-y-1">
-            <SidebarTabButton
-              active={subTab === "manual"} onClick={() => setSubTab("manual")}
-              icon={Receipt}
-              label={lang === "en" ? "Manual Invoices" : lang === "de" ? "Manuelle Rechnungen" : lang === "ar" ? "الفواتير اليدوية" : "Manuel Faturalar"}
-              badge={manualCount > 0 ? manualCount : null}
-            />
-            <SidebarTabButton
-              active={subTab === "einvoice"} onClick={() => setSubTab("einvoice")}
-              icon={FileText} label="e-Fatura (Logo eLogo)"
-              badge={einvCounts.pending > 0 ? einvCounts.pending : null}
-              badgeColor="#b45309"
-              extra={!isLive && (
-                <span className="text-xs px-1.5 py-0.5 rounded ml-1"
-                  style={{ background: "#fef3c7", color: "#854d0e", fontSize: 9 }}>
-                  Demo
-                </span>
-              )}
-            />
-          </div>
-        </div>
-
         {/* Sağ İçerik */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {subTab === "manual" && (
@@ -81433,22 +82129,22 @@ function InvoicesView({ data, session, canAct, lang, onChange, logAudit, notify,
               </div>
               <div>
                 <div className="label mb-1">{lang === "en" ? "Net Amount" : lang === "de" ? "Nettobetrag" : lang === "ar" ? "المبلغ الصافي" : "Net Tutar"} *</div>
-                <input className="input num text-right" type="number" step="0.01" value={invoiceDraft.netAmount}
-                  onChange={e => {
-                    const net = Number(e.target.value) || 0;
+                <MoneyInput className="input num text-right" value={invoiceDraft.netAmount}
+                  onChange={v => {
+                    const net = Number(v) || 0;
                     const vatR = Number(invoiceDraft.vatRate) || 0;
                     const vat = +(net * vatR / 100).toFixed(2);
-                    setInvoiceDraft({ ...invoiceDraft, netAmount: e.target.value, vatAmount: vat, total: +(net + vat).toFixed(2) });
+                    setInvoiceDraft({ ...invoiceDraft, netAmount: v, vatAmount: vat, total: +(net + vat).toFixed(2) });
                   }}/>
               </div>
               <div>
                 <div className="label mb-1">{t("inv.vat", lang)} %</div>
-                <input className="input num text-right" type="number" value={invoiceDraft.vatRate}
-                  onChange={e => {
-                    const vatR = Number(e.target.value) || 0;
+                <RateInput className="input num text-right" value={invoiceDraft.vatRate}
+                  onChange={val => {
+                    const vatR = Number(val) || 0;
                     const net = Number(invoiceDraft.netAmount) || 0;
                     const vat = +(net * vatR / 100).toFixed(2);
-                    setInvoiceDraft({ ...invoiceDraft, vatRate: e.target.value, vatAmount: vat, total: +(net + vat).toFixed(2) });
+                    setInvoiceDraft({ ...invoiceDraft, vatRate: val, vatAmount: vat, total: +(net + vat).toFixed(2) });
                   }}/>
               </div>
             </div>
@@ -81456,13 +82152,13 @@ function InvoicesView({ data, session, canAct, lang, onChange, logAudit, notify,
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <div className="label mb-1">{lang === "en" ? "VAT Amount" : lang === "de" ? "MwSt.-Betrag" : lang === "ar" ? "مبلغ الضريبة" : "KDV Tutarı"}</div>
-                <input className="input num text-right" type="number" step="0.01" value={invoiceDraft.vatAmount}
-                  onChange={e => setInvoiceDraft({ ...invoiceDraft, vatAmount: e.target.value, total: +(Number(invoiceDraft.netAmount || 0) + Number(e.target.value || 0)).toFixed(2) })}/>
+                <MoneyInput className="input num text-right" value={invoiceDraft.vatAmount}
+                  onChange={v => setInvoiceDraft({ ...invoiceDraft, vatAmount: v, total: +(Number(invoiceDraft.netAmount || 0) + (Number(v) || 0)).toFixed(2) })}/>
               </div>
               <div>
                 <div className="label mb-1">{t("inv.total", lang)} *</div>
-                <input className="input num text-right font-semibold" type="number" step="0.01" value={invoiceDraft.total}
-                  onChange={e => setInvoiceDraft({ ...invoiceDraft, total: e.target.value })}/>
+                <MoneyInput className="input num text-right font-semibold" value={invoiceDraft.total}
+                  onChange={v => setInvoiceDraft({ ...invoiceDraft, total: v })}/>
               </div>
             </div>
 
@@ -81709,8 +82405,8 @@ function InvoicesView({ data, session, canAct, lang, onChange, logAudit, notify,
                 </div>
                 <div>
                   <div className="label mb-1">Tutar ({sym}) *</div>
-                  <input className="input num text-right" type="number" step="0.01" autoFocus value={paymentDraft.amount}
-                    onChange={e => setPaymentDraft({ ...paymentDraft, amount: e.target.value })}/>
+                  <MoneyInput className="input num text-right" autoFocus value={paymentDraft.amount}
+                    onChange={v => setPaymentDraft({ ...paymentDraft, amount: v })}/>
                 </div>
               </div>
               <div>
@@ -82886,8 +83582,8 @@ function FxRevaluationView({ data, session, canAct, lang, onChange, logAudit, no
                   {!useManual && !autoRates.usdRef && <span style={{ color: "#b91c1c" }}>kayıt yok</span>}
                 </div>
                 {useManual ? (
-                  <input className="input num text-right" type="number" step="0.0001" value={manualRates.usdRef}
-                    onChange={e => setManualRates({ ...manualRates, usdRef: Number(e.target.value) || 0 })}/>
+                  <RateInput className="input num text-right" value={manualRates.usdRef}
+                    onChange={v => setManualRates({ ...manualRates, usdRef: v === '' ? 0 : v })}/>
                 ) : (
                   <div className="p-2 rounded num text-right" style={{ background: "var(--bg)", fontWeight: 500 }}>
                     {(autoRates.usdRef?.rate || rates.USD || 0).toFixed(4)}
@@ -82900,8 +83596,8 @@ function FxRevaluationView({ data, session, canAct, lang, onChange, logAudit, no
                   {!useManual && autoRates.eurRef && <span className="mono">{autoRates.eurRef.source.date}</span>}
                 </div>
                 {useManual ? (
-                  <input className="input num text-right" type="number" step="0.0001" value={manualRates.eurRef}
-                    onChange={e => setManualRates({ ...manualRates, eurRef: Number(e.target.value) || 0 })}/>
+                  <RateInput className="input num text-right" value={manualRates.eurRef}
+                    onChange={v => setManualRates({ ...manualRates, eurRef: v === '' ? 0 : v })}/>
                 ) : (
                   <div className="p-2 rounded num text-right" style={{ background: "var(--bg)", fontWeight: 500 }}>
                     {(autoRates.eurRef?.rate || rates.EUR || 0).toFixed(4)}
@@ -82921,8 +83617,8 @@ function FxRevaluationView({ data, session, canAct, lang, onChange, logAudit, no
                   {!useManual && autoRates.usdAt && <span className="mono">{autoRates.usdAt.source.date}</span>}
                 </div>
                 {useManual ? (
-                  <input className="input num text-right" type="number" step="0.0001" value={manualRates.usdAt}
-                    onChange={e => setManualRates({ ...manualRates, usdAt: Number(e.target.value) || 0 })}/>
+                  <RateInput className="input num text-right" value={manualRates.usdAt}
+                    onChange={v => setManualRates({ ...manualRates, usdAt: v === '' ? 0 : v })}/>
                 ) : (
                   <div className="p-2 rounded num text-right" style={{ background: "var(--bg)", fontWeight: 500 }}>
                     {(autoRates.usdAt?.rate || rates.USD || 0).toFixed(4)}
@@ -82935,8 +83631,8 @@ function FxRevaluationView({ data, session, canAct, lang, onChange, logAudit, no
                   {!useManual && autoRates.eurAt && <span className="mono">{autoRates.eurAt.source.date}</span>}
                 </div>
                 {useManual ? (
-                  <input className="input num text-right" type="number" step="0.0001" value={manualRates.eurAt}
-                    onChange={e => setManualRates({ ...manualRates, eurAt: Number(e.target.value) || 0 })}/>
+                  <RateInput className="input num text-right" value={manualRates.eurAt}
+                    onChange={v => setManualRates({ ...manualRates, eurAt: v === '' ? 0 : v })}/>
                 ) : (
                   <div className="p-2 rounded num text-right" style={{ background: "var(--bg)", fontWeight: 500 }}>
                     {(autoRates.eurAt?.rate || rates.EUR || 0).toFixed(4)}

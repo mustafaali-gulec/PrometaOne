@@ -7,6 +7,7 @@
  */
 import { useMemo, useState } from 'react';
 
+import { MoneyInput, RateInput } from '../../../shared/ui/MoneyInput';
 import type {
   CategorySection,
   Currency,
@@ -501,10 +502,9 @@ function KasaEntryForm({
           <option value="in">Giriş</option>
           <option value="out">Çıkış</option>
         </select>
-        <input
-          type="number"
+        <MoneyInput
           value={amount}
-          onChange={(ev) => setAmount(ev.target.value)}
+          onChange={(v) => setAmount(v === '' ? '' : String(v))}
           placeholder="Tutar"
           style={{ ...fieldStyle(), width: 120 }}
         />
@@ -612,17 +612,15 @@ function InvoiceCreateForm({
           <option value="USD">USD</option>
           <option value="EUR">EUR</option>
         </select>
-        <input
-          type="number"
+        <MoneyInput
           value={subtotal}
-          onChange={(ev) => setSubtotal(ev.target.value)}
+          onChange={(v) => setSubtotal(v === '' ? '' : String(v))}
           placeholder="Ara toplam"
           style={{ ...fieldStyle(), width: 130 }}
         />
-        <input
-          type="number"
+        <RateInput
           value={kdvRate}
-          onChange={(ev) => setKdvRate(ev.target.value)}
+          onChange={(v) => setKdvRate(v === '' ? '' : String(v))}
           placeholder="KDV %"
           style={{ ...fieldStyle(), width: 90 }}
         />

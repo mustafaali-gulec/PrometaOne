@@ -8,6 +8,7 @@
  */
 import { useEffect, useState } from 'react';
 
+import { MoneyInput } from '../../../../shared/ui/MoneyInput';
 import type {
   ContractDto,
   DeductionKind,
@@ -413,10 +414,9 @@ function HakedisDetail({
         <div style={{ display: 'grid', gap: 6 }}>
           <label style={{ fontSize: 12 }}>
             Fiyat farkı (ilave):{' '}
-            <input
-              type="number"
+            <MoneyInput
               value={priceDiff}
-              onChange={(ev) => setPriceDiff(ev.target.value)}
+              onChange={(v) => setPriceDiff(v === '' ? '' : String(v))}
               style={field({ width: 120, textAlign: 'right' })}
             />
           </label>
@@ -439,12 +439,11 @@ function HakedisDetail({
                   </option>
                 ))}
               </select>
-              <input
-                type="number"
+              <MoneyInput
                 value={d.amount}
-                onChange={(ev) =>
+                onChange={(v) =>
                   setDeds((p) =>
-                    p.map((x, i) => (i === idx ? { ...x, amount: ev.target.value } : x)),
+                    p.map((x, i) => (i === idx ? { ...x, amount: v === '' ? '' : String(v) } : x)),
                   )
                 }
                 placeholder="Tutar"

@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 
+import { MoneyInput } from '../../../../shared/ui/MoneyInput';
 import type {
   MachineDto,
   MachineKind,
@@ -253,10 +254,9 @@ function PersonnelSection({
           placeholder="Meslek"
           style={fld({ width: 130 })}
         />
-        <input
-          type="number"
+        <MoneyInput
           value={daily}
-          onChange={(e) => setDaily(e.target.value)}
+          onChange={(v) => setDaily(v === '' ? '' : String(v))}
           placeholder="Yevmiye"
           style={fld({ width: 110 })}
         />
@@ -456,10 +456,9 @@ function MachinesSection({
             </option>
           ))}
         </select>
-        <input
-          type="number"
+        <MoneyInput
           value={hourly}
-          onChange={(e) => setHourly(e.target.value)}
+          onChange={(v) => setHourly(v === '' ? '' : String(v))}
           placeholder="Saat ücreti"
           style={fld({ width: 110 })}
         />
@@ -570,17 +569,15 @@ function MachineLogsSection({
           placeholder="Saat"
           style={fld({ width: 90 })}
         />
-        <input
-          type="number"
+        <MoneyInput
           value={fuel}
-          onChange={(e) => setFuel(e.target.value)}
+          onChange={(v) => setFuel(v === '' ? '' : String(v))}
           placeholder="Yakıt ₺"
           style={fld({ width: 100 })}
         />
-        <input
-          type="number"
+        <MoneyInput
           value={maint}
-          onChange={(e) => setMaint(e.target.value)}
+          onChange={(v) => setMaint(v === '' ? '' : String(v))}
           placeholder="Bakım ₺"
           style={fld({ width: 100 })}
         />

@@ -48,7 +48,7 @@ const oldRowCount = (doc.slice(headerEnd, tblEnd).match(/<w:tr>/g) || []).length
 doc = doc.slice(0, headerEnd) + rows.map(rowXml).join('') + doc.slice(tblEnd);
 
 // 4) baslik blogundaki guncelleme tarihi + surum
-doc = doc.replace(/Son guncelleme: \d{4}-\d{2}-\d{2}/, 'Son guncelleme: 2026-06-15');
+doc = doc.replace(/Son guncelleme: \d{4}-\d{2}-\d{2}/, 'Son guncelleme: 2026-06-16');
 doc = doc.replace(/Surum: \d+\.\d+/, 'Surum: 2.0');
 
 fs.writeFileSync(docPath, doc, 'utf8');

@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 
+import { MoneyInput } from '../../../../shared/ui/MoneyInput';
 import type {
   AdvanceDto,
   CashMovementDto,
@@ -260,10 +261,9 @@ function ExpensesSection({
           placeholder="Açıklama"
           style={fld({ flex: 1, minWidth: 140 })}
         />
-        <input
-          type="number"
+        <MoneyInput
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(v) => setAmount(v === '' ? '' : String(v))}
           placeholder="Tutar"
           style={fld({ width: 120 })}
         />
@@ -360,17 +360,15 @@ function AdvancesSection({
           placeholder="Açıklama"
           style={fld({ flex: 1, minWidth: 140 })}
         />
-        <input
-          type="number"
+        <MoneyInput
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(v) => setAmount(v === '' ? '' : String(v))}
           placeholder="Avans tutarı"
           style={fld({ width: 130 })}
         />
-        <input
-          type="number"
+        <MoneyInput
           value={offset}
-          onChange={(e) => setOffset(e.target.value)}
+          onChange={(v) => setOffset(v === '' ? '' : String(v))}
           placeholder="Mahsup"
           style={fld({ width: 110 })}
         />
@@ -484,10 +482,9 @@ function CashSection({
           placeholder="Açıklama"
           style={fld({ flex: 1, minWidth: 120 })}
         />
-        <input
-          type="number"
+        <MoneyInput
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(v) => setAmount(v === '' ? '' : String(v))}
           placeholder="Tutar"
           style={fld({ width: 120 })}
         />
@@ -742,11 +739,10 @@ function PaymentsSection({
             onChange={(e) => setDesc(e.target.value)}
             style={fld({})}
           />
-          <input
+          <MoneyInput
             placeholder="Tutar"
-            type="number"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(v) => setAmount(v === '' ? '' : String(v))}
             style={fld({})}
           />
           <input
