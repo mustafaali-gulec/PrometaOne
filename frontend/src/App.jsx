@@ -5106,6 +5106,209 @@ const PAYROLL_FREQUENCIES = {
   conditional:{ labels: { tr: "Şarta Bağlı",       en: "Conditional",     de: "Bedingt",         ar: "مشروط" } },
 };
 
+/* =====================================================================
+   ŞARTA BAĞLI BORDRO BİLEŞENLERİ — Koşul Alan Kataloğu & Operatörler
+   ---------------------------------------------------------------------
+   Bir bordro bileşeni, çalışan kartındaki herhangi bir veriye göre
+   şarta bağlanabilir (örn. işe giriş < 2020, departman = X, brüt < Y).
+   Koşul sağlanmazsa bileşen o çalışanın bordrosuna dahil edilmez.
+===================================================================== */
+const PAYROLL_CONDITION_OPERATORS = {
+  before:  { labels: { tr: "önce",            en: "before",        de: "vor",        ar: "قبل" },     types: ["date"] },
+  after:   { labels: { tr: "sonra",           en: "after",         de: "nach",       ar: "بعد" },     types: ["date"] },
+  on:      { labels: { tr: "tarihinde (=)",   en: "on (=)",        de: "am (=)",     ar: "في" },      types: ["date"] },
+  eq:      { labels: { tr: "= eşit",          en: "= equals",      de: "= gleich",   ar: "= يساوي" }, types: ["number", "enum", "string", "bool"] },
+  ne:      { labels: { tr: "≠ farklı",        en: "≠ not equal",   de: "≠ ungleich", ar: "≠ لا يساوي" }, types: ["number", "enum", "string", "bool"] },
+  gt:      { labels: { tr: "> büyük",         en: "> greater",     de: "> größer",   ar: "> أكبر" },  types: ["number"] },
+  gte:     { labels: { tr: "≥ büyük/eşit",    en: "≥ greater/eq",  de: "≥",          ar: "≥" },       types: ["number"] },
+  lt:      { labels: { tr: "< küçük",         en: "< less",        de: "< kleiner",  ar: "< أصغر" },  types: ["number"] },
+  lte:     { labels: { tr: "≤ küçük/eşit",    en: "≤ less/eq",     de: "≤",          ar: "≤" },       types: ["number"] },
+  in:      { labels: { tr: "içinde (virgüllü liste)", en: "in (comma list)", de: "in Liste", ar: "ضمن" }, types: ["enum", "string"] },
+  isTrue:  { labels: { tr: "Evet (işaretli)", en: "is true",       de: "ist wahr",   ar: "صحيح" },    types: ["bool"] },
+  isFalse: { labels: { tr: "Hayır (işaretsiz)", en: "is false",    de: "ist falsch", ar: "خطأ" },     types: ["bool"] },
+};
+
+// getValue getter'ları aşağıda tanımlı function bildirimlerini (hoisted) kullanır:
+// getEmployeeTenure, getEmployeeAge, getEmployeeDepartment
+const PAYROLL_CONDITION_FIELDS = {
+  // — İşe giriş / kıdem / yaş —
+  startDate: {
+    labels: { tr: "İşe Giriş Tarihi", en: "Hire Date", de: "Eintrittsdatum", ar: "تاريخ التعيين" },
+    type: "date",
+    getValue: (emp) => emp?.startDate || null,
+  },
+  tenureYears: {
+    labels: { tr: "Kıdem (yıl)", en: "Tenure (years)", de: "Betriebszugehörigkeit (Jahre)", ar: "الأقدمية (سنوات)" },
+    type: "number",
+    getValue: (emp) => getEmployeeTenure(emp),
+  },
+  age: {
+    labels: { tr: "Yaş", en: "Age", de: "Alter", ar: "العمر" },
+    type: "number",
+    getValue: (emp) => getEmployeeAge(emp),
+  },
+  // — Departman / pozisyon / kadro —
+  departmentId: {
+    labels: { tr: "Departman", en: "Department", de: "Abteilung", ar: "القسم" },
+    type: "enum",
+    getValue: (emp, data) => getEmployeeDepartment(emp, data)?.id ?? emp?.departmentId ?? null,
+    dynamicOptions: (data) => (data?.hrDepartments || []).map(d => ({ value: d.id, label: d.name?.tr || d.name || String(d.id) })),
+  },
+  jobTitleId: {
+    labels: { tr: "Pozisyon", en: "Position", de: "Position", ar: "المنصب" },
+    type: "enum",
+    getValue: (emp) => emp?.jobTitleId ?? null,
+    dynamicOptions: (data) => (data?.hrJobTitles || []).map(j => ({ value: j.id, label: j.name?.tr || j.name || String(j.id) })),
+  },
+  employmentType: {
+    labels: { tr: "Kadro / Çalışma Tipi", en: "Employment Type", de: "Beschäftigungsart", ar: "نوع التوظيف" },
+    type: "enum",
+    getValue: (emp) => emp?.employmentType || null,
+    options: [
+      { value: "full_time", label: { tr: "Tam Zamanlı", en: "Full-time" } },
+      { value: "part_time", label: { tr: "Yarı Zamanlı", en: "Part-time" } },
+      { value: "contract",  label: { tr: "Sözleşmeli",   en: "Contract" } },
+      { value: "intern",    label: { tr: "Stajyer",      en: "Intern" } },
+    ],
+  },
+  status: {
+    labels: { tr: "Durum", en: "Status", de: "Status", ar: "الحالة" },
+    type: "enum",
+    getValue: (emp) => emp?.status || null,
+    dynamicOptions: () => Object.entries(EMPLOYEE_STATUS).map(([k, v]) => ({ value: k, label: v.label })),
+  },
+  // — Kişisel / medeni durum —
+  maritalStatus: {
+    labels: { tr: "Medeni Hal", en: "Marital Status", de: "Familienstand", ar: "الحالة الاجتماعية" },
+    type: "enum",
+    getValue: (emp) => emp?.maritalStatus || "single",
+    options: [
+      { value: "single",   label: { tr: "Bekâr",    en: "Single" } },
+      { value: "married",  label: { tr: "Evli",     en: "Married" } },
+      { value: "divorced", label: { tr: "Boşanmış", en: "Divorced" } },
+      { value: "widowed",  label: { tr: "Dul",      en: "Widowed" } },
+    ],
+  },
+  childCount: {
+    labels: { tr: "Çocuk Sayısı", en: "Number of Children", de: "Anzahl Kinder", ar: "عدد الأطفال" },
+    type: "number",
+    getValue: (emp) => Number(emp?.payrollProfile?.childCount || 0),
+  },
+  disabilityDegree: {
+    labels: { tr: "Engellilik Derecesi", en: "Disability Degree", de: "Behinderungsgrad", ar: "درجة الإعاقة" },
+    type: "enum",
+    getValue: (emp) => String(emp?.payrollProfile?.disabilityDegree || 0),
+    options: [
+      { value: "0", label: { tr: "Yok",       en: "None" } },
+      { value: "1", label: { tr: "1. Derece", en: "1st degree" } },
+      { value: "2", label: { tr: "2. Derece", en: "2nd degree" } },
+      { value: "3", label: { tr: "3. Derece", en: "3rd degree" } },
+    ],
+  },
+  spouseWorking: {
+    labels: { tr: "Eşi Çalışıyor", en: "Spouse Working", de: "Ehepartner berufstätig", ar: "الزوج يعمل" },
+    type: "bool",
+    getValue: (emp) => !!emp?.payrollProfile?.spouseWorking,
+  },
+  hasPhD: {
+    labels: { tr: "Doktora (PhD)", en: "Has PhD", de: "Promotion", ar: "دكتوراه" },
+    type: "bool",
+    getValue: (emp) => !!emp?.payrollProfile?.hasPhD,
+  },
+  gender: {
+    labels: { tr: "Cinsiyet", en: "Gender", de: "Geschlecht", ar: "الجنس" },
+    type: "enum",
+    getValue: (emp) => emp?.gender || null,
+    options: [
+      { value: "male",   label: { tr: "Erkek", en: "Male" } },
+      { value: "female", label: { tr: "Kadın", en: "Female" } },
+    ],
+  },
+  // — Maaş eşiği —
+  brutSalary: {
+    labels: { tr: "Brüt Maaş (TL)", en: "Gross Salary (TL)", de: "Bruttogehalt (TL)", ar: "الراتب الإجمالي" },
+    type: "number",
+    getValue: (emp) => Number(emp?.brutSalary || 0),
+  },
+};
+
+// Bir koşul alanının seçilebilir seçeneklerini döndürür (dinamik veya statik)
+function getConditionFieldOptions(fieldKey, data, lang) {
+  const f = PAYROLL_CONDITION_FIELDS[fieldKey];
+  if (!f) return [];
+  if (typeof f.dynamicOptions === "function") {
+    return f.dynamicOptions(data).map(o => ({ value: o.value, label: o.label }));
+  }
+  if (Array.isArray(f.options)) {
+    return f.options.map(o => ({ value: o.value, label: o.label?.[lang] || o.label?.tr || String(o.value) }));
+  }
+  return [];
+}
+
+// Çalışan, bir bileşenin koşullarını sağlıyor mu? (koşul yoksa/pasifse → herkese uygulanır)
+function evaluateComponentConditions(component, employee, data) {
+  const cond = component?.conditions;
+  if (!cond || !cond.enabled || !Array.isArray(cond.rules) || cond.rules.length === 0) return true;
+
+  const testRule = (rule) => {
+    const fieldDef = PAYROLL_CONDITION_FIELDS[rule?.field];
+    if (!fieldDef || !rule?.operator) return true; // eksik/tanımsız kural → engelleme yapma
+    const actual = fieldDef.getValue(employee, data);
+    const op = rule.operator;
+    const expected = rule.value;
+
+    if (actual == null && fieldDef.type !== "bool") {
+      return op === "ne"; // değer yoksa yalnızca "farklı" türü kural geçer
+    }
+
+    switch (fieldDef.type) {
+      case "date": {
+        const a = new Date(actual).getTime();
+        const b = new Date(expected).getTime();
+        if (isNaN(a) || isNaN(b)) return false;
+        if (op === "before") return a < b;
+        if (op === "after")  return a > b;
+        if (op === "on")     return String(actual).slice(0, 10) === String(expected).slice(0, 10);
+        return false;
+      }
+      case "number": {
+        const a = Number(actual);
+        const b = Number(expected);
+        if (isNaN(a) || isNaN(b)) return false;
+        switch (op) {
+          case "eq":  return a === b;
+          case "ne":  return a !== b;
+          case "gt":  return a > b;
+          case "gte": return a >= b;
+          case "lt":  return a < b;
+          case "lte": return a <= b;
+          default:    return false;
+        }
+      }
+      case "bool": {
+        const a = !!actual;
+        if (op === "isTrue")  return a === true;
+        if (op === "isFalse") return a === false;
+        if (op === "eq")      return a === (expected === true || expected === "true");
+        if (op === "ne")      return a !== (expected === true || expected === "true");
+        return false;
+      }
+      default: { // enum | string
+        const a = String(actual);
+        if (op === "eq") return a === String(expected);
+        if (op === "ne") return a !== String(expected);
+        if (op === "in") {
+          const list = String(expected || "").split(",").map(s => s.trim()).filter(Boolean);
+          return list.includes(a);
+        }
+        return false;
+      }
+    }
+  };
+
+  return cond.logic === "any" ? cond.rules.some(testRule) : cond.rules.every(testRule);
+}
+
 // Türkiye 2026 varsayılan parametreler (kullanıcı bunları "Genel Bordro Parametreleri"nde değiştirir)
 const TR_PAYROLL_DEFAULTS_2026 = {
   minimumWageGross: 26005.50,         // 2026 tahmini (kullanıcı güncelleyebilir)
@@ -5887,6 +6090,43 @@ function quickCalculateNet(brutAylik, data, employee) {
 }
 
 /* =====================================================================
+   NET → BRÜT (tam motor tersine çevirme)
+   ---------------------------------------------------------------------
+   Hedeflenen NET maaşı verince, calculatePayroll tam motorunu ikili arama
+   (bisection) ile tersine çevirerek karşılık gelen BRÜT maaşı bulur.
+   Net, brütle monoton arttığı için bisection güvenle yakınsar.
+
+   Giriş ekranları için temsilî dönem (efektif tarihin ay/yılı) ve temiz
+   kümülatif (prevCumulatives = {}) kullanılır → "ilk ay neti". Yıl içinde
+   kümülatif vergi nedeniyle ilerleyen aylarda gerçek net bir miktar
+   düşebilir; bu, brütü sabitleyen standart sektör davranışıdır.
+===================================================================== */
+function grossFromNet(netTarget, period, data, employee, prevCumulatives = {}) {
+  const target = Number(netTarget) || 0;
+  if (target <= 0) return 0;
+  if (!data || !employee) return 0;
+
+  const evalNet = (g) => {
+    const res = calculatePayroll({ ...employee, brutSalary: g }, period, data, prevCumulatives);
+    return res?.totals?.net || 0;
+  };
+
+  let lo = target;                 // brüt her zaman >= net
+  let hi = target * 2 + 50000;     // bol bir üst sınır
+  // hedef neti aşana kadar üst sınırı genişlet
+  let guard = 0;
+  while (evalNet(hi) < target && guard < 25) { hi *= 1.5; guard++; }
+
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    const net = evalNet(mid);
+    if (Math.abs(net - target) < 0.5) return Math.round(mid * 100) / 100;
+    if (net < target) lo = mid; else hi = mid;
+  }
+  return Math.round(((lo + hi) / 2) * 100) / 100;
+}
+
+/* =====================================================================
    BORDRO HESAPLAMA MOTORU (Payroll Calculation Engine)
    ---------------------------------------------------------------------
    Türkiye İş Hukuku ve Vergi Mevzuatına uygun, parametrik, kümülatif
@@ -5936,8 +6176,8 @@ function calculatePayroll(employee, period, data, prevCumulatives = {}) {
   const dailyWage = baseBrutAylik / 30;
   const hourlyWage = baseBrutAylik / 225; // 30 gün × 7.5 saat = 225 saat (tam zamanlı)
 
-  // ---- Tüm aktif bordro bileşenlerini al ----
-  const allComponents = (data.hrPayrollComponents || []).filter(c => c.active);
+  // ---- Tüm aktif bordro bileşenlerini al (şarta bağlı olanlar bu çalışan için değerlendirilir) ----
+  const allComponents = (data.hrPayrollComponents || []).filter(c => c.active && evaluateComponentConditions(c, employee, data));
   const incomes = [];
   const deductions = [];
 
@@ -16604,6 +16844,19 @@ function EmployeeFormModal({ draft, setDraft, jobTitles, departments, employees,
     return quickCalculateNet(parseTRNumber(draft.brutSalary), data, draft);
   }, [draft.brutSalary, draft.payrollProfile, draft.jobTitleId, data]);
 
+  // Net giriş kipinde: net hedeften brütü tam motorla türet ve brutSalary'yi güncel tut.
+  // (Depolanan kanonik değer her zaman brüt; net yalnızca bir giriş kipi.)
+  useEffect(() => {
+    if (draft.salaryType !== "net") return;
+    const netVal = parseTRNumber(draft.netSalaryInput);
+    if (!data || !netVal) return;
+    const now = new Date();
+    const gross = grossFromNet(netVal, { year: now.getFullYear(), month: 1 }, data, draft);
+    if (Math.abs((Number(draft.brutSalary) || 0) - gross) > 0.5) {
+      setDraft(d => ({ ...d, brutSalary: gross }));
+    }
+  }, [draft.salaryType, draft.netSalaryInput, draft.payrollProfile, draft.jobTitleId, data]);
+
   const setProfile = (k, v) => setDraft({ ...draft, payrollProfile: { ...(draft.payrollProfile || {}), [k]: v } });
   const setPersonal = (k, v) => setDraft({ ...draft, personal: { ...(draft.personal || {}), [k]: v } });
 
@@ -16734,10 +16987,52 @@ function EmployeeFormModal({ draft, setDraft, jobTitles, departments, employees,
                   onChange={e => setDraft({ ...draft, startDate: e.target.value })}/>
               </div>
               <div>
-                <div className="label mb-1">{t("empForm.brutSalary", lang)} (TL)</div>
-                <MoneyInput className="input w-full mono text-right" placeholder="0,00"
-                  value={draft.brutSalary || ""}
-                  onChange={v => setDraft({ ...draft, brutSalary: v })}/>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="label">
+                    {draft.salaryType === "net"
+                      ? (lang === "en" ? "Net Salary" : "Net Maaş")
+                      : t("empForm.brutSalary", lang)} (TL)
+                  </div>
+                  {/* Brüt / Net giriş kipi */}
+                  <div className="flex items-center gap-0.5" style={{ background: "var(--bg-alt)", borderRadius: 5, padding: 2 }}>
+                    {[
+                      { id: "gross", label: lang === "en" ? "Gross" : "Brüt" },
+                      { id: "net",   label: "Net" },
+                    ].map(opt => {
+                      const active = (draft.salaryType || "gross") === opt.id;
+                      return (
+                        <button key={opt.id} type="button"
+                          onClick={() => setDraft({ ...draft, salaryType: opt.id, netSalaryInput: opt.id === "net" ? (draft.netSalaryInput ?? (quickCalc ? Math.round(quickCalc.net) : "")) : draft.netSalaryInput })}
+                          style={{
+                            fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 4,
+                            background: active ? "var(--accent)" : "transparent",
+                            color: active ? "#fff" : "var(--ink-mute)",
+                          }}>
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {draft.salaryType === "net" ? (
+                  <MoneyInput className="input w-full mono text-right" placeholder="0,00"
+                    value={draft.netSalaryInput ?? ""}
+                    onChange={v => setDraft({ ...draft, netSalaryInput: v })}/>
+                ) : (
+                  <MoneyInput className="input w-full mono text-right" placeholder="0,00"
+                    value={draft.brutSalary || ""}
+                    onChange={v => setDraft({ ...draft, brutSalary: v })}/>
+                )}
+                {draft.salaryType === "net" && (
+                  <div className="flex items-center justify-between mt-1.5 px-1" style={{ fontSize: 11 }}>
+                    <span style={{ color: "var(--ink-mute)" }}>
+                      ↳ {lang === "en" ? "Calculated Gross" : "Hesaplanan Brüt"}:
+                    </span>
+                    <span className="mono font-bold" style={{ color: "var(--accent)" }}>
+                      {fmtTL(Number(draft.brutSalary) || 0)} ₺
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -20626,7 +20921,7 @@ function CompensationEmployeeList({ employees, records, departments, jobTitles, 
       )}
 
       {showRaiseModal && (
-        <CompensationRaiseModal employee={showRaiseModal}
+        <CompensationRaiseModal employee={showRaiseModal} data={data}
           policies={data.hrCompPolicies || []} lang={lang}
           onClose={() => setShowRaiseModal(null)}
           onSave={saveRaise}/>
@@ -20704,7 +20999,7 @@ function CompensationHistoryModal({ employee, records, policies, lang, onClose }
 }
 
 /* ---------- Bireysel Zam Modal ---------- */
-function CompensationRaiseModal({ employee, policies, lang, onClose, onSave }) {
+function CompensationRaiseModal({ employee, data, policies, lang, onClose, onSave }) {
   const [draft, setDraft] = useState({
     employeeId: employee.id,
     previousBrutSalary: employee.currentSalary,
@@ -20787,10 +21082,46 @@ function CompensationRaiseModal({ employee, policies, lang, onClose, onSave }) {
         {/* Input'lar mode'a göre */}
         {draft._mode === "amount" && (
           <div>
-            <div className="label mb-1">{lang === "en" ? "New Salary (TL)" : "Yeni Brüt Maaş (TL)"} *</div>
-            <MoneyInput className="input w-full mono text-right" style={{ fontSize: 14 }}
-              value={draft.newBrutSalary || ""}
-              onChange={v => setDraft({ ...draft, newBrutSalary: v === '' ? 0 : v })}/>
+            <div className="flex items-center justify-between mb-1">
+              <div className="label">
+                {draft._salaryType === "net"
+                  ? (lang === "en" ? "New Net Salary (TL)" : "Yeni Net Maaş (TL)")
+                  : (lang === "en" ? "New Gross Salary (TL)" : "Yeni Brüt Maaş (TL)")} *
+              </div>
+              <div className="flex items-center gap-0.5" style={{ background: "var(--bg-alt)", borderRadius: 5, padding: 2 }}>
+                {[{ id: "gross", label: lang === "en" ? "Gross" : "Brüt" }, { id: "net", label: "Net" }].map(opt => {
+                  const active = (draft._salaryType || "gross") === opt.id;
+                  return (
+                    <button key={opt.id} type="button"
+                      onClick={() => setDraft({ ...draft, _salaryType: opt.id })}
+                      style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 4,
+                        background: active ? "var(--accent)" : "transparent", color: active ? "#fff" : "var(--ink-mute)" }}>
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {draft._salaryType === "net" ? (
+              <>
+                <MoneyInput className="input w-full mono text-right" style={{ fontSize: 14 }}
+                  value={draft._netInput ?? ""}
+                  onChange={v => {
+                    const netVal = parseTRNumber(v);
+                    const d = new Date(draft.effectiveDate || new Date().toISOString().slice(0, 10));
+                    const gross = netVal ? grossFromNet(netVal, { year: d.getFullYear(), month: 1 }, data, employee) : 0;
+                    setDraft({ ...draft, _netInput: v, newBrutSalary: gross });
+                  }}/>
+                <div className="flex items-center justify-between mt-1.5 px-1" style={{ fontSize: 11 }}>
+                  <span style={{ color: "var(--ink-mute)" }}>↳ {lang === "en" ? "Calculated Gross" : "Hesaplanan Brüt"}:</span>
+                  <span className="mono font-bold" style={{ color: "var(--accent)" }}>{fmtTL(Number(draft.newBrutSalary) || 0)} ₺</span>
+                </div>
+              </>
+            ) : (
+              <MoneyInput className="input w-full mono text-right" style={{ fontSize: 14 }}
+                value={draft.newBrutSalary || ""}
+                onChange={v => setDraft({ ...draft, newBrutSalary: v === '' ? 0 : v })}/>
+            )}
           </div>
         )}
         {draft._mode === "percent" && (
@@ -21667,6 +21998,7 @@ function PayrollComponentsManager({ data, session, onChange, logAudit, notify, c
             tax: { sgk: true, incomeTax: true, stampDuty: true, unemployment: true },
             severance: { includedInSeverance: false, includedInNotice: false },
             visibility: { showOnPayslip: true, showOnReports: true },
+            conditions: { enabled: false, logic: "all", rules: [] },
             frequency: "monthly",
             active: true,
             name: { tr: "", en: "", de: "", ar: "" },
@@ -21719,7 +22051,7 @@ function PayrollComponentsManager({ data, session, onChange, logAudit, notify, c
       })}
 
       {editing && (
-        <PayrollComponentEditor draft={editing} setDraft={setEditing} lang={lang}
+        <PayrollComponentEditor draft={editing} setDraft={setEditing} lang={lang} data={data}
           onClose={() => setEditing(null)}
           onSave={() => saveComponent(editing)}/>
       )}
@@ -21887,6 +22219,11 @@ function PayrollComponentCard({ component, canManage, lang, onEdit, onToggle, on
               · İhbar
             </span>
           )}
+          {component.conditions?.enabled && (component.conditions.rules?.length > 0) && (
+            <span title={lang === "en" ? "Conditional component" : "Şarta bağlı bileşen"} style={{ color: "#0891b2", fontWeight: 600 }}>
+              · 🔎 {lang === "en" ? "Conditional" : "Şartlı"} ({component.conditions.rules.length})
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1" style={{ color: "var(--ink-mute)" }}>
           {visibility.showOnPayslip
@@ -21913,7 +22250,7 @@ function TaxFlag({ active, label, tooltip, lang }) {
 }
 
 /* ---------- Bordro Bileşen Editör Modalı ---------- */
-function PayrollComponentEditor({ draft, setDraft, lang, onClose, onSave }) {
+function PayrollComponentEditor({ draft, setDraft, lang, data, onClose, onSave }) {
   const setName = (l, v) => setDraft({ ...draft, name: { ...(draft.name || {}), [l]: v } });
   const setNote = (l, v) => setDraft({ ...draft, notes: { ...(draft.notes || {}), [l]: v } });
   const setCalc = (k, v) => setDraft({ ...draft, calc: { ...(draft.calc || {}), [k]: v } });
@@ -21921,6 +22258,27 @@ function PayrollComponentEditor({ draft, setDraft, lang, onClose, onSave }) {
   const setExemption = (k, v) => setDraft({ ...draft, exemption: { ...(draft.exemption || {}), [k]: v } });
   const setSeverance = (k, v) => setDraft({ ...draft, severance: { ...(draft.severance || {}), [k]: v } });
   const setVisibility = (k, v) => setDraft({ ...draft, visibility: { ...(draft.visibility || {}), [k]: v } });
+
+  // — Şarta bağlı uygulama (koşullar) —
+  const conditions = draft.conditions || { enabled: false, logic: "all", rules: [] };
+  const setConditions = (patch) => setDraft({ ...draft, conditions: { ...conditions, ...patch } });
+  // Bir alanın tipine uygun operatörler
+  const operatorsForField = (fieldKey) => {
+    const type = PAYROLL_CONDITION_FIELDS[fieldKey]?.type;
+    return Object.entries(PAYROLL_CONDITION_OPERATORS).filter(([, op]) => op.types.includes(type));
+  };
+  const addRule = () => {
+    const firstField = "startDate";
+    const firstOp = operatorsForField(firstField)[0]?.[0] || "before";
+    setConditions({ rules: [...(conditions.rules || []), { field: firstField, operator: firstOp, value: "" }] });
+  };
+  const updateRule = (idx, patch) => setConditions({ rules: (conditions.rules || []).map((r, i) => i === idx ? { ...r, ...patch } : r) });
+  const removeRule = (idx) => setConditions({ rules: (conditions.rules || []).filter((_, i) => i !== idx) });
+  // Alan değişince operatörü o tipe uygun ilk operatöre sıfırla
+  const changeRuleField = (idx, newField) => {
+    const ops = operatorsForField(newField);
+    updateRule(idx, { field: newField, operator: ops[0]?.[0] || "eq", value: "" });
+  };
 
   const catInfo = PAYROLL_COMPONENT_CATEGORIES[draft.category] || PAYROLL_COMPONENT_CATEGORIES.legal_income;
   const methodInfo = PAYROLL_CALC_METHODS[draft.calc?.method] || PAYROLL_CALC_METHODS.fixed_amount;
@@ -22250,6 +22608,116 @@ function PayrollComponentEditor({ draft, setDraft, lang, onClose, onSave }) {
               <option value="no">{lang === "en" ? "Inactive" : "Pasif"}</option>
             </select>
           </div>
+        </div>
+
+        {/* ŞARTA BAĞLI UYGULAMA (KOŞULLAR) */}
+        <div className="card p-3" style={{ background: conditions.enabled ? "#ecfeff" : "var(--bg)", border: `1px solid ${conditions.enabled ? "#0891b2" : "var(--line)"}` }}>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={!!conditions.enabled}
+              onChange={e => setConditions({ enabled: e.target.checked })}/>
+            <span style={{ fontSize: 12, fontWeight: 700 }}>
+              🔎 {lang === "en" ? "Conditional application (apply only when conditions match)" : "Şarta Bağlı Uygulama (yalnızca koşul sağlanınca uygula)"}
+            </span>
+          </label>
+          <div className="text-xs mt-1" style={{ color: "var(--ink-mute)", paddingLeft: 24 }}>
+            {lang === "en"
+              ? "When enabled, this component is included only for employees whose card data matches the rules below (e.g. hire date before 2020-01-01, department = X, gross < Y)."
+              : "Açıkken bu bileşen yalnızca çalışan kartı verileri aşağıdaki kurallara uyan personele eklenir (örn. işe giriş < 01.01.2020, departman = X, brüt < Y)."}
+          </div>
+
+          {conditions.enabled && (
+            <div className="mt-3 space-y-2" style={{ paddingLeft: 24 }}>
+              {/* Mantık: VE / VEYA */}
+              <div className="flex items-center gap-2">
+                <span style={{ fontSize: 11, color: "var(--ink-mute)" }}>{lang === "en" ? "Match" : "Eşleşme"}:</span>
+                <div className="flex items-center gap-0.5" style={{ background: "var(--bg-alt)", borderRadius: 5, padding: 2 }}>
+                  {[
+                    { id: "all", label: lang === "en" ? "ALL rules (AND)" : "TÜM kurallar (VE)" },
+                    { id: "any", label: lang === "en" ? "ANY rule (OR)" : "HERHANGİ biri (VEYA)" },
+                  ].map(opt => {
+                    const active = (conditions.logic || "all") === opt.id;
+                    return (
+                      <button key={opt.id} type="button" onClick={() => setConditions({ logic: opt.id })}
+                        style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 4,
+                          background: active ? "#0891b2" : "transparent", color: active ? "#fff" : "var(--ink-mute)" }}>
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Kural satırları */}
+              {(conditions.rules || []).length === 0 && (
+                <div className="text-xs" style={{ color: "var(--ink-mute)", fontStyle: "italic" }}>
+                  {lang === "en" ? "No rules yet — add one." : "Henüz kural yok — bir kural ekleyin."}
+                </div>
+              )}
+              {(conditions.rules || []).map((rule, idx) => {
+                const fieldDef = PAYROLL_CONDITION_FIELDS[rule.field] || {};
+                const opType = fieldDef.type;
+                const opDef = PAYROLL_CONDITION_OPERATORS[rule.operator];
+                const isValueless = rule.operator === "isTrue" || rule.operator === "isFalse";
+                const enumOptions = (opType === "enum") ? getConditionFieldOptions(rule.field, data, lang) : [];
+                return (
+                  <div key={idx} className="flex items-center gap-1.5 flex-wrap">
+                    {/* Alan */}
+                    <select className="input" style={{ fontSize: 11, flex: "1 1 130px", minWidth: 120 }}
+                      value={rule.field}
+                      onChange={e => changeRuleField(idx, e.target.value)}>
+                      {Object.entries(PAYROLL_CONDITION_FIELDS).map(([k, f]) => (
+                        <option key={k} value={k}>{f.labels[lang] || f.labels.tr}</option>
+                      ))}
+                    </select>
+                    {/* Operatör */}
+                    <select className="input" style={{ fontSize: 11, flex: "0 1 130px", minWidth: 110 }}
+                      value={rule.operator}
+                      onChange={e => updateRule(idx, { operator: e.target.value })}>
+                      {operatorsForField(rule.field).map(([k, op]) => (
+                        <option key={k} value={k}>{op.labels[lang] || op.labels.tr}</option>
+                      ))}
+                    </select>
+                    {/* Değer (tip + operatöre göre) */}
+                    {isValueless ? (
+                      <span style={{ fontSize: 11, color: "var(--ink-mute)", flex: "1 1 120px" }}>
+                        ({opDef?.labels[lang] || opDef?.labels.tr})
+                      </span>
+                    ) : opType === "date" ? (
+                      <input type="date" className="input" style={{ fontSize: 11, flex: "1 1 130px", minWidth: 120 }}
+                        value={rule.value || ""}
+                        onChange={e => updateRule(idx, { value: e.target.value })}/>
+                    ) : opType === "number" ? (
+                      <input type="number" className="input mono text-right" style={{ fontSize: 11, flex: "1 1 100px", minWidth: 90 }}
+                        value={rule.value ?? ""} placeholder="0"
+                        onChange={e => updateRule(idx, { value: e.target.value })}/>
+                    ) : (opType === "enum" && rule.operator !== "in") ? (
+                      <select className="input" style={{ fontSize: 11, flex: "1 1 130px", minWidth: 120 }}
+                        value={rule.value ?? ""}
+                        onChange={e => updateRule(idx, { value: e.target.value })}>
+                        <option value="">— {lang === "en" ? "select" : "seç"} —</option>
+                        {enumOptions.map(o => (
+                          <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input type="text" className="input" style={{ fontSize: 11, flex: "1 1 130px", minWidth: 120 }}
+                        value={rule.value ?? ""}
+                        placeholder={rule.operator === "in" ? (lang === "en" ? "val1, val2, ..." : "değer1, değer2, ...") : ""}
+                        onChange={e => updateRule(idx, { value: e.target.value })}/>
+                    )}
+                    {/* Sil */}
+                    <button type="button" onClick={() => removeRule(idx)} className="icon-btn" title={lang === "en" ? "Remove" : "Sil"}>
+                      <Trash2 size={12} style={{ color: "var(--negative)" }}/>
+                    </button>
+                  </div>
+                );
+              })}
+
+              <button type="button" onClick={addRule} className="btn btn-ghost text-xs">
+                <Plus size={11}/> {lang === "en" ? "Add rule" : "Kural ekle"}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* NOTLAR */}
@@ -66898,7 +67366,7 @@ function PaymentsListManager({ data, session, canAct, lang, onChange, logAudit, 
   .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; margin-bottom: 16px; padding: 10px 12px; background: #f3f4f6; border-radius: 4px; font-size: 10px; }
   .info-label { color: #6b7280; font-weight: 600; text-transform: uppercase; font-size: 9px; }
   .info-value { font-weight: 600; }
-  .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 16px; }
   .kpi { padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 4px; }
   .kpi .lbl { font-size: 9px; text-transform: uppercase; color: #6b7280; font-weight: 600; }
   .kpi .val { font-size: 13px; font-weight: 700; margin-top: 4px; }
@@ -66941,9 +67409,11 @@ function PaymentsListManager({ data, session, canAct, lang, onChange, logAudit, 
   </div>
 
   <div class="kpi-grid">
+    <div class="kpi"><div class="lbl">${lang === "en" ? "Cash Assets" : "Nakit Varlıklar"}</div><div class="val" style="color:#0f766e">${esc(fmtMoneySign(kpi.cashAssets, dc, rates))} ${esc(CURRENCY_SYMBOLS[dc] || dc)}</div></div>
     <div class="kpi"><div class="lbl">${lang === "en" ? "Overdue" : "Vadesi Geçmiş"}</div><div class="val" style="color:#b91c1c">${esc(kpi.overdue)}</div></div>
     <div class="kpi"><div class="lbl">${lang === "en" ? "Due in 7 Days" : "7 Gün İçinde"}</div><div class="val" style="color:#ca8a04">${esc(kpi.upcoming)}</div></div>
-    <div class="kpi"><div class="lbl">${lang === "en" ? "Total" : "Toplam"}</div><div class="val" style="color:#0f766e">${esc(kpi.total)}</div></div>
+    <div class="kpi"><div class="lbl">${lang === "en" ? "Total Open" : "Toplam Açık"}</div><div class="val" style="color:#374151">${esc(kpi.total)}</div></div>
+    <div class="kpi"><div class="lbl">${lang === "en" ? "Cash − Overdue" : "Nakit − Gecikmiş"}</div><div class="val" style="color:${kpi.netAfterOverdue >= 0 ? "#15803d" : "#b91c1c"}">${esc(fmtMoneySign(kpi.netAfterOverdue, dc, rates))} ${esc(CURRENCY_SYMBOLS[dc] || dc)}</div></div>
   </div>
 
   <h2>${lang === "en" ? "Planned Payments" : "Planlı Ödemeler"}</h2>
@@ -67029,6 +67499,10 @@ function PaymentsListManager({ data, session, canAct, lang, onChange, logAudit, 
         aoa.push(["", "", "", "", lang === "en" ? `Total (${cur})` : `Toplam (${cur})`, round2(sum), cur]);
       });
     }
+    // Nakit varlıklar ve net (gösterim para birimine konsolide)
+    aoa.push([]);
+    aoa.push(["", "", "", "", lang === "en" ? "Cash Assets" : "Nakit Varlıklar", round2(convertFromTRY(kpi.cashAssets, dc, rates)), dc]);
+    aoa.push(["", "", "", "", lang === "en" ? "Cash − Overdue" : "Nakit − Gecikmiş", round2(convertFromTRY(kpi.netAfterOverdue, dc, rates)), dc]);
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     ws["!cols"] = [{ wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 28 }, { wch: 40 }, { wch: 16 }, { wch: 10 }];
     const wb = XLSX.utils.book_new();
