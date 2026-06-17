@@ -39001,15 +39001,11 @@ function PartyExcelImportModal({ data, session, lang, onClose, onChange, notify,
     logAudit && logAudit("export", "party", { count: parties.length });
   };
 
-  // === Şablon İndir (gerçek .xlsx — başlıklar + örnekler; talimatlar ayrı sayfada) ===
+  // === Şablon İndir (gerçek .xlsx — yalnızca başlık satırı, her başlık bir sütun) ===
   const handleDownloadTemplate = () => {
     const headers = COLUMNS.map(c => lang === "en" ? c.header_en : c.header_tr);
-    const examples = [
-      ["320.A001", "Tedarikçi", "Tüzel",  "ABC İNŞAAT LTD. ŞTİ.", "1234567890",  "Aktif", "Beşiktaş", "034", "0123456789012345", "TR", "0212 000 00 00", "info@abc.com",   "Levent Mah. No:1", "PRJ01", "OZL1", "60", "120.01", "320.01", "", "", "100000", "low",    "Hayır", "Hayır", "Hayır"],
-      ["120.A001", "Müşteri",   "Gerçek", "MEHMET YILMAZ",        "12345678901", "Aktif", "Kadıköy",  "035", "",                 "TR", "0532 000 00 00", "mehmet@mail.com","Moda Cad. No:5",   "",      "",     "30", "120.02", "",       "", "", "50000",  "medium", "Hayır", "Hayır", "Hayır"],
-    ];
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...examples]);
+    const ws = XLSX.utils.aoa_to_sheet([headers]);
     ws["!cols"] = colWidths();
     XLSX.utils.book_append_sheet(wb, ws, lang === "en" ? "Template" : "Cari Şablonu");
 
@@ -39024,7 +39020,7 @@ function PartyExcelImportModal({ data, session, lang, onClose, onChange, notify,
       [lang === "en" ? "Risk Level: low, medium, high, critical" : "Risk Seviyesi: low, medium, high, critical"],
       [lang === "en" ? "Yes/No fields (blacklist, banned): Evet or Hayır" : "Evet/Hayır alanları (kara liste, men): Evet veya Hayır"],
       [lang === "en" ? "Matching: by Code, otherwise by Tax ID" : "Eşleştirme: Cari Kodu ile, yoksa VKN/TCKN ile"],
-      [lang === "en" ? "Delete the example rows before importing your own data" : "Kendi verinizi yüklemeden önce örnek satırları silin"],
+      [lang === "en" ? "Fill one party per row, starting at row 2" : "2. satırdan itibaren her satıra bir cari yazın"],
     ];
     const tipWs = XLSX.utils.aoa_to_sheet(tips);
     tipWs["!cols"] = [{ wch: 90 }];
@@ -39437,8 +39433,8 @@ function PartyExcelImportModal({ data, session, lang, onClose, onChange, notify,
                 <div style={{ fontSize: 13, color: "#1d4ed8", lineHeight: 1.5 }}>
                   <b>{lang === "en" ? "Download Import Template" : "İçe Aktarım Şablonu İndir"}</b><br/>
                   {lang === "en"
-                    ? "Header row + 2 example parties + instructions. Edit in Excel, then upload via Import tab."
-                    : "Başlık satırı + 2 örnek cari + talimatlar. Excel'de düzenleyin, İçe Aktar sekmesinden yükleyin."}
+                    ? "Header row only (each header a column). Instructions on a separate sheet. Fill in Excel, then upload via Import tab."
+                    : "Yalnızca başlık satırı (her başlık bir sütun). Talimatlar ayrı sayfada. Excel'de doldurun, İçe Aktar sekmesinden yükleyin."}
                 </div>
               </div>
               <div className="card p-3" style={{ background: "#fef3c7", border: "1px solid #ca8a04" }}>
