@@ -38607,6 +38607,21 @@ function PartiesModule({ data, session, canAct, lang, onChange, logAudit, notify
               onEdit={(p) => { setSelectedPartyId(p.id); setActiveView("edit"); }}
               onViewMuavin={(p) => { setSelectedPartyId(p.id); setActiveView("muavin"); }}
               onDelete={async (p) => {
+                // İşlem gören cari kartlar silinemez — muhasebe bütünlüğü için.
+                const partyAccountCodes = [
+                  p.accounting?.accountCode_alici, p.accounting?.accountCode_satici,
+                  p.accounting?.accountCode_personel, p.accounting?.accountCode_diger,
+                ].filter(Boolean);
+                const hasTx =
+                  cariVouchers.some(v => v.partyId === p.id) ||
+                  (data.invoices || []).some(inv => inv.partyId === p.id) ||
+                  (partyAccountCodes.length > 0 && entries.some(e => (e.lines || []).some(line => partyAccountCodes.includes(line.accountCode))));
+                if (hasTx) {
+                  notify(lang === "en"
+                    ? "Cannot delete: this party has linked transactions. Set it to passive instead."
+                    : "Silinemez: bu cari işlem görmüş. Bunun yerine pasife alın.");
+                  return;
+                }
                 if (!confirm(lang === "en" ? `Delete ${p.name}?` : `${p.name} silinsin mi?`)) return;
                 const newParties = parties.filter(x => x.id !== p.id);
                 await onChange({ ...data, accParties: newParties });
@@ -38730,6 +38745,7 @@ function PartiesModule({ data, session, canAct, lang, onChange, logAudit, notify
       {showImportModal && (
         <PartyExcelImportModal
           data={data}
+          session={session}
           lang={lang}
           onChange={onChange}
           notify={notify}
@@ -38883,7 +38899,7 @@ function PartyQuickCreateModal({ lang, existingParties, onSave, onClose }) {
 /* ===================================================================== */
 /* PARTY EXCEL IMPORT/EXPORT MODAL — Cari Kartı CSV İçe/Dışa Aktarım     */
 /* ===================================================================== */
-function PartyExcelImportModal({ data, lang, onClose, onChange, notify, logAudit }) {
+function PartyExcelImportModal({ data, session, lang, onClose, onChange, notify, logAudit }) {
   const parties = data.accParties || [];
   const [activeTab, setActiveTab] = useState("export"); // export | template | import
   const [importMode, setImportMode] = useState("merge"); // merge | only_new | replace_all
@@ -39228,6 +39244,7 @@ function PartyExcelImportModal({ data, lang, onClose, onChange, notify, logAudit
         return `${mainCode}.A${String(codeCounter[mainCode]).padStart(3, "0")}`;
       };
 
+      const affected = [];
       parsedRows.forEach(row => {
         const type = resolveType(row.type);
         if (!type || !row.name?.trim()) return;
@@ -39276,6 +39293,7 @@ function PartyExcelImportModal({ data, lang, onClose, onChange, notify, logAudit
             updatedAt: new Date().toISOString(),
             updatedBy: "import",
           });
+          affected.push(existing);
         } else {
           const base = makeBaseParty(type, fields.personType);
           const code = (row.code && row.code.trim() && !working.some(p => p.code === row.code.trim()))
@@ -39293,6 +39311,7 @@ function PartyExcelImportModal({ data, lang, onClose, onChange, notify, logAudit
             createdBy: "import",
           };
           working.push(newParty);
+          affected.push(newParty);
         }
       });
 
@@ -39305,6 +39324,20 @@ function PartyExcelImportModal({ data, lang, onClose, onChange, notify, logAudit
           ? `Imported: ${validationResults.newCount} new, ${validationResults.updateCount} updated`
           : `${validationResults.newCount} yeni, ${validationResults.updateCount} güncelleme tamamlandı`
       );
+      // Backend bulk-import use-case'ine senkronize et (best-effort; backend/token yoksa atlanır)
+      try {
+        const sync = await syncPartiesToBackend({
+          data, session, mode: importMode,
+          parties: importMode === "replace_all" ? working : affected,
+        });
+        if (sync?.ok && sync.result) {
+          notify(lang === "en"
+            ? `Backend sync: ${sync.result.created} new, ${sync.result.updated} updated`
+            : `Backend senkron: ${sync.result.created} yeni, ${sync.result.updated} güncelleme`);
+        }
+      } catch (e) {
+        console.warn("[cari] backend bulk-import başarısız (yerel veri korundu):", e);
+      }
       onClose();
     } catch (err) {
       notify(lang === "en" ? "Import failed: " + err.message : "İçe aktarım başarısız: " + err.message, "err");
@@ -39588,8 +39621,13 @@ function PartyListView({ parties, accounts, entries, cariVouchers, invoices = []
   const partiesWithBalance = useMemo(() => {
     return parties.map(p => {
       let voucherDebit = 0, voucherCredit = 0;
+      // İşlem (hareket) sayacı — silme kontrolü için. Durumdan (taslak/posted)
+      // bağımsız olarak cariye bağlı herhangi bir kayıt varsa cari işlem görmüştür.
+      let txCount = 0;
       cariVouchers.forEach(v => {
-        if (v.partyId !== p.id || v.status !== "posted") return;
+        if (v.partyId !== p.id) return;
+        txCount++;
+        if (v.status !== "posted") return;
         (v.lines || []).forEach(line => {
           voucherDebit += Number(line.debit) || 0;
           voucherCredit += Number(line.credit) || 0;
@@ -39601,6 +39639,8 @@ function PartyListView({ parties, accounts, entries, cariVouchers, invoices = []
         p.accounting?.accountCode_personel, p.accounting?.accountCode_diger,
       ].filter(Boolean);
       entries.forEach(e => {
+        const matchesParty = partyAccountCodes.length > 0 && (e.lines || []).some(line => partyAccountCodes.includes(line.accountCode));
+        if (matchesParty) txCount++;
         if (e.status !== "posted") return;
         (e.lines || []).forEach(line => {
           if (!partyAccountCodes.includes(line.accountCode)) return;
@@ -39614,6 +39654,7 @@ function PartyListView({ parties, accounts, entries, cariVouchers, invoices = []
       invoices.forEach(inv => {
         if (inv.partyId !== p.id) return;
         invoiceCount++;
+        txCount++;
         const total = Number(inv.total) || 0;
         const paid = Number(inv.paidAmount) || 0;
         if (inv.type === "in") {
@@ -39628,7 +39669,7 @@ function PartyListView({ parties, accounts, entries, cariVouchers, invoices = []
       });
       const debit = voucherDebit + entryDebit + invoiceDebit;
       const credit = voucherCredit + entryCredit + invoiceCredit;
-      return { ...p, debit, credit, balance: debit - credit, invoiceCount };
+      return { ...p, debit, credit, balance: debit - credit, invoiceCount, txCount, hasTx: txCount > 0 };
     });
   }, [parties, cariVouchers, entries, invoices]);
 
@@ -39849,8 +39890,18 @@ function PartyListView({ parties, accounts, entries, cariVouchers, invoices = []
                             style={{ padding: "2px 6px", fontSize: 10 }} title={lang === "en" ? "Edit" : "Düzenle"}>
                             <Edit3 size={11}/>
                           </button>
-                          <button onClick={() => onDelete(p)} className="btn btn-ghost"
-                            style={{ padding: "2px 6px", fontSize: 10, color: "#b91c1c" }} title={lang === "en" ? "Delete" : "Sil"}>
+                          <button onClick={() => onDelete(p)} disabled={p.hasTx} className="btn btn-ghost"
+                            style={{
+                              padding: "2px 6px", fontSize: 10,
+                              color: p.hasTx ? "var(--ink-mute)" : "#b91c1c",
+                              opacity: p.hasTx ? 0.4 : 1,
+                              cursor: p.hasTx ? "not-allowed" : "pointer",
+                            }}
+                            title={p.hasTx
+                              ? (lang === "en"
+                                  ? `Cannot delete: ${p.txCount} transaction(s) linked. Set to passive instead.`
+                                  : `Silinemez: ${p.txCount} işlem bağlı. Bunun yerine pasife alın.`)
+                              : (lang === "en" ? "Delete" : "Sil")}>
                             <Trash2 size={11}/>
                           </button>
                         </div>
@@ -83691,6 +83742,34 @@ function einvAuthToken(session) {
   } catch {
     return session?.token || "";
   }
+}
+
+/** Cari kartlarını backend bulk-import use-case'ine gönderir (best-effort).
+    POST /v1/finance/parties/bulk-import. Token/backend yoksa sessizce atlar —
+    veri zaten localStorage'da; backend açıkken kalıcı hale gelir. */
+async function syncPartiesToBackend({ data, session, mode, parties }) {
+  const token = einvAuthToken(session);
+  if (!token) return { ok: false, skipped: true };
+  const apiBase = (typeof window !== "undefined" && window.PROMETCF_API) || "";
+  const companyId = einvBackendCompanyId(data, session);
+  const items = (parties || []).map(p => ({
+    id: p.id,
+    code: p.code,
+    name: p.name,
+    type: p.type,
+    personType: p.personType ?? null,
+    taxId: p.taxId || null,
+    status: p.status || "active",
+    data: p,
+  }));
+  if (items.length === 0) return { ok: true, result: { total: 0, created: 0, updated: 0, deleted: 0, skipped: 0 } };
+  const res = await fetch(`${apiBase}/v1/finance/parties/bulk-import`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ companyId, mode, parties: items }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return { ok: true, result: await res.json() };
 }
 
 /** Backend e-Fatura API'si TAMSAYI companyId ister; legacy activeCompanyId ise
