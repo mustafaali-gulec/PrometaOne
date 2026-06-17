@@ -16853,7 +16853,8 @@ function EmployeeFormModal({ draft, setDraft, jobTitles, departments, employees,
     const now = new Date();
     const gross = grossFromNet(netVal, { year: now.getFullYear(), month: 1 }, data, draft);
     if (Math.abs((Number(draft.brutSalary) || 0) - gross) > 0.5) {
-      setDraft(d => ({ ...d, brutSalary: gross }));
+      // NOT: setDraft(fn) — bu modalda setDraft = (item)=>setModal({...modal,item}); fonksiyon kabul etmez.
+      setDraft({ ...draft, brutSalary: gross });
     }
   }, [draft.salaryType, draft.netSalaryInput, draft.payrollProfile, draft.jobTitleId, data]);
 
@@ -17015,11 +17016,11 @@ function EmployeeFormModal({ draft, setDraft, jobTitles, departments, employees,
                   </div>
                 </div>
                 {draft.salaryType === "net" ? (
-                  <MoneyInput className="input w-full mono text-right" placeholder="0,00"
+                  <MoneyInput key="salary-net" className="input w-full mono text-right" placeholder="0,00"
                     value={draft.netSalaryInput ?? ""}
                     onChange={v => setDraft({ ...draft, netSalaryInput: v })}/>
                 ) : (
-                  <MoneyInput className="input w-full mono text-right" placeholder="0,00"
+                  <MoneyInput key="salary-gross" className="input w-full mono text-right" placeholder="0,00"
                     value={draft.brutSalary || ""}
                     onChange={v => setDraft({ ...draft, brutSalary: v })}/>
                 )}
