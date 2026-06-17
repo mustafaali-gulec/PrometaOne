@@ -16853,7 +16853,8 @@ function EmployeeFormModal({ draft, setDraft, jobTitles, departments, employees,
     const now = new Date();
     const gross = grossFromNet(netVal, { year: now.getFullYear(), month: 1 }, data, draft);
     if (Math.abs((Number(draft.brutSalary) || 0) - gross) > 0.5) {
-      setDraft(d => ({ ...d, brutSalary: gross }));
+      // NOT: setDraft(fn) — bu modalda setDraft = (item)=>setModal({...modal,item}); fonksiyon kabul etmez.
+      setDraft({ ...draft, brutSalary: gross });
     }
   }, [draft.salaryType, draft.netSalaryInput, draft.payrollProfile, draft.jobTitleId, data]);
 
@@ -17015,11 +17016,11 @@ function EmployeeFormModal({ draft, setDraft, jobTitles, departments, employees,
                   </div>
                 </div>
                 {draft.salaryType === "net" ? (
-                  <MoneyInput className="input w-full mono text-right" placeholder="0,00"
+                  <MoneyInput key="salary-net" className="input w-full mono text-right" placeholder="0,00"
                     value={draft.netSalaryInput ?? ""}
                     onChange={v => setDraft({ ...draft, netSalaryInput: v })}/>
                 ) : (
-                  <MoneyInput className="input w-full mono text-right" placeholder="0,00"
+                  <MoneyInput key="salary-gross" className="input w-full mono text-right" placeholder="0,00"
                     value={draft.brutSalary || ""}
                     onChange={v => setDraft({ ...draft, brutSalary: v })}/>
                 )}
@@ -21093,7 +21094,7 @@ function CompensationRaiseModal({ employee, data, policies, lang, onClose, onSav
                   const active = (draft._salaryType || "gross") === opt.id;
                   return (
                     <button key={opt.id} type="button"
-                      onClick={() => setDraft({ ...draft, _salaryType: opt.id })}
+                      onClick={() => setDraft(d => ({ ...d, _salaryType: opt.id }))}
                       style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 4,
                         background: active ? "var(--accent)" : "transparent", color: active ? "#fff" : "var(--ink-mute)" }}>
                       {opt.label}
@@ -21104,13 +21105,13 @@ function CompensationRaiseModal({ employee, data, policies, lang, onClose, onSav
             </div>
             {draft._salaryType === "net" ? (
               <>
-                <MoneyInput className="input w-full mono text-right" style={{ fontSize: 14 }}
+                <MoneyInput key="raise-net" className="input w-full mono text-right" style={{ fontSize: 14 }}
                   value={draft._netInput ?? ""}
                   onChange={v => {
                     const netVal = parseTRNumber(v);
-                    const d = new Date(draft.effectiveDate || new Date().toISOString().slice(0, 10));
-                    const gross = netVal ? grossFromNet(netVal, { year: d.getFullYear(), month: 1 }, data, employee) : 0;
-                    setDraft({ ...draft, _netInput: v, newBrutSalary: gross });
+                    const dt = new Date(draft.effectiveDate || new Date().toISOString().slice(0, 10));
+                    const gross = netVal ? grossFromNet(netVal, { year: dt.getFullYear(), month: 1 }, data, employee) : 0;
+                    setDraft(d => ({ ...d, _netInput: v, newBrutSalary: gross }));
                   }}/>
                 <div className="flex items-center justify-between mt-1.5 px-1" style={{ fontSize: 11 }}>
                   <span style={{ color: "var(--ink-mute)" }}>↳ {lang === "en" ? "Calculated Gross" : "Hesaplanan Brüt"}:</span>
@@ -21118,9 +21119,9 @@ function CompensationRaiseModal({ employee, data, policies, lang, onClose, onSav
                 </div>
               </>
             ) : (
-              <MoneyInput className="input w-full mono text-right" style={{ fontSize: 14 }}
+              <MoneyInput key="raise-gross" className="input w-full mono text-right" style={{ fontSize: 14 }}
                 value={draft.newBrutSalary || ""}
-                onChange={v => setDraft({ ...draft, newBrutSalary: v === '' ? 0 : v })}/>
+                onChange={v => setDraft(d => ({ ...d, newBrutSalary: v === '' ? 0 : v }))}/>
             )}
           </div>
         )}
@@ -38514,6 +38515,7 @@ function PartiesModule({ data, session, canAct, lang, onChange, logAudit, notify
   const [selectedVoucherId, setSelectedVoucherId] = useState(null);
   const [showNewPartyModal, setShowNewPartyModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Kontrollü activeView menüden besleniyor; modül yeniden açıldığında seçim
   // gerektiren bir drill-down state (detail/edit/voucher_edit) kalmışsa listeye dön
@@ -38569,6 +38571,11 @@ function PartiesModule({ data, session, canAct, lang, onChange, logAudit, notify
         </div>
         {activeView === "list" && (
           <div className="flex items-center gap-2">
+            <button onClick={() => setShowImportModal(true)} className="btn btn-ghost text-sm"
+              style={{ fontWeight: 700, padding: "8px 14px" }}
+              title={lang === "en" ? "Excel Import / Export" : "Excel İçe / Dışa Aktar"}>
+              <Upload size={13}/> {lang === "en" ? "Excel" : "Excel"}
+            </button>
             <button onClick={() => setShowCompareModal(true)} className="btn text-sm"
               style={{ background: "#7c3aed", color: "#fff", fontWeight: 700, padding: "8px 14px" }}>
               <Sparkles size={13}/> {lang === "en" ? "AI Compare" : "AI Karşılaştır"}
@@ -38718,6 +38725,18 @@ function PartiesModule({ data, session, canAct, lang, onChange, logAudit, notify
           onClose={() => setShowCompareModal(false)}
         />
       )}
+
+      {/* Excel İçe/Dışa Aktarım Modalı */}
+      {showImportModal && (
+        <PartyExcelImportModal
+          data={data}
+          lang={lang}
+          onChange={onChange}
+          notify={notify}
+          logAudit={logAudit}
+          onClose={() => setShowImportModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -38855,6 +38874,699 @@ function PartyQuickCreateModal({ lang, existingParties, onSave, onClose }) {
             style={{ background: "#0891b2", color: "#fff", fontWeight: 700, padding: "8px 16px" }}>
             <Save size={11}/> {lang === "en" ? "Create & Open" : "Oluştur ve Aç"}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===================================================================== */
+/* PARTY EXCEL IMPORT/EXPORT MODAL — Cari Kartı CSV İçe/Dışa Aktarım     */
+/* ===================================================================== */
+function PartyExcelImportModal({ data, lang, onClose, onChange, notify, logAudit }) {
+  const parties = data.accParties || [];
+  const [activeTab, setActiveTab] = useState("export"); // export | template | import
+  const [importMode, setImportMode] = useState("merge"); // merge | only_new | replace_all
+  const [importFile, setImportFile] = useState(null);
+  const [parsedRows, setParsedRows] = useState([]);
+  const [validationResults, setValidationResults] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // === Tip / kişi türü / statü çözümleyiciler (TR etiket + key kabul eder) ===
+  const TYPE_LABELS = {
+    customer:    ["customer", "müşteri", "musteri"],
+    supplier:    ["supplier", "tedarikçi", "tedarikci"],
+    both:        ["both", "alıcı + satıcı", "alici + satici", "alıcı+satıcı", "alici+satici"],
+    employee:    ["employee", "personel"],
+    shareholder: ["shareholder", "ortak"],
+    affiliate:   ["affiliate", "bağlı ortaklık", "bagli ortaklik"],
+    other:       ["other", "diğer", "diger"],
+  };
+  const resolveType = (v) => {
+    const s = String(v || "").toLowerCase().trim();
+    if (!s) return null;
+    for (const [k, arr] of Object.entries(TYPE_LABELS)) {
+      if (k === s || arr.includes(s)) return k;
+    }
+    return null;
+  };
+  const resolvePersonType = (v) => {
+    const s = String(v || "").toLowerCase().trim();
+    if (["legal", "tüzel", "tuzel"].some(x => s.includes(x))) return "legal";
+    return "real";
+  };
+  const resolveStatus = (v) => {
+    const s = String(v || "").toLowerCase().trim();
+    if (["passive", "pasif"].some(x => s.includes(x))) return "passive";
+    return "active";
+  };
+  const yesNoValues = ["evet", "yes", "true", "1", "doğru", "dogru"];
+  const parseYesNo = (val) => {
+    if (val === null || val === undefined || val === "") return null;
+    return yesNoValues.includes(String(val).toLowerCase().trim());
+  };
+
+  const phoneOf = (p) => (p.contactInfo || []).find(c => c.number)?.number || "";
+  const emailOf = (p) => (p.contactInfo || []).find(c => c.email)?.email || "";
+
+  // === Sütun şablonu ===
+  const COLUMNS = [
+    { key: "code",                 header_tr: "Cari Kodu",          header_en: "Code",            required: false, format: (p) => p.code || "" },
+    { key: "type",                 header_tr: "Cari Sınıfı",        header_en: "Type",            required: true,  format: (p) => (PARTY_TYPES[p.type]?.tr || p.type || "") },
+    { key: "personType",           header_tr: "Kişi Türü",          header_en: "Person Type",     required: false, format: (p) => (p.personType === "legal" ? "Tüzel" : "Gerçek") },
+    { key: "name",                 header_tr: "Adı / Ünvanı",       header_en: "Name",            required: true,  format: (p) => p.name || "" },
+    { key: "taxId",                header_tr: "VKN / TCKN",         header_en: "Tax ID",          required: false, format: (p) => p.taxId || "" },
+    { key: "status",               header_tr: "Statü",              header_en: "Status",          required: false, format: (p) => ((p.status || "active") === "passive" ? "Pasif" : "Aktif") },
+    { key: "vatOffice",            header_tr: "Vergi Dairesi",      header_en: "Tax Office",      required: false, format: (p) => p.vatOffice || "" },
+    { key: "vatOfficeCode",        header_tr: "Vergi Dairesi Kodu", header_en: "Tax Office Code", required: false, format: (p) => p.vatOfficeCode || "" },
+    { key: "mersisNo",             header_tr: "Mersis No",          header_en: "Mersis No",       required: false, format: (p) => p.mersisNo || "" },
+    { key: "origin",               header_tr: "Menşei",             header_en: "Origin",          required: false, format: (p) => p.origin || "TR" },
+    { key: "phone",                header_tr: "Telefon",            header_en: "Phone",           required: false, format: (p) => phoneOf(p) },
+    { key: "email",                header_tr: "E-posta",            header_en: "Email",           required: false, format: (p) => emailOf(p) },
+    { key: "address",              header_tr: "Adres",              header_en: "Address",         required: false, format: (p) => p.address || "" },
+    { key: "projectCode",          header_tr: "Proje Kodu",         header_en: "Project Code",    required: false, format: (p) => p.projectCode || "" },
+    { key: "specialCode",          header_tr: "Özel Kod",           header_en: "Special Code",    required: false, format: (p) => p.specialCode || "" },
+    { key: "paymentTermDays",      header_tr: "Vade (Gün)",         header_en: "Payment Term",    required: false, format: (p) => p.paymentTermDays ?? "" },
+    { key: "accountCode_alici",    header_tr: "Müşteri Hes. Kodu",  header_en: "AR Account",      required: false, format: (p) => p.accounting?.accountCode_alici || "" },
+    { key: "accountCode_satici",   header_tr: "Tedarikçi Hes. Kodu",header_en: "AP Account",      required: false, format: (p) => p.accounting?.accountCode_satici || "" },
+    { key: "accountCode_personel", header_tr: "Personel Hes. Kodu", header_en: "Employee Account",required: false, format: (p) => p.accounting?.accountCode_personel || "" },
+    { key: "accountCode_diger",    header_tr: "Diğer Hes. Kodu",    header_en: "Other Account",   required: false, format: (p) => p.accounting?.accountCode_diger || "" },
+    { key: "creditLimit",          header_tr: "Kredi Limiti",       header_en: "Credit Limit",    required: false, format: (p) => p.risk?.creditLimit ?? "" },
+    { key: "riskLevel",            header_tr: "Risk Seviyesi",      header_en: "Risk Level",      required: false, format: (p) => p.risk?.riskLevel || "" },
+    { key: "blacklistBuy",         header_tr: "Alış Kara Liste",    header_en: "Buy Blacklist",   required: false, format: (p) => (p.risk?.blacklistBuy ? "Evet" : "Hayır") },
+    { key: "blacklistSell",        header_tr: "Satış Kara Liste",   header_en: "Sell Blacklist",  required: false, format: (p) => (p.risk?.blacklistSell ? "Evet" : "Hayır") },
+    { key: "bannedFromTender",     header_tr: "İhaleden Men",       header_en: "Banned",          required: false, format: (p) => (p.risk?.bannedFromTender ? "Evet" : "Hayır") },
+  ];
+
+  // === CSV oluştur ===
+  const buildCsv = (rows) => {
+    return rows.map(r => r.map(c => {
+      const s = String(c == null ? "" : c);
+      return s.includes(",") || s.includes("\"") || s.includes("\n")
+        ? `"${s.replace(/"/g, '""')}"` : s;
+    }).join(",")).join("\n");
+  };
+
+  const downloadCsv = (csv, filename) => {
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // === Dışa Aktar ===
+  const handleExport = () => {
+    const headers = COLUMNS.map(c => lang === "en" ? c.header_en : c.header_tr);
+    const rows = [headers];
+    const sorted = [...parties].sort((a, b) =>
+      String(a.code || "").localeCompare(String(b.code || ""), "tr", { numeric: true })
+    );
+    sorted.forEach(p => rows.push(COLUMNS.map(c => c.format(p))));
+    downloadCsv(buildCsv(rows), `cari_listesi_${new Date().toISOString().split("T")[0]}.csv`);
+    notify(lang === "en" ? `Exported ${parties.length} parties` : `${parties.length} cari dışa aktarıldı`);
+    logAudit && logAudit("export", "party", { count: parties.length });
+  };
+
+  // === Şablon İndir ===
+  const handleDownloadTemplate = () => {
+    const headers = COLUMNS.map(c => lang === "en" ? c.header_en : c.header_tr);
+    const examples = [
+      ["320.A001", "Tedarikçi", "Tüzel",  "ABC İNŞAAT LTD. ŞTİ.", "1234567890",  "Aktif", "Beşiktaş", "034", "0123456789012345", "TR", "0212 000 00 00", "info@abc.com",   "Levent Mah. No:1", "PRJ01", "OZL1", "60", "120.01", "320.01", "", "", "100000", "low",    "Hayır", "Hayır", "Hayır"],
+      ["120.A001", "Müşteri",   "Gerçek", "MEHMET YILMAZ",        "12345678901", "Aktif", "Kadıköy",  "035", "",                 "TR", "0532 000 00 00", "mehmet@mail.com","Moda Cad. No:5",   "",      "",     "30", "120.02", "",       "", "", "50000",  "medium", "Hayır", "Hayır", "Hayır"],
+    ];
+    const rows = [headers, ...examples];
+    rows.push([]);
+    rows.push(["# " + (lang === "en" ? "INSTRUCTIONS" : "TALİMATLAR")]);
+    rows.push(["# " + (lang === "en" ? "Required fields: Type, Name" : "Zorunlu alanlar: Cari Sınıfı, Adı / Ünvanı")]);
+    rows.push(["# " + (lang === "en" ? "Code is optional — auto-generated by type if left blank" : "Cari Kodu boş bırakılırsa sınıfa göre otomatik üretilir")]);
+    rows.push(["# " + (lang === "en" ? "Type: Müşteri, Tedarikçi, Alıcı + Satıcı, Personel, Ortak, Bağlı Ortaklık, Diğer" : "Cari Sınıfı: Müşteri, Tedarikçi, Alıcı + Satıcı, Personel, Ortak, Bağlı Ortaklık, Diğer")]);
+    rows.push(["# " + (lang === "en" ? "Person Type: Gerçek or Tüzel" : "Kişi Türü: Gerçek veya Tüzel")]);
+    rows.push(["# " + (lang === "en" ? "Status: Aktif or Pasif" : "Statü: Aktif veya Pasif")]);
+    rows.push(["# " + (lang === "en" ? "Risk Level: low, medium, high, critical" : "Risk Seviyesi: low, medium, high, critical")]);
+    rows.push(["# " + (lang === "en" ? "Yes/No fields (blacklist, banned): Evet or Hayır" : "Evet/Hayır alanları (kara liste, men): Evet veya Hayır")]);
+    rows.push(["# " + (lang === "en" ? "Matching: by Code, otherwise by Tax ID" : "Eşleştirme: Cari Kodu ile, yoksa VKN/TCKN ile")]);
+    downloadCsv(buildCsv(rows), "cari_listesi_sablon.csv");
+    notify(lang === "en" ? "Template downloaded" : "Şablon indirildi");
+  };
+
+  // === CSV Parse ===
+  const parseCsv = (text) => {
+    text = text.replace(/^﻿/, "");
+    const lines = [];
+    let current = "", inQuotes = false, row = [];
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i], next = text[i + 1];
+      if (inQuotes) {
+        if (c === '"' && next === '"') { current += '"'; i++; }
+        else if (c === '"') inQuotes = false;
+        else current += c;
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === ',') { row.push(current); current = ""; }
+        else if (c === '\n' || c === '\r') {
+          if (current !== "" || row.length > 0) { row.push(current); lines.push(row); row = []; current = ""; }
+          if (c === '\r' && next === '\n') i++;
+        } else current += c;
+      }
+    }
+    if (current !== "" || row.length > 0) { row.push(current); lines.push(row); }
+    return lines;
+  };
+
+  // === Dosya yükleme ===
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportFile(file);
+    setIsProcessing(true);
+    try {
+      const text = await file.text();
+      const rows = parseCsv(text);
+      if (rows.length < 2) {
+        notify(lang === "en" ? "File is empty or has no data" : "Dosya boş veya veri yok", "err");
+        setIsProcessing(false);
+        return;
+      }
+      const header = rows[0].map(h => String(h || "").trim().toLowerCase());
+      const dataRows = rows.slice(1).filter(r =>
+        r.length > 0 && !String(r[0] || "").trim().startsWith("#") && r.some(c => String(c || "").trim() !== "")
+      );
+      const headerMap = {};
+      COLUMNS.forEach(col => {
+        const trIdx = header.indexOf(col.header_tr.toLowerCase());
+        const enIdx = header.indexOf(col.header_en.toLowerCase());
+        const keyIdx = header.indexOf(col.key.toLowerCase());
+        if (trIdx >= 0) headerMap[col.key] = trIdx;
+        else if (enIdx >= 0) headerMap[col.key] = enIdx;
+        else if (keyIdx >= 0) headerMap[col.key] = keyIdx;
+      });
+      const missingCols = COLUMNS.filter(c => c.required && headerMap[c.key] === undefined);
+      if (missingCols.length > 0) {
+        notify(
+          lang === "en"
+            ? `Missing required columns: ${missingCols.map(c => c.header_en).join(", ")}`
+            : `Eksik zorunlu sütunlar: ${missingCols.map(c => c.header_tr).join(", ")}`,
+          "err"
+        );
+        setIsProcessing(false);
+        return;
+      }
+      const parsed = dataRows.map((row, idx) => {
+        const obj = { _rowNumber: idx + 2 };
+        Object.entries(headerMap).forEach(([key, colIdx]) => {
+          obj[key] = String(row[colIdx] || "").trim();
+        });
+        return obj;
+      });
+      setParsedRows(parsed);
+      validateRows(parsed);
+    } catch (err) {
+      notify(lang === "en" ? "Failed to read file: " + err.message : "Dosya okunamadı: " + err.message, "err");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // === Validation ===
+  const validateRows = (rows) => {
+    const errors = [];
+    const warnings = [];
+    const seenKeys = new Set();
+    const validRiskLevels = ["", "low", "medium", "high", "critical"];
+    let newCount = 0, updateCount = 0, errorCount = 0;
+
+    rows.forEach(row => {
+      const rowErrors = [];
+      if (!row.name || !row.name.trim()) {
+        rowErrors.push(lang === "en" ? "Name is empty" : "Ad/Ünvan boş");
+      }
+      if (!resolveType(row.type)) {
+        rowErrors.push(lang === "en" ? `Invalid type "${row.type}"` : `Geçersiz cari sınıfı "${row.type}"`);
+      }
+      if (row.riskLevel && !validRiskLevels.includes(String(row.riskLevel).toLowerCase().trim())) {
+        rowErrors.push(lang === "en" ? `Invalid risk level "${row.riskLevel}"` : `Geçersiz risk seviyesi "${row.riskLevel}"`);
+      }
+
+      // Dosya içi tekrar (kod veya VKN)
+      const dupKey = (row.code && row.code.trim()) || (row.taxId && row.taxId.trim());
+      if (dupKey) {
+        if (seenKeys.has(dupKey)) {
+          warnings.push({
+            row: row._rowNumber,
+            message: lang === "en" ? `Duplicate "${dupKey}" in file` : `Dosyada tekrar eden "${dupKey}"`,
+          });
+        }
+        seenKeys.add(dupKey);
+      }
+
+      // Mevcut mu?
+      let existing = null;
+      if (row.code && row.code.trim()) existing = parties.find(p => p.code === row.code.trim());
+      if (!existing && row.taxId && row.taxId.trim()) existing = parties.find(p => p.taxId && p.taxId === row.taxId.trim());
+
+      if (existing) {
+        if (importMode === "only_new") {
+          warnings.push({
+            row: row._rowNumber,
+            message: lang === "en" ? `"${existing.code}" already exists, will be skipped` : `"${existing.code}" zaten var, atlanacak`,
+          });
+        } else updateCount++;
+      } else newCount++;
+
+      if (rowErrors.length > 0) {
+        errorCount++;
+        errors.push({ row: row._rowNumber, code: row.code, name: row.name, messages: rowErrors });
+      }
+    });
+
+    setValidationResults({
+      total: rows.length, newCount, updateCount, errorCount,
+      errors, warnings, canProceed: errors.length === 0,
+    });
+  };
+
+  // === Boş cari iskeleti (PartyQuickCreateModal ile aynı şema) ===
+  const makeBaseParty = (type, personType) => ({
+    type, personType,
+    status: "active", origin: "TR",
+    contactInfo: [], authorizedPersons: [], banks: [],
+    risk: {
+      blacklistBuy: false, blacklistSell: false, bannedFromTender: false,
+      sgkDebt: null, taxDebt: null, debtAmount: 0,
+      statusDescription: "", statusDate: null, details: [],
+    },
+    params: {
+      partialShipment: false, invoicePrintCount: 1,
+      usage: { buying: true, selling: true, export: false, import: false, finance: false },
+      orderApproval: { riskCheck: true, dueCheck: true, agingCheck: false, agingDays: 0 },
+      dueTracking: [],
+      debtCloseControl: { days: 0, action: "continue" },
+    },
+    accounting: {
+      costCenter: "", cariClass: "alici",
+      accountCode_alici: "", accountCode_satici: "",
+      accountCode_personel: "", accountCode_diger: "",
+    },
+    guarantees: [],
+    integration: {
+      eFatura: { type: "", labelInfo: "", scenario: "", pBoxLabel: "", senderLabel: "", intermediary: "", isUser: false, isPublic: false, isCustoms: false, replaceDeliveryNote: false, defaultInvoiceType: "", bankAccountNo: "" },
+      eArsiv: { retailAccount: false, deliveryMethod: "", email: "", email2: "", email3: "" },
+      eIrsaliye: { isUser: false, labelInfo: "", scenario: "" },
+    },
+    kvkkFiles: [], formSendPrefs: [],
+    identityInfo: {
+      nCuzdanNo: "", baba: "", anne: "", cinsiyet: "", dogumYeri: "",
+      dogumTarihi: null, olumTarihi: null, medeniHal: "",
+      il: "", ilce: "", mahalle: "", ciltNo: "", siraNo: "", aileSiraNo: "", kayitDurumu: "",
+    },
+    seizureRecords: [],
+    address: "", vatOffice: "", vatOfficeCode: "", mersisNo: "",
+    projectCode: "", specialCode: "", paymentTermDays: 0,
+  });
+
+  const buildContactInfo = (row, existing) => {
+    const phone = (row.phone || "").trim();
+    const email = (row.email || "").trim();
+    if (!phone && !email) return existing?.contactInfo || [];
+    const list = [];
+    if (phone) list.push({ id: 1, type: "GSM", number: phone, email: "", preferred: true, smsAllowed: true });
+    if (email) list.push({ id: 2, type: "Email", number: "", email, preferred: !phone, smsAllowed: false });
+    return list;
+  };
+
+  // === İçe Aktarma uygulama ===
+  const handleImport = async () => {
+    if (!validationResults?.canProceed) return;
+    if (!confirm(
+      lang === "en"
+        ? `Import ${validationResults.newCount} new and update ${validationResults.updateCount} parties?`
+        : `${validationResults.newCount} yeni cari eklenecek ve ${validationResults.updateCount} cari güncellenecek. Onaylıyor musunuz?`
+    )) return;
+
+    setIsProcessing(true);
+    try {
+      let working = importMode === "replace_all" ? [] : [...parties];
+
+      // Sınıf (mainCode) bazlı sıradaki kod sayacı
+      const codeCounter = {};
+      const nextCode = (type) => {
+        const mainCode = PARTY_TYPES[type]?.mainCode || "320";
+        if (codeCounter[mainCode] == null) {
+          let mx = 0;
+          working.forEach(p => {
+            if (!String(p.code || "").startsWith(mainCode)) return;
+            const m = String(p.code).match(/\.A?0*(\d+)$/i);
+            if (m) { const n = parseInt(m[1], 10); if (!isNaN(n) && n > mx) mx = n; }
+          });
+          codeCounter[mainCode] = mx;
+        }
+        codeCounter[mainCode] += 1;
+        return `${mainCode}.A${String(codeCounter[mainCode]).padStart(3, "0")}`;
+      };
+
+      parsedRows.forEach(row => {
+        const type = resolveType(row.type);
+        if (!type || !row.name?.trim()) return;
+
+        let existing = null;
+        if (importMode !== "replace_all") {
+          if (row.code && row.code.trim()) existing = working.find(p => p.code === row.code.trim());
+          if (!existing && row.taxId && row.taxId.trim()) existing = working.find(p => p.taxId && p.taxId === row.taxId.trim());
+        }
+        if (existing && importMode === "only_new") return;
+
+        const fields = {
+          type,
+          personType: resolvePersonType(row.personType),
+          name: row.name.trim(),
+          taxId: (row.taxId || "").trim(),
+          status: resolveStatus(row.status),
+          vatOffice: (row.vatOffice || "").trim(),
+          vatOfficeCode: (row.vatOfficeCode || "").trim(),
+          mersisNo: (row.mersisNo || "").trim(),
+          origin: (row.origin || "TR").trim() || "TR",
+          address: (row.address || "").trim(),
+          projectCode: (row.projectCode || "").trim(),
+          specialCode: (row.specialCode || "").trim(),
+          paymentTermDays: row.paymentTermDays ? Number(row.paymentTermDays) || 0 : 0,
+        };
+        const accounting = {
+          accountCode_alici: (row.accountCode_alici || "").trim(),
+          accountCode_satici: (row.accountCode_satici || "").trim(),
+          accountCode_personel: (row.accountCode_personel || "").trim(),
+          accountCode_diger: (row.accountCode_diger || "").trim(),
+        };
+        const riskFields = {
+          creditLimit: row.creditLimit ? Number(row.creditLimit) || 0 : 0,
+          riskLevel: (row.riskLevel || "").toLowerCase().trim(),
+          blacklistBuy: parseYesNo(row.blacklistBuy) === true,
+          blacklistSell: parseYesNo(row.blacklistSell) === true,
+          bannedFromTender: parseYesNo(row.bannedFromTender) === true,
+        };
+
+        if (existing) {
+          Object.assign(existing, fields, {
+            accounting: { ...existing.accounting, ...accounting },
+            risk: { ...existing.risk, ...riskFields },
+            contactInfo: buildContactInfo(row, existing),
+            updatedAt: new Date().toISOString(),
+            updatedBy: "import",
+          });
+        } else {
+          const base = makeBaseParty(type, fields.personType);
+          const code = (row.code && row.code.trim() && !working.some(p => p.code === row.code.trim()))
+            ? row.code.trim()
+            : nextCode(type);
+          const newParty = {
+            ...base,
+            ...fields,
+            code,
+            id: `party_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            accounting: { ...base.accounting, ...accounting },
+            risk: { ...base.risk, ...riskFields },
+            contactInfo: buildContactInfo(row, null),
+            createdAt: new Date().toISOString(),
+            createdBy: "import",
+          };
+          working.push(newParty);
+        }
+      });
+
+      await onChange({ ...data, accParties: working });
+      logAudit && logAudit("import", "party", {
+        mode: importMode, new: validationResults.newCount, updated: validationResults.updateCount,
+      });
+      notify(
+        lang === "en"
+          ? `Imported: ${validationResults.newCount} new, ${validationResults.updateCount} updated`
+          : `${validationResults.newCount} yeni, ${validationResults.updateCount} güncelleme tamamlandı`
+      );
+      onClose();
+    } catch (err) {
+      notify(lang === "en" ? "Import failed: " + err.message : "İçe aktarım başarısız: " + err.message, "err");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const tabs = [
+    { id: "export",   label: { tr: "Dışa Aktar",   en: "Export" } },
+    { id: "template", label: { tr: "Şablon İndir",  en: "Template" } },
+    { id: "import",   label: { tr: "İçe Aktar",     en: "Import" } },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ background: "var(--accent-soft)" }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>
+              {lang === "en" ? "Parties — Excel Import/Export" : "Cari Kartları — Excel İçe/Dışa Aktarım"}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--ink-mute)", marginTop: 2 }}>
+              {lang === "en" ? `${parties.length} parties in the system` : `Sistemde ${parties.length} cari var`}
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 rounded hover:bg-bg"><X size={16}/></button>
+        </div>
+
+        {/* Sekmeler */}
+        <div className="flex border-b" style={{ background: "var(--bg-alt)" }}>
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              style={{
+                flex: 1, padding: "10px 16px", fontSize: 12,
+                fontWeight: activeTab === tab.id ? 700 : 500,
+                color: activeTab === tab.id ? "var(--accent)" : "var(--ink-mute)",
+                background: activeTab === tab.id ? "var(--bg)" : "transparent",
+                borderBottom: activeTab === tab.id ? "2px solid var(--accent)" : "2px solid transparent",
+                cursor: "pointer", textAlign: "center",
+              }}>
+              {tab.label[lang] || tab.label.tr}
+            </button>
+          ))}
+        </div>
+
+        {/* İçerik */}
+        <div className="p-5 overflow-y-auto flex-1">
+          {/* DIŞA AKTAR */}
+          {activeTab === "export" && (
+            <div className="space-y-3">
+              <div className="card p-4" style={{ background: "#dcfce7", border: "1px solid #15803d" }}>
+                <div style={{ fontSize: 13, color: "#15803d", lineHeight: 1.5 }}>
+                  <b>{lang === "en" ? "Export to CSV/Excel" : "CSV/Excel Olarak Dışa Aktar"}</b><br/>
+                  {lang === "en"
+                    ? `All ${parties.length} parties will be exported with ${COLUMNS.length} fields.`
+                    : `Sistemdeki ${parties.length} cari, ${COLUMNS.length} alanla dışa aktarılacak.`}
+                </div>
+              </div>
+              <div>
+                <div className="label mb-2">{lang === "en" ? "Included Fields" : "Dahil Edilen Alanlar"}</div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-1 text-xs">
+                  {COLUMNS.map(c => (
+                    <div key={c.key} className="flex items-center gap-1.5" style={{ padding: "3px 6px", background: "var(--bg-alt)", borderRadius: 3 }}>
+                      <span style={{ fontSize: 9, color: c.required ? "#b91c1c" : "var(--ink-mute)" }}>{c.required ? "●" : "○"}</span>
+                      <span>{lang === "en" ? c.header_en : c.header_tr}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 text-xs" style={{ color: "var(--ink-mute)" }}>
+                  ● {lang === "en" ? "Required" : "Zorunlu"} &nbsp;&nbsp; ○ {lang === "en" ? "Optional" : "İsteğe bağlı"}
+                </div>
+              </div>
+              <button onClick={handleExport} className="btn btn-primary w-full">
+                <FileDown size={14}/> {lang === "en" ? `Export ${parties.length} Parties to CSV` : `${parties.length} Cariyi CSV Olarak Dışa Aktar`}
+              </button>
+            </div>
+          )}
+
+          {/* ŞABLON İNDİR */}
+          {activeTab === "template" && (
+            <div className="space-y-3">
+              <div className="card p-4" style={{ background: "#dbeafe", border: "1px solid #1d4ed8" }}>
+                <div style={{ fontSize: 13, color: "#1d4ed8", lineHeight: 1.5 }}>
+                  <b>{lang === "en" ? "Download Import Template" : "İçe Aktarım Şablonu İndir"}</b><br/>
+                  {lang === "en"
+                    ? "Header row + 2 example parties + instructions. Edit in Excel, then upload via Import tab."
+                    : "Başlık satırı + 2 örnek cari + talimatlar. Excel'de düzenleyin, İçe Aktar sekmesinden yükleyin."}
+                </div>
+              </div>
+              <div className="card p-3" style={{ background: "#fef3c7", border: "1px solid #ca8a04" }}>
+                <div style={{ fontSize: 12, color: "#92400e", lineHeight: 1.5 }}>
+                  <b>{lang === "en" ? "Important Tips" : "Önemli İpuçları"}:</b>
+                  <ul style={{ marginTop: 4, paddingLeft: 18, lineHeight: 1.6 }}>
+                    <li>{lang === "en" ? "Required: Type and Name" : "Zorunlu: Cari Sınıfı ve Adı / Ünvanı"}</li>
+                    <li>{lang === "en" ? "Leave Code blank to auto-generate by type" : "Kodu boş bırakırsanız sınıfa göre otomatik üretilir"}</li>
+                    <li>{lang === "en" ? "Matching is by Code, otherwise Tax ID" : "Eşleştirme Cari Kodu ile, yoksa VKN/TCKN ile yapılır"}</li>
+                    <li>{lang === "en" ? "Save as CSV (UTF-8)" : "CSV (UTF-8) olarak kaydedin"}</li>
+                  </ul>
+                </div>
+              </div>
+              <button onClick={handleDownloadTemplate} className="btn btn-primary w-full">
+                <Download size={14}/> {lang === "en" ? "Download Empty Template" : "Boş Şablon İndir"}
+              </button>
+            </div>
+          )}
+
+          {/* İÇE AKTAR */}
+          {activeTab === "import" && (
+            <div className="space-y-3">
+              <div className="card p-4" style={{ background: "#fee2e2", border: "1px solid #b91c1c" }}>
+                <div style={{ fontSize: 12, color: "#b91c1c", lineHeight: 1.5 }}>
+                  <b>⚠ {lang === "en" ? "Warning" : "Uyarı"}</b><br/>
+                  {lang === "en"
+                    ? "Import will modify your party list. Export current data first as backup!"
+                    : "İçe aktarım cari listenizi değiştirecek. Önce mevcut veriyi yedek olarak dışa aktarın!"}
+                </div>
+              </div>
+              <div>
+                <div className="label mb-2">{lang === "en" ? "Import Mode" : "İçe Aktarım Modu"}</div>
+                <div className="space-y-2">
+                  {[
+                    { id: "only_new",    label: { tr: "Sadece Yeni Carileri Ekle", en: "Only Add New" }, desc: { tr: "Mevcut cariler atlanır, yalnızca yeni cariler eklenir.", en: "Existing parties are skipped, only new ones are added." }, color: "#15803d" },
+                    { id: "merge",       label: { tr: "Mevcutları Güncelle + Yenileri Ekle", en: "Merge (Update + Add)" }, desc: { tr: "Var olan cariler güncellenir, yeniler eklenir. (Önerilen)", en: "Existing parties are updated, new ones added. (Recommended)" }, color: "#1d4ed8", recommended: true },
+                    { id: "replace_all", label: { tr: "Hepsini Temizle ve Yükle", en: "Replace All" }, desc: { tr: "TEHLİKELİ: Tüm mevcut cariler silinir, sadece dosyadakiler kalır.", en: "DANGEROUS: All existing parties are deleted, only file contents remain." }, color: "#b91c1c" },
+                  ].map(opt => (
+                    <label key={opt.id} className="flex items-start gap-2 cursor-pointer p-2 rounded" style={{
+                      background: importMode === opt.id ? opt.color + "15" : "var(--bg)",
+                      border: `1px solid ${importMode === opt.id ? opt.color : "var(--line)"}`,
+                    }}>
+                      <input type="radio" name="partyImportMode" value={opt.id}
+                        checked={importMode === opt.id}
+                        onChange={e => { setImportMode(e.target.value); if (parsedRows.length) validateRows(parsedRows); }}
+                        style={{ marginTop: 2 }}/>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: importMode === opt.id ? opt.color : "var(--ink)" }}>
+                          {opt.label[lang] || opt.label.tr}
+                          {opt.recommended && (
+                            <span className="ml-2" style={{ fontSize: 9, background: opt.color, color: "#fff", padding: "1px 6px", borderRadius: 3 }}>
+                              {lang === "en" ? "RECOMMENDED" : "ÖNERİLEN"}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--ink-mute)", marginTop: 2 }}>{opt.desc[lang] || opt.desc.tr}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="label mb-2">{lang === "en" ? "CSV File" : "CSV Dosyası"}</div>
+                <input ref={fileInputRef} type="file" accept=".csv,.txt" onChange={handleFileChange} className="input w-full text-xs"/>
+                {importFile && (
+                  <div className="mt-2 text-xs" style={{ color: "var(--ink-mute)" }}>
+                    <b>{lang === "en" ? "File" : "Dosya"}:</b> {importFile.name} ({(importFile.size / 1024).toFixed(1)} KB)
+                  </div>
+                )}
+              </div>
+              {isProcessing && (
+                <div className="card p-3 text-center" style={{ background: "var(--bg-alt)" }}>
+                  <RefreshCw size={20} className="animate-spin" style={{ margin: "0 auto" }}/>
+                  <div className="text-xs mt-2">{lang === "en" ? "Processing..." : "İşleniyor..."}</div>
+                </div>
+              )}
+              {validationResults && !isProcessing && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div className="card p-2" style={{ borderLeft: "4px solid #737373" }}>
+                      <div style={{ fontSize: 9, color: "var(--ink-mute)", textTransform: "uppercase" }}>{lang === "en" ? "Total" : "Toplam"}</div>
+                      <div className="mono" style={{ fontSize: 18, fontWeight: 700 }}>{validationResults.total}</div>
+                    </div>
+                    <div className="card p-2" style={{ borderLeft: "4px solid #15803d" }}>
+                      <div style={{ fontSize: 9, color: "var(--ink-mute)", textTransform: "uppercase" }}>{lang === "en" ? "New" : "Yeni"}</div>
+                      <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: "#15803d" }}>{validationResults.newCount}</div>
+                    </div>
+                    <div className="card p-2" style={{ borderLeft: "4px solid #1d4ed8" }}>
+                      <div style={{ fontSize: 9, color: "var(--ink-mute)", textTransform: "uppercase" }}>{lang === "en" ? "Update" : "Güncelleme"}</div>
+                      <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: "#1d4ed8" }}>{validationResults.updateCount}</div>
+                    </div>
+                    <div className="card p-2" style={{ borderLeft: "4px solid #b91c1c" }}>
+                      <div style={{ fontSize: 9, color: "var(--ink-mute)", textTransform: "uppercase" }}>{lang === "en" ? "Errors" : "Hata"}</div>
+                      <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: "#b91c1c" }}>{validationResults.errorCount}</div>
+                    </div>
+                  </div>
+                  {validationResults.errors.length > 0 && (
+                    <div className="card p-3" style={{ background: "#fee2e2", border: "1px solid #b91c1c", maxHeight: 200, overflowY: "auto" }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#b91c1c", marginBottom: 6 }}>
+                        ⚠ {lang === "en" ? `${validationResults.errors.length} Errors` : `${validationResults.errors.length} Hata`}
+                      </div>
+                      {validationResults.errors.slice(0, 20).map((err, i) => (
+                        <div key={i} style={{ fontSize: 11, marginBottom: 4, color: "#b91c1c", lineHeight: 1.4 }}>
+                          <b>{lang === "en" ? `Row ${err.row}` : `Satır ${err.row}`}</b>
+                          {err.code && <span className="mono"> ({err.code})</span>}:
+                          {err.messages.map((m, j) => <span key={j}> {m};</span>)}
+                        </div>
+                      ))}
+                      {validationResults.errors.length > 20 && (
+                        <div style={{ fontSize: 11, color: "#b91c1c", marginTop: 4, fontStyle: "italic" }}>
+                          ... {lang === "en" ? `and ${validationResults.errors.length - 20} more` : `ve ${validationResults.errors.length - 20} daha`}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {validationResults.warnings.length > 0 && (
+                    <div className="card p-3" style={{ background: "#fef3c7", border: "1px solid #ca8a04", maxHeight: 150, overflowY: "auto" }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 6 }}>
+                        {lang === "en" ? `${validationResults.warnings.length} Warnings` : `${validationResults.warnings.length} Uyarı`}
+                      </div>
+                      {validationResults.warnings.slice(0, 10).map((w, i) => (
+                        <div key={i} style={{ fontSize: 11, marginBottom: 3, color: "#92400e" }}>
+                          <b>{lang === "en" ? `Row ${w.row}` : `Satır ${w.row}`}</b>: {w.message}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {parsedRows.length > 0 && (
+                    <div>
+                      <div className="label mb-1">{lang === "en" ? "Preview (first 5 rows)" : "Önizleme (ilk 5 satır)"}</div>
+                      <div className="card" style={{ padding: 0, maxHeight: 200, overflow: "auto" }}>
+                        <table style={{ width: "100%", fontSize: 10, borderCollapse: "collapse" }}>
+                          <thead>
+                            <tr style={{ background: "var(--bg-alt)", position: "sticky", top: 0 }}>
+                              <th style={{ padding: 4, textAlign: "left" }}>#</th>
+                              <th style={{ padding: 4, textAlign: "left" }}>{lang === "en" ? "Code" : "Kod"}</th>
+                              <th style={{ padding: 4, textAlign: "left" }}>{lang === "en" ? "Name" : "Ad/Ünvan"}</th>
+                              <th style={{ padding: 4, textAlign: "left" }}>{lang === "en" ? "Type" : "Sınıf"}</th>
+                              <th style={{ padding: 4, textAlign: "left" }}>VKN/TCKN</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {parsedRows.slice(0, 5).map((row, i) => (
+                              <tr key={i} style={{ borderBottom: "1px solid var(--line)" }}>
+                                <td style={{ padding: 4 }}>{row._rowNumber}</td>
+                                <td style={{ padding: 4 }} className="mono">{row.code || "—"}</td>
+                                <td style={{ padding: 4 }}>{row.name}</td>
+                                <td style={{ padding: 4 }}>{row.type}</td>
+                                <td style={{ padding: 4 }} className="mono">{row.taxId || "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3 border-t flex items-center justify-between" style={{ background: "var(--bg-alt)" }}>
+          <button onClick={onClose} className="btn btn-ghost text-xs">{lang === "en" ? "Close" : "Kapat"}</button>
+          {activeTab === "import" && validationResults && (
+            <button onClick={handleImport}
+              disabled={!validationResults.canProceed || isProcessing}
+              className="btn btn-primary text-xs"
+              style={!validationResults.canProceed ? { opacity: 0.5, cursor: "not-allowed" } : {}}>
+              <Upload size={13}/> {lang === "en" ? "Import" : "İçe Aktar"}
+            </button>
+          )}
         </div>
       </div>
     </div>
