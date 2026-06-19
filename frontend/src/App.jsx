@@ -14401,6 +14401,24 @@ function HRModule({ data, session, users = [], canAct, lang, onChange, logAudit,
   const activeCandidatesCount = applications.filter(a => !["hired","rejected","withdrawn"].includes(a.stage)).length;
   const activeEmployeeCount = employees.filter(e => e.status === "active" || e.status === "probation").length;
 
+  // Özlük Kartı (tam ekran personel detayı) + bordro köprüsü
+  const [ozlukEmp, setOzlukEmp] = useState(null);
+  const [payrollEmp, setPayrollEmp] = useState(null);
+  const canEditEmp = canAct ? (canAct("hr.employees.update") || canAct("hr.employees.create")) : true;
+
+  const saveEmployeeData = async (emp) => {
+    const list = data.hrEmployees || [];
+    const exists = list.some(x => x.id === emp.id);
+    const next = exists ? list.map(x => x.id === emp.id ? emp : x) : [...list, emp];
+    await onChange({ ...data, hrEmployees: next });
+    if (logAudit) await logAudit("employee_edit", { personel: `${emp.firstName} ${emp.lastName}` });
+  };
+  const saveOzluk = async (emp) => {
+    await saveEmployeeData(emp);
+    setOzlukEmp(emp);
+    notify(lang === "en" ? "Personnel record saved" : "Özlük kaydı güncellendi");
+  };
+
   return (
     <div className="space-y-3">
       <PageHeader
@@ -14417,7 +14435,7 @@ function HRModule({ data, session, users = [], canAct, lang, onChange, logAudit,
         <div style={{ flex: 1, minWidth: 0 }}>
           {subTab === "organization" && (
             <OrganizationManager data={data} session={session} users={users} canAct={canAct} lang={lang}
-              onChange={onChange} logAudit={logAudit} notify={notify}/>
+              onChange={onChange} logAudit={logAudit} notify={notify} onOpenOzluk={setOzlukEmp}/>
           )}
           {subTab === "recruitment" && (
             <RecruitmentManager data={data} session={session} canAct={canAct} lang={lang}
@@ -14425,7 +14443,7 @@ function HRModule({ data, session, users = [], canAct, lang, onChange, logAudit,
           )}
           {subTab === "employees" && (
             <EmployeesList data={data} session={session} canAct={canAct} lang={lang}
-              onChange={onChange} logAudit={logAudit} notify={notify}/>
+              onChange={onChange} logAudit={logAudit} notify={notify} onOpenOzluk={setOzlukEmp}/>
           )}
           {subTab === "compensation" && (
             <CompensationManager data={data} session={session} canAct={canAct} lang={lang}
@@ -14445,6 +14463,36 @@ function HRModule({ data, session, users = [], canAct, lang, onChange, logAudit,
           )}
         </div>
       </div>
+
+      {/* Özlük Kartı — tam ekran personel detayı */}
+      {ozlukEmp && (
+        <OzlukCard
+          key={ozlukEmp.id}
+          employee={ozlukEmp}
+          employees={data.hrEmployees || []}
+          data={data}
+          lang={lang}
+          canEdit={canEditEmp}
+          onClose={() => setOzlukEmp(null)}
+          onSave={saveOzluk}
+          onNavigate={setOzlukEmp}
+          onOpenPayroll={(emp) => setPayrollEmp(emp)}
+        />
+      )}
+
+      {/* Bordro / maaş köprüsü (Özlük Kartı'ndan açılır) */}
+      {payrollEmp && (
+        <EmployeeFormModal draft={payrollEmp} setDraft={setPayrollEmp}
+          jobTitles={data.hrJobTitles || []} departments={data.hrDepartments || []} employees={data.hrEmployees || []}
+          data={data} orgUnits={data.hrOrgUnits || []} users={users} lang={lang}
+          onClose={() => setPayrollEmp(null)}
+          onSave={async () => {
+            await saveEmployeeData(payrollEmp);
+            notify(lang === "en" ? "Saved" : "Kaydedildi");
+            if (ozlukEmp && ozlukEmp.id === payrollEmp.id) setOzlukEmp(payrollEmp);
+            setPayrollEmp(null);
+          }}/>
+      )}
     </div>
   );
 }
@@ -14461,7 +14509,7 @@ function HRModule({ data, session, users = [], canAct, lang, onChange, logAudit,
      • Sorumlu Çalışan (managerEmployeeId) atanabilir
      • Yetkili Kullanıcılar (authorizedUsers) tanımlanabilir
 ===================================================================== */
-function OrganizationManager({ data, session, users = [], canAct, lang, onChange, logAudit, notify }) {
+function OrganizationManager({ data, session, users = [], canAct, lang, onChange, logAudit, notify, onOpenOzluk }) {
   const [viewMode, setViewMode] = useState("tree");  // tree | chart | flat
   const [expanded, setExpanded] = useState(new Set(["ou_gm"]));
   const [modal, setModal] = useState(null);  // { kind: "ou"|"dept"|"jt"|"emp", item?, parentContext? }
@@ -14802,6 +14850,7 @@ function OrganizationManager({ data, session, users = [], canAct, lang, onChange
           onAddEmp={(jobTitleId) => setModal({ kind: "emp", item: { jobTitleId, status: "active", startDate: new Date().toISOString().slice(0,10) } })}
           onEditEmp={(e) => setModal({ kind: "emp", item: e })}
           onDeleteEmp={deleteEmployee}
+          onOpenOzluk={onOpenOzluk}
         />
       ) : (
         <OrgChartView
@@ -14853,7 +14902,7 @@ function OrgTreeView({
   onAddOrgUnit, onEditOrgUnit, onDeleteOrgUnit,
   onAddDept, onEditDept, onDeleteDept,
   onAddJT, onEditJT, onDeleteJT,
-  onAddEmp, onEditEmp, onDeleteEmp,
+  onAddEmp, onEditEmp, onDeleteEmp, onOpenOzluk,
 }) {
   // Kök birimler (parentId === null veya undefined)
   const rootUnits = orgUnits.filter(o => !o.parentId);
@@ -14870,7 +14919,7 @@ function OrgTreeView({
           onAddOrgUnit={onAddOrgUnit} onEditOrgUnit={onEditOrgUnit} onDeleteOrgUnit={onDeleteOrgUnit}
           onAddDept={onAddDept} onEditDept={onEditDept} onDeleteDept={onDeleteDept}
           onAddJT={onAddJT} onEditJT={onEditJT} onDeleteJT={onDeleteJT}
-          onAddEmp={onAddEmp} onEditEmp={onEditEmp} onDeleteEmp={onDeleteEmp}
+          onAddEmp={onAddEmp} onEditEmp={onEditEmp} onDeleteEmp={onDeleteEmp} onOpenOzluk={onOpenOzluk}
         />
       ))}
     </div>
@@ -14884,7 +14933,7 @@ function OrgUnitNode({
   onAddOrgUnit, onEditOrgUnit, onDeleteOrgUnit,
   onAddDept, onEditDept, onDeleteDept,
   onAddJT, onEditJT, onDeleteJT,
-  onAddEmp, onEditEmp, onDeleteEmp,
+  onAddEmp, onEditEmp, onDeleteEmp, onOpenOzluk,
 }) {
   const isExp = expanded.has(unit.id);
   const subUnits = orgUnits.filter(o => o.parentId === unit.id);
@@ -14957,7 +15006,7 @@ function OrgUnitNode({
               onAddOrgUnit={onAddOrgUnit} onEditOrgUnit={onEditOrgUnit} onDeleteOrgUnit={onDeleteOrgUnit}
               onAddDept={onAddDept} onEditDept={onEditDept} onDeleteDept={onDeleteDept}
               onAddJT={onAddJT} onEditJT={onEditJT} onDeleteJT={onDeleteJT}
-              onAddEmp={onAddEmp} onEditEmp={onEditEmp} onDeleteEmp={onDeleteEmp}
+              onAddEmp={onAddEmp} onEditEmp={onEditEmp} onDeleteEmp={onDeleteEmp} onOpenOzluk={onOpenOzluk}
             />
           ))}
           {/* Birime bağlı departmanlar */}
@@ -14968,7 +15017,7 @@ function OrgUnitNode({
               canManageDept={canManageDept} canManageJT={canManageJT} canManageEmp={canManageEmp}
               onAddDept={onAddDept} onEditDept={onEditDept} onDeleteDept={onDeleteDept}
               onAddJT={onAddJT} onEditJT={onEditJT} onDeleteJT={onDeleteJT}
-              onAddEmp={onAddEmp} onEditEmp={onEditEmp} onDeleteEmp={onDeleteEmp}
+              onAddEmp={onAddEmp} onEditEmp={onEditEmp} onDeleteEmp={onDeleteEmp} onOpenOzluk={onOpenOzluk}
             />
           ))}
         </>
@@ -14983,7 +15032,7 @@ function DepartmentNode({
   canManageDept, canManageJT, canManageEmp,
   onAddDept, onEditDept, onDeleteDept,
   onAddJT, onEditJT, onDeleteJT,
-  onAddEmp, onEditEmp, onDeleteEmp,
+  onAddEmp, onEditEmp, onDeleteEmp, onOpenOzluk,
 }) {
   const isExp = expanded.has(dept.id);
   const subDepts = departments.filter(d => d.parentDeptId === dept.id);
@@ -15051,7 +15100,7 @@ function DepartmentNode({
               canManageDept={canManageDept} canManageJT={canManageJT} canManageEmp={canManageEmp}
               onAddDept={onAddDept} onEditDept={onEditDept} onDeleteDept={onDeleteDept}
               onAddJT={onAddJT} onEditJT={onEditJT} onDeleteJT={onDeleteJT}
-              onAddEmp={onAddEmp} onEditEmp={onEditEmp} onDeleteEmp={onDeleteEmp}
+              onAddEmp={onAddEmp} onEditEmp={onEditEmp} onDeleteEmp={onDeleteEmp} onOpenOzluk={onOpenOzluk}
             />
           ))}
           {/* Pozisyonlar */}
@@ -15060,7 +15109,7 @@ function DepartmentNode({
               employees={employees} expanded={expanded} toggle={toggle}
               canManageJT={canManageJT} canManageEmp={canManageEmp}
               onEditJT={onEditJT} onDeleteJT={onDeleteJT}
-              onAddEmp={onAddEmp} onEditEmp={onEditEmp} onDeleteEmp={onDeleteEmp}
+              onAddEmp={onAddEmp} onEditEmp={onEditEmp} onDeleteEmp={onDeleteEmp} onOpenOzluk={onOpenOzluk}
             />
           ))}
         </>
@@ -15074,7 +15123,7 @@ function JobTitleNode({
   jobTitle, level, employees, expanded, toggle,
   canManageJT, canManageEmp,
   onEditJT, onDeleteJT,
-  onAddEmp, onEditEmp, onDeleteEmp,
+  onAddEmp, onEditEmp, onDeleteEmp, onOpenOzluk,
 }) {
   const isExp = expanded.has(jobTitle.id);
   const jtEmps = employees.filter(e => e.jobTitleId === jobTitle.id);
@@ -15132,14 +15181,14 @@ function JobTitleNode({
       {isExp && jtEmps.map(emp => (
         <EmployeeNode key={emp.id} emp={emp} level={level + 1}
           canManageEmp={canManageEmp}
-          onEditEmp={onEditEmp} onDeleteEmp={onDeleteEmp}/>
+          onEditEmp={onEditEmp} onDeleteEmp={onDeleteEmp} onOpenOzluk={onOpenOzluk}/>
       ))}
     </div>
   );
 }
 
 /* ---------- Çalışan düğümü (yaprak) ---------- */
-function EmployeeNode({ emp, level, canManageEmp, onEditEmp, onDeleteEmp }) {
+function EmployeeNode({ emp, level, canManageEmp, onEditEmp, onDeleteEmp, onOpenOzluk }) {
   const statusInfo = EMPLOYEE_STATUS[emp.status] || EMPLOYEE_STATUS.active;
   return (
     <div className="flex items-center gap-1 group hover:bg-stone-50 rounded px-1 py-1"
@@ -15149,9 +15198,13 @@ function EmployeeNode({ emp, level, canManageEmp, onEditEmp, onDeleteEmp }) {
         style={{ background: statusInfo.color + "33", color: statusInfo.color }}>
         {(emp.firstName?.[0] || "?") + (emp.lastName?.[0] || "")}
       </div>
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0"
+        onClick={() => onOpenOzluk && onOpenOzluk(emp)}
+        role={onOpenOzluk ? "button" : undefined}
+        title={onOpenOzluk ? "Özlük Kartını Aç" : undefined}
+        style={{ cursor: onOpenOzluk ? "pointer" : "default" }}>
         <div className="flex items-center gap-2 text-sm">
-          <span>{emp.firstName} {emp.lastName}</span>
+          <span style={onOpenOzluk ? { textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 2 } : undefined}>{emp.firstName} {emp.lastName}</span>
           <span className="text-xs px-1.5 py-0.5 rounded"
             style={{ background: statusInfo.color + "22", color: statusInfo.color }}>
             {statusInfo.label}
@@ -15163,7 +15216,10 @@ function EmployeeNode({ emp, level, canManageEmp, onEditEmp, onDeleteEmp }) {
       </div>
       {canManageEmp && (
         <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity">
-          <button onClick={() => onEditEmp(emp)} className="p-1 rounded hover:bg-stone-100">
+          <button onClick={() => onOpenOzluk ? onOpenOzluk(emp) : onEditEmp(emp)} className="p-1 rounded hover:bg-stone-100" title="Özlük Kartı">
+            <UserCheck size={10}/>
+          </button>
+          <button onClick={() => onEditEmp(emp)} className="p-1 rounded hover:bg-stone-100" title="Bordro / Düzenle">
             <Edit3 size={10}/>
           </button>
           <button onClick={() => onDeleteEmp(emp)} className="p-1 rounded hover:bg-red-50">
@@ -17567,7 +17623,7 @@ function AuthorizedUsersPicker({ users, selected, onChange, lang }) {
 }
 
 /* ---------- Personel Listesi (flat) ---------- */
-function EmployeesList({ data, session, canAct, lang, onChange, logAudit, notify }) {
+function EmployeesList({ data, session, canAct, lang, onChange, logAudit, notify, onOpenOzluk }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
 
@@ -17665,7 +17721,10 @@ function EmployeesList({ data, session, canAct, lang, onChange, logAudit, notify
                 const statusInfo = EMPLOYEE_STATUS[emp.status] || EMPLOYEE_STATUS.active;
                 const initials = `${(emp.firstName || "").charAt(0)}${(emp.lastName || "").charAt(0)}`.toUpperCase() || "?";
                 return (
-                  <tr key={emp.id}>
+                  <tr key={emp.id}
+                    onClick={() => onOpenOzluk && onOpenOzluk(emp)}
+                    style={{ cursor: onOpenOzluk ? "pointer" : "default" }}
+                    title={onOpenOzluk ? (lang === "en" ? "Open personnel record" : "Özlük Kartını aç") : undefined}>
                     <td className="label-cell">
                       <div className="flex items-center gap-2.5">
                         <div style={{
@@ -17730,6 +17789,381 @@ function EmployeesList({ data, session, canAct, lang, onChange, logAudit, notify
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+/* =====================================================================
+   ÖZLÜK KARTI — Personel detay ekranı (tam ekran)
+   ---------------------------------------------------------------------
+   Org şemasında veya Personel listesinde bir çalışana tıklanınca açılır.
+   Sol "Personel Kimlik Kartı" paneli + üstte sekmeler + kayıt navigasyonu.
+   TMO "Özlük İşlemleri" mockup'ından uyarlanmıştır. Çekirdek sekmeler:
+   Kimlik · İletişim · Öğrenim · Askerlik · İstihdam.
+   Veriler hrEmployees içindeki çalışan nesnesinde alt-nesnelerde tutulur
+   (identity, contact, military, education[]). Bordro/maaş detayı için
+   mevcut EmployeeFormModal'a köprü verir (onOpenPayroll).
+===================================================================== */
+function OzlukCard({ employee, employees = [], data, lang, canEdit, onClose, onSave, onNavigate, onOpenPayroll }) {
+  const [draft, setDraft] = useState(employee);
+  const [activeTab, setActiveTab] = useState("identity");
+  const [saving, setSaving] = useState(false);
+
+  const dirty = JSON.stringify(draft) !== JSON.stringify(employee);
+
+  const jobTitle  = getEmployeeJobTitle(draft, data);
+  const dept      = jobTitle ? (data.hrDepartments || []).find(d => d.id === jobTitle.departmentId) : null;
+  const orgUnit   = getEmployeeOrgUnit(draft, data);
+  const statusInfo= EMPLOYEE_STATUS[draft.status] || EMPLOYEE_STATUS.active;
+  const isFemale  = draft.gender === "female";
+  const initials  = `${(draft.firstName || "").charAt(0)}${(draft.lastName || "").charAt(0)}`.toUpperCase() || "?";
+
+  // Kayıt navigasyonu (İlk « ‹ › Son »)
+  const idx = employees.findIndex(e => e.id === employee.id);
+  const go = (i) => {
+    if (!onNavigate || i < 0 || i >= employees.length) return;
+    if (dirty && !confirm(lang === "en" ? "Unsaved changes will be lost. Continue?" : "Kaydedilmemiş değişiklikler kaybolacak. Devam edilsin mi?")) return;
+    onNavigate(employees[i]);
+  };
+
+  // Alan setter yardımcıları
+  const set    = (k, v) => setDraft(d => ({ ...d, [k]: v }));
+  const setSub = (obj, k, v) => setDraft(d => ({ ...d, [obj]: { ...(d[obj] || {}), [k]: v } }));
+
+  // Verbose <Input/> bileşeni odak kaybına yol açacağından, inline fonksiyon
+  // yardımcıları kullanıyoruz (yeni component tipi üretmezler).
+  const field = (label, node, extra) => (
+    <div className={extra?.span === 2 ? "md:col-span-2" : extra?.span === 3 ? "md:col-span-3" : ""}>
+      <div className="label mb-1">{label}{extra?.req ? " *" : ""}</div>
+      {node}
+    </div>
+  );
+  const txt = (value, onChange, extra = {}) => (
+    <input className={`input w-full ${extra.mono ? "mono" : ""}`} value={value || ""} disabled={!canEdit}
+      maxLength={extra.maxLength} placeholder={extra.placeholder}
+      onChange={e => onChange(extra.numeric ? e.target.value.replace(/\D/g, "") : e.target.value)}/>
+  );
+  const dt = (value, onChange) => (
+    <input type="date" className="input w-full" value={value || ""} disabled={!canEdit}
+      onChange={e => onChange(e.target.value)}/>
+  );
+  const sel = (value, onChange, options) => (
+    <select className="input w-full" value={value || ""} disabled={!canEdit} onChange={e => onChange(e.target.value)}>
+      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  );
+
+  // Öğrenim listesi
+  const education = draft.education || [];
+  const addEdu = () => setDraft(d => ({ ...d, education: [...(d.education || []), {
+    id: "edu_" + Date.now() + "_" + Math.random().toString(36).slice(2, 5),
+    durum: "", yer: "yurtici", okul: "", fakulte: "", bolum: "", mezuniyetTarihi: "",
+  }] }));
+  const updateEdu = (id, k, v) => setDraft(d => ({ ...d, education: (d.education || []).map(e => e.id === id ? { ...e, [k]: v } : e) }));
+  const removeEdu = (id) => setDraft(d => ({ ...d, education: (d.education || []).filter(e => e.id !== id) }));
+
+  const doSave = async () => {
+    if (!onSave) return;
+    setSaving(true);
+    try { await onSave(draft); } finally { setSaving(false); }
+  };
+
+  const tabs = [
+    { id: "identity",   icon: UserCheck,     label: lang === "en" ? "Identity"   : "Kimlik" },
+    { id: "contact",    icon: Phone,         label: lang === "en" ? "Contact"    : "İletişim" },
+    { id: "education",  icon: GraduationCap, label: lang === "en" ? "Education"  : "Öğrenim" },
+    ...(isFemale ? [] : [{ id: "military", icon: Shield, label: lang === "en" ? "Military" : "Askerlik" }]),
+    { id: "employment", icon: Briefcase,     label: lang === "en" ? "Employment" : "İstihdam" },
+  ];
+  const safeTab = tabs.some(t => t.id === activeTab) ? activeTab : "identity";
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 60, background: "var(--bg)", display: "flex", flexDirection: "column" }}>
+      {/* Üst bar */}
+      <div className="flex items-center gap-3 px-4 py-2.5" style={{ borderBottom: "1px solid var(--line)", background: "var(--paper)" }}>
+        <button onClick={onClose} className="btn btn-ghost" style={{ fontSize: 12 }}>
+          <ArrowLeft size={14}/> {lang === "en" ? "Back" : "Geri"}
+        </button>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <UserCheck size={16} style={{ color: "var(--accent)" }}/>
+          <span style={{ fontWeight: 700, fontSize: 14 }}>
+            {lang === "en" ? "Personnel Record" : "Özlük Kartı"}
+          </span>
+          <span style={{ color: "var(--ink-mute)", fontSize: 13 }}>· {draft.firstName} {draft.lastName}</span>
+          {dirty && <span className="chip" style={{ background: "#fef3c7", color: "#854d0e", fontSize: 10 }}>{lang === "en" ? "unsaved" : "kaydedilmedi"}</span>}
+        </div>
+        {/* Kayıt navigasyonu */}
+        {employees.length > 1 && (
+          <div className="flex items-center gap-0.5" style={{ background: "var(--bg-alt)", borderRadius: 6, padding: 2 }}>
+            <button onClick={() => go(0)} disabled={idx <= 0} className="btn btn-ghost px-1.5" title={lang === "en" ? "First" : "İlk Kayıt"} style={{ fontSize: 13 }}>«</button>
+            <button onClick={() => go(idx - 1)} disabled={idx <= 0} className="btn btn-ghost px-1.5" title={lang === "en" ? "Previous" : "Önceki"} style={{ fontSize: 13 }}>‹</button>
+            <span className="mono" style={{ fontSize: 11, color: "var(--ink-mute)", padding: "0 4px" }}>{idx + 1}/{employees.length}</span>
+            <button onClick={() => go(idx + 1)} disabled={idx >= employees.length - 1} className="btn btn-ghost px-1.5" title={lang === "en" ? "Next" : "Sonraki"} style={{ fontSize: 13 }}>›</button>
+            <button onClick={() => go(employees.length - 1)} disabled={idx >= employees.length - 1} className="btn btn-ghost px-1.5" title={lang === "en" ? "Last" : "Son Kayıt"} style={{ fontSize: 13 }}>»</button>
+          </div>
+        )}
+        {canEdit && (
+          <button onClick={doSave} disabled={!dirty || saving} className="btn btn-primary" style={{ fontSize: 12 }}>
+            <Save size={13}/> {saving ? (lang === "en" ? "Saving…" : "Kaydediliyor…") : (lang === "en" ? "Save" : "Kaydet")}
+          </button>
+        )}
+      </div>
+
+      {/* Gövde: sol kimlik paneli + sağ içerik */}
+      <div className="flex flex-1" style={{ minHeight: 0 }}>
+        {/* Sol: Personel Kimlik Kartı */}
+        <div style={{ width: 250, flexShrink: 0, borderRight: "1px solid var(--line)", background: "var(--paper)", overflowY: "auto" }} className="p-3 space-y-3">
+          <div className="flex flex-col items-center text-center gap-2">
+            <div style={{
+              width: 100, height: 130, borderRadius: 6,
+              background: dept?.color ? dept.color + "20" : "var(--accent-soft)",
+              color: dept?.color || "var(--accent)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 32, fontWeight: 700, border: "1px solid var(--line)",
+            }}>{initials}</div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>{draft.firstName} {draft.lastName}</div>
+            <span className="chip" style={{ background: statusInfo.color + "20", color: statusInfo.color }}>{statusInfo.label}</span>
+          </div>
+          <div className="space-y-1.5" style={{ fontSize: 11.5 }}>
+            {[
+              ["T.C. No", draft.tcNo, true],
+              [lang === "en" ? "Reg. No" : "Sicil No", draft.sicilNo, true],
+              [lang === "en" ? "Title" : "Unvan", jobTitle?.title],
+              [lang === "en" ? "Department" : "Birim", dept?.name],
+              [lang === "en" ? "Org Unit" : "Org Birimi", orgUnit ? `${ORG_UNIT_TYPES[orgUnit.type]?.icon || ""} ${orgUnit.name}` : null],
+            ].map(([k, v, mono], i) => (
+              <div key={i} className="flex justify-between gap-2" style={{ borderBottom: "1px dashed var(--line)", paddingBottom: 4 }}>
+                <span style={{ color: "var(--ink-mute)" }}>{k}</span>
+                <span className={mono ? "mono" : ""} style={{ fontWeight: 500, textAlign: "right" }}>{v || "—"}</span>
+              </div>
+            ))}
+          </div>
+          {onOpenPayroll && (
+            <button onClick={() => onOpenPayroll(draft)} className="btn w-full" style={{ fontSize: 11, background: "var(--bg-alt)", color: "var(--ink)" }}>
+              <Receipt size={11}/> {lang === "en" ? "Payroll / Salary…" : "Bordro / Maaş…"}
+            </button>
+          )}
+        </div>
+
+        {/* Sağ: sekmeler + içerik */}
+        <div className="flex flex-col flex-1" style={{ minWidth: 0 }}>
+          {/* Sekme barı */}
+          <div className="flex items-center gap-1 px-3 overflow-x-auto" style={{ borderBottom: "1px solid var(--line)", background: "var(--paper)" }}>
+            {tabs.map(tab => {
+              const active = safeTab === tab.id;
+              return (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className="flex items-center gap-1.5 flex-shrink-0"
+                  style={{
+                    padding: "10px 14px", fontSize: 12.5,
+                    fontWeight: active ? 600 : 500,
+                    color: active ? "var(--accent)" : "var(--ink-mute)",
+                    borderBottom: active ? "2px solid var(--accent)" : "2px solid transparent",
+                    marginBottom: -1, whiteSpace: "nowrap",
+                  }}>
+                  <tab.icon size={13} strokeWidth={active ? 2 : 1.5}/> {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Sekme içeriği */}
+          <div className="flex-1 overflow-y-auto p-4" style={{ minHeight: 0 }}>
+            {/* KİMLİK */}
+            {safeTab === "identity" && (
+              <div className="space-y-4" style={{ maxWidth: 880 }}>
+                <SectionTitle>{lang === "en" ? "Identity Information" : "Kimlik Bilgileri"}</SectionTitle>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {field(lang === "en" ? "First Name" : "Adı", txt(draft.firstName, v => set("firstName", v)), { req: true })}
+                  {field(lang === "en" ? "Last Name" : "Soyadı", txt(draft.lastName, v => set("lastName", v)), { req: true })}
+                  {field("T.C. No", txt(draft.tcNo, v => set("tcNo", v), { mono: true, numeric: true, maxLength: 11 }))}
+                  {field(lang === "en" ? "Reg. No (Sicil)" : "Sicil No", txt(draft.sicilNo, v => set("sicilNo", v), { mono: true }))}
+                  {field(lang === "en" ? "Father's Name" : "Baba Adı", txt(draft.identity?.fatherName, v => setSub("identity", "fatherName", v)))}
+                  {field(lang === "en" ? "Mother's Name" : "Anne Adı", txt(draft.identity?.motherName, v => setSub("identity", "motherName", v)))}
+                  {field(lang === "en" ? "Birth Place" : "Doğum Yeri", txt(draft.birthPlace, v => set("birthPlace", v)))}
+                  {field(lang === "en" ? "Birth Date" : "Doğum Tarihi", dt(draft.birthDate, v => set("birthDate", v)))}
+                  {field(lang === "en" ? "Gender" : "Cinsiyet", sel(draft.gender, v => set("gender", v), [
+                    { value: "", label: "—" }, { value: "male", label: lang === "en" ? "Male" : "Erkek" },
+                    { value: "female", label: lang === "en" ? "Female" : "Kadın" }, { value: "other", label: lang === "en" ? "Other" : "Diğer" },
+                  ]))}
+                  {field(lang === "en" ? "Marital Status" : "Medeni Durum", sel(draft.maritalStatus || "single", v => set("maritalStatus", v), [
+                    { value: "single", label: lang === "en" ? "Single" : "Bekar" }, { value: "married", label: lang === "en" ? "Married" : "Evli" },
+                    { value: "divorced", label: lang === "en" ? "Divorced" : "Boşanmış" }, { value: "widowed", label: lang === "en" ? "Widowed" : "Dul" },
+                  ]))}
+                  {field(lang === "en" ? "Blood Type" : "Kan Grubu", sel(draft.bloodType, v => set("bloodType", v), [
+                    { value: "", label: "—" }, ...["A Rh+","A Rh-","B Rh+","B Rh-","AB Rh+","AB Rh-","0 Rh+","0 Rh-"].map(b => ({ value: b, label: b })),
+                  ]))}
+                  {field(lang === "en" ? "Nationality" : "Uyruğu", txt(draft.nationality || "T.C.", v => set("nationality", v)))}
+                </div>
+                <SectionTitle>{lang === "en" ? "Civil Registry (Nüfus)" : "Nüfus Bilgileri"}</SectionTitle>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {field(lang === "en" ? "Registered Province" : "Nüfusa Kayıtlı İl", txt(draft.identity?.nufusIl, v => setSub("identity", "nufusIl", v)))}
+                  {field(lang === "en" ? "Registered District" : "Nüfusa Kayıtlı İlçe", txt(draft.identity?.nufusIlce, v => setSub("identity", "nufusIlce", v)))}
+                  {field(lang === "en" ? "Neighborhood/Village" : "Mahalle/Köy", txt(draft.identity?.mahalle, v => setSub("identity", "mahalle", v)))}
+                  {field(lang === "en" ? "Volume No" : "Cilt No", txt(draft.identity?.ciltNo, v => setSub("identity", "ciltNo", v), { mono: true }))}
+                  {field(lang === "en" ? "Family Order No" : "Aile Sıra No", txt(draft.identity?.aileSiraNo, v => setSub("identity", "aileSiraNo", v), { mono: true }))}
+                  {field(lang === "en" ? "Order No" : "Sıra No", txt(draft.identity?.siraNo, v => setSub("identity", "siraNo", v), { mono: true }))}
+                  {field(lang === "en" ? "Issued At" : "Verildiği Yer", txt(draft.identity?.verildigiYer, v => setSub("identity", "verildigiYer", v)))}
+                  {field(lang === "en" ? "Registry No" : "Kayıt No", txt(draft.identity?.kayitNo, v => setSub("identity", "kayitNo", v), { mono: true }))}
+                </div>
+              </div>
+            )}
+
+            {/* İLETİŞİM */}
+            {safeTab === "contact" && (
+              <div className="space-y-4" style={{ maxWidth: 880 }}>
+                <SectionTitle>{lang === "en" ? "Contact Information" : "İletişim Bilgileri"}</SectionTitle>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {field(lang === "en" ? "Mobile 1" : "Cep Telefonu 1", txt(draft.phone, v => set("phone", v), { mono: true, placeholder: "+90 5XX XXX XX XX" }), { req: true })}
+                  {field(lang === "en" ? "Mobile 2" : "Cep Telefonu 2", txt(draft.contact?.phone2, v => setSub("contact", "phone2", v), { mono: true }))}
+                  {field(lang === "en" ? "Home Phone" : "Ev Telefonu", txt(draft.contact?.homePhone, v => setSub("contact", "homePhone", v), { mono: true }))}
+                  {field("E-Posta", txt(draft.email, v => set("email", v)), { req: true, span: 2 })}
+                </div>
+                <SectionTitle>{lang === "en" ? "Address" : "Adres Bilgileri"}</SectionTitle>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {field(lang === "en" ? "Province" : "İl", txt(draft.contact?.il, v => setSub("contact", "il", v)))}
+                  {field(lang === "en" ? "District" : "İlçe", txt(draft.contact?.ilce, v => setSub("contact", "ilce", v)))}
+                  {field(lang === "en" ? "Neighborhood" : "Mahalle", txt(draft.contact?.mahalle, v => setSub("contact", "mahalle", v)))}
+                  {field(lang === "en" ? "Street" : "Cadde/Sokak", txt(draft.contact?.cadde, v => setSub("contact", "cadde", v)), { span: 2 })}
+                  {field(lang === "en" ? "Outer Door No" : "Dış Kapı No", txt(draft.contact?.disKapi, v => setSub("contact", "disKapi", v)))}
+                  {field(lang === "en" ? "Inner Door No" : "İç Kapı No", txt(draft.contact?.icKapi, v => setSub("contact", "icKapi", v)))}
+                  {field(lang === "en" ? "Postal Code" : "Posta Kodu", txt(draft.contact?.postaKodu, v => setSub("contact", "postaKodu", v), { mono: true }))}
+                  {field(lang === "en" ? "Full Address" : "Açık Adres", txt(draft.contact?.aciklama, v => setSub("contact", "aciklama", v)), { span: 3 })}
+                </div>
+              </div>
+            )}
+
+            {/* ÖĞRENİM */}
+            {safeTab === "education" && (
+              <div className="space-y-3" style={{ maxWidth: 980 }}>
+                <div className="flex items-center justify-between">
+                  <SectionTitle>{lang === "en" ? "Education Records" : "Öğrenim Bilgileri"}</SectionTitle>
+                  {canEdit && (
+                    <button onClick={addEdu} className="btn btn-primary" style={{ fontSize: 11.5 }}>
+                      <Plus size={12}/> {lang === "en" ? "Add Record" : "Kayıt Ekle"}
+                    </button>
+                  )}
+                </div>
+                {education.length === 0 ? (
+                  <div className="card p-6 text-center" style={{ color: "var(--ink-mute)", fontSize: 12.5 }}>
+                    {lang === "en" ? "No education records yet." : "Henüz öğrenim kaydı yok."}
+                  </div>
+                ) : (
+                  <div className="card overflow-x-auto">
+                    <table className="grid">
+                      <thead>
+                        <tr>
+                          <th className="label-cell">{lang === "en" ? "Level" : "Öğrenim Durumu"}</th>
+                          <th className="label-cell">{lang === "en" ? "Place" : "Öğrenim Yeri"}</th>
+                          <th className="label-cell">{lang === "en" ? "School" : "Okul Adı"}</th>
+                          <th className="label-cell">{lang === "en" ? "Faculty" : "Fakülte"}</th>
+                          <th className="label-cell">{lang === "en" ? "Department" : "Bölüm"}</th>
+                          <th className="label-cell">{lang === "en" ? "Graduation" : "Mezuniyet"}</th>
+                          {canEdit && <th style={{ width: 36 }}></th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {education.map(e => (
+                          <tr key={e.id}>
+                            <td>{sel(e.durum, v => updateEdu(e.id, "durum", v), [
+                              { value: "", label: "—" },
+                              ...Object.entries(EDUCATION_LEVELS).map(([k, v]) => ({ value: k, label: v.labels?.[lang] || v.labels?.tr || k })),
+                            ])}</td>
+                            <td>{sel(e.yer, v => updateEdu(e.id, "yer", v), [
+                              { value: "yurtici", label: lang === "en" ? "Domestic" : "Yurt içi" },
+                              { value: "yurtdisi", label: lang === "en" ? "Abroad" : "Yurt dışı" },
+                            ])}</td>
+                            <td>{txt(e.okul, v => updateEdu(e.id, "okul", v))}</td>
+                            <td>{txt(e.fakulte, v => updateEdu(e.id, "fakulte", v))}</td>
+                            <td>{txt(e.bolum, v => updateEdu(e.id, "bolum", v))}</td>
+                            <td>{dt(e.mezuniyetTarihi, v => updateEdu(e.id, "mezuniyetTarihi", v))}</td>
+                            {canEdit && (
+                              <td>
+                                <button onClick={() => removeEdu(e.id)} className="p-1 rounded hover:bg-red-50">
+                                  <Trash2 size={12} style={{ color: "var(--negative)" }}/>
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {field(lang === "en" ? "Highest Education Level (summary)" : "En Yüksek Öğrenim (özet)", sel(draft.educationLevel, v => set("educationLevel", v), [
+                  { value: "", label: "—" },
+                  ...Object.entries(EDUCATION_LEVELS).map(([k, v]) => ({ value: k, label: v.labels?.[lang] || v.labels?.tr || k })),
+                ]), { span: 2 })}
+              </div>
+            )}
+
+            {/* ASKERLİK */}
+            {safeTab === "military" && !isFemale && (
+              <div className="space-y-4" style={{ maxWidth: 880 }}>
+                <SectionTitle>{lang === "en" ? "Military Service" : "Askerlik Bilgileri"}</SectionTitle>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {field(lang === "en" ? "Service Type" : "Askerlik Nevi", sel(draft.military?.nevi, v => setSub("military", "nevi", v), [
+                    { value: "", label: "—" },
+                    { value: "yapildi", label: lang === "en" ? "Completed" : "Yapıldı" },
+                    { value: "tecilli", label: lang === "en" ? "Deferred" : "Tecilli" },
+                    { value: "muaf", label: lang === "en" ? "Exempt" : "Muaf" },
+                    { value: "bedelli", label: "Bedelli" },
+                    { value: "yedeksubay", label: lang === "en" ? "Reserve Officer" : "Yedek Subay" },
+                  ]))}
+                  {field(lang === "en" ? "Start Date" : "Başlama Tarihi", dt(draft.military?.baslamaTarihi, v => setSub("military", "baslamaTarihi", v)))}
+                  {field(lang === "en" ? "Discharge Date" : "Terhis Tarihi", dt(draft.military?.terhisTarihi, v => setSub("military", "terhisTarihi", v)))}
+                  {field(lang === "en" ? "Deferral Date" : "Tecil Tarihi", dt(draft.military?.tecilTarihi, v => setSub("military", "tecilTarihi", v)))}
+                  {field(lang === "en" ? "Exemption Reason" : "Muafiyet Nedeni", txt(draft.military?.muafiyetNedeni, v => setSub("military", "muafiyetNedeni", v)), { span: 2 })}
+                </div>
+                <div className="text-xs" style={{ color: "var(--ink-mute)" }}>
+                  {lang === "en"
+                    ? "For staff with employment type 'Officer', this is queried via HTAP by T.C. No; missing fields can be entered manually."
+                    : "İstihdam şekli 'Memur' olan personel için bu bilgiler HTAP üzerinden T.C. ile sorgulanır; eksik alanlar elle girilebilir."}
+                </div>
+              </div>
+            )}
+
+            {/* İSTİHDAM */}
+            {safeTab === "employment" && (
+              <div className="space-y-4" style={{ maxWidth: 880 }}>
+                <SectionTitle>{lang === "en" ? "Employment Information" : "İstihdam Bilgileri"}</SectionTitle>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {field(lang === "en" ? "Employment Type" : "İstihdam Şekli", sel(draft.employment?.istihdamSekli, v => setSub("employment", "istihdamSekli", v), [
+                    { value: "", label: "—" },
+                    { value: "memur", label: lang === "en" ? "Officer" : "Memur" },
+                    { value: "sozlesmeli", label: lang === "en" ? "Contracted" : "Sözleşmeli Personel" },
+                    { value: "daimi_isci", label: lang === "en" ? "Permanent Worker" : "Daimi İşçi" },
+                    { value: "taseron", label: lang === "en" ? "Subcontractor" : "Taşeron Personel" },
+                  ]))}
+                  {field(lang === "en" ? "Title (Position)" : "Unvan", txt(jobTitle?.title || "", () => {}, { placeholder: lang === "en" ? "(from position)" : "(pozisyondan)" }))}
+                  {field(lang === "en" ? "Service Class" : "Hizmet Sınıfı", txt(draft.employment?.hizmetSinifi, v => setSub("employment", "hizmetSinifi", v)))}
+                  {field(lang === "en" ? "Organization" : "Teşkilat", txt(draft.employment?.teskilat, v => setSub("employment", "teskilat", v)))}
+                  {field(lang === "en" ? "Province" : "İl", txt(draft.employment?.il, v => setSub("employment", "il", v)))}
+                  {field(lang === "en" ? "Department" : "Birim", txt(dept?.name || "", () => {}, { placeholder: lang === "en" ? "(from dept)" : "(departmandan)" }))}
+                  {field("SGK No", txt(draft.sgkNo, v => set("sgkNo", v), { mono: true }))}
+                  {field(lang === "en" ? "Start Date" : "İşe Giriş Tarihi", dt(draft.startDate, v => set("startDate", v)))}
+                  {field(lang === "en" ? "Status" : "Personel Durumu", sel(draft.status || "active", v => set("status", v),
+                    Object.entries(EMPLOYEE_STATUS).map(([k, v]) => ({ value: k, label: v.label }))))}
+                </div>
+                <div className="text-xs" style={{ color: "var(--ink-mute)" }}>
+                  {lang === "en"
+                    ? "Title and Department come from the position assignment. Salary and payroll profile are managed in the Payroll dialog."
+                    : "Unvan ve Birim, pozisyon atamasından gelir. Maaş ve bordro profili \"Bordro / Maaş\" ekranından yönetilir."}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Özlük Kartı bölüm başlığı */
+function SectionTitle({ children }) {
+  return (
+    <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--accent)", borderBottom: "1px solid var(--line)", paddingBottom: 6 }}>
+      {children}
     </div>
   );
 }
