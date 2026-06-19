@@ -22,6 +22,8 @@ import { registerFinanceModule } from './modules/finance/index.js';
 import { registerPartiesModule } from './modules/finance/parties/index.js';
 import { registerHrModule } from './modules/hr/index.js';
 import { registerNotificationsModule } from './modules/notifications/index.js';
+import { registerProductionModule } from './modules/production/index.js';
+import { registerWarehouseModule } from './modules/warehouse/index.js';
 import cellsRoutes from './routes/cells.js';
 import companiesRoutes from './routes/companies.js';
 import invoicesRoutes from './routes/invoices.js';
@@ -117,6 +119,16 @@ const edefterModule = registerEdefterModule();
 const partiesModule = registerPartiesModule(pool);
 
 // ============================================================================
+// Üretim & MRP modülü — Reçete & İş Merkezi & Üretim Emri & MRP, /v1/production
+// ============================================================================
+const productionModule = registerProductionModule(pool);
+
+// ============================================================================
+// Depo & Stok Yönetimi (WMS) modülü — Depo & Malzeme & Stok Hareketi, /v1/warehouse
+// ============================================================================
+const warehouseModule = registerWarehouseModule(pool);
+
+// ============================================================================
 // Routes — /v1 prefix
 // ============================================================================
 const v1 = new Hono();
@@ -151,6 +163,12 @@ v1.route('/finance', financeModule);
 v1.route('/finance', einvoiceModule); // e-fatura + fx (Faz 6) — aynı prefix, /einvoice/* ve /fx/* yolları
 v1.route('/finance', edefterModule); // e-defter imzalama (Faz 3) — /edefter/* yolu
 v1.route('/finance', partiesModule); // cari kartları (Faz 7) — /parties, /parties/bulk-import
+
+// Üretim & MRP — YENI moduler endpoint (/v1/production)
+v1.route('/production', productionModule);
+
+// Depo & Stok Yönetimi (WMS) — YENI moduler endpoint (/v1/warehouse)
+v1.route('/warehouse', warehouseModule);
 
 // Companies + cells + invoices
 v1.route('/companies', companiesRoutes);
