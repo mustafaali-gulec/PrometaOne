@@ -18,6 +18,44 @@ export class InvalidWarehouseStatusError extends WarehouseError {
   }
 }
 
+export class InvalidGroupStatusError extends WarehouseError {
+  constructor(value: unknown) {
+    super(`Geçersiz grup durumu: ${String(value)} (beklenen: active, passive)`);
+  }
+}
+
+export class InvalidVariantStatusError extends WarehouseError {
+  constructor(value: unknown) {
+    super(`Geçersiz varyant durumu: ${String(value)} (beklenen: active, passive)`);
+  }
+}
+
+export class InvalidMaterialRequestStatusError extends WarehouseError {
+  constructor(value: unknown) {
+    super(
+      `Geçersiz talep durumu: ${String(value)} (beklenen: pending, approved, rejected, fulfilled)`,
+    );
+  }
+}
+
+export class InvalidInventoryCountStatusError extends WarehouseError {
+  constructor(value: unknown) {
+    super(`Geçersiz sayım durumu: ${String(value)} (beklenen: open, applied)`);
+  }
+}
+
+export class InvalidAssignmentStatusError extends WarehouseError {
+  constructor(value: unknown) {
+    super(`Geçersiz zimmet durumu: ${String(value)} (beklenen: open, returned)`);
+  }
+}
+
+export class EmptyItemsError extends WarehouseError {
+  constructor(what: string) {
+    super(`${what} en az bir kalem içermeli`);
+  }
+}
+
 export class InvalidMovementKindError extends WarehouseError {
   constructor(value: unknown) {
     super(`Geçersiz hareket türü: ${String(value)} (beklenen: in, out, transfer, count)`);
@@ -73,6 +111,42 @@ export class StockMovementNotFoundError extends WarehouseError {
   }
 }
 
+export class MaterialGroupNotFoundError extends WarehouseError {
+  constructor(id: number) {
+    super(`Malzeme grubu bulunamadı: ${id}`);
+  }
+}
+
+export class UnitNotFoundError extends WarehouseError {
+  constructor(id: number) {
+    super(`Birim bulunamadı: ${id}`);
+  }
+}
+
+export class VariantNotFoundError extends WarehouseError {
+  constructor(id: number) {
+    super(`Varyant bulunamadı: ${id}`);
+  }
+}
+
+export class MaterialRequestNotFoundError extends WarehouseError {
+  constructor(id: number) {
+    super(`Malzeme talebi bulunamadı: ${id}`);
+  }
+}
+
+export class InventoryCountNotFoundError extends WarehouseError {
+  constructor(id: number) {
+    super(`Envanter sayımı bulunamadı: ${id}`);
+  }
+}
+
+export class AssignmentNotFoundError extends WarehouseError {
+  constructor(id: number) {
+    super(`Zimmet bulunamadı: ${id}`);
+  }
+}
+
 // --- Conflict / iş kuralı (409) -------------------------------------------
 export class DuplicateWarehouseCodeError extends WarehouseError {
   constructor(code: string) {
@@ -104,5 +178,30 @@ export class InsufficientStockError extends WarehouseError {
       `Yetersiz stok — malzeme#${materialId} depo#${warehouseId}: mevcut ${available}, ` +
         `talep ${requested} (negatif stok kapalı)`,
     );
+  }
+}
+
+export class DuplicateGroupCodeError extends WarehouseError {
+  constructor(code: string) {
+    super(`Bu kod ile zaten bir malzeme grubu var: "${code}"`);
+  }
+}
+
+export class DuplicateUnitCodeError extends WarehouseError {
+  constructor(code: string) {
+    super(`Bu kod ile zaten bir birim var: "${code}"`);
+  }
+}
+
+export class DuplicateVariantCodeError extends WarehouseError {
+  constructor(code: string) {
+    super(`Bu kod ile zaten bir varyant var: "${code}"`);
+  }
+}
+
+/** Talep/sayım/zimmet zaten geçilmiş bir durumda — iş akışı geçişi reddedilir. */
+export class InvalidWorkflowTransitionError extends WarehouseError {
+  constructor(entity: string, from: string, action: string) {
+    super(`${entity} "${from}" durumundayken ${action} yapılamaz`);
   }
 }

@@ -17,6 +17,42 @@ import { z } from 'zod';
 
 import { authMiddleware, requireRole } from '../../../middleware/auth.js';
 import type {
+  CreateAssignmentInput,
+  CreateAssignmentUseCase,
+  GetAssignmentUseCase,
+  ListAssignmentsUseCase,
+  ReturnAssignmentUseCase,
+} from '../application/useCases/AssignmentUseCases.js';
+import type {
+  ApplyInventoryCountUseCase,
+  CreateInventoryCountInput,
+  CreateInventoryCountUseCase,
+  GetInventoryCountUseCase,
+  ListInventoryCountsUseCase,
+  UpdateInventoryCountInput,
+  UpdateInventoryCountUseCase,
+} from '../application/useCases/InventoryCountUseCases.js';
+import type {
+  CreateMaterialGroupInput,
+  CreateMaterialGroupUseCase,
+  DeleteMaterialGroupUseCase,
+  GetMaterialGroupUseCase,
+  ListMaterialGroupsUseCase,
+  UpdateMaterialGroupInput,
+  UpdateMaterialGroupUseCase,
+} from '../application/useCases/MaterialGroupUseCases.js';
+import type {
+  ApproveMaterialRequestUseCase,
+  CreateMaterialRequestInput,
+  CreateMaterialRequestUseCase,
+  FulfillMaterialRequestUseCase,
+  GetMaterialRequestUseCase,
+  ListMaterialRequestsUseCase,
+  RejectMaterialRequestUseCase,
+  UpdateMaterialRequestInput,
+  UpdateMaterialRequestUseCase,
+} from '../application/useCases/MaterialRequestUseCases.js';
+import type {
   CreateMaterialInput,
   CreateMaterialUseCase,
   DeleteMaterialUseCase,
@@ -32,6 +68,23 @@ import type {
   RecordMovementInput,
   RecordMovementUseCase,
 } from '../application/useCases/StockUseCases.js';
+import type {
+  CreateUnitUseCase,
+  DeleteUnitUseCase,
+  GetUnitUseCase,
+  ListUnitsUseCase,
+  UpdateUnitInput,
+  UpdateUnitUseCase,
+} from '../application/useCases/UnitUseCases.js';
+import type {
+  CreateVariantInput,
+  CreateVariantUseCase,
+  DeleteVariantUseCase,
+  GetVariantUseCase,
+  ListVariantsUseCase,
+  UpdateVariantInput,
+  UpdateVariantUseCase,
+} from '../application/useCases/VariantUseCases.js';
 import type {
   CreateWarehouseInput,
   CreateWarehouseUseCase,
@@ -62,6 +115,43 @@ export interface WarehouseRouterDeps {
   getMovements: GetMovementsUseCase;
   getStockLevels: GetStockLevelsUseCase;
   getMaterialLedger: GetMaterialLedgerUseCase;
+  // Malzeme grubu
+  createMaterialGroup: CreateMaterialGroupUseCase;
+  updateMaterialGroup: UpdateMaterialGroupUseCase;
+  deleteMaterialGroup: DeleteMaterialGroupUseCase;
+  listMaterialGroups: ListMaterialGroupsUseCase;
+  getMaterialGroup: GetMaterialGroupUseCase;
+  // Birim
+  createUnit: CreateUnitUseCase;
+  updateUnit: UpdateUnitUseCase;
+  deleteUnit: DeleteUnitUseCase;
+  listUnits: ListUnitsUseCase;
+  getUnit: GetUnitUseCase;
+  // Varyant
+  createVariant: CreateVariantUseCase;
+  updateVariant: UpdateVariantUseCase;
+  deleteVariant: DeleteVariantUseCase;
+  listVariants: ListVariantsUseCase;
+  getVariant: GetVariantUseCase;
+  // Malzeme talep
+  createMaterialRequest: CreateMaterialRequestUseCase;
+  updateMaterialRequest: UpdateMaterialRequestUseCase;
+  approveMaterialRequest: ApproveMaterialRequestUseCase;
+  rejectMaterialRequest: RejectMaterialRequestUseCase;
+  fulfillMaterialRequest: FulfillMaterialRequestUseCase;
+  listMaterialRequests: ListMaterialRequestsUseCase;
+  getMaterialRequest: GetMaterialRequestUseCase;
+  // Envanter sayım
+  createInventoryCount: CreateInventoryCountUseCase;
+  updateInventoryCount: UpdateInventoryCountUseCase;
+  applyInventoryCount: ApplyInventoryCountUseCase;
+  listInventoryCounts: ListInventoryCountsUseCase;
+  getInventoryCount: GetInventoryCountUseCase;
+  // Zimmet
+  createAssignment: CreateAssignmentUseCase;
+  returnAssignment: ReturnAssignmentUseCase;
+  listAssignments: ListAssignmentsUseCase;
+  getAssignment: GetAssignmentUseCase;
 }
 
 // --- Schema fragmanları ---------------------------------------------------
@@ -200,6 +290,129 @@ const recordMovementSchema = z.object({
   docNo: z.string().max(120).nullable().optional(),
   note: z.string().nullable().optional(),
 });
+
+// --- Aux statuses ---------------------------------------------------------
+const groupStatus = z.enum(['active', 'passive']);
+const variantStatus = z.enum(['active', 'passive']);
+const materialRequestStatus = z.enum(['pending', 'approved', 'rejected', 'fulfilled']);
+const inventoryCountStatus = z.enum(['open', 'applied']);
+const assignmentStatus = z.enum(['open', 'returned']);
+
+// --- MaterialGroup schemas ------------------------------------------------
+const createGroupSchema = z.object({
+  companyId: z.number().int().positive(),
+  code: z.string().min(1).max(60),
+  name: z.string().min(1).max(200),
+  status: groupStatus.optional(),
+});
+const updateGroupSchema = z.object({
+  companyId: z.number().int().positive(),
+  code: z.string().min(1).max(60).optional(),
+  name: z.string().min(1).max(200).optional(),
+  status: groupStatus.optional(),
+});
+
+// --- Unit schemas ---------------------------------------------------------
+const createUnitSchema = z.object({
+  companyId: z.number().int().positive(),
+  code: z.string().min(1).max(60),
+  name: z.string().min(1).max(200),
+});
+const updateUnitSchema = z.object({
+  companyId: z.number().int().positive(),
+  code: z.string().min(1).max(60).optional(),
+  name: z.string().min(1).max(200).optional(),
+});
+
+// --- Variant schemas ------------------------------------------------------
+const variantOptionSchema = z.object({
+  code: z.string().min(1).max(60),
+  name: z.string().min(1).max(200),
+});
+const createVariantSchema = z.object({
+  companyId: z.number().int().positive(),
+  code: z.string().min(1).max(60),
+  name: z.string().min(1).max(200),
+  status: variantStatus.optional(),
+  options: z.array(variantOptionSchema).optional(),
+});
+const updateVariantSchema = z.object({
+  companyId: z.number().int().positive(),
+  code: z.string().min(1).max(60).optional(),
+  name: z.string().min(1).max(200).optional(),
+  status: variantStatus.optional(),
+  options: z.array(variantOptionSchema).optional(),
+});
+
+// --- MaterialRequest schemas ----------------------------------------------
+const requestItemSchema = z.object({
+  materialId: z.number().int().positive(),
+  qty: z.number().positive(),
+  unit: z.string().min(1).max(40).nullable().optional(),
+});
+const createRequestSchema = z.object({
+  companyId: z.number().int().positive(),
+  date: dateStr,
+  requesterUnit: z.string().max(200).nullable().optional(),
+  requester: z.string().max(200).nullable().optional(),
+  requestedWarehouseId: z.number().int().positive().nullable().optional(),
+  validityDays: z.number().int().nonnegative().nullable().optional(),
+  items: z.array(requestItemSchema).min(1),
+  note: z.string().nullable().optional(),
+});
+const updateRequestSchema = z.object({
+  companyId: z.number().int().positive(),
+  date: dateStr.optional(),
+  requesterUnit: z.string().max(200).nullable().optional(),
+  requester: z.string().max(200).nullable().optional(),
+  requestedWarehouseId: z.number().int().positive().nullable().optional(),
+  validityDays: z.number().int().nonnegative().nullable().optional(),
+  items: z.array(requestItemSchema).min(1).optional(),
+  note: z.string().nullable().optional(),
+});
+const rejectRequestSchema = z.object({
+  companyId: z.number().int().positive(),
+  reason: z.string().min(1),
+});
+const requestActionSchema = z.object({ companyId: z.number().int().positive() });
+
+// --- InventoryCount schemas -----------------------------------------------
+const countItemSchema = z.object({
+  materialId: z.number().int().positive(),
+  systemQty: z.number(),
+  countedQty: z.number(),
+});
+const createCountSchema = z.object({
+  companyId: z.number().int().positive(),
+  date: dateStr,
+  warehouseId: z.number().int().positive(),
+  period: z.string().max(60).nullable().optional(),
+  items: z.array(countItemSchema).min(1),
+});
+const updateCountSchema = z.object({
+  companyId: z.number().int().positive(),
+  date: dateStr.optional(),
+  warehouseId: z.number().int().positive().optional(),
+  period: z.string().max(60).nullable().optional(),
+  items: z.array(countItemSchema).min(1).optional(),
+});
+const countActionSchema = z.object({ companyId: z.number().int().positive() });
+
+// --- Assignment schemas ---------------------------------------------------
+const assignmentItemSchema = z.object({
+  materialId: z.number().int().positive(),
+  warehouseId: z.number().int().positive(),
+  qty: z.number().positive(),
+});
+const createAssignmentSchema = z.object({
+  companyId: z.number().int().positive(),
+  date: dateStr,
+  person: z.string().max(200).nullable().optional(),
+  birim: z.string().max(200).nullable().optional(),
+  items: z.array(assignmentItemSchema).min(1),
+  note: z.string().nullable().optional(),
+});
+const assignmentActionSchema = z.object({ companyId: z.number().int().positive() });
 
 export function createWarehouseRouter(deps: WarehouseRouterDeps): Hono {
   const app = new Hono();
@@ -465,6 +678,520 @@ export function createWarehouseRouter(deps: WarehouseRouterDeps): Hono {
           ...(q.warehouseId !== undefined ? { warehouseId: q.warehouseId } : {}),
         });
         return c.json({ levels });
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  // ===== MATERIAL GROUP (Malzeme Grubu) ===================================
+  app.get(
+    '/groups',
+    zValidator('query', companyIdQ.extend({ status: groupStatus.optional() })),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const groups = await deps.listMaterialGroups.execute({
+          companyId: q.companyId,
+          ...(q.status !== undefined ? { status: q.status } : {}),
+        });
+        return c.json({ groups });
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/groups/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.getMaterialGroup.execute({ companyId: q.companyId, groupId: id }));
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.post('/groups', requireWrite, zValidator('json', createGroupSchema), async (c) => {
+    const b = c.req.valid('json');
+    try {
+      return c.json(await deps.createMaterialGroup.execute(b as CreateMaterialGroupInput), 201);
+    } catch (err) {
+      mapWarehouseError(err);
+    }
+  });
+
+  app.put(
+    '/groups/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', updateGroupSchema),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.updateMaterialGroup.execute({ ...b, groupId: id } as UpdateMaterialGroupInput),
+        );
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/groups/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deleteMaterialGroup.execute({ companyId: q.companyId, groupId: id }),
+        );
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  // ===== UNIT (Ölçü Birimi) ===============================================
+  app.get('/units', zValidator('query', companyIdQ), async (c) => {
+    const q = c.req.valid('query');
+    try {
+      const units = await deps.listUnits.execute({ companyId: q.companyId });
+      return c.json({ units });
+    } catch (err) {
+      mapWarehouseError(err);
+    }
+  });
+
+  app.get(
+    '/units/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.getUnit.execute({ companyId: q.companyId, unitId: id }));
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.post('/units', requireWrite, zValidator('json', createUnitSchema), async (c) => {
+    const b = c.req.valid('json');
+    try {
+      return c.json(await deps.createUnit.execute(b), 201);
+    } catch (err) {
+      mapWarehouseError(err);
+    }
+  });
+
+  app.put(
+    '/units/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', updateUnitSchema),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateUnit.execute({ ...b, unitId: id } as UpdateUnitInput));
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/units/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.deleteUnit.execute({ companyId: q.companyId, unitId: id }));
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  // ===== VARIANT (Varyant) ================================================
+  app.get(
+    '/variants',
+    zValidator('query', companyIdQ.extend({ status: variantStatus.optional() })),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const variants = await deps.listVariants.execute({
+          companyId: q.companyId,
+          ...(q.status !== undefined ? { status: q.status } : {}),
+        });
+        return c.json({ variants });
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/variants/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.getVariant.execute({ companyId: q.companyId, variantId: id }));
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.post('/variants', requireWrite, zValidator('json', createVariantSchema), async (c) => {
+    const b = c.req.valid('json');
+    try {
+      return c.json(await deps.createVariant.execute(b as CreateVariantInput), 201);
+    } catch (err) {
+      mapWarehouseError(err);
+    }
+  });
+
+  app.put(
+    '/variants/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', updateVariantSchema),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.updateVariant.execute({ ...b, variantId: id } as UpdateVariantInput),
+        );
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/variants/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.deleteVariant.execute({ companyId: q.companyId, variantId: id }));
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  // ===== MATERIAL REQUEST (Malzeme Talep) =================================
+  app.get(
+    '/requests',
+    zValidator('query', companyIdQ.extend({ status: materialRequestStatus.optional() })),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const requests = await deps.listMaterialRequests.execute({
+          companyId: q.companyId,
+          ...(q.status !== undefined ? { status: q.status } : {}),
+        });
+        return c.json({ requests });
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/requests/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getMaterialRequest.execute({ companyId: q.companyId, requestId: id }),
+        );
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.post('/requests', requireWrite, zValidator('json', createRequestSchema), async (c) => {
+    const b = c.req.valid('json');
+    try {
+      return c.json(await deps.createMaterialRequest.execute(b as CreateMaterialRequestInput), 201);
+    } catch (err) {
+      mapWarehouseError(err);
+    }
+  });
+
+  app.put(
+    '/requests/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', updateRequestSchema),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.updateMaterialRequest.execute({
+            ...b,
+            requestId: id,
+          } as UpdateMaterialRequestInput),
+        );
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/requests/:id/approve',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', requestActionSchema),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.approveMaterialRequest.execute({ companyId: b.companyId, requestId: id }),
+        );
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/requests/:id/reject',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', rejectRequestSchema),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.rejectMaterialRequest.execute({
+            companyId: b.companyId,
+            requestId: id,
+            reason: b.reason,
+          }),
+        );
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/requests/:id/fulfill',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', requestActionSchema),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.fulfillMaterialRequest.execute({
+            companyId: b.companyId,
+            requestId: id,
+            actorUserId: actor(c),
+          }),
+        );
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  // ===== INVENTORY COUNT (Envanter Sayım) =================================
+  app.get(
+    '/counts',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        status: inventoryCountStatus.optional(),
+        warehouseId: z.coerce.number().int().positive().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const counts = await deps.listInventoryCounts.execute({
+          companyId: q.companyId,
+          ...(q.status !== undefined ? { status: q.status } : {}),
+          ...(q.warehouseId !== undefined ? { warehouseId: q.warehouseId } : {}),
+        });
+        return c.json({ counts });
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/counts/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getInventoryCount.execute({ companyId: q.companyId, countId: id }),
+        );
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.post('/counts', requireWrite, zValidator('json', createCountSchema), async (c) => {
+    const b = c.req.valid('json');
+    try {
+      return c.json(await deps.createInventoryCount.execute(b as CreateInventoryCountInput), 201);
+    } catch (err) {
+      mapWarehouseError(err);
+    }
+  });
+
+  app.put(
+    '/counts/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', updateCountSchema),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.updateInventoryCount.execute({
+            ...b,
+            countId: id,
+          } as UpdateInventoryCountInput),
+        );
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/counts/:id/apply',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', countActionSchema),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.applyInventoryCount.execute({
+            companyId: b.companyId,
+            countId: id,
+            actorUserId: actor(c),
+          }),
+        );
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  // ===== ASSIGNMENT (Zimmet) ==============================================
+  app.get(
+    '/assignments',
+    zValidator('query', companyIdQ.extend({ status: assignmentStatus.optional() })),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const assignments = await deps.listAssignments.execute({
+          companyId: q.companyId,
+          ...(q.status !== undefined ? { status: q.status } : {}),
+        });
+        return c.json({ assignments });
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/assignments/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getAssignment.execute({ companyId: q.companyId, assignmentId: id }),
+        );
+      } catch (err) {
+        mapWarehouseError(err);
+      }
+    },
+  );
+
+  app.post('/assignments', requireWrite, zValidator('json', createAssignmentSchema), async (c) => {
+    const b = c.req.valid('json');
+    try {
+      return c.json(
+        await deps.createAssignment.execute({
+          ...b,
+          actorUserId: actor(c),
+        } as CreateAssignmentInput),
+        201,
+      );
+    } catch (err) {
+      mapWarehouseError(err);
+    }
+  });
+
+  app.post(
+    '/assignments/:id/return',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', assignmentActionSchema),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.returnAssignment.execute({
+            companyId: b.companyId,
+            assignmentId: id,
+            actorUserId: actor(c),
+          }),
+        );
       } catch (err) {
         mapWarehouseError(err);
       }

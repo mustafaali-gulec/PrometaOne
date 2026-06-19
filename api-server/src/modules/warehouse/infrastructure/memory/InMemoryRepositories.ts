@@ -9,22 +9,56 @@
  * kuraldan muaftı; buradaki dosya production yolunda olduğundan açıkça kapatılır).
  */
 /* eslint-disable @typescript-eslint/require-await */
+import type {
+  AssignmentRepository,
+  NewAssignmentInput,
+} from '../../application/ports/AssignmentRepository.js';
 import type { Clock } from '../../application/ports/Clock.js';
+import type {
+  InventoryCountRepository,
+  NewInventoryCountInput,
+} from '../../application/ports/InventoryCountRepository.js';
+import type {
+  MaterialGroupRepository,
+  NewMaterialGroupInput,
+} from '../../application/ports/MaterialGroupRepository.js';
 import type {
   MaterialRepository,
   NewMaterialInput,
 } from '../../application/ports/MaterialRepository.js';
 import type {
+  MaterialRequestRepository,
+  NewMaterialRequestInput,
+} from '../../application/ports/MaterialRequestRepository.js';
+import type {
   MovementFilter,
   StockMovementRepository,
 } from '../../application/ports/StockMovementRepository.js';
+import type { NewUnitInput, UnitRepository } from '../../application/ports/UnitRepository.js';
+import type {
+  NewVariantInput,
+  VariantRepository,
+} from '../../application/ports/VariantRepository.js';
 import type {
   NewWarehouseInput,
   WarehouseRepository,
 } from '../../application/ports/WarehouseRepository.js';
+import { Assignment } from '../../domain/entities/Assignment.js';
+import { InventoryCount } from '../../domain/entities/InventoryCount.js';
 import { Material } from '../../domain/entities/Material.js';
+import { MaterialGroup } from '../../domain/entities/MaterialGroup.js';
+import { MaterialRequest } from '../../domain/entities/MaterialRequest.js';
 import type { StockMovement } from '../../domain/entities/StockMovement.js';
+import { Unit } from '../../domain/entities/Unit.js';
+import { Variant } from '../../domain/entities/Variant.js';
 import { Warehouse } from '../../domain/entities/Warehouse.js';
+import type {
+  AssignmentStatus,
+  GroupStatus,
+  InventoryCountStatus,
+  MaterialRequestStatus,
+  VariantStatus,
+} from '../../domain/valueObjects/AuxStatuses.js';
 import type { MaterialStatus } from '../../domain/valueObjects/MaterialEnums.js';
 import type { MovementKind } from '../../domain/valueObjects/MovementKind.js';
 import type { WarehouseStatus } from '../../domain/valueObjects/WarehouseStatus.js';
@@ -249,4 +283,322 @@ function touchesWarehouse(m: StockMovement, warehouseId: number): boolean {
 function byDateThenId(a: StockMovement, b: StockMovement): number {
   if (a.date !== b.date) return a.date < b.date ? -1 : 1;
   return (a.id ?? 0) - (b.id ?? 0);
+}
+
+// --- Aux (yardımcı) entity repository'leri --------------------------------
+
+export class InMemoryMaterialGroupRepository implements MaterialGroupRepository {
+  private seq = 0;
+  private readonly store = new Map<number, MaterialGroup>();
+
+  async insert(input: NewMaterialGroupInput): Promise<MaterialGroup> {
+    this.seq += 1;
+    const g = MaterialGroup.create({
+      id: this.seq,
+      companyId: input.companyId,
+      code: input.code,
+      name: input.name,
+      status: input.status,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    this.store.set(g.id, g);
+    return g;
+  }
+
+  async update(group: MaterialGroup): Promise<void> {
+    this.store.set(group.id, group);
+  }
+
+  async remove(id: number, companyId: number): Promise<void> {
+    const g = this.store.get(id);
+    if (g && g.companyId === companyId) {
+      this.store.delete(id);
+    }
+  }
+
+  async findById(id: number, companyId: number): Promise<MaterialGroup | null> {
+    const g = this.store.get(id);
+    return g && g.companyId === companyId ? g : null;
+  }
+
+  async existsByCode(companyId: number, code: string, excludeId?: number): Promise<boolean> {
+    return [...this.store.values()].some(
+      (g) =>
+        g.companyId === companyId &&
+        g.code.toLowerCase() === code.toLowerCase() &&
+        g.id !== excludeId,
+    );
+  }
+
+  async listByCompany(
+    companyId: number,
+    options?: { status?: GroupStatus },
+  ): Promise<ReadonlyArray<MaterialGroup>> {
+    return [...this.store.values()].filter(
+      (g) =>
+        g.companyId === companyId && (options?.status === undefined || g.status === options.status),
+    );
+  }
+}
+
+export class InMemoryUnitRepository implements UnitRepository {
+  private seq = 0;
+  private readonly store = new Map<number, Unit>();
+
+  async insert(input: NewUnitInput): Promise<Unit> {
+    this.seq += 1;
+    const u = Unit.create({
+      id: this.seq,
+      companyId: input.companyId,
+      code: input.code,
+      name: input.name,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    this.store.set(u.id, u);
+    return u;
+  }
+
+  async update(unit: Unit): Promise<void> {
+    this.store.set(unit.id, unit);
+  }
+
+  async remove(id: number, companyId: number): Promise<void> {
+    const u = this.store.get(id);
+    if (u && u.companyId === companyId) {
+      this.store.delete(id);
+    }
+  }
+
+  async findById(id: number, companyId: number): Promise<Unit | null> {
+    const u = this.store.get(id);
+    return u && u.companyId === companyId ? u : null;
+  }
+
+  async existsByCode(companyId: number, code: string, excludeId?: number): Promise<boolean> {
+    return [...this.store.values()].some(
+      (u) =>
+        u.companyId === companyId &&
+        u.code.toLowerCase() === code.toLowerCase() &&
+        u.id !== excludeId,
+    );
+  }
+
+  async listByCompany(companyId: number): Promise<ReadonlyArray<Unit>> {
+    return [...this.store.values()].filter((u) => u.companyId === companyId);
+  }
+}
+
+export class InMemoryVariantRepository implements VariantRepository {
+  private seq = 0;
+  private readonly store = new Map<number, Variant>();
+
+  async insert(input: NewVariantInput): Promise<Variant> {
+    this.seq += 1;
+    const v = Variant.create({
+      id: this.seq,
+      companyId: input.companyId,
+      code: input.code,
+      name: input.name,
+      status: input.status,
+      options: input.options.map((o) => ({ ...o })),
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    this.store.set(v.id, v);
+    return v;
+  }
+
+  async update(variant: Variant): Promise<void> {
+    this.store.set(variant.id, variant);
+  }
+
+  async remove(id: number, companyId: number): Promise<void> {
+    const v = this.store.get(id);
+    if (v && v.companyId === companyId) {
+      this.store.delete(id);
+    }
+  }
+
+  async findById(id: number, companyId: number): Promise<Variant | null> {
+    const v = this.store.get(id);
+    return v && v.companyId === companyId ? v : null;
+  }
+
+  async existsByCode(companyId: number, code: string, excludeId?: number): Promise<boolean> {
+    return [...this.store.values()].some(
+      (v) =>
+        v.companyId === companyId &&
+        v.code.toLowerCase() === code.toLowerCase() &&
+        v.id !== excludeId,
+    );
+  }
+
+  async listByCompany(
+    companyId: number,
+    options?: { status?: VariantStatus },
+  ): Promise<ReadonlyArray<Variant>> {
+    return [...this.store.values()].filter(
+      (v) =>
+        v.companyId === companyId && (options?.status === undefined || v.status === options.status),
+    );
+  }
+}
+
+export class InMemoryMaterialRequestRepository implements MaterialRequestRepository {
+  private seq = 0;
+  private readonly store = new Map<number, MaterialRequest>();
+
+  async insert(input: NewMaterialRequestInput): Promise<MaterialRequest> {
+    this.seq += 1;
+    const r = MaterialRequest.create({
+      id: this.seq,
+      companyId: input.companyId,
+      no: input.no,
+      date: input.date,
+      requesterUnit: input.requesterUnit,
+      requester: input.requester,
+      requestedWarehouseId: input.requestedWarehouseId,
+      validityDays: input.validityDays,
+      status: input.status,
+      items: input.items.map((it) => ({ ...it })),
+      note: input.note,
+      rejectReason: input.rejectReason,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    this.store.set(r.id, r);
+    return r;
+  }
+
+  async update(request: MaterialRequest): Promise<void> {
+    this.store.set(request.id, request);
+  }
+
+  async findById(id: number, companyId: number): Promise<MaterialRequest | null> {
+    const r = this.store.get(id);
+    return r && r.companyId === companyId ? r : null;
+  }
+
+  async listByCompany(
+    companyId: number,
+    options?: { status?: MaterialRequestStatus },
+  ): Promise<ReadonlyArray<MaterialRequest>> {
+    return [...this.store.values()].filter(
+      (r) =>
+        r.companyId === companyId && (options?.status === undefined || r.status === options.status),
+    );
+  }
+
+  async nextSequence(companyId: number, year: number): Promise<number> {
+    const prefix = `${year}-`;
+    const count = [...this.store.values()].filter(
+      (r) => r.companyId === companyId && r.date.startsWith(prefix),
+    ).length;
+    return count + 1;
+  }
+}
+
+export class InMemoryInventoryCountRepository implements InventoryCountRepository {
+  private seq = 0;
+  private readonly store = new Map<number, InventoryCount>();
+
+  async insert(input: NewInventoryCountInput): Promise<InventoryCount> {
+    this.seq += 1;
+    const c = InventoryCount.create({
+      id: this.seq,
+      companyId: input.companyId,
+      no: input.no,
+      date: input.date,
+      warehouseId: input.warehouseId,
+      period: input.period,
+      status: input.status,
+      items: input.items.map((it) => ({ ...it })),
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    this.store.set(c.id, c);
+    return c;
+  }
+
+  async update(count: InventoryCount): Promise<void> {
+    this.store.set(count.id, count);
+  }
+
+  async findById(id: number, companyId: number): Promise<InventoryCount | null> {
+    const c = this.store.get(id);
+    return c && c.companyId === companyId ? c : null;
+  }
+
+  async listByCompany(
+    companyId: number,
+    options?: { status?: InventoryCountStatus; warehouseId?: number },
+  ): Promise<ReadonlyArray<InventoryCount>> {
+    return [...this.store.values()].filter(
+      (c) =>
+        c.companyId === companyId &&
+        (options?.status === undefined || c.status === options.status) &&
+        (options?.warehouseId === undefined || c.warehouseId === options.warehouseId),
+    );
+  }
+
+  async nextSequence(companyId: number, year: number): Promise<number> {
+    const prefix = `${year}-`;
+    const count = [...this.store.values()].filter(
+      (c) => c.companyId === companyId && c.date.startsWith(prefix),
+    ).length;
+    return count + 1;
+  }
+}
+
+export class InMemoryAssignmentRepository implements AssignmentRepository {
+  private seq = 0;
+  private readonly store = new Map<number, Assignment>();
+
+  async insert(input: NewAssignmentInput): Promise<Assignment> {
+    this.seq += 1;
+    const a = Assignment.create({
+      id: this.seq,
+      companyId: input.companyId,
+      no: input.no,
+      date: input.date,
+      person: input.person,
+      birim: input.birim,
+      status: input.status,
+      items: input.items.map((it) => ({ ...it })),
+      note: input.note,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    this.store.set(a.id, a);
+    return a;
+  }
+
+  async update(assignment: Assignment): Promise<void> {
+    this.store.set(assignment.id, assignment);
+  }
+
+  async findById(id: number, companyId: number): Promise<Assignment | null> {
+    const a = this.store.get(id);
+    return a && a.companyId === companyId ? a : null;
+  }
+
+  async listByCompany(
+    companyId: number,
+    options?: { status?: AssignmentStatus },
+  ): Promise<ReadonlyArray<Assignment>> {
+    return [...this.store.values()].filter(
+      (a) =>
+        a.companyId === companyId && (options?.status === undefined || a.status === options.status),
+    );
+  }
+
+  async nextSequence(companyId: number, year: number): Promise<number> {
+    const prefix = `${year}-`;
+    const count = [...this.store.values()].filter(
+      (a) => a.companyId === companyId && a.date.startsWith(prefix),
+    ).length;
+    return count + 1;
+  }
 }
