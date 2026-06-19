@@ -13915,7 +13915,7 @@ function ResetPasswordForm({ lang, users, setUsers, onBack, onSuccess }) {
    - Mobile'da bottom-nav ve hamburger yok
 ===================================================================== */
 // "view-modlu" akordeonlar: alt öğe doğrudan ayrı bir üst-seviye view'a gider (parent sentetiktir)
-const VIEW_MODE_ACCORDIONS = new Set(["sales", "purchase"]);
+const VIEW_MODE_ACCORDIONS = new Set(["sales", "purchase", "budget_hub"]);
 // Alt-view → sentetik parent eşlemesi (aktif/otomatik-açma hesabı için)
 const VIEW_PARENT = {
   sales_pipeline: "sales", sales_leads: "sales", sales_activities: "sales",
@@ -13970,8 +13970,8 @@ function SideMenu({ session, view, setView, moduleTabs = {}, setModuleTab = () =
   const items = [
     // === GENEL BAKIŞ ===
     { id: "dashboard",  label: t("menu.dashboard", lang),  icon: LayoutDashboard, perm: "view_dashboard", resource: "finance.dashboard", group: "overview" },
-    { id: "cashflow_dashboard", label: lang === "en" ? "Cash Flow" : lang === "de" ? "Cashflow" : lang === "ar" ? "التدفق النقدي" : "Nakit Akışı", icon: LineChartIcon, perm: "view_dashboard", resource: "finance.dashboard", group: "overview" },
-    { id: "grid",       label: t("menu.cashflow", lang),   icon: Table2,          perm: "view_grid",      resource: "finance.cashflow", group: "overview" },
+    // === BÜTÇE === (view-modlu akordeon — alt öğeler: Nakit Akışı / Nakit Akış Tablosu / Bütçe Yönetimi)
+    { id: "budget_hub", label: lang === "en" ? "Budget" : lang === "de" ? "Budget" : lang === "ar" ? "الميزانية" : "Bütçe", icon: Target, perm: "view_dashboard", resource: "finance.dashboard", group: "overview" },
 
     // === SATIŞ & CRM === (akordeon — alt öğeler: Pipeline / Fırsatlar / Aktiviteler)
     { id: "sales", label: lang === "en" ? "Sales & CRM" : lang === "de" ? "Vertrieb & CRM" : lang === "ar" ? "المبيعات و CRM" : "Satış & CRM", icon: Target, perm: "view_dashboard", resource: "finance.dashboard", group: "sales" },
@@ -13997,7 +13997,6 @@ function SideMenu({ session, view, setView, moduleTabs = {}, setModuleTab = () =
     { id: "payments",   label: t("menu.payments", lang),   icon: CreditCard,      perm: "view_invoices",  resource: "finance.payments", group: "finance" },
     { id: "parties",    label: lang === "en" ? "Parties (AR/AP)" : lang === "de" ? "Geschäftspartner" : lang === "ar" ? "العملاء" : "Cari Yönetimi", icon: Building2, perm: "view_accounting", resource: "accounting.parties", group: "finance" },
     { id: "transfers",  label: t("menu.transfers", lang),  icon: ArrowLeftRight,  perm: "view_transfers", resource: "finance.transfers", group: "finance" },
-    { id: "budget",     label: lang === "en" ? "Budget" : lang === "de" ? "Budget" : lang === "ar" ? "الميزانية" : "Bütçe", icon: Target, perm: "view_budget", resource: "accounting.budget", group: "finance" },
 
     // === İK ===
     { id: "hr",         label: t("menu.hr", lang),         icon: Briefcase,       perm: "view_hr",        resource: "hr.organization", group: "hr" },
@@ -14089,6 +14088,11 @@ function SideMenu({ session, view, setView, moduleTabs = {}, setModuleTab = () =
       { id: "purchase_requests", icon: ClipboardList, label: { tr: "Talepler",     en: "Purchase Requests" }, perm: "view_dashboard",   resource: "finance.dashboard" },
       { id: "purchase_orders",   icon: Receipt,       label: { tr: "Siparişler",   en: "Purchase Orders" },   perm: "view_dashboard",   resource: "finance.dashboard" },
       { id: "purchase_vendors",  icon: Building2,     label: { tr: "Tedarikçiler", en: "Vendors" },           perm: "view_accounting",  resource: "accounting.parties" },
+    ],
+    budget_hub: [
+      { id: "cashflow_dashboard", icon: LineChartIcon, label: { tr: "Nakit Akışı",        en: "Cash Flow" },        perm: "view_dashboard", resource: "finance.dashboard" },
+      { id: "grid",               icon: Table2,        label: { tr: "Nakit Akış Tablosu", en: "Cash Flow Grid" },   perm: "view_grid",      resource: "finance.cashflow" },
+      { id: "budget",             icon: Target,        label: { tr: "Bütçe Yönetimi",     en: "Budget" },           perm: "view_budget",    resource: "accounting.budget" },
     ],
   };
   // İzin kontrol yardımcı (alt öğe filtreleme için)
