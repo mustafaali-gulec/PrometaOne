@@ -1,5 +1,11 @@
-// AJAN_KOORDINASYON.md Islem Logu tablosunu .tmp-docx/word/document.xml'e yazar.
-// Header satiri korunur; tum veri satirlari md'den yeniden uretilir (zebra dolgu).
+// AJAN_KOORDINASYON.md "Islem Logu" tablosunu .tmp-docx/word/document.xml'e yazar.
+// - Header korunur; tum veri satirlari md'den yeniden uretilir (zebra dolgu).
+// - Surum md header'den, "Son guncelleme" EN YENI log satirindan TUREVLENIR (sabit kod yok);
+//   .md header tarihi de en yeni loga hizalanir (drift onleme).
+// Docx uretimi -> TEK KOMUT:  powershell -ExecutionPolicy Bypass -File tools\sync-log-docx.ps1
+//   (wrapper: docx ac -> bu araci calistir -> forward-slash repack -> dogrula -> yaz)
+//   NOT: docx entry adlari MUTLAKA '/' olmali. PowerShell 5.1 CreateFromDirectory '\' uretir ve
+//        Word reddeder; wrapper bu yuzden her entry'i tek tek forward-slash adla yazar.
 const fs = require('fs');
 
 // 1) md'den Islem Logu satirlarini al
@@ -47,9 +53,33 @@ if (hIdx < 0 || tblStart < 0 || tblEnd < 0) throw new Error('tablo bulunamadi');
 const oldRowCount = (doc.slice(headerEnd, tblEnd).match(/<w:tr>/g) || []).length;
 doc = doc.slice(0, headerEnd) + rows.map(rowXml).join('') + doc.slice(tblEnd);
 
-// 4) baslik blogundaki guncelleme tarihi + surum
-doc = doc.replace(/Son guncelleme: \d{4}-\d{2}-\d{2}/, 'Son guncelleme: 2026-06-16');
-doc = doc.replace(/Surum: \d+\.\d+/, 'Surum: 2.0');
+// 4) baslik blogu: surum md header'den (tek kaynak), guncelleme tarihi = EN YENI log satiri.
+//    Onceden sabit kodluydu (2026-06-16 / 2.0); bu yuzden docx tarihi gercekten sapip yanlis kaliyordu.
+const verMatch = md.match(/Surum:\s*(\d+\.\d+)/);
+const version = verMatch ? verMatch[1] : '2.0';
+const logDates = dataLines
+  .map((l) => (l.match(/(\d{4}-\d{2}-\d{2})/) || [])[1])
+  .filter(Boolean)
+  .sort();
+const latestDate = logDates.length ? logDates[logDates.length - 1] : version;
+doc = doc.replace(/Son guncelleme: \d{4}-\d{2}-\d{2}/, 'Son guncelleme: ' + latestDate);
+doc = doc.replace(/Surum: \d+\.\d+/, 'Surum: ' + version);
+
+// 4b) .md header'in "Son guncelleme" tarihini de en yeni loga hizala (drift onleme; tek kaynak = log)
+const mdFixed = md.replace(/(Son guncelleme: )\d{4}-\d{2}-\d{2}/, '$1' + latestDate);
+if (mdFixed !== md) {
+  fs.writeFileSync('AJAN_KOORDINASYON.md', mdFixed, 'utf8');
+  console.log('md header hizalandi -> Son guncelleme:', latestDate);
+}
 
 fs.writeFileSync(docPath, doc, 'utf8');
-console.log('eski veri satiri:', oldRowCount, '-> yeni:', rows.length);
+console.log(
+  'surum:',
+  version,
+  '| guncelleme:',
+  latestDate,
+  '| veri satiri:',
+  oldRowCount,
+  '->',
+  rows.length,
+);
