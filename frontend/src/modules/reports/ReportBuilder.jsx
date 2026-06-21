@@ -79,8 +79,14 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
   const taRef = useRef(null);
 
   useEffect(() => {
-    api.catalog().then((c) => setCatalog(c?.tables || [])).catch(() => {});
-    api.list().then(setSaved).catch(() => {});
+    api
+      .catalog()
+      .then((c) => setCatalog(c?.tables || []))
+      .catch(() => {});
+    api
+      .list()
+      .then(setSaved)
+      .catch(() => {});
   }, [api]);
 
   useEffect(() => {
@@ -142,7 +148,10 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
       }
       notify?.(tr ? 'Rapor kaydedildi' : 'Report saved');
       setSaveOpen(false);
-      api.list().then(setSaved).catch(() => {});
+      api
+        .list()
+        .then(setSaved)
+        .catch(() => {});
     } catch (e) {
       setError(e.message || 'Kaydedilemedi');
     }
@@ -154,7 +163,9 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
     setResult(null);
     setError('');
     setViz(r.vizConfig && Object.keys(r.vizConfig).length ? r.vizConfig : defaultViz);
-    setLayout(r.layoutConfig && Object.keys(r.layoutConfig).length ? r.layoutConfig : defaultLayout);
+    setLayout(
+      r.layoutConfig && Object.keys(r.layoutConfig).length ? r.layoutConfig : defaultLayout,
+    );
     if (r.mode === 'visual') {
       setMode('visual');
       setSpec(r.querySpec || emptySpec);
@@ -170,7 +181,10 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
     try {
       await api.remove(r.id);
       if (currentId === r.id) setCurrentId(null);
-      api.list().then(setSaved).catch(() => {});
+      api
+        .list()
+        .then(setSaved)
+        .catch(() => {});
     } catch (e) {
       setError(e.message);
     }
@@ -208,7 +222,10 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
     <div className="space-y-3">
       {/* Üst şerit: mod + kayıtlı raporlar + aksiyonlar */}
       <div className="card p-2 flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
-        <div className="flex gap-1" style={{ border: '1px solid var(--line)', borderRadius: 4, padding: 2 }}>
+        <div
+          className="flex gap-1"
+          style={{ border: '1px solid var(--line)', borderRadius: 4, padding: 2 }}
+        >
           <ModeBtn value="sql" label={tr ? 'SQL' : 'SQL'} disabled={!canSql} />
           <ModeBtn value="visual" label={tr ? 'Görsel' : 'Visual'} disabled={false} />
         </div>
@@ -235,7 +252,11 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
           <button
             className="btn"
             style={{ color: '#b91c1c' }}
-            onClick={() => deleteReport(saved.find((x) => x.id === currentId) || { id: currentId, name: saveName })}
+            onClick={() =>
+              deleteReport(
+                saved.find((x) => x.id === currentId) || { id: currentId, name: saveName },
+              )
+            }
           >
             {tr ? 'Sil' : 'Delete'}
           </button>
@@ -276,7 +297,10 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
       {mode === 'sql' ? (
         <div className="flex gap-3" style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
           {/* Şema gezgini */}
-          <div className="card p-2" style={{ width: 240, maxHeight: 460, overflow: 'auto', flexShrink: 0 }}>
+          <div
+            className="card p-2"
+            style={{ width: 240, maxHeight: 460, overflow: 'auto', flexShrink: 0 }}
+          >
             <div className="text-xs font-bold mb-1" style={{ color: 'var(--ink-mute)' }}>
               {tr ? 'ŞEMA (tıkla → ekle)' : 'SCHEMA (click → insert)'}
             </div>
@@ -294,7 +318,14 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
                   title={t.label}
                 >
                   {explorerOpen[t.key] ? '▾' : '▸'}{' '}
-                  <span onClick={(e) => { e.stopPropagation(); insertText(t.key); }}>{t.key}</span>
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      insertText(t.key);
+                    }}
+                  >
+                    {t.key}
+                  </span>
                 </div>
                 {explorerOpen[t.key] && (
                   <div style={{ paddingLeft: 14 }}>
@@ -302,7 +333,12 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
                       <div
                         key={c.key}
                         className="mono"
-                        style={{ cursor: 'pointer', fontSize: 10, padding: '1px 0', color: 'var(--ink-mute)' }}
+                        style={{
+                          cursor: 'pointer',
+                          fontSize: 10,
+                          padding: '1px 0',
+                          color: 'var(--ink-mute)',
+                        }}
                         onClick={() => insertText(c.key)}
                         title={`${c.key} (${c.type})`}
                       >
@@ -327,13 +363,22 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
               placeholder="SELECT ... ( :parametre ile parametre tanımlayın )"
             />
             {params.length > 0 && (
-              <div className="card p-2 flex items-center gap-2" style={{ flexWrap: 'wrap', background: 'var(--bg-alt)' }}>
+              <div
+                className="card p-2 flex items-center gap-2"
+                style={{ flexWrap: 'wrap', background: 'var(--bg-alt)' }}
+              >
                 <span className="text-xs font-bold" style={{ color: 'var(--ink-mute)' }}>
                   {tr ? 'Parametreler:' : 'Params:'}
                 </span>
                 {params.map((p) => (
-                  <label key={p.name} className="text-xs" style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span className="mono" style={{ color: 'var(--ink-mute)' }}>:{p.name}</span>
+                  <label
+                    key={p.name}
+                    className="text-xs"
+                    style={{ display: 'flex', flexDirection: 'column' }}
+                  >
+                    <span className="mono" style={{ color: 'var(--ink-mute)' }}>
+                      :{p.name}
+                    </span>
                     <input
                       className="input mono"
                       type={p.type === 'date' ? 'date' : p.type === 'number' ? 'number' : 'text'}
@@ -348,28 +393,58 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
           </div>
         </div>
       ) : (
-        <VisualQueryBuilder catalog={catalog} value={spec} onChange={setSpec} api={api} lang={lang} />
+        <VisualQueryBuilder
+          catalog={catalog}
+          value={spec}
+          onChange={setSpec}
+          api={api}
+          lang={lang}
+        />
       )}
 
       {error && (
-        <div className="card p-2 text-xs" style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c' }}>
+        <div
+          className="card p-2 text-xs"
+          style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c' }}
+        >
           ⚠ {error}
         </div>
       )}
 
       {/* Sonuç + çıktı tasarımı (ortak) */}
       {result && (
-        <ResultPanel result={result} viz={viz} onViz={setViz} layout={layout} onLayout={setLayout} lang={lang} />
+        <ResultPanel
+          result={result}
+          viz={viz}
+          onViz={setViz}
+          layout={layout}
+          onLayout={setLayout}
+          lang={lang}
+        />
       )}
 
       {/* Kaydet modalı */}
       {saveOpen && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
           onClick={() => setSaveOpen(false)}
         >
-          <div className="card p-3 space-y-2" style={{ width: 360 }} onClick={(e) => e.stopPropagation()}>
-            <div className="font-bold">{tr ? 'Raporu Kaydet' : 'Save Report'} {mode === 'visual' ? '◧' : '⌨'}</div>
+          <div
+            className="card p-3 space-y-2"
+            style={{ width: 360 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="font-bold">
+              {tr ? 'Raporu Kaydet' : 'Save Report'} {mode === 'visual' ? '◧' : '⌨'}
+            </div>
             <input
               className="input"
               style={{ width: '100%' }}
@@ -379,8 +454,14 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
               autoFocus
             />
             <div className="flex justify-end gap-2">
-              <button className="btn" onClick={() => setSaveOpen(false)}>{tr ? 'İptal' : 'Cancel'}</button>
-              <button className="btn" style={{ background: '#7c3aed', color: '#fff' }} onClick={doSave}>
+              <button className="btn" onClick={() => setSaveOpen(false)}>
+                {tr ? 'İptal' : 'Cancel'}
+              </button>
+              <button
+                className="btn"
+                style={{ background: '#7c3aed', color: '#fff' }}
+                onClick={doSave}
+              >
                 {tr ? 'Kaydet' : 'Save'}
               </button>
             </div>

@@ -32,9 +32,7 @@ export const CHART_PALETTE = [
 
 /** result.rows (dizi-içinde-dizi) → recharts için obje dizisi. */
 export function chartData(result) {
-  return result.rows.map((r) =>
-    Object.fromEntries(result.columns.map((c, i) => [c.key, r[i]])),
-  );
+  return result.rows.map((r) => Object.fromEntries(result.columns.map((c, i) => [c.key, r[i]])));
 }
 
 const num = (v) => {
@@ -61,9 +59,14 @@ export function ReportChart({ result, chart }) {
             <div
               key={yk}
               className="card p-3"
-              style={{ minWidth: 160, borderLeft: `4px solid ${CHART_PALETTE[i % CHART_PALETTE.length]}` }}
+              style={{
+                minWidth: 160,
+                borderLeft: `4px solid ${CHART_PALETTE[i % CHART_PALETTE.length]}`,
+              }}
             >
-              <div className="text-xs" style={{ color: 'var(--ink-mute)' }}>{yk}</div>
+              <div className="text-xs" style={{ color: 'var(--ink-mute)' }}>
+                {yk}
+              </div>
               <div className="mono" style={{ fontSize: 22, fontWeight: 700 }}>
                 {total.toLocaleString('tr-TR')}
               </div>
@@ -83,7 +86,15 @@ export function ReportChart({ result, chart }) {
       <div style={{ width: '100%', height: 300 }}>
         <ResponsiveContainer>
           <PieChart>
-            <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+            <Pie
+              data={pieData}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              outerRadius={100}
+              label
+            >
               {pieData.map((_, i) => (
                 <Cell key={i} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />
               ))}
@@ -108,7 +119,13 @@ export function ReportChart({ result, chart }) {
             <Tooltip />
             <Legend />
             {yKeys.map((yk, i) => (
-              <Line key={yk} type="monotone" dataKey={yk} stroke={CHART_PALETTE[i % CHART_PALETTE.length]} dot={false} />
+              <Line
+                key={yk}
+                type="monotone"
+                dataKey={yk}
+                stroke={CHART_PALETTE[i % CHART_PALETTE.length]}
+                dot={false}
+              />
             ))}
           </LineChart>
         ) : (

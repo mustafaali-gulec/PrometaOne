@@ -10,7 +10,10 @@
 import { formatValue, isRight } from './format.js';
 
 const esc = (s) =>
-  String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  String(s ?? '').replace(
+    /[&<>"]/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c],
+  );
 
 export function buildReportHtml({ result, viz = {}, layout = {}, lang = 'tr' }) {
   const tr = lang !== 'en';
@@ -29,10 +32,14 @@ export function buildReportHtml({ result, viz = {}, layout = {}, lang = 'tr' }) 
   const groupBy = layout.groupBy && colIndex[layout.groupBy] !== undefined ? layout.groupBy : '';
   const today = new Date().toLocaleDateString('tr-TR');
 
-  const rowsObj = result.rows.map((r) => Object.fromEntries(result.columns.map((c, i) => [c.key, r[i]])));
+  const rowsObj = result.rows.map((r) =>
+    Object.fromEntries(result.columns.map((c, i) => [c.key, r[i]])),
+  );
 
   const cls = (c) => (isRight(cfgOf(c.key).format, c.type) ? ' class="r"' : '');
-  const th = visibleCols.map((c) => `<th${cls(c)}>${esc(cfgOf(c.key).label || c.key)}</th>`).join('');
+  const th = visibleCols
+    .map((c) => `<th${cls(c)}>${esc(cfgOf(c.key).label || c.key)}</th>`)
+    .join('');
   const renderRow = (o) =>
     `<tr>${visibleCols.map((c) => `<td${cls(c)}>${esc(formatValue(o[c.key], cfgOf(c.key).format, c.type))}</td>`).join('')}</tr>`;
 

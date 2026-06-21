@@ -104,20 +104,32 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
         <div className="flex gap-1">
           <button
             className="btn"
-            style={{ fontSize: 10, background: designOpen ? '#7c3aed' : 'transparent', color: designOpen ? '#fff' : 'var(--ink)' }}
+            style={{
+              fontSize: 10,
+              background: designOpen ? '#7c3aed' : 'transparent',
+              color: designOpen ? '#fff' : 'var(--ink)',
+            }}
             onClick={() => setDesignOpen((o) => !o)}
           >
             ⚙ {tr ? 'Tasarım' : 'Design'}
           </button>
           <button
             className="btn"
-            style={{ fontSize: 10, background: pdfOpen ? '#7c3aed' : 'transparent', color: pdfOpen ? '#fff' : 'var(--ink)' }}
+            style={{
+              fontSize: 10,
+              background: pdfOpen ? '#7c3aed' : 'transparent',
+              color: pdfOpen ? '#fff' : 'var(--ink)',
+            }}
             onClick={() => setPdfOpen((o) => !o)}
           >
             🖨 PDF
           </button>
-          <button className="btn" style={{ fontSize: 10 }} onClick={exportXlsx}>Excel</button>
-          <button className="btn" style={{ fontSize: 10 }} onClick={exportCsv}>CSV</button>
+          <button className="btn" style={{ fontSize: 10 }} onClick={exportXlsx}>
+            Excel
+          </button>
+          <button className="btn" style={{ fontSize: 10 }} onClick={exportCsv}>
+            CSV
+          </button>
         </div>
       </div>
 
@@ -126,25 +138,57 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
         <div className="card p-2 space-y-2" style={{ background: 'var(--bg-alt)' }}>
           {/* Grafik */}
           <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
-            <span className="text-xs font-bold" style={{ color: 'var(--ink-mute)' }}>{tr ? 'Grafik:' : 'Chart:'}</span>
-            <select className="input" style={{ fontSize: 11, maxWidth: 110 }} value={chart.type} onChange={(e) => onChartType(e.target.value)}>
-              {CHART_TYPES.map(([v, l]) => (<option key={v} value={v}>{tr ? l.tr : l.en}</option>))}
+            <span className="text-xs font-bold" style={{ color: 'var(--ink-mute)' }}>
+              {tr ? 'Grafik:' : 'Chart:'}
+            </span>
+            <select
+              className="input"
+              style={{ fontSize: 11, maxWidth: 110 }}
+              value={chart.type}
+              onChange={(e) => onChartType(e.target.value)}
+            >
+              {CHART_TYPES.map(([v, l]) => (
+                <option key={v} value={v}>
+                  {tr ? l.tr : l.en}
+                </option>
+              ))}
             </select>
             {chart.type !== 'none' && chart.type !== 'kpi' && (
               <label className="text-xs flex items-center gap-1">
                 {tr ? 'X ekseni' : 'X'}
-                <select className="input mono" style={{ fontSize: 11, maxWidth: 140 }} value={chart.xKey || ''} onChange={(e) => setChart({ xKey: e.target.value })}>
-                  {allKeys.map((k) => (<option key={k} value={k}>{k}</option>))}
+                <select
+                  className="input mono"
+                  style={{ fontSize: 11, maxWidth: 140 }}
+                  value={chart.xKey || ''}
+                  onChange={(e) => setChart({ xKey: e.target.value })}
+                >
+                  {allKeys.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
                 </select>
               </label>
             )}
             {chart.type !== 'none' && (
               <span className="text-xs flex items-center gap-1" style={{ flexWrap: 'wrap' }}>
                 {tr ? 'Değer(ler):' : 'Y:'}
-                {numericKeys.length === 0 && <em style={{ color: 'var(--ink-mute)' }}>{tr ? 'sayısal kolon yok' : 'no numeric col'}</em>}
+                {numericKeys.length === 0 && (
+                  <em style={{ color: 'var(--ink-mute)' }}>
+                    {tr ? 'sayısal kolon yok' : 'no numeric col'}
+                  </em>
+                )}
                 {numericKeys.map((k) => (
-                  <label key={k} className="mono" style={{ fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                    <input type="checkbox" checked={(chart.yKeys || []).includes(k)} onChange={() => toggleY(k)} />
+                  <label
+                    key={k}
+                    className="mono"
+                    style={{ fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 2 }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={(chart.yKeys || []).includes(k)}
+                      onChange={() => toggleY(k)}
+                    />
                     {k}
                   </label>
                 ))}
@@ -154,18 +198,54 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
 
           {/* Kolon biçimleri */}
           <div className="space-y-1">
-            <span className="text-xs font-bold" style={{ color: 'var(--ink-mute)' }}>{tr ? 'Kolonlar' : 'Columns'}</span>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 4 }}>
+            <span className="text-xs font-bold" style={{ color: 'var(--ink-mute)' }}>
+              {tr ? 'Kolonlar' : 'Columns'}
+            </span>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                gap: 4,
+              }}
+            >
               {result.columns.map((c) => (
                 <div key={c.key} className="flex items-center gap-1" style={{ fontSize: 11 }}>
-                  <input type="checkbox" title={tr ? 'görünür' : 'visible'} checked={cfgOf(c.key).visible !== false} onChange={(e) => setColCfg(c.key, { visible: e.target.checked })} />
-                  <span className="mono" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.key}</span>
-                  <select className="input" style={{ fontSize: 10, maxWidth: 90 }} value={cfgOf(c.key).format || 'auto'} onChange={(e) => setColCfg(c.key, { format: e.target.value })}>
-                    {FORMATS.map((f) => (<option key={f} value={f}>{f}</option>))}
+                  <input
+                    type="checkbox"
+                    title={tr ? 'görünür' : 'visible'}
+                    checked={cfgOf(c.key).visible !== false}
+                    onChange={(e) => setColCfg(c.key, { visible: e.target.checked })}
+                  />
+                  <span
+                    className="mono"
+                    style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                  >
+                    {c.key}
+                  </span>
+                  <select
+                    className="input"
+                    style={{ fontSize: 10, maxWidth: 90 }}
+                    value={cfgOf(c.key).format || 'auto'}
+                    onChange={(e) => setColCfg(c.key, { format: e.target.value })}
+                  >
+                    {FORMATS.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
                   </select>
                   {c.type === 'number' && (
-                    <label className="text-xs" title={tr ? 'alt-toplam' : 'subtotal'} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                      <input type="checkbox" checked={!!cfgOf(c.key).subtotal} onChange={(e) => setColCfg(c.key, { subtotal: e.target.checked })} />Σ
+                    <label
+                      className="text-xs"
+                      title={tr ? 'alt-toplam' : 'subtotal'}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!cfgOf(c.key).subtotal}
+                        onChange={(e) => setColCfg(c.key, { subtotal: e.target.checked })}
+                      />
+                      Σ
                     </label>
                   )}
                 </div>
@@ -177,7 +257,13 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
 
       {/* PDF belge şablonu */}
       {pdfOpen && (
-        <PdfTemplateDesigner result={result} viz={viz} layout={layout} onLayout={onLayout} lang={lang} />
+        <PdfTemplateDesigner
+          result={result}
+          viz={viz}
+          layout={layout}
+          onLayout={onLayout}
+          lang={lang}
+        />
       )}
 
       {/* Grafik */}
@@ -193,7 +279,9 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
           <thead>
             <tr>
               {visibleCols.map((c) => (
-                <th key={c.key} style={{ whiteSpace: 'nowrap' }}>{cfgOf(c.key).label || c.key}</th>
+                <th key={c.key} style={{ whiteSpace: 'nowrap' }}>
+                  {cfgOf(c.key).label || c.key}
+                </th>
               ))}
             </tr>
           </thead>
@@ -204,7 +292,11 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
                   const cfg = cfgOf(c.key);
                   const val = row[colIndex[c.key]];
                   return (
-                    <td key={c.key} className={isRight(cfg.format, c.type) ? 'mono text-right' : ''} style={{ whiteSpace: 'nowrap' }}>
+                    <td
+                      key={c.key}
+                      className={isRight(cfg.format, c.type) ? 'mono text-right' : ''}
+                      style={{ whiteSpace: 'nowrap' }}
+                    >
                       {formatValue(val, cfg.format, c.type)}
                     </td>
                   );
@@ -221,8 +313,13 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
                   }
                   const cfg = cfgOf(c.key);
                   return (
-                    <td key={c.key} className={isRight(cfg.format, c.type) ? 'mono text-right' : ''}>
-                      {totals[c.key] !== undefined ? formatValue(totals[c.key], cfg.format, c.type) : ''}
+                    <td
+                      key={c.key}
+                      className={isRight(cfg.format, c.type) ? 'mono text-right' : ''}
+                    >
+                      {totals[c.key] !== undefined
+                        ? formatValue(totals[c.key], cfg.format, c.type)
+                        : ''}
                     </td>
                   );
                 })}

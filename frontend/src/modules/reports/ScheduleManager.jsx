@@ -31,14 +31,21 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const reload = () => api.listSchedules(reportId).then(setList).catch(() => {});
+  const reload = () =>
+    api
+      .listSchedules(reportId)
+      .then(setList)
+      .catch(() => {});
   useEffect(() => {
     reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportId]);
 
   const add = async () => {
-    const recs = recipients.split(',').map((s) => s.trim()).filter(Boolean);
+    const recs = recipients
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (!recs.length) {
       setErr(tr ? 'En az bir e-posta adresi girin' : 'Enter at least one email');
       return;
@@ -83,13 +90,29 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+      }}
       onClick={onClose}
     >
-      <div className="card p-3 space-y-3" style={{ width: 520, maxHeight: '85vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="card p-3 space-y-3"
+        style={{ width: 520, maxHeight: '85vh', overflow: 'auto' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between">
-          <div className="font-bold">🕒 {tr ? 'Zamanlanmış Raporlar' : 'Scheduled Reports'} — {reportName}</div>
-          <button className="btn" style={{ fontSize: 12 }} onClick={onClose}>✕</button>
+          <div className="font-bold">
+            🕒 {tr ? 'Zamanlanmış Raporlar' : 'Scheduled Reports'} — {reportName}
+          </div>
+          <button className="btn" style={{ fontSize: 12 }} onClick={onClose}>
+            ✕
+          </button>
         </div>
 
         {/* Mevcut zamanlamalar */}
@@ -100,21 +123,37 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
         ) : (
           <div className="space-y-1">
             {list.map((s) => (
-              <div key={s.id} className="card p-2 flex items-center justify-between" style={{ background: 'var(--bg-alt)', borderLeft: `3px solid ${s.enabled ? '#15803d' : '#9ca3af'}` }}>
+              <div
+                key={s.id}
+                className="card p-2 flex items-center justify-between"
+                style={{
+                  background: 'var(--bg-alt)',
+                  borderLeft: `3px solid ${s.enabled ? '#15803d' : '#9ca3af'}`,
+                }}
+              >
                 <div style={{ flex: 1 }}>
                   <div className="text-sm font-bold">{describe(s)}</div>
-                  <div className="text-xs mono" style={{ color: 'var(--ink-mute)' }}>{(s.recipients || []).join(', ')}</div>
+                  <div className="text-xs mono" style={{ color: 'var(--ink-mute)' }}>
+                    {(s.recipients || []).join(', ')}
+                  </div>
                   {s.lastRunAt && (
                     <div className="text-xs" style={{ color: 'var(--ink-mute)' }}>
-                      {tr ? 'Son' : 'Last'}: {new Date(s.lastRunAt).toLocaleString('tr-TR')} ({s.lastStatus})
+                      {tr ? 'Son' : 'Last'}: {new Date(s.lastRunAt).toLocaleString('tr-TR')} (
+                      {s.lastStatus})
                     </div>
                   )}
                 </div>
                 <div className="flex gap-1">
                   <button className="btn" style={{ fontSize: 10 }} onClick={() => toggle(s)}>
-                    {s.enabled ? (tr ? 'Duraklat' : 'Pause') : (tr ? 'Aktifleştir' : 'Enable')}
+                    {s.enabled ? (tr ? 'Duraklat' : 'Pause') : tr ? 'Aktifleştir' : 'Enable'}
                   </button>
-                  <button className="btn" style={{ fontSize: 10, color: '#b91c1c' }} onClick={() => del(s.id)}>{tr ? 'Sil' : 'Delete'}</button>
+                  <button
+                    className="btn"
+                    style={{ fontSize: 10, color: '#b91c1c' }}
+                    onClick={() => del(s.id)}
+                  >
+                    {tr ? 'Sil' : 'Delete'}
+                  </button>
                 </div>
               </div>
             ))}
@@ -123,28 +162,79 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
 
         {/* Yeni zamanlama */}
         <div className="card p-2 space-y-2" style={{ border: '1px dashed var(--line)' }}>
-          <div className="text-xs font-bold" style={{ color: 'var(--ink-mute)' }}>{tr ? 'Yeni Zamanlama' : 'New Schedule'}</div>
+          <div className="text-xs font-bold" style={{ color: 'var(--ink-mute)' }}>
+            {tr ? 'Yeni Zamanlama' : 'New Schedule'}
+          </div>
           <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
-            <select className="input" style={{ fontSize: 11, maxWidth: 120 }} value={freq} onChange={(e) => setFreq(e.target.value)}>
-              {FREQ.map(([v, l]) => (<option key={v} value={v}>{tr ? l.tr : l.en}</option>))}
+            <select
+              className="input"
+              style={{ fontSize: 11, maxWidth: 120 }}
+              value={freq}
+              onChange={(e) => setFreq(e.target.value)}
+            >
+              {FREQ.map(([v, l]) => (
+                <option key={v} value={v}>
+                  {tr ? l.tr : l.en}
+                </option>
+              ))}
             </select>
             {freq === 'weekly' && (
-              <select className="input" style={{ fontSize: 11, maxWidth: 120 }} value={dow} onChange={(e) => setDow(Number(e.target.value))}>
-                {DOW.map((d, i) => (<option key={i} value={i}>{tr ? d.tr : d.en}</option>))}
+              <select
+                className="input"
+                style={{ fontSize: 11, maxWidth: 120 }}
+                value={dow}
+                onChange={(e) => setDow(Number(e.target.value))}
+              >
+                {DOW.map((d, i) => (
+                  <option key={i} value={i}>
+                    {tr ? d.tr : d.en}
+                  </option>
+                ))}
               </select>
             )}
             {freq === 'monthly' && (
-              <input className="input mono" type="number" min={1} max={31} style={{ fontSize: 11, maxWidth: 80 }} value={dom} onChange={(e) => setDom(Number(e.target.value))} />
+              <input
+                className="input mono"
+                type="number"
+                min={1}
+                max={31}
+                style={{ fontSize: 11, maxWidth: 80 }}
+                value={dom}
+                onChange={(e) => setDom(Number(e.target.value))}
+              />
             )}
-            <input className="input mono" type="time" style={{ fontSize: 11, maxWidth: 110 }} value={time} onChange={(e) => setTime(e.target.value)} />
+            <input
+              className="input mono"
+              type="time"
+              style={{ fontSize: 11, maxWidth: 110 }}
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
           </div>
-          <input className="input" style={{ width: '100%', fontSize: 11 }} placeholder={tr ? 'Alıcı e-postalar (virgülle)' : 'Recipient emails (comma)'} value={recipients} onChange={(e) => setRecipients(e.target.value)} />
-          {err && <div className="text-xs" style={{ color: '#b91c1c' }}>⚠ {err}</div>}
-          <button className="btn" disabled={busy} style={{ background: '#7c3aed', color: '#fff', fontWeight: 700 }} onClick={add}>
+          <input
+            className="input"
+            style={{ width: '100%', fontSize: 11 }}
+            placeholder={tr ? 'Alıcı e-postalar (virgülle)' : 'Recipient emails (comma)'}
+            value={recipients}
+            onChange={(e) => setRecipients(e.target.value)}
+          />
+          {err && (
+            <div className="text-xs" style={{ color: '#b91c1c' }}>
+              ⚠ {err}
+            </div>
+          )}
+          <button
+            className="btn"
+            disabled={busy}
+            style={{ background: '#7c3aed', color: '#fff', fontWeight: 700 }}
+            onClick={add}
+          >
             {tr ? '+ Zamanlama Ekle' : '+ Add Schedule'}
           </button>
           <div className="text-xs" style={{ color: 'var(--ink-mute)' }}>
-            {tr ? 'Rapor xlsx olarak e-posta ile gönderilir. (SMTP yapılandırılmamışsa sunucu loguna düşer.)' : 'Report is emailed as xlsx. (Logged to server if SMTP not configured.)'}
+            {tr
+              ? 'Rapor xlsx olarak e-posta ile gönderilir. (SMTP yapılandırılmamışsa sunucu loguna düşer.)'
+              : 'Report is emailed as xlsx. (Logged to server if SMTP not configured.)'}
           </div>
         </div>
       </div>
