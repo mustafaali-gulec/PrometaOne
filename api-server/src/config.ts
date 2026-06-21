@@ -15,6 +15,14 @@ const envSchema = z.object({
   DB_POOL_MAX: z.coerce.number().default(10),
   DB_POOL_IDLE_TIMEOUT: z.coerce.number().default(30000),
 
+  // Report Studio (rapor üreteci) — ad-hoc/kayıtlı SQL yürütme için ayrı,
+  // tercihen salt-okunur bağlantı. Tanımsızsa ana DATABASE_URL'e düşer ama
+  // sorgular yine READ ONLY transaction + statement_timeout ile çalışır.
+  REPORTING_DATABASE_URL: z.string().optional(),
+  REPORTING_STATEMENT_TIMEOUT_MS: z.coerce.number().default(15000),
+  REPORTING_MAX_ROWS: z.coerce.number().default(5000),
+  REPORTING_POOL_MAX: z.coerce.number().default(5),
+
   JWT_SECRET: z.string().min(32, 'JWT_SECRET en az 32 karakter olmalı'),
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_ACCESS_EXPIRES: z.string().default('15m'),

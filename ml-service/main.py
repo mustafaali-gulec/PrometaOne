@@ -1044,6 +1044,335 @@ def _save_feedback_stats(stats: Dict[str, Dict]):
 
 
 # =============================================================================
+# KREDİ BELGESİ AYRIŞTIRMA (kural tabanlı — harici AI yok)
+# PDF (pdfplumber) / Excel (pandas+openpyxl/xlrd) -> metin -> regex/anahtar kelime
+# =============================================================================
+
+import base64 as _base64
+import io as _io
+import re as _re
+
+# Türkiye'deki yaygın bankalar (kanonik ad -> eşleşme kalıpları, küçük harf)
+_BANKS = [
+    ("Ziraat Bankası", ["ziraat"]),
+    ("Türkiye İş Bankası", ["iş bankası", "is bankasi", "türkiye iş", "isbank"]),
+    ("Garanti BBVA", ["garanti"]),
+    ("Yapı Kredi", ["yapı kredi", "yapi kredi", "yapıkredi", "yapikredi"]),
+    ("Akbank", ["akbank"]),
+    ("Halkbank", ["halkbank", "halk bankası", "halk bankasi"]),
+    ("VakıfBank", ["vakıfbank", "vakifbank", "vakıflar bankası", "vakiflar bankasi"]),
+    ("QNB Finansbank", ["qnb", "finansbank"]),
+    ("DenizBank", ["denizbank", "deniz bank"]),
+    ("Türk Ekonomi Bankası (TEB)", ["teb", "türk ekonomi", "turk ekonomi"]),
+    ("ING", ["ing bank", "ing "]),
+    ("HSBC", ["hsbc"]),
+    ("Şekerbank", ["şekerbank", "sekerbank"]),
+    ("Albaraka Türk", ["albaraka"]),
+    ("Kuveyt Türk", ["kuveyt türk", "kuveyt turk", "kuveytturk"]),
+    ("Türkiye Finans", ["türkiye finans", "turkiye finans"]),
+    ("Anadolubank", ["anadolubank", "anadolu bank"]),
+    ("Fibabanka", ["fibabanka", "fiba banka"]),
+    ("Odeabank", ["odeabank", "odea bank"]),
+    ("Burgan Bank", ["burgan"]),
+    ("ICBC Turkey", ["icbc"]),
+]
+
+_LOAN_TYPES = {"installment", "spot", "bch", "kmh", "rotatif"}
+_CURRENCIES = {"TRY", "USD", "EUR"}
+
+
+class ParseLoanDocRequest(BaseModel):
+    fileName: str = Field(..., description="Dosya adı (uzantı tip tespiti için)")
+    mimeType: Optional[str] = Field(None, description="MIME tipi (opsiyonel ipucu)")
+    contentBase64: str = Field(..., description="Dosyanın base64 içeriği")
+
+
+def _detect_loan_format(file_name: str, mime: Optional[str], raw: bytes) -> str:
+    name = (file_name or "").lower()
+    if name.endswith(".pdf") or (mime == "application/pdf"):
+        return "pdf"
+    if raw[:5] == b"%PDF-":
+        return "pdf"
+    if name.endswith(".xlsx") or name.endswith(".xls"):
+        return "excel"
+    if mime and ("spreadsheet" in mime or "excel" in mime):
+        return "excel"
+    if raw[:2] == b"PK":  # xlsx = zip
+        return "excel"
+    if raw[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":  # eski .xls (OLE2)
+        return "excel"
+    return "unknown"
+
+
+def _extract_pdf_text(raw: bytes) -> str:
+    import pdfplumber
+    parts = []
+    with pdfplumber.open(_io.BytesIO(raw)) as pdf:
+        for page in pdf.pages:
+            parts.append(page.extract_text() or "")
+    return "\n".join(parts)
+
+
+def _extract_excel_text(raw: bytes, file_name: str) -> str:
+    engine = "xlrd" if file_name.lower().endswith(".xls") else "openpyxl"
+    sheets = pd.read_excel(_io.BytesIO(raw), sheet_name=None, header=None, dtype=str, engine=engine)
+    lines = []
+    for sheet_name, df in sheets.items():
+        lines.append(f"### Sayfa: {sheet_name}")
+        for _, row in df.iterrows():
+            cells = ["" if pd.isna(c) else str(c) for c in row.tolist()]
+            line = "\t".join(cells).rstrip()
+            if line.strip():
+                lines.append(line)
+    return "\n".join(lines)
+
+
+def _parse_tr_number(s: str) -> Optional[float]:
+    if s is None:
+        return None
+    t = _re.sub(r"[^\d.,-]", "", str(s))
+    if t in ("", "-", ".", ","):
+        return None
+    has_dot, has_comma = "." in t, "," in t
+    if has_dot and has_comma:
+        # Son görünen ayraç ondalıktır
+        if t.rfind(",") > t.rfind("."):
+            t = t.replace(".", "").replace(",", ".")  # 1.500.000,50
+        else:
+            t = t.replace(",", "")                     # 1,500,000.50
+    elif has_comma:
+        # Sadece virgül -> ondalık varsay
+        t = t.replace(",", ".")
+    # sadece nokta -> binlik mi ondalık mı? "1.234" binlik kabul, "1.5" ondalık
+    elif has_dot:
+        parts = t.split(".")
+        if len(parts) > 2 or (len(parts) == 2 and len(parts[1]) == 3):
+            t = t.replace(".", "")
+    try:
+        return float(t)
+    except ValueError:
+        return None
+
+
+def _norm_date(s: str) -> Optional[str]:
+    if not s:
+        return None
+    s = s.strip()
+    m = _re.match(r"^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$", s)
+    if m:
+        y, mo, d = m.group(1), int(m.group(2)), int(m.group(3))
+        return f"{y}-{mo:02d}-{d:02d}"
+    m = _re.match(r"^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$", s)
+    if m:
+        d, mo, y = int(m.group(1)), int(m.group(2)), m.group(3)
+        if len(y) == 2:
+            y = "20" + y
+        if 1 <= d <= 31 and 1 <= mo <= 12:
+            return f"{y}-{mo:02d}-{d:02d}"
+    return None
+
+
+_DATE_RE = r"(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{4}[-/.]\d{1,2}[-/.]\d{1,2})"
+_NUM_RE = r"([\d.,]+)"
+
+
+# Türkçe karakterleri ASCII'ye katlar (1:1, indeks korunur) — böylece hem
+# "Başlangıç" hem aksanı sıyrılmış "Baslangic" aynı kalıpla yakalanır.
+_TR_FOLD_MAP = str.maketrans({
+    "İ": "i", "I": "i", "ı": "i",
+    "Ş": "s", "ş": "s", "Ğ": "g", "ğ": "g",
+    "Ç": "c", "ç": "c", "Ö": "o", "ö": "o", "Ü": "u", "ü": "u",
+})
+
+
+def _fold(s: str) -> str:
+    """Küçük harf + Türkçe->ASCII katlama. Karakter sayısı korunur (1:1)."""
+    return s.translate(_TR_FOLD_MAP).lower()
+
+
+def _first(text: str, patterns) -> Optional[str]:
+    for p in patterns:
+        m = _re.search(p, text)
+        if m:
+            return m.group(1).strip()
+    return None
+
+
+def _extract_loan_fields(text: str) -> Dict[str, Any]:
+    # Tüm eşleme aksandan bağımsız olsun diye metni katla; sayı/tarih/kod
+    # değerleri ASCII olduğundan grup indeksleri/değerleri değişmez.
+    low = _fold(text)
+
+    # Banka
+    bank_name = None
+    for canonical, keys in _BANKS:
+        if any(_fold(k) in low for k in keys):
+            bank_name = canonical
+            break
+
+    # Kredi türü
+    loan_type = None
+    if _re.search(r"rotatif", low):
+        loan_type = "rotatif"
+    elif _re.search(r"kredili\s*mevduat|\bkmh\b|ek\s*hesap|arti\s*para", low):
+        loan_type = "kmh"
+    elif _re.search(r"borclu\s*cari|\bbch\b", low):
+        loan_type = "bch"
+    elif _re.search(r"\bspot\b", low):
+        loan_type = "spot"
+    elif _re.search(r"taksitli|esit\s*taksit|taksit\s*sayi", low):
+        loan_type = "installment"
+
+    # Para birimi
+    currency = None
+    if _re.search(r"(usd|abd\s*dolari|amerikan\s*dolari|\$)", low):
+        currency = "USD"
+    elif _re.search(r"(eur|euro|avro|€)", low):
+        currency = "EUR"
+    elif _re.search(r"(try|\btl\b|₺|turk\s*lirasi)", low):
+        currency = "TRY"
+
+    # Anapara / tutar / limit
+    principal = _parse_tr_number(_first(low, [
+        r"kredi\s*tutari\s*[:\-]?\s*" + _NUM_RE,
+        r"anapara\s*[:\-]?\s*" + _NUM_RE,
+        r"kredi\s*limiti?\s*[:\-]?\s*" + _NUM_RE,
+        r"tahsis\s*(?:edilen\s*)?tutari?\s*[:\-]?\s*" + _NUM_RE,
+        r"kullandirilan\s*tutar\s*[:\-]?\s*" + _NUM_RE,
+        r"kredi\s*miktari\s*[:\-]?\s*" + _NUM_RE,
+        r"toplam\s*kredi\s*[:\-]?\s*" + _NUM_RE,
+    ]))
+
+    # Faiz oranı (yıllık ondalık) — aylıksa 12 ile çarp
+    rate_ctx = _first(low, [
+        r"(yillik\s*faiz[^\d]{0,20}" + _NUM_RE + r")",
+        r"(akdi\s*faiz[^\d]{0,20}" + _NUM_RE + r")",
+        r"(aylik\s*faiz[^\d]{0,20}" + _NUM_RE + r")",
+        r"(faiz\s*orani[^\d]{0,20}" + _NUM_RE + r")",
+    ])
+    interest_rate = None
+    if rate_ctx:
+        mnum = _re.search(_NUM_RE, rate_ctx)
+        val = _parse_tr_number(mnum.group(1)) if mnum else None
+        if val is not None:
+            # yüzde sayısı -> ondalık (4,5 -> 0.045); zaten <1 ise olduğu gibi
+            rate = val / 100.0 if val >= 1 else val
+            if _re.search(r"aylik", rate_ctx):
+                rate *= 12
+            interest_rate = round(rate, 6)
+
+    # Vade (ay)
+    term_months = None
+    mterm = _re.search(r"(vade|taksit\s*sayisi|geri\s*odeme\s*suresi|kredi\s*vadesi)\s*[:\-]?\s*(\d{1,3})\s*(ay|taksit|yil)?", low)
+    if mterm:
+        n = int(mterm.group(2))
+        unit = mterm.group(3) or ""
+        term_months = n * 12 if unit.startswith("y") else n
+
+    # Sözleşme / kredi no (değer ASCII; katlanmış metinden alınır)
+    contract_no = _first(low, [
+        r"sozlesme\s*(?:no|numarasi)\s*[:\-]?\s*([a-z0-9][a-z0-9\-\/]{2,})",
+        r"kredi\s*(?:no|numarasi)\s*[:\-]?\s*([a-z0-9][a-z0-9\-\/]{2,})",
+        r"referans\s*(?:no|numarasi)\s*[:\-]?\s*([a-z0-9][a-z0-9\-\/]{2,})",
+        r"dosya\s*(?:no|numarasi)\s*[:\-]?\s*([a-z0-9][a-z0-9\-\/]{2,})",
+    ])
+    if contract_no:
+        contract_no = contract_no.upper()
+
+    # Kullandırım / başlangıç tarihi
+    disb = _first(low, [
+        r"kullandirim\s*tarihi\s*[:\-]?\s*" + _DATE_RE,
+        r"vade\s*baslangici\s*[:\-]?\s*" + _DATE_RE,
+        r"baslangic\s*tarihi\s*[:\-]?\s*" + _DATE_RE,
+        r"kredi\s*tarihi\s*[:\-]?\s*" + _DATE_RE,
+        r"duzenleme\s*tarihi\s*[:\-]?\s*" + _DATE_RE,
+    ])
+    disbursement_date = _norm_date(disb) if disb else None
+
+    # Ödeme günü
+    payment_day = None
+    mpd = _re.search(r"(odeme\s*gunu|taksit\s*gunu)\s*[:\-]?\s*(\d{1,2})", low)
+    if mpd:
+        payment_day = max(1, min(28, int(mpd.group(2))))
+    elif disbursement_date:
+        try:
+            payment_day = max(1, min(28, int(disbursement_date.split("-")[2])))
+        except (ValueError, IndexError):
+            payment_day = None
+
+    # BSMV / KKDF (varsa)
+    def _rate_after(label):
+        m = _re.search(label + r"[^\d]{0,15}" + _NUM_RE, low)
+        if m:
+            v = _parse_tr_number(m.group(1))
+            if v is not None:
+                return round(v / 100.0 if v >= 1 else v, 6)
+        return None
+    bsmv_rate = _rate_after(r"bsmv")
+    kkdf_rate = _rate_after(r"kkdf")
+
+    # Ad (türetilmiş) — banka varsa kullanıcı kolaylığı için
+    name = None
+    if bank_name:
+        type_label = {
+            "installment": "Taksitli Kredi", "spot": "Spot Kredi",
+            "bch": "BCH", "kmh": "KMH", "rotatif": "Rotatif Kredi",
+        }.get(loan_type, "Kredi")
+        name = f"{bank_name} {type_label}"
+
+    return {
+        "type": loan_type if loan_type in _LOAN_TYPES else None,
+        "name": name,
+        "contractNo": contract_no,
+        "bankName": bank_name,
+        "principal": principal,
+        "currency": currency if currency in _CURRENCIES else None,
+        "interestRate": interest_rate,
+        "bsmvRate": bsmv_rate,
+        "kkdfRate": kkdf_rate,
+        "disbursementDate": disbursement_date,
+        "termMonths": term_months,
+        "paymentDay": payment_day,
+        "note": None,
+    }
+
+
+@app.post("/parse/loan-document")
+def parse_loan_document(req: ParseLoanDocRequest):
+    """Kredi belgesinden (PDF/Excel) kural tabanlı kredi alanı çıkarımı (harici AI yok)."""
+    try:
+        raw = _base64.b64decode(req.contentBase64)
+    except Exception:
+        raise HTTPException(400, "Geçersiz base64 içerik")
+
+    fmt = _detect_loan_format(req.fileName, req.mimeType, raw)
+    if fmt == "unknown":
+        raise HTTPException(415, f"Desteklenmeyen belge tipi: {req.fileName} (yalnızca PDF, XLSX, XLS)")
+
+    try:
+        text = _extract_pdf_text(raw) if fmt == "pdf" else _extract_excel_text(raw, req.fileName)
+    except Exception as e:
+        raise HTTPException(422, f"Belge okunamadı: {e}")
+
+    if not text or not text.strip():
+        raise HTTPException(
+            422,
+            "Belgeden metin çıkarılamadı (taranmış/görüntü PDF olabilir). "
+            "Metin tabanlı PDF veya Excel deneyin ya da alanları elle girin.",
+        )
+
+    fields = _extract_loan_fields(text)
+    filled = [k for k, v in fields.items() if v is not None]
+    return {
+        "fields": fields,
+        "filledFields": filled,
+        "format": fmt,
+        "inputTokens": None,
+        "outputTokens": None,
+    }
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
 

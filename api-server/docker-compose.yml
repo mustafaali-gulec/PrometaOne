@@ -56,6 +56,7 @@ services:
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
       TCMB_API_KEY: ${TCMB_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ML_SERVICE_URL: ${ML_SERVICE_URL:-http://host.docker.internal:8001}
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}

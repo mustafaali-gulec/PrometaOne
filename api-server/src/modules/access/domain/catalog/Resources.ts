@@ -79,6 +79,18 @@ export const RESOURCES: Readonly<Record<string, ResourceDef>> = {
     actions: ['view', 'create', 'delete'],
   },
 
+  // Raporlama (Report Studio) — /v1/reports
+  'reports.studio': {
+    module: 'Raporlama',
+    label: 'Rapor Üreteci',
+    actions: ['view', 'create', 'update', 'delete', 'export'],
+  },
+  'reports.sql': {
+    module: 'Raporlama',
+    label: 'Rapor Üreteci — Ham SQL',
+    actions: ['view'],
+  },
+
   // HR
   'hr.organization': {
     module: 'HR',

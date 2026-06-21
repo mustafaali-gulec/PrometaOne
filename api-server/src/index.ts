@@ -8,9 +8,10 @@ import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import cron from 'node-cron';
 
 import { config } from './config.js';
-import { closePool, healthCheck, pool } from './db.js';
+import { closePool, healthCheck, pool, reportingPool } from './db.js';
 import { ConstructionEventConsumer, disconnectKafkaProducer } from './events/kafka.js';
 import { errorHandler } from './middleware/error.js';
 import { registerAccessModule } from './modules/access/index.js';
@@ -23,6 +24,7 @@ import { registerPartiesModule } from './modules/finance/parties/index.js';
 import { registerHrModule } from './modules/hr/index.js';
 import { registerNotificationsModule } from './modules/notifications/index.js';
 import { registerProductionModule } from './modules/production/index.js';
+import { registerReportingModule } from './modules/reporting/index.js';
 import { registerWarehouseModule } from './modules/warehouse/index.js';
 import cellsRoutes from './routes/cells.js';
 import companiesRoutes from './routes/companies.js';
@@ -73,6 +75,7 @@ const notificationsModule = registerNotificationsModule(
 
 const aiModule = registerAiModule({
   anthropicApiKey: process.env['ANTHROPIC_API_KEY'],
+  mlServiceUrl: process.env['ML_SERVICE_URL'],
 });
 
 const authModule = registerAuthModule(
@@ -129,6 +132,19 @@ const productionModule = registerProductionModule(pool);
 const warehouseModule = registerWarehouseModule(pool);
 
 // ============================================================================
+// Rapor Üreteci (Report Studio) modülü — güvenli SQL + katalog + tanım, /v1/reports
+// reportingPool: salt-okunur SQL yürütme havuzu (ad-hoc/kayıtlı sorgular)
+// ============================================================================
+const reportingModule = registerReportingModule(pool, reportingPool, {
+  smtpHost: config.SMTP_HOST,
+  smtpPort: config.SMTP_PORT,
+  smtpSecure: config.SMTP_SECURE,
+  smtpUser: config.SMTP_USER,
+  smtpPass: config.SMTP_PASS,
+  emailFrom: config.SMTP_FROM ?? 'M Suite <noreply@prometa.local>',
+});
+
+// ============================================================================
 // Routes — /v1 prefix
 // ============================================================================
 const v1 = new Hono();
@@ -169,6 +185,9 @@ v1.route('/production', productionModule);
 
 // Depo & Stok Yönetimi (WMS) — YENI moduler endpoint (/v1/warehouse)
 v1.route('/warehouse', warehouseModule);
+
+// Rapor Üreteci (Report Studio) — YENI moduler endpoint (/v1/reports)
+v1.route('/reports', reportingModule.router);
 
 // Companies + cells + invoices
 v1.route('/companies', companiesRoutes);
@@ -240,6 +259,25 @@ if (config.ENABLE_CRON) {
   notificationsModule.scheduler.start();
 }
 
+// Rapor Üreteci — saatlik zamanlanmış rapor kontrolü (vadesi gelenleri çalıştır + e-posta)
+let reportingCron: cron.ScheduledTask | null = null;
+if (config.ENABLE_CRON) {
+  reportingCron = cron.schedule(
+    '0 * * * *',
+    () => {
+      void reportingModule
+        .runDueScheduledReports(new Date())
+        .then((r) => {
+          if (r.due > 0) {
+            console.log(`📧 Zamanlanmış rapor: ${r.ran}/${r.due} gönderildi (${r.failed} hata)`);
+          }
+        })
+        .catch((e: unknown) => console.error('Zamanlanmış rapor cron hatası:', e));
+    },
+    { timezone: 'Europe/Istanbul' },
+  );
+}
+
 // Kafka — construction-service event'lerini tuket (KAFKA_BROKERS varsa)
 const constructionConsumer =
   config.kafkaBrokers.length > 0 ? new ConstructionEventConsumer() : null;
@@ -268,6 +306,7 @@ async function shutdown(signal: string): Promise<void> {
   console.log(`\n${signal} alindi — kapatiliyor...`);
   stopCron();
   notificationsModule.scheduler.stop();
+  reportingCron?.stop();
   if (constructionConsumer) await constructionConsumer.stop();
   await disconnectKafkaProducer();
   server.close(() => console.log('* HTTP server kapandi'));

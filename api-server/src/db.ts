@@ -21,6 +21,26 @@ pool.on('error', (err) => {
   console.error('PostgreSQL pool error:', err);
 });
 
+/**
+ * Report Studio (rapor üreteci) — ad-hoc/kayıtlı SQL yürütme havuzu.
+ *
+ * REPORTING_DATABASE_URL tanımlıysa AYRI (tercihen salt-okunur ROL) bağlantı
+ * kullanılır; tanımsızsa ana `pool` ile aynı connection string'e düşer. Her
+ * iki durumda da SafeSqlExecutor sorguyu READ ONLY transaction + SET LOCAL
+ * statement_timeout içinde çalıştırıp DAİMA ROLLBACK eder — yazma yapılamaz.
+ * Küçük `max` ile ağır raporlar ana RW havuzunu aç bırakmaz.
+ */
+export const reportingPool = new pg.Pool({
+  connectionString: config.REPORTING_DATABASE_URL ?? config.DATABASE_URL,
+  max: config.REPORTING_POOL_MAX,
+  idleTimeoutMillis: config.DB_POOL_IDLE_TIMEOUT,
+  options: '-c timezone=Europe/Istanbul',
+});
+
+reportingPool.on('error', (err) => {
+  console.error('PostgreSQL reporting pool error:', err);
+});
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function queryOne<T = any>(sqlText: string, params: any[] = []): Promise<T | null> {
   const result = await pool.query(sqlText, params);
@@ -77,7 +97,7 @@ export async function transaction<T>(fn: (client: pg.PoolClient) => Promise<T>):
 }
 
 export async function closePool(): Promise<void> {
-  await pool.end();
+  await Promise.all([pool.end(), reportingPool.end()]);
 }
 
 export async function healthCheck(): Promise<boolean> {
