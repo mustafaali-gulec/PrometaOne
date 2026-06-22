@@ -166,6 +166,8 @@ export class InMemoryMaterialRepository implements MaterialRepository {
       kdvSale: input.kdvSale,
       tevkifatCode: input.tevkifatCode,
       extraTaxRate: input.extraTaxRate,
+      purchasePrice: input.purchasePrice,
+      salePrice: input.salePrice,
       whParams: input.whParams.map((p) => ({ ...p })),
       status: input.status,
       createdAt: NOW,

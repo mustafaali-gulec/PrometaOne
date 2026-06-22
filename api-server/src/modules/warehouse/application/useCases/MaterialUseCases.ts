@@ -47,6 +47,8 @@ export interface CreateMaterialInput {
   kdvSale?: number | null;
   tevkifatCode?: string | null;
   extraTaxRate?: number | null;
+  purchasePrice?: number | null;
+  salePrice?: number | null;
   whParams?: ReadonlyArray<MaterialWhParam>;
   status?: MaterialStatus;
 }
@@ -85,6 +87,8 @@ export class CreateMaterialUseCase {
       kdvSale: input.kdvSale ?? null,
       tevkifatCode: input.tevkifatCode ?? null,
       extraTaxRate: input.extraTaxRate ?? null,
+      purchasePrice: input.purchasePrice ?? null,
+      salePrice: input.salePrice ?? null,
       whParams: input.whParams ?? [],
       status: input.status ?? 'active',
     };
@@ -120,6 +124,8 @@ export interface UpdateMaterialInput {
   kdvSale?: number | null;
   tevkifatCode?: string | null;
   extraTaxRate?: number | null;
+  purchasePrice?: number | null;
+  salePrice?: number | null;
   whParams?: ReadonlyArray<MaterialWhParam>;
   status?: MaterialStatus;
 }
@@ -170,6 +176,8 @@ export class UpdateMaterialUseCase {
         ...(input.kdvSale !== undefined ? { kdvSale: input.kdvSale } : {}),
         ...(input.tevkifatCode !== undefined ? { tevkifatCode: input.tevkifatCode } : {}),
         ...(input.extraTaxRate !== undefined ? { extraTaxRate: input.extraTaxRate } : {}),
+        ...(input.purchasePrice !== undefined ? { purchasePrice: input.purchasePrice } : {}),
+        ...(input.salePrice !== undefined ? { salePrice: input.salePrice } : {}),
         ...(input.whParams !== undefined ? { whParams: input.whParams } : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),
       },

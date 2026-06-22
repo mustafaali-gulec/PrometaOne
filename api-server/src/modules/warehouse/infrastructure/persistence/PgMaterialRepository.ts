@@ -54,6 +54,8 @@ interface MaterialRow {
   extra_tax_rate: string | null;
   wh_params: MaterialWhParam[] | null;
   status: MaterialStatus;
+  purchase_price: string | null;
+  sale_price: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -62,7 +64,8 @@ const MATERIAL_COLS =
   'id, company_id, code, name, group_id, type, base_unit, alt_units, brand, barcode, ' +
   'producer_code, gtip, abc, track_method, cost_method, negative_control, ' +
   'min_stock, max_stock, safety_stock, shelf_life_months, perishable, fragile, ' +
-  'kdv_purchase, kdv_sale, tevkifat_code, extra_tax_rate, wh_params, status, created_at, updated_at';
+  'kdv_purchase, kdv_sale, tevkifat_code, extra_tax_rate, wh_params, status, ' +
+  'purchase_price, sale_price, created_at, updated_at';
 
 export class PgMaterialRepository implements MaterialRepository {
   constructor(private readonly pool: Pool) {}
@@ -73,11 +76,13 @@ export class PgMaterialRepository implements MaterialRepository {
          (company_id, code, name, group_id, type, base_unit, alt_units, brand, barcode,
           producer_code, gtip, abc, track_method, cost_method, negative_control,
           min_stock, max_stock, safety_stock, shelf_life_months, perishable, fragile,
-          kdv_purchase, kdv_sale, tevkifat_code, extra_tax_rate, wh_params, status)
+          kdv_purchase, kdv_sale, tevkifat_code, extra_tax_rate, wh_params, status,
+          purchase_price, sale_price)
        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9,
                $10, $11, $12, $13, $14, $15,
                $16, $17, $18, $19, $20, $21,
-               $22, $23, $24, $25, $26::jsonb, $27)
+               $22, $23, $24, $25, $26::jsonb, $27,
+               $28, $29)
        RETURNING ${MATERIAL_COLS}`,
       [
         input.companyId,
@@ -107,6 +112,8 @@ export class PgMaterialRepository implements MaterialRepository {
         input.extraTaxRate,
         JSON.stringify(input.whParams),
         input.status,
+        input.purchasePrice,
+        input.salePrice,
       ],
     );
     return rowToMaterial(r.rows[0]!);
@@ -122,8 +129,9 @@ export class PgMaterialRepository implements MaterialRepository {
               safety_stock = $17, shelf_life_months = $18, perishable = $19,
               fragile = $20, kdv_purchase = $21, kdv_sale = $22, tevkifat_code = $23,
               extra_tax_rate = $24, wh_params = $25::jsonb, status = $26,
+              purchase_price = $27, sale_price = $28,
               updated_at = NOW()
-        WHERE id = $27 AND company_id = $28`,
+        WHERE id = $29 AND company_id = $30`,
       [
         material.code,
         material.name,
@@ -151,6 +159,8 @@ export class PgMaterialRepository implements MaterialRepository {
         material.extraTaxRate,
         JSON.stringify(material.whParams),
         material.status,
+        material.purchasePrice,
+        material.salePrice,
         material.id,
         material.companyId,
       ],
@@ -260,6 +270,8 @@ function rowToMaterial(row: MaterialRow): Material {
       locationId: p.locationId ?? null,
     })),
     status: row.status,
+    purchasePrice: num(row.purchase_price),
+    salePrice: num(row.sale_price),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });

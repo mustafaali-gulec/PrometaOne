@@ -56,6 +56,8 @@ export interface MaterialProps {
   kdvSale: number | null;
   tevkifatCode: string | null;
   extraTaxRate: number | null;
+  purchasePrice: number | null;
+  salePrice: number | null;
   whParams: ReadonlyArray<MaterialWhParam>;
   status: MaterialStatus;
   createdAt: Date;
@@ -166,6 +168,12 @@ export class Material {
   }
   get extraTaxRate(): number | null {
     return this.props.extraTaxRate;
+  }
+  get purchasePrice(): number | null {
+    return this.props.purchasePrice;
+  }
+  get salePrice(): number | null {
+    return this.props.salePrice;
   }
   get whParams(): ReadonlyArray<MaterialWhParam> {
     return this.props.whParams;

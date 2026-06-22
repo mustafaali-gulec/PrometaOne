@@ -37,6 +37,8 @@ export interface MaterialDto {
   kdvSale: number | null;
   tevkifatCode: string | null;
   extraTaxRate: number | null;
+  purchasePrice: number | null;
+  salePrice: number | null;
   whParams: ReadonlyArray<MaterialWhParam>;
   status: MaterialStatus;
 }

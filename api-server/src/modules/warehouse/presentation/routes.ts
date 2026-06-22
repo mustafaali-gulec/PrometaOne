@@ -249,6 +249,8 @@ const materialBody = {
   kdvSale: z.number().nullable().optional(),
   tevkifatCode: z.string().max(40).nullable().optional(),
   extraTaxRate: z.number().nullable().optional(),
+  purchasePrice: z.number().nullable().optional(),
+  salePrice: z.number().nullable().optional(),
   whParams: z.array(whParamSchema).optional(),
   status: materialStatus.optional(),
 } as const;
