@@ -45,14 +45,20 @@ function toClient(v) {
   return v;
 }
 
-// YAZMA: id/*Id alanlarını Number'a çevir (sayısal ise; boş/null bırak)
+// YAZMA: id/*Id alanlarını Number'a çevir; boş ("" / null) id'leri TAMAMEN ATLA
+// (backend *Id alanları number|null|optional ister; "" → 400 verir).
 function toServer(v) {
   if (Array.isArray(v)) return v.map(toServer);
   if (v && typeof v === 'object') {
     const out = {};
     for (const [k, val] of Object.entries(v)) {
-      if (isIdKey(k) && typeof val === 'string' && val.trim() !== '' && /^\d+$/.test(val.trim())) {
-        out[k] = Number(val);
+      if (isIdKey(k)) {
+        if (val === '' || val == null) continue; // boş id gönderme
+        if (typeof val === 'string' && /^\d+$/.test(val.trim())) {
+          out[k] = Number(val.trim());
+          continue;
+        }
+        out[k] = val;
       } else if (val && typeof val === 'object') {
         out[k] = toServer(val);
       } else {
