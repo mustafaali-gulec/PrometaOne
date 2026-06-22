@@ -173,4 +173,108 @@ export const msg = {
         ar: 'حدث خطأ غير متوقع.',
       }),
   },
+  /* ---- HR (bordro + puantaj) ---- */
+  hr: {
+    payroll: {
+      overwriteConfirm: (): ConfirmOptions => ({
+        title: pick({
+          tr: 'Bu dönem için bordro var. Üzerine yazılsın mı?',
+          en: 'A run for this period exists. Overwrite?',
+          de: 'Für diesen Zeitraum existiert ein Lauf. Überschreiben?',
+          ar: 'يوجد تشغيل لهذه الفترة. الكتابة فوقه؟',
+        }),
+        confirmLabel: pick({
+          tr: 'Üzerine yaz',
+          en: 'Overwrite',
+          de: 'Überschreiben',
+          ar: 'الكتابة فوقه',
+        }),
+        cancelLabel: pick({ tr: 'Vazgeç', en: 'Cancel', de: 'Abbrechen', ar: 'إلغاء' }),
+      }),
+      runConfirm: (): ConfirmOptions => ({
+        title: pick({
+          tr: 'Bordro onaylansın mı?',
+          en: 'Confirm payroll run?',
+          de: 'Lohnlauf bestätigen?',
+          ar: 'تأكيد تشغيل الرواتب؟',
+        }),
+        description: pick({
+          tr: 'Onayladıktan sonra düzenlenemez.',
+          en: 'After confirmation it cannot be edited.',
+          de: 'Nach der Bestätigung nicht mehr bearbeitbar.',
+          ar: 'بعد التأكيد لا يمكن تعديله.',
+        }),
+        confirmLabel: pick({ tr: 'Onayla', en: 'Confirm', de: 'Bestätigen', ar: 'تأكيد' }),
+        cancelLabel: pick({ tr: 'Vazgeç', en: 'Cancel', de: 'Abbrechen', ar: 'إلغاء' }),
+      }),
+      deleteConfirm: (): ConfirmOptions => ({
+        title: pick({
+          tr: 'Bordro silinsin mi?',
+          en: 'Delete this payroll run?',
+          de: 'Lohnlauf löschen?',
+          ar: 'حذف تشغيل الرواتب؟',
+        }),
+        tone: 'danger',
+        confirmLabel: pick({ tr: 'Sil', en: 'Delete', de: 'Löschen', ar: 'حذف' }),
+        cancelLabel: pick({ tr: 'Vazgeç', en: 'Cancel', de: 'Abbrechen', ar: 'إلغاء' }),
+      }),
+      confirmedCannotDelete: (): string =>
+        pick({
+          tr: 'Onaylanmış bordro silinemez.',
+          en: 'Confirmed runs cannot be deleted.',
+          de: 'Bestätigte Läufe können nicht gelöscht werden.',
+          ar: 'لا يمكن حذف التشغيلات المؤكدة.',
+        }),
+      saved: (): string =>
+        pick({
+          tr: 'Bordro kaydedildi, puantaj kilitlendi.',
+          en: 'Payroll saved, attendance locked.',
+          de: 'Lohnlauf gespeichert, Zeiterfassung gesperrt.',
+          ar: 'تم حفظ الرواتب وقُفل الحضور.',
+        }),
+      confirmed: (): string =>
+        pick({
+          tr: 'Bordro onaylandı.',
+          en: 'Payroll confirmed.',
+          de: 'Lohnlauf bestätigt.',
+          ar: 'تم تأكيد الرواتب.',
+        }),
+      deleted: (): string =>
+        pick({
+          tr: 'Bordro silindi.',
+          en: 'Run deleted.',
+          de: 'Lauf gelöscht.',
+          ar: 'تم حذف التشغيل.',
+        }),
+    },
+    attendance: {
+      resetConfirm: (): ConfirmOptions => ({
+        title: pick({
+          tr: 'Tüm satırlar standart iş günlerine sıfırlansın mı?',
+          en: 'Reset all rows to default work days?',
+          de: 'Alle Zeilen auf Standardarbeitstage zurücksetzen?',
+          ar: 'إعادة ضبط جميع الصفوف إلى أيام العمل الافتراضية؟',
+        }),
+        confirmLabel: pick({ tr: 'Sıfırla', en: 'Reset', de: 'Zurücksetzen', ar: 'إعادة ضبط' }),
+        cancelLabel: pick({ tr: 'Vazgeç', en: 'Cancel', de: 'Abbrechen', ar: 'إلغاء' }),
+      }),
+      approveAllConfirm: (): ConfirmOptions => ({
+        title: pick({
+          tr: 'Bu dönemin tüm puantajları onaylansın mı?',
+          en: 'Approve all sheets for this period?',
+          de: 'Alle Blätter dieses Zeitraums genehmigen?',
+          ar: 'اعتماد جميع كشوف هذه الفترة؟',
+        }),
+        confirmLabel: pick({ tr: 'Onayla', en: 'Confirm', de: 'Bestätigen', ar: 'تأكيد' }),
+        cancelLabel: pick({ tr: 'Vazgeç', en: 'Cancel', de: 'Abbrechen', ar: 'إلغاء' }),
+      }),
+      saved: (count: number): string =>
+        pick({
+          tr: `${count} puantaj kaydedildi.`,
+          en: `Saved ${count} sheets.`,
+          de: `${count} Blätter gespeichert.`,
+          ar: `تم حفظ ${count} كشفًا.`,
+        }),
+    },
+  },
 } as const;
