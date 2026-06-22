@@ -91,6 +91,53 @@ async function call(method, path, { body, query } = {}) {
   return toClient(json);
 }
 
+// Malzeme: frontend şekli ↔ backend şeması uyumlama
+//  - boş groupId/abc/type → kaldır (backend strict number/enum)
+//  - negativeControl 'warn' → 'allow' (backend yalnız block|allow)
+//  - whParams: frontend obje {whId:{min,max,safety,locationId}} ↔ backend dizi
+function materialToServer(m) {
+  const out = { ...m };
+  if (out.groupId === '' || out.groupId == null) delete out.groupId;
+  if (!out.abc) delete out.abc;
+  if (!out.type) delete out.type;
+  if (out.negativeControl === 'warn') out.negativeControl = 'allow';
+  if (!['block', 'allow'].includes(out.negativeControl)) delete out.negativeControl;
+  if (out.whParams && !Array.isArray(out.whParams)) {
+    out.whParams = Object.entries(out.whParams)
+      .map(([wid, v]) => ({
+        warehouseId: wid,
+        minStock: v?.min === '' || v?.min == null ? null : Number(v.min),
+        maxStock: v?.max === '' || v?.max == null ? null : Number(v.max),
+        safetyStock: v?.safety === '' || v?.safety == null ? null : Number(v.safety),
+        locationId: v?.locationId || null,
+      }))
+      .filter(
+        (p) =>
+          p.minStock != null || p.maxStock != null || p.safetyStock != null || p.locationId != null,
+      );
+  }
+  return out;
+}
+function materialToClient(m) {
+  if (!m || typeof m !== 'object') return m;
+  const out = { ...m };
+  if (Array.isArray(out.whParams)) {
+    const obj = {};
+    out.whParams.forEach((p) => {
+      if (p && p.warehouseId != null) {
+        obj[String(p.warehouseId)] = {
+          min: p.minStock ?? '',
+          max: p.maxStock ?? '',
+          safety: p.safetyStock ?? '',
+          locationId: p.locationId != null ? String(p.locationId) : '',
+        };
+      }
+    });
+    out.whParams = obj;
+  }
+  return out;
+}
+
 /**
  * companyId enjekte eden bir istemci üretir.
  * Liste yanıtları sunucuda { warehouses: [...] } gibi sarılı gelir; burada diziye indiririz.
@@ -110,9 +157,13 @@ export function makeWarehouseApi(companyId) {
     deleteWarehouse: (id) => call('DELETE', `/warehouses/${id}`, { query: q() }),
 
     // --- Malzeme ---
-    listMaterials: () => list('/materials', 'materials'),
-    createMaterial: (m) => call('POST', '/materials', { body: withCompany(m) }),
-    updateMaterial: (id, m) => call('PUT', `/materials/${id}`, { body: withCompany(m) }),
+    listMaterials: () => list('/materials', 'materials').then((arr) => arr.map(materialToClient)),
+    createMaterial: (m) =>
+      call('POST', '/materials', { body: withCompany(materialToServer(m)) }).then(materialToClient),
+    updateMaterial: (id, m) =>
+      call('PUT', `/materials/${id}`, { body: withCompany(materialToServer(m)) }).then(
+        materialToClient,
+      ),
     deleteMaterial: (id) => call('DELETE', `/materials/${id}`, { query: q() }),
     materialLedger: (id) => call('GET', `/materials/${id}/ledger`, { query: q() }),
 
