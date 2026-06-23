@@ -108,6 +108,25 @@ function materialToServer(m) {
   if (!out.type) delete out.type;
   if (out.negativeControl === 'warn') out.negativeControl = 'allow';
   if (!['block', 'allow'].includes(out.negativeControl)) delete out.negativeControl;
+  // Sayısal alanlar: editör string saklıyor; backend number ister → çevir (boş → null)
+  const NUMF = [
+    'minStock',
+    'maxStock',
+    'safetyStock',
+    'shelfLifeMonths',
+    'kdvPurchase',
+    'kdvSale',
+    'extraTaxRate',
+    'purchasePrice',
+    'salePrice',
+  ];
+  NUMF.forEach((k) => {
+    if (k in out) out[k] = out[k] === '' || out[k] == null ? null : Number(out[k]);
+  });
+  if (Array.isArray(out.altUnits))
+    out.altUnits = out.altUnits
+      .filter((u) => u && u.unit)
+      .map((u) => ({ ...u, factor: Number(u.factor) || 1 }));
   if (out.whParams && !Array.isArray(out.whParams)) {
     out.whParams = Object.entries(out.whParams)
       .map(([wid, v]) => ({
