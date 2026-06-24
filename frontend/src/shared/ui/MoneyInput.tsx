@@ -33,8 +33,18 @@ export interface MoneyInputProps extends Omit<InputHTMLAttributes<HTMLInputEleme
 /** Ham giriş string'ini Türk formatına biçimler. Trailing sıfır zorlamaz.
  *  `grouping=false` ise binlik ayraç (.) eklenmez — oran/kur alanları için. */
 export function formatTRInput(raw: string, decimals = 2, grouping = true): string {
-  const str = String(raw ?? '');
+  let str = String(raw ?? '');
   const neg = /^\s*-/.test(str);
+  // Ondalık ayraç olarak "." de kabul edilir: virgül yoksa ve son noktadan sonra en çok
+  // `decimals` hane varsa o nokta ondalık virgüle çevrilir; öndeki noktalar (binlik grup)
+  // atılır. Böylece numpad/mobil/IME/yapıştırma gibi keydown'ın yakalayamadığı yollarda
+  // da ondalık girilebilir ("100405.06" → "100.405,06" yerine "10.040.506" olmaz).
+  if (!str.includes(',')) {
+    const lastDot = str.lastIndexOf('.');
+    if (lastDot !== -1 && str.slice(lastDot + 1).replace(/\D/g, '').length <= decimals) {
+      str = str.slice(0, lastDot).replace(/\./g, '') + ',' + str.slice(lastDot + 1);
+    }
+  }
   // Sadece rakam ve virgülü tut (grup için yazılan/önceden basılan "." atılır).
   const clean = str.replace(/[^\d,]/g, '');
   const ci = clean.indexOf(',');
