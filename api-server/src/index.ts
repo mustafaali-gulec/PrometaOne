@@ -16,6 +16,7 @@ import { errorHandler } from './middleware/error.js';
 import { registerAccessModule } from './modules/access/index.js';
 import { registerAiModule } from './modules/ai/index.js';
 import { PgUserRepository, registerAuthModule } from './modules/auth/index.js';
+import { registerExpenseModule } from './modules/expense/index.js';
 import { registerEInvoiceModule } from './modules/finance/einvoice/index.js';
 import { registerFinanceModule } from './modules/finance/index.js';
 import { registerHrModule } from './modules/hr/index.js';
@@ -119,6 +120,11 @@ const einvoiceModule = registerEInvoiceModule(pool);
 const purchasingModule = registerPurchasingModule(pool);
 
 // ============================================================================
+// Gider/Masraf modülü — Gider Kartları & Kasa Excel import, modüler /v1/expense
+// ============================================================================
+const expenseModule = registerExpenseModule(pool);
+
+// ============================================================================
 // Routes — /v1 prefix
 // ============================================================================
 const v1 = new Hono();
@@ -152,6 +158,7 @@ v1.route('/access', accessModule.router);
 v1.route('/finance', financeModule);
 v1.route('/finance', einvoiceModule); // e-fatura + fx (Faz 6) — aynı prefix, /einvoice/* ve /fx/* yolları
 v1.route('/purchasing', purchasingModule);
+v1.route('/expense', expenseModule);
 
 // Companies + cells + invoices
 v1.route('/companies', companiesRoutes);

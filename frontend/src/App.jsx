@@ -7,6 +7,7 @@ import {
 import { FinanceDemoPage } from './modules/finance';
 import { ConstructionPage } from './modules/construction-site';
 import { PurchasingPage } from './modules/purchasing';
+import { ExpenseCardsPage, KasaImportModal } from './modules/expense';
 import {
   Lock, LogOut, LayoutDashboard, Table2, FolderTree, Users, History,
   Settings, Plus, Trash2, Edit3, Save, X, ChevronRight, ChevronDown,
@@ -167,6 +168,7 @@ const I18N_DICT = {
     "menu.cashflow": "Nakit Akış",
     "menu.banks": "Bankalar",
     "menu.kasa": "Kasa",
+    "menu.expenseCards": "Gider Kartları",
     "menu.loans": "Krediler",
     "menu.invoices": "Faturalar",
     "menu.transfers": "Transferler",
@@ -1070,6 +1072,7 @@ const I18N_DICT = {
     "menu.cashflow": "Cash Flow",
     "menu.banks": "Banks",
     "menu.kasa": "Cash Box",
+    "menu.expenseCards": "Expense Cards",
     "menu.loans": "Loans",
     "menu.invoices": "Invoices",
     "menu.transfers": "Transfers",
@@ -1934,6 +1937,7 @@ const I18N_DICT = {
     "menu.cashflow": "Cashflow",
     "menu.banks": "Banken",
     "menu.kasa": "Kasse",
+    "menu.expenseCards": "Ausgabenkarten",
     "menu.loans": "Kredite",
     "menu.invoices": "Rechnungen",
     "menu.transfers": "Transfers",
@@ -2791,6 +2795,7 @@ const I18N_DICT = {
     "menu.cashflow": "التدفق النقدي",
     "menu.banks": "البنوك",
     "menu.kasa": "الصندوق",
+    "menu.expenseCards": "بطاقات المصروفات",
     "menu.loans": "القروض",
     "menu.invoices": "الفواتير",
     "menu.transfers": "التحويلات",
@@ -3748,6 +3753,7 @@ const ROLES = {
 const PERMS = {
   view_dashboard: 1, view_grid: 1, view_reports: 1,
   view_banks: 1, view_kasa: 1, view_transfers: 1, view_invoices: 1,
+  view_expense_cards: 1, manage_expense_cards: 2,
   view_accounting: 1, view_budget: 1,
   view_approvals: 1, manage_approval_rules: 3,
   view_companies: 1, view_fx_revaluation: 1, view_ai_prediction: 1,
@@ -3795,6 +3801,7 @@ const RESOURCES = {
   "finance.banks":       { module: "Finans", label: "Bankalar",        actions: ["view","create","update","delete","export"], legacyPerm: "view_banks" },
   "finance.bank_entries":{ module: "Finans", label: "Banka Hareketleri", actions: ["view","create","update","delete"],         legacyPerm: "add_bank_entry" },
   "finance.kasa":        { module: "Finans", label: "Kasa",            actions: ["view","create","update","delete","export"], legacyPerm: "view_kasa" },
+  "finance.expense_cards":{ module: "Finans", label: "Gider Kartları",  actions: ["view","create","update","delete"], legacyPerm: "view_expense_cards" },
   "finance.loans":       { module: "Finans", label: "Krediler",        actions: ["view","create","update","delete"], legacyPerm: "view_loans" },
   "finance.invoices":    { module: "Finans", label: "Faturalar (Manuel)", actions: ["view","create","update","delete","export"], legacyPerm: "view_invoices" },
   "finance.einvoice":    { module: "Finans", label: "e-Fatura (Logo eLogo)", actions: ["view","create","update"], legacyPerm: "view_invoices" },
@@ -12335,6 +12342,9 @@ export default function App() {
             onChange={saveData} logAudit={logAudit} notify={notify}
           />
         )}
+        {view === "expense_cards" && canView("view_expense_cards", "finance.expense_cards") && (
+          <ExpenseCardsPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} lang={lang} />
+        )}
         {view === "loans" && canView("view_loans", "finance.loans") && (
           <LoansManager
             data={effectiveData} session={session} canAct={canAct} lang={lang}
@@ -13339,6 +13349,7 @@ function SideMenu({ session, view, setView, data, canAct, lang, onLogout, isMobi
     // === FİNANS ===
     { id: "banks",      label: t("menu.banks", lang),      icon: Landmark,        perm: "view_banks",     resource: "finance.banks", group: "finance" },
     { id: "kasa",       label: t("menu.kasa", lang),       icon: Wallet,          perm: "view_kasa",      resource: "finance.kasa", group: "finance" },
+    { id: "expense_cards", label: t("menu.expenseCards", lang), icon: CreditCard,  perm: "view_expense_cards", resource: "finance.expense_cards", group: "finance" },
     { id: "loans",      label: t("menu.loans", lang),      icon: Banknote,        perm: "view_loans",     resource: "finance.loans", group: "finance" },
     { id: "checks",     label: lang === "en" ? "Checks & Notes" : lang === "de" ? "Schecks & Wechsel" : lang === "ar" ? "الشيكات والسندات" : "Çek/Senet", icon: FileCheck, perm: "view_banks", resource: "finance.banks", group: "finance" },
     { id: "invoices",   label: t("menu.invoices", lang),   icon: Receipt,         perm: "view_invoices",  resource: "finance.invoices", group: "finance" },
@@ -27876,6 +27887,7 @@ function TopBar({ session, onLogout, view, setView, data, onChangeData, canAct, 
     { id: "grid",       label: t("menu.cashflow", lang),   icon: Table2,          perm: "view_grid",      resource: "finance.cashflow" },
     { id: "banks",      label: t("menu.banks", lang),      icon: Landmark,        perm: "view_banks",     resource: "finance.banks" },
     { id: "kasa",       label: t("menu.kasa", lang),       icon: Wallet,          perm: "view_kasa",      resource: "finance.kasa" },
+    { id: "expense_cards", label: t("menu.expenseCards", lang), icon: CreditCard,  perm: "view_expense_cards", resource: "finance.expense_cards" },
     { id: "loans",      label: t("menu.loans", lang),      icon: Banknote,        perm: "view_loans",     resource: "finance.loans" },
     { id: "invoices",   label: t("menu.invoices", lang),   icon: Receipt,         perm: "view_invoices",  resource: "finance.invoices", badge: invoiceAlertCount },
     { id: "transfers",  label: t("menu.transfers", lang),  icon: ArrowLeftRight,  perm: "view_transfers", resource: "finance.transfers" },
@@ -78373,6 +78385,7 @@ function KasaManager({ data, session, canAct, lang, onChange, logAudit, notify }
   const [entryDraft, setEntryDraft] = useState(null);
   const [kasaDraft, setKasaDraft] = useState(null);
   const [showTransfer, setShowTransfer] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
     if (!activeKasa && data.kasaAccounts?.length) setActiveKasa(data.kasaAccounts[0].id);
@@ -78533,6 +78546,37 @@ function KasaManager({ data, session, canAct, lang, onChange, logAudit, notify }
     notify(t("toast.entry.deleted", lang));
   };
 
+  // Excel'den içe aktarılan hareketleri kasaEntries'e ekle (backend parse + opsiyonel
+  // gider kartı bulk-upsert KasaImportModal içinde yapılır; burada blob'a yazılır)
+  const handleImportConfirm = async (entries, kasaAccountId) => {
+    const now = new Date().toISOString();
+    const baseTs = Date.now();
+    const mapped = (entries || []).map((e, i) => ({
+      id: "kse_" + baseTs + "_" + i + "_" + Math.random().toString(36).slice(2, 5),
+      kasaAccountId,
+      date: e.date,
+      type: e.type,
+      amount: Number(e.amount) || 0,
+      description: e.description || "",
+      category: e.category || "",
+      source: "excel",
+      paymentMethod: e.paymentMethod || "",
+      invoiceNo: e.invoiceNo || "",
+      createdAt: now,
+      createdBy: session?.username || "system",
+    })).filter(e => e.amount > 0);
+    await onChange({ ...data, kasaEntries: [...allEntries, ...mapped] });
+    await logAudit("kasa_excel_import", {
+      kasa: kasaAccounts.find(k => k.id === kasaAccountId)?.name,
+      adet: mapped.length,
+    });
+    notify(lang === "en" ? `${mapped.length} entries imported`
+      : lang === "de" ? `${mapped.length} Bewegungen importiert`
+      : lang === "ar" ? `تم استيراد ${mapped.length} حركة`
+      : `${mapped.length} hareket içe aktarıldı`);
+    setShowImport(false);
+  };
+
   if (!currentKasa && kasaAccounts.length === 0) {
     return (
       <div className="space-y-4">
@@ -78588,6 +78632,11 @@ function KasaManager({ data, session, canAct, lang, onChange, logAudit, notify }
                 type: "in", amount: "", description: "", category: "", cashflowCatId: ""
               })} className="btn btn-primary">
                 <Plus size={13}/> {t("banks.entry.add", lang)}
+              </button>
+            )}
+            {canAdd && currentKasa && (
+              <button onClick={() => setShowImport(true)} className="btn btn-outline">
+                <ArrowDownToLine size={13}/> {lang === "en" ? "Import from Excel" : lang === "de" ? "Aus Excel importieren" : lang === "ar" ? "استيراد من Excel" : "Excel’den İçe Aktar"}
               </button>
             )}
             {/* Toplu Muhasebeleştir (sadece bu kasa için) */}
@@ -78932,6 +78981,18 @@ function KasaManager({ data, session, canAct, lang, onChange, logAudit, notify }
             notify(`Transfer kaydedildi: ${fromName} → ${toName}`);
             setShowTransfer(false);
           }}
+        />
+      )}
+
+      {showImport && (
+        <KasaImportModal
+          apiBaseUrl=""
+          companyId={session?.activeCompanyId ?? 1}
+          lang={lang}
+          kasaAccounts={kasaAccounts.map(k => ({ id: k.id, name: k.name, currency: k.currency }))}
+          defaultKasaId={activeKasa}
+          onClose={() => setShowImport(false)}
+          onConfirm={handleImportConfirm}
         />
       )}
     </div>
