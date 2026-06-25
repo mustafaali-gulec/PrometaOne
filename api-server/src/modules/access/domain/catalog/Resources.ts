@@ -183,6 +183,23 @@ export const RESOURCES: Readonly<Record<string, ResourceDef>> = {
     label: 'Bildirim Ayarları',
     actions: ['view', 'update'],
   },
+
+  // Satınalma
+  'purchasing.vendors': {
+    module: 'Satınalma',
+    label: 'Tedarikçiler (Cari)',
+    actions: ['view', 'create', 'update', 'delete'],
+  },
+  'purchasing.requests': {
+    module: 'Satınalma',
+    label: 'Satınalma Talepleri',
+    actions: ['view', 'create', 'update', 'delete'],
+  },
+  'purchasing.orders': {
+    module: 'Satınalma',
+    label: 'Satınalma Siparişleri',
+    actions: ['view', 'create', 'update', 'delete'],
+  },
 };
 
 /** Verilen resource katalogda var mı? */

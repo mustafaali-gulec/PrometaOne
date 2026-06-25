@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import { FinanceDemoPage } from './modules/finance';
 import { ConstructionPage } from './modules/construction-site';
+import { PurchasingPage } from './modules/purchasing';
 import {
   Lock, LogOut, LayoutDashboard, Table2, FolderTree, Users, History,
   Settings, Plus, Trash2, Edit3, Save, X, ChevronRight, ChevronDown,
@@ -12381,13 +12382,14 @@ export default function App() {
             initialView={view === "sales_pipeline" ? "pipeline" : view === "sales_leads" ? "list" : "activities"}
           />
         )}
-        {(view === "purchase_requests" || view === "purchase_orders" || view === "purchase_vendors") && (
-          <PurchaseModule
-            data={effectiveData} session={session} users={users} canAct={canAct} lang={lang}
-            onChange={saveData} logAudit={logAudit} notify={notify}
-            navigateToEntity={navigateToEntity}
-            initialView={view === "purchase_requests" ? "requests" : view === "purchase_orders" ? "orders" : "vendors"}
-          />
+        {view === "purchase_requests" && (
+          <PurchasingPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["requests"]} company={purchasingBuyerCompany(effectiveData, session)} />
+        )}
+        {view === "purchase_orders" && (
+          <PurchasingPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["orders"]} company={purchasingBuyerCompany(effectiveData, session)} />
+        )}
+        {view === "purchase_vendors" && (
+          <PurchasingPage apiBaseUrl="" companyId={session?.activeCompanyId ?? 1} views={["vendors"]} company={purchasingBuyerCompany(effectiveData, session)} />
         )}
         {(view === "cs_projects" || view === "cs_contracts" || view === "cs_progress" || view === "cs_finance" || view === "cs_depot" || view === "cs_labor" || view === "cs_reports") && (
           <ConstructionPage
@@ -58229,6 +58231,12 @@ function DealDetailModal({ deal, parties, users, session, lang, tasks = [], invo
    Talep (PR) → Onay → Sipariş (PO) → Teslim → Fatura döngüsü.
    Tedarikçi yönetimi mevcut Cari (party.type=supplier) ile entegre.
 ===================================================================== */
+function purchasingBuyerCompany(data, session) {
+  const id = session?.activeCompanyId ?? 1;
+  const c = (data?.companies || []).find(x => x.id === id);
+  return c ? { name: c.name, taxNo: c.taxNo, taxOffice: c.taxOffice } : undefined;
+}
+
 function PurchaseModule({ data, session, users = [], canAct, lang, onChange, logAudit, notify, navigateToEntity, initialView = "requests" }) {
   const [activeView, setActiveView] = useState(initialView);  // requests | orders | vendors
   // Kenar menüden alt-görünüm değişince (prop) içerik de geçsin — bileşen remount olmadığı için senkronla
