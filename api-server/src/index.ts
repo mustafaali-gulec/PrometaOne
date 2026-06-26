@@ -15,6 +15,7 @@ import { ConstructionEventConsumer, disconnectKafkaProducer } from './events/kaf
 import { errorHandler } from './middleware/error.js';
 import { registerAccessModule } from './modules/access/index.js';
 import { registerAiModule } from './modules/ai/index.js';
+import { registerAppStateModule } from './modules/appstate/index.js';
 import { PgUserRepository, registerAuthModule } from './modules/auth/index.js';
 import { registerExpenseModule } from './modules/expense/index.js';
 import { registerEInvoiceModule } from './modules/finance/einvoice/index.js';
@@ -125,6 +126,12 @@ const purchasingModule = registerPurchasingModule(pool);
 const expenseModule = registerExpenseModule(pool);
 
 // ============================================================================
+// AppState modülü — genel amaçlı key→JSONB deposu, modüler /v1/app-state
+// (frontend localStorage blob'unu sunucuya taşır)
+// ============================================================================
+const appStateModule = registerAppStateModule(pool);
+
+// ============================================================================
 // Routes — /v1 prefix
 // ============================================================================
 const v1 = new Hono();
@@ -159,6 +166,7 @@ v1.route('/finance', financeModule);
 v1.route('/finance', einvoiceModule); // e-fatura + fx (Faz 6) — aynı prefix, /einvoice/* ve /fx/* yolları
 v1.route('/purchasing', purchasingModule);
 v1.route('/expense', expenseModule);
+v1.route('/app-state', appStateModule);
 
 // Companies + cells + invoices
 v1.route('/companies', companiesRoutes);
