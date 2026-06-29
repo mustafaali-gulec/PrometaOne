@@ -16,7 +16,9 @@ import { ConstructionEventConsumer, disconnectKafkaProducer } from './events/kaf
 import { errorHandler } from './middleware/error.js';
 import { registerAccessModule } from './modules/access/index.js';
 import { registerAiModule } from './modules/ai/index.js';
+import { registerAppStateModule } from './modules/appstate/index.js';
 import { PgUserRepository, registerAuthModule } from './modules/auth/index.js';
+import { registerExpenseModule } from './modules/expense/index.js';
 import { registerEdefterModule } from './modules/finance/edefter/index.js';
 import { registerEInvoiceModule } from './modules/finance/einvoice/index.js';
 import { registerFinanceModule } from './modules/finance/index.js';
@@ -24,6 +26,7 @@ import { registerPartiesModule } from './modules/finance/parties/index.js';
 import { registerHrModule } from './modules/hr/index.js';
 import { registerNotificationsModule } from './modules/notifications/index.js';
 import { registerProductionModule } from './modules/production/index.js';
+import { registerPurchasingModule } from './modules/purchasing/index.js';
 import { registerReportingModule } from './modules/reporting/index.js';
 import { registerWarehouseModule } from './modules/warehouse/index.js';
 import cellsRoutes from './routes/cells.js';
@@ -145,6 +148,22 @@ const reportingModule = registerReportingModule(pool, reportingPool, {
 });
 
 // ============================================================================
+// Satınalma modülü — Tedarikçi (cari) & Talep & Sipariş, modüler /v1/purchasing
+// ============================================================================
+const purchasingModule = registerPurchasingModule(pool);
+
+// ============================================================================
+// Gider/Masraf modülü — Gider Kartları & Kasa Excel import, modüler /v1/expense
+// ============================================================================
+const expenseModule = registerExpenseModule(pool);
+
+// ============================================================================
+// AppState modülü — genel amaçlı key→JSONB deposu, modüler /v1/app-state
+// (frontend localStorage blob'unu sunucuya taşır)
+// ============================================================================
+const appStateModule = registerAppStateModule(pool);
+
+// ============================================================================
 // Routes — /v1 prefix
 // ============================================================================
 const v1 = new Hono();
@@ -188,6 +207,11 @@ v1.route('/warehouse', warehouseModule);
 
 // Rapor Üreteci (Report Studio) — YENI moduler endpoint (/v1/reports)
 v1.route('/reports', reportingModule.router);
+
+// Satınalma (/v1/purchasing), Gider Kartları (/v1/expense), Uygulama Durumu (/v1/app-state)
+v1.route('/purchasing', purchasingModule);
+v1.route('/expense', expenseModule);
+v1.route('/app-state', appStateModule);
 
 // Companies + cells + invoices
 v1.route('/companies', companiesRoutes);
