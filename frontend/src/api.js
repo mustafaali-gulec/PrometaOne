@@ -9,7 +9,16 @@
  *  - POST /v1/auth/reset-password
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || '/v1';
+// VITE_API_URL çıplak origin (örn. http://localhost:3000) olarak verilmiş olabilir; backend
+// /v1 altında servis ettiğinden API_BASE her zaman /v1 ile bitmeli. Aksi halde /health ve
+// /auth/* çağrıları 404 döner → "backend erişilemez" YANLIŞ alarmı + gereksiz demo mod.
+// Varsayılan göreli '/v1' (vite proxy üzerinden çalışır).
+const RAW_API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+const API_BASE = RAW_API_URL
+  ? /\/v1$/.test(RAW_API_URL)
+    ? RAW_API_URL
+    : RAW_API_URL + '/v1'
+  : '/v1';
 
 // Backend mevcut mu kontrolü (sayfa açıldığında)
 async function checkBackend() {
