@@ -140,35 +140,74 @@ export function ExpenseCardsPage({
       ) : null}
 
       {cards.length === 0 ? (
-        <div
-          style={{
-            padding: 32,
-            textAlign: 'center',
-            color: 'var(--ink-muted, #888)',
-            border: '1px dashed var(--line, #e5e7eb)',
-            borderRadius: 8,
-            fontSize: 13,
-          }}
-        >
-          {loading ? el('cards.loading', lang) : el('cards.empty', lang)}
-        </div>
+        <div style={emptyBox}>{loading ? el('cards.loading', lang) : el('cards.empty', lang)}</div>
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: 12,
-          }}
-        >
-          {cards.map((c) => (
-            <ExpenseCardTile
-              key={String(c.id)}
-              card={c}
-              lang={lang}
-              onEdit={() => setEditorState(c)}
-              onDeactivate={() => void onDeactivate(c)}
-            />
-          ))}
+        <div style={listCard}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--line, #e5e7eb)' }}>
+                  <th style={thStyle()}>{el('cards.col.code', lang)}</th>
+                  <th style={thStyle()}>{el('cards.col.name', lang)}</th>
+                  <th style={thStyle()}>{el('cards.col.direction', lang)}</th>
+                  <th style={thStyle()}>{el('cards.col.account', lang)}</th>
+                  <th style={thStyle()}>{el('cards.status', lang)}</th>
+                  <th style={{ ...thStyle(), textAlign: 'right' }}>
+                    {el('cards.col.actions', lang)}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {cards.map((c) => (
+                  <tr
+                    key={String(c.id)}
+                    onClick={() => setEditorState(c)}
+                    style={{
+                      borderBottom: '1px solid var(--line, #f0f0f0)',
+                      opacity: c.active ? 1 : 0.5,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <td style={tdStyle()}>
+                      <code style={{ fontSize: 12, color: 'var(--ink-muted, #4b5563)' }}>
+                        {c.code}
+                      </code>
+                    </td>
+                    <td style={{ ...tdStyle(), fontWeight: 600 }}>{c.name}</td>
+                    <td style={tdStyle()}>
+                      <DirectionBadge dir={c.direction} lang={lang} />
+                    </td>
+                    <td style={tdStyle()}>
+                      {c.defaultAccountCode !== null && c.defaultAccountCode !== '' ? (
+                        <span style={{ fontFamily: 'monospace' }}>{c.defaultAccountCode}</span>
+                      ) : (
+                        <span style={{ color: 'var(--ink-muted, #9ca3af)' }}>—</span>
+                      )}
+                    </td>
+                    <td style={tdStyle()}>
+                      <StatusChip active={c.active} lang={lang} />
+                    </td>
+                    <td
+                      style={{ ...tdStyle(), textAlign: 'right', whiteSpace: 'nowrap' }}
+                      onClick={(ev) => ev.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => setEditorState(c)}
+                        style={{ ...btnStyle(), marginRight: 6 }}
+                      >
+                        {el('cards.edit', lang)}
+                      </button>
+                      {c.active ? (
+                        <button onClick={() => void onDeactivate(c)} style={btnDanger()}>
+                          {el('cards.deactivate', lang)}
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -186,113 +225,6 @@ export function ExpenseCardsPage({
           onError={(m) => setError(m)}
         />
       ) : null}
-    </div>
-  );
-}
-
-// --- Liste kartı -------------------------------------------------------------
-function ExpenseCardTile({
-  card,
-  lang,
-  onEdit,
-  onDeactivate,
-}: {
-  card: ExpenseCardDto;
-  lang: string;
-  onEdit: () => void;
-  onDeactivate: () => void;
-}): JSX.Element {
-  const a = card.attributes ?? {};
-  return (
-    <div
-      style={{
-        border: '1px solid var(--line, #e5e7eb)',
-        borderRadius: 10,
-        background: 'var(--paper, #fff)',
-        padding: 14,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-        opacity: card.active ? 1 : 0.55,
-        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <code
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            padding: '2px 7px',
-            borderRadius: 5,
-            background: 'var(--paper-2, #f3f4f6)',
-            color: 'var(--ink-muted, #4b5563)',
-          }}
-        >
-          {card.code}
-        </code>
-        <DirectionBadge dir={card.direction} lang={lang} />
-        <span style={{ marginLeft: 'auto' }}>
-          <StatusChip active={card.active} lang={lang} />
-        </span>
-      </div>
-
-      <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.25, wordBreak: 'break-word' }}>
-        {card.name}
-      </div>
-      {card.category !== '' ? (
-        <div style={{ fontSize: 12, color: 'var(--ink-muted, #6b7280)' }}>🏷️ {card.category}</div>
-      ) : null}
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '4px 10px',
-          fontSize: 11.5,
-          marginTop: 2,
-        }}
-      >
-        <MetaRow label={el('cards.col.account', lang)}>
-          {card.defaultAccountCode !== null && card.defaultAccountCode !== '' ? (
-            <span style={{ fontFamily: 'monospace' }}>{card.defaultAccountCode}</span>
-          ) : (
-            <span style={{ color: 'var(--ink-muted, #9ca3af)' }}>
-              {el('cards.meta.noAccount', lang)}
-            </span>
-          )}
-        </MetaRow>
-        <MetaRow label={el('cards.f.kdv', lang)}>
-          {typeof a.kdvRate === 'number' ? `%${a.kdvRate}` : '—'}
-        </MetaRow>
-        <MetaRow label={el('cards.f.paymentMethod', lang)}>
-          {paymentLabel(a.paymentMethod, lang)}
-        </MetaRow>
-        <MetaRow label={el('cards.meta.budget', lang)}>
-          {typeof a.monthlyBudget === 'number' && a.monthlyBudget > 0
-            ? fmtAmount(a.monthlyBudget, a.currency)
-            : '—'}
-        </MetaRow>
-      </div>
-
-      <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-        <button onClick={onEdit} style={{ ...btnStyle(), flex: 1 }}>
-          {el('cards.edit', lang)}
-        </button>
-        {card.active ? (
-          <button onClick={onDeactivate} style={btnDanger()} title={el('cards.deactivate', lang)}>
-            {el('cards.deactivate', lang)}
-          </button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function MetaRow({ label, children }: { label: string; children: React.ReactNode }): JSX.Element {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <span style={{ color: 'var(--ink-muted, #9ca3af)', fontSize: 10 }}>{label}</span>
-      <span style={{ fontWeight: 600 }}>{children}</span>
     </div>
   );
 }
@@ -390,9 +322,7 @@ function ExpenseCardEditor({
   const [busy, setBusy] = useState<boolean>(false);
 
   // Genel
-  const [code, setCode] = useState<string>(editing?.code ?? '');
   const [name, setName] = useState<string>(editing?.name ?? '');
-  const [category, setCategory] = useState<string>(editing?.category ?? '');
   const [direction, setDirection] = useState<FlowDirection>(editing?.direction ?? 'out');
   const [note, setNote] = useState<string>(editing?.note ?? '');
 
@@ -438,7 +368,6 @@ function ExpenseCardEditor({
       const common = {
         companyId,
         name: name.trim(),
-        category: category.trim(),
         direction,
         defaultAccountCode: account.trim() === '' ? null : account.trim(),
         note: note.trim() === '' ? null : note.trim(),
@@ -447,7 +376,8 @@ function ExpenseCardEditor({
       if (editing !== null) {
         await api.updateExpenseCard(editing.id, common);
       } else {
-        await api.createExpenseCard(code.trim() === '' ? common : { ...common, code: code.trim() });
+        // Kod her zaman otomatik üretilir (GK000n).
+        await api.createExpenseCard(common);
       }
       onSaved();
     } catch (e) {
@@ -519,15 +449,7 @@ function ExpenseCardEditor({
             <Field label={el('cards.f.name', lang)} required span2>
               <input value={name} onChange={(e) => setName(e.target.value)} style={fieldStyle()} />
             </Field>
-            <Field label={el('cards.f.code', lang)}>
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                disabled={editing !== null}
-                style={fieldStyle()}
-              />
-            </Field>
-            <Field label={el('cards.f.direction', lang)}>
+            <Field label={el('cards.f.direction', lang)} span2>
               <select
                 value={direction}
                 onChange={(e) => setDirection(e.target.value as FlowDirection)}
@@ -536,13 +458,6 @@ function ExpenseCardEditor({
                 <option value="out">{el('cards.dir.out', lang)}</option>
                 <option value="in">{el('cards.dir.in', lang)}</option>
               </select>
-            </Field>
-            <Field label={el('cards.col.category', lang)} span2>
-              <input
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                style={fieldStyle()}
-              />
             </Field>
             <Field label={el('cards.f.note', lang)} span2>
               <textarea
@@ -770,22 +685,6 @@ function strToNum(s: string): number | undefined {
   const n = Number(t);
   return Number.isNaN(n) ? undefined : n;
 }
-function paymentLabel(pm: PaymentMethod | undefined, lang: string): string {
-  switch (pm) {
-    case 'cash':
-      return el('cards.pm.cash', lang);
-    case 'card':
-      return el('cards.pm.card', lang);
-    case 'transfer':
-      return el('cards.pm.transfer', lang);
-    default:
-      return '—';
-  }
-}
-function fmtAmount(n: number, currency: string | undefined): string {
-  const sym = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '₺';
-  return `${n.toLocaleString('tr-TR')} ${sym}`;
-}
 
 // --- stiller -----------------------------------------------------------------
 const grid2: React.CSSProperties = {
@@ -793,6 +692,27 @@ const grid2: React.CSSProperties = {
   gridTemplateColumns: 'repeat(2, 1fr)',
   gap: 12,
 };
+const listCard: React.CSSProperties = {
+  border: '1px solid var(--line, #e5e7eb)',
+  borderRadius: 10,
+  background: 'var(--paper, #fff)',
+  overflow: 'hidden',
+  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+};
+const emptyBox: React.CSSProperties = {
+  padding: 32,
+  textAlign: 'center',
+  color: 'var(--ink-muted, #888)',
+  border: '1px dashed var(--line, #e5e7eb)',
+  borderRadius: 8,
+  fontSize: 13,
+};
+function thStyle(): React.CSSProperties {
+  return { padding: '8px 12px', fontSize: 12, color: 'var(--ink-muted, #666)', fontWeight: 600 };
+}
+function tdStyle(): React.CSSProperties {
+  return { padding: '8px 12px' };
+}
 const overlay: React.CSSProperties = {
   position: 'fixed',
   inset: 0,
