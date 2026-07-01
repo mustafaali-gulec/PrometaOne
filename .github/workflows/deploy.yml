@@ -18,13 +18,14 @@ jobs:
     name: Build · Test · Deploy
     runs-on: [self-hosted]
 
-    # Windows self-hosted runner'da varsayilan shell 'pwsh'tir; bu makinede pwsh
-    # kurulu degil (yalniz Windows PowerShell + bash var). Tum run adimlarini
-    # Git bash ile calistir — aksi halde lint/typecheck/test "pwsh not found"
-    # ile aninda patlar.
+    # Bu makinede `shell: bash`, PATH'te System32'deki WSL launcher'ina
+    # (C:\Windows\System32\bash.exe) cozuluyordu — WSL icinde Windows'a kurulu
+    # node/npm YOK, dolayisiyla "Install dependencies" (npm ci) ~2 sn'de exit 1
+    # ile patliyordu. Cozum: kabugu ACIK sekilde Git Bash'e sabitle (node/npm
+    # Windows PATH'ini miras alir). Yol bu self-hosted makinede sabit.
     defaults:
       run:
-        shell: bash
+        shell: '"C:\Program Files\Git\bin\bash.exe" --noprofile --norc -eo pipefail "{0}"'
 
     steps:
       - name: Checkout
