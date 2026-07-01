@@ -7,6 +7,7 @@
  */
 import type {
   BulkUpsertResult,
+  ExpenseCardAttributes,
   ExpenseCardDto,
   ExpenseCardsResponse,
   FlowDirection,
@@ -24,6 +25,7 @@ export interface CreateExpenseCardBody {
   direction?: FlowDirection;
   defaultAccountCode?: string | null;
   note?: string | null;
+  attributes?: ExpenseCardAttributes;
 }
 
 export interface UpdateExpenseCardBody {
@@ -33,6 +35,7 @@ export interface UpdateExpenseCardBody {
   direction?: FlowDirection;
   defaultAccountCode?: string | null;
   note?: string | null;
+  attributes?: ExpenseCardAttributes;
 }
 
 export interface BulkUpsertCardInput {

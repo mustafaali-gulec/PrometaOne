@@ -5,7 +5,7 @@
  * (GK0001, GK0002...). BulkUpsert kasa import'unun tespit ettiği distinct
  * kalemleri toplu eşler/oluşturur (kod ya da isim eşleşmesi).
  */
-import type { FlowDirection } from '../../domain/entities/ExpenseCard.js';
+import type { ExpenseCardAttributes, FlowDirection } from '../../domain/entities/ExpenseCard.js';
 import {
   DuplicateExpenseCardCodeError,
   ExpenseCardNotFoundError,
@@ -50,6 +50,7 @@ export interface CreateExpenseCardInput {
   direction?: FlowDirection | undefined;
   defaultAccountCode?: string | null | undefined;
   note?: string | null | undefined;
+  attributes?: ExpenseCardAttributes | undefined;
   createdBy?: number | null | undefined;
 }
 
@@ -71,6 +72,7 @@ export class CreateExpenseCardUseCase {
       direction: input.direction ?? 'out',
       defaultAccountCode: input.defaultAccountCode?.trim() || null,
       note: input.note?.trim() || null,
+      attributes: input.attributes ?? {},
       createdBy: input.createdBy ?? null,
     });
     return toExpenseCardDto(created);
@@ -104,6 +106,7 @@ export interface UpdateExpenseCardInput {
   direction?: FlowDirection | undefined;
   defaultAccountCode?: string | null | undefined;
   note?: string | null | undefined;
+  attributes?: ExpenseCardAttributes | undefined;
 }
 
 export class UpdateExpenseCardUseCase {
@@ -124,6 +127,7 @@ export class UpdateExpenseCardUseCase {
           ? { defaultAccountCode: input.defaultAccountCode }
           : {}),
         ...(input.note !== undefined ? { note: input.note } : {}),
+        ...(input.attributes !== undefined ? { attributes: input.attributes } : {}),
       },
       this.clock.now(),
     );
@@ -222,6 +226,7 @@ export class BulkUpsertExpenseCardsUseCase {
         direction,
         defaultAccountCode: null,
         note: null,
+        attributes: {},
         createdBy: input.actorUserId ?? null,
       });
       created += 1;

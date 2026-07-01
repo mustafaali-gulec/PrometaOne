@@ -10,7 +10,7 @@ import type {
   ListExpenseCardsOptions,
   NewExpenseCardInput,
 } from '../../application/ports/ExpenseCardRepository.js';
-import type { FlowDirection } from '../../domain/entities/ExpenseCard.js';
+import type { ExpenseCardAttributes, FlowDirection } from '../../domain/entities/ExpenseCard.js';
 import { ExpenseCard } from '../../domain/entities/ExpenseCard.js';
 
 import type { Queryable } from './Queryable.js';
@@ -24,6 +24,7 @@ interface ExpenseCardRow {
   direction: FlowDirection;
   default_account_code: string | null;
   note: string | null;
+  attributes: ExpenseCardAttributes | null;
   active: boolean;
   created_by: number | null;
   created_at: Date;
@@ -31,7 +32,7 @@ interface ExpenseCardRow {
 }
 
 const COLS =
-  'id, company_id, code, name, category, direction, default_account_code, note, active, created_by, created_at, updated_at';
+  'id, company_id, code, name, category, direction, default_account_code, note, attributes, active, created_by, created_at, updated_at';
 
 const CODE_PREFIX = 'GK';
 
@@ -42,8 +43,8 @@ export class PgExpenseCardRepository implements ExpenseCardRepository {
     const code = input.code.trim() || (await this.nextCode(input.companyId));
     const r = await this.db.query<ExpenseCardRow>(
       `INSERT INTO expense_cards
-         (company_id, code, name, category, direction, default_account_code, note, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         (company_id, code, name, category, direction, default_account_code, note, attributes, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)
        RETURNING ${COLS}`,
       [
         input.companyId,
@@ -53,6 +54,7 @@ export class PgExpenseCardRepository implements ExpenseCardRepository {
         input.direction,
         input.defaultAccountCode,
         input.note,
+        JSON.stringify(input.attributes ?? {}),
         input.createdBy,
       ],
     );
@@ -63,14 +65,15 @@ export class PgExpenseCardRepository implements ExpenseCardRepository {
     await this.db.query(
       `UPDATE expense_cards
          SET name = $1, category = $2, direction = $3, default_account_code = $4,
-             note = $5, active = $6, updated_at = NOW()
-       WHERE id = $7 AND company_id = $8`,
+             note = $5, attributes = $6::jsonb, active = $7, updated_at = NOW()
+       WHERE id = $8 AND company_id = $9`,
       [
         card.name,
         card.category,
         card.direction,
         card.defaultAccountCode,
         card.note,
+        JSON.stringify(card.attributes ?? {}),
         card.active,
         card.id,
         card.companyId,
@@ -145,6 +148,7 @@ function rowToExpenseCard(row: ExpenseCardRow): ExpenseCard {
     direction: row.direction,
     defaultAccountCode: row.default_account_code,
     note: row.note,
+    attributes: row.attributes ?? {},
     active: row.active,
     createdBy: row.created_by,
     createdAt: row.created_at,

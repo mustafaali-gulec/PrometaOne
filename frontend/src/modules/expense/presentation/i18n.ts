@@ -32,6 +32,7 @@ export type ExpenseLabelKey =
   | 'cards.f.note'
   | 'cards.save'
   | 'cards.saving'
+  | 'cards.cancel'
   | 'cards.edit'
   | 'cards.deactivate'
   | 'cards.deactivateConfirm'
@@ -39,6 +40,35 @@ export type ExpenseLabelKey =
   | 'cards.err.create'
   | 'cards.err.update'
   | 'cards.passive'
+  | 'cards.newTitle'
+  | 'cards.editTitle'
+  | 'cards.sum.total'
+  | 'cards.sum.income'
+  | 'cards.sum.expense'
+  | 'cards.status'
+  | 'cards.status.active'
+  | 'cards.status.passive'
+  | 'cards.tab.general'
+  | 'cards.tab.accounting'
+  | 'cards.tab.budget'
+  | 'cards.f.direction'
+  | 'cards.f.kdv'
+  | 'cards.f.tevkifat'
+  | 'cards.f.taxDeductible'
+  | 'cards.f.taxDeductibleHint'
+  | 'cards.f.costCenter'
+  | 'cards.f.paymentMethod'
+  | 'cards.f.currency'
+  | 'cards.f.defaultAmount'
+  | 'cards.f.monthlyBudget'
+  | 'cards.f.recurring'
+  | 'cards.f.vendor'
+  | 'cards.pm.cash'
+  | 'cards.pm.card'
+  | 'cards.pm.transfer'
+  | 'cards.pm.none'
+  | 'cards.meta.noAccount'
+  | 'cards.meta.budget'
   | 'imp.title'
   | 'imp.format'
   | 'imp.format.canTekel'
@@ -176,6 +206,7 @@ const DICT: Record<ExpenseLabelKey, Record<Lang, string>> = {
   },
   'cards.save': { tr: 'Kaydet', en: 'Save', de: 'Speichern', ar: 'حفظ' },
   'cards.saving': { tr: 'Kaydediliyor…', en: 'Saving…', de: 'Speichern…', ar: 'جارٍ الحفظ…' },
+  'cards.cancel': { tr: 'İptal', en: 'Cancel', de: 'Abbrechen', ar: 'إلغاء' },
   'cards.edit': { tr: 'Düzenle', en: 'Edit', de: 'Bearbeiten', ar: 'تعديل' },
   'cards.deactivate': {
     tr: 'Pasifleştir',
@@ -208,6 +239,110 @@ const DICT: Record<ExpenseLabelKey, Record<Lang, string>> = {
     ar: 'تعذر تحديث بطاقة المصروف',
   },
   'cards.passive': { tr: '(pasif)', en: '(inactive)', de: '(inaktiv)', ar: '(غير نشط)' },
+  'cards.newTitle': {
+    tr: 'Yeni Gider Kartı',
+    en: 'New Expense Card',
+    de: 'Neue Ausgabenkarte',
+    ar: 'بطاقة مصروف جديدة',
+  },
+  'cards.editTitle': {
+    tr: 'Gider Kartı Düzenle',
+    en: 'Edit Expense Card',
+    de: 'Ausgabenkarte bearbeiten',
+    ar: 'تعديل بطاقة المصروف',
+  },
+  'cards.sum.total': { tr: 'Toplam', en: 'Total', de: 'Gesamt', ar: 'الإجمالي' },
+  'cards.sum.income': { tr: 'Gelir', en: 'Income', de: 'Einnahme', ar: 'دخل' },
+  'cards.sum.expense': { tr: 'Gider', en: 'Expense', de: 'Ausgabe', ar: 'مصروف' },
+  'cards.status': { tr: 'Durum', en: 'Status', de: 'Status', ar: 'الحالة' },
+  'cards.status.active': { tr: 'Aktif', en: 'Active', de: 'Aktiv', ar: 'نشط' },
+  'cards.status.passive': { tr: 'Pasif', en: 'Inactive', de: 'Inaktiv', ar: 'غير نشط' },
+  'cards.tab.general': { tr: 'Genel', en: 'General', de: 'Allgemein', ar: 'عام' },
+  'cards.tab.accounting': {
+    tr: 'Muhasebe & Vergi',
+    en: 'Accounting & Tax',
+    de: 'Buchhaltung & Steuer',
+    ar: 'المحاسبة والضرائب',
+  },
+  'cards.tab.budget': {
+    tr: 'Bütçe & Varsayılanlar',
+    en: 'Budget & Defaults',
+    de: 'Budget & Standardwerte',
+    ar: 'الميزانية والإعدادات الافتراضية',
+  },
+  'cards.f.direction': { tr: 'Yön', en: 'Direction', de: 'Richtung', ar: 'الاتجاه' },
+  'cards.f.kdv': {
+    tr: 'KDV Oranı (%)',
+    en: 'VAT Rate (%)',
+    de: 'MwSt.-Satz (%)',
+    ar: 'نسبة الضريبة (%)',
+  },
+  'cards.f.tevkifat': {
+    tr: 'Tevkifat Kodu',
+    en: 'Withholding Code',
+    de: 'Einbehaltungscode',
+    ar: 'رمز الاقتطاع',
+  },
+  'cards.f.taxDeductible': {
+    tr: 'Kanunen Kabul Edilen Gider',
+    en: 'Tax-Deductible Expense',
+    de: 'Steuerlich absetzbar',
+    ar: 'مصروف قابل للخصم الضريبي',
+  },
+  'cards.f.taxDeductibleHint': {
+    tr: 'İşaretli değilse KKEG (kanunen kabul edilmeyen gider) sayılır.',
+    en: 'If unchecked, treated as a non-deductible expense.',
+    de: 'Wenn nicht markiert, als nicht abzugsfähig behandelt.',
+    ar: 'إذا لم يُحدد، يُعامل كمصروف غير قابل للخصم.',
+  },
+  'cards.f.costCenter': {
+    tr: 'Masraf Merkezi / Proje',
+    en: 'Cost Center / Project',
+    de: 'Kostenstelle / Projekt',
+    ar: 'مركز التكلفة / المشروع',
+  },
+  'cards.f.paymentMethod': {
+    tr: 'Varsayılan Ödeme Yöntemi',
+    en: 'Default Payment Method',
+    de: 'Standard-Zahlungsart',
+    ar: 'طريقة الدفع الافتراضية',
+  },
+  'cards.f.currency': { tr: 'Para Birimi', en: 'Currency', de: 'Währung', ar: 'العملة' },
+  'cards.f.defaultAmount': {
+    tr: 'Varsayılan Tutar',
+    en: 'Default Amount',
+    de: 'Standardbetrag',
+    ar: 'المبلغ الافتراضي',
+  },
+  'cards.f.monthlyBudget': {
+    tr: 'Aylık Bütçe Limiti',
+    en: 'Monthly Budget Limit',
+    de: 'Monatliches Budgetlimit',
+    ar: 'حد الميزانية الشهري',
+  },
+  'cards.f.recurring': {
+    tr: 'Düzenli / Tekrarlayan Gider',
+    en: 'Recurring Expense',
+    de: 'Wiederkehrende Ausgabe',
+    ar: 'مصروف متكرر',
+  },
+  'cards.f.vendor': {
+    tr: 'Varsayılan Tedarikçi / Cari',
+    en: 'Default Vendor',
+    de: 'Standard-Lieferant',
+    ar: 'المورّد الافتراضي',
+  },
+  'cards.pm.cash': { tr: 'Nakit', en: 'Cash', de: 'Bar', ar: 'نقد' },
+  'cards.pm.card': { tr: 'Kredi Kartı', en: 'Card', de: 'Karte', ar: 'بطاقة' },
+  'cards.pm.transfer': { tr: 'Havale / EFT', en: 'Transfer', de: 'Überweisung', ar: 'تحويل' },
+  'cards.pm.none': { tr: '— seçilmedi —', en: '— none —', de: '— keine —', ar: '— لا شيء —' },
+  'cards.meta.noAccount': {
+    tr: 'Hesap yok',
+    en: 'No account',
+    de: 'Kein Konto',
+    ar: 'لا يوجد حساب',
+  },
+  'cards.meta.budget': { tr: 'Bütçe', en: 'Budget', de: 'Budget', ar: 'الميزانية' },
 
   'imp.title': {
     tr: 'Excel’den Kasa İçe Aktar',

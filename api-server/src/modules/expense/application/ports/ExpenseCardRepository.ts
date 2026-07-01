@@ -2,7 +2,11 @@
  * ExpenseCardRepository — gider kartı (master) kalıcılık portu.
  * Concrete: infrastructure/persistence/PgExpenseCardRepository.ts
  */
-import type { ExpenseCard, FlowDirection } from '../../domain/entities/ExpenseCard.js';
+import type {
+  ExpenseCard,
+  ExpenseCardAttributes,
+  FlowDirection,
+} from '../../domain/entities/ExpenseCard.js';
 
 export interface NewExpenseCardInput {
   companyId: number;
@@ -12,6 +16,7 @@ export interface NewExpenseCardInput {
   direction: FlowDirection;
   defaultAccountCode: string | null;
   note: string | null;
+  attributes: ExpenseCardAttributes;
   createdBy: number | null;
 }
 

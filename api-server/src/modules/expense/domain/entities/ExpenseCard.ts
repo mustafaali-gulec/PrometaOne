@@ -11,6 +11,25 @@
  */
 export type FlowDirection = 'in' | 'out';
 
+/**
+ * Gider kartının ek öznitelikleri — sekmeli editörün "Muhasebe & Vergi" ve
+ * "Bütçe & Varsayılanlar" sekmelerini besler. Tümü opsiyonel; JSONB `attributes`
+ * kolonunda tutulur (039_expense_card_attributes.sql). Bilinmeyen anahtarlar
+ * REST sınırında (zod) elenir.
+ */
+export interface ExpenseCardAttributes {
+  kdvRate?: number | undefined; // KDV oranı (%)
+  tevkifatCode?: string | undefined; // Tevkifat kodu (örn. 9/10)
+  taxDeductible?: boolean | undefined; // Kanunen kabul edilen gider mi (KKEG değil)
+  costCenter?: string | undefined; // Masraf merkezi / proje
+  paymentMethod?: string | undefined; // 'cash' | 'card' | 'transfer' | ''
+  currency?: string | undefined; // TRY | USD | EUR ...
+  defaultAmount?: number | undefined; // Varsayılan tutar
+  monthlyBudget?: number | undefined; // Aylık bütçe limiti
+  recurring?: boolean | undefined; // Düzenli / tekrarlayan gider
+  vendor?: string | undefined; // Varsayılan tedarikçi / cari adı
+}
+
 export interface ExpenseCardProps {
   id: number;
   companyId: number;
@@ -20,6 +39,7 @@ export interface ExpenseCardProps {
   direction: FlowDirection;
   defaultAccountCode: string | null;
   note: string | null;
+  attributes: ExpenseCardAttributes;
   active: boolean;
   createdBy: number | null;
   createdAt: Date;
@@ -32,6 +52,7 @@ export interface ExpenseCardUpdate {
   direction?: FlowDirection;
   defaultAccountCode?: string | null;
   note?: string | null;
+  attributes?: ExpenseCardAttributes;
 }
 
 export class ExpenseCard {
@@ -45,7 +66,11 @@ export class ExpenseCard {
     if (props.name.length > 300) throw new Error('ExpenseCard.name 300 karakteri geçemez');
     if (props.direction !== 'in' && props.direction !== 'out')
       throw new Error("ExpenseCard.direction 'in' veya 'out' olmalı");
-    return new ExpenseCard({ ...props, category: props.category.trim() });
+    return new ExpenseCard({
+      ...props,
+      category: props.category.trim(),
+      attributes: props.attributes ?? {},
+    });
   }
 
   get id(): number {
@@ -71,6 +96,9 @@ export class ExpenseCard {
   }
   get note(): string | null {
     return this.props.note;
+  }
+  get attributes(): ExpenseCardAttributes {
+    return this.props.attributes;
   }
   get active(): boolean {
     return this.props.active;
@@ -102,6 +130,7 @@ export class ExpenseCard {
           ? changes.defaultAccountCode
           : this.props.defaultAccountCode,
       note: changes.note !== undefined ? changes.note : this.props.note,
+      attributes: changes.attributes !== undefined ? changes.attributes : this.props.attributes,
       updatedAt: now,
     });
   }

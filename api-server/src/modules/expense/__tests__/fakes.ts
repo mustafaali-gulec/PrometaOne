@@ -35,6 +35,7 @@ export class InMemoryExpenseCardRepository implements ExpenseCardRepository {
       direction: input.direction,
       defaultAccountCode: input.defaultAccountCode,
       note: input.note,
+      attributes: input.attributes ?? {},
       active: true,
       createdBy: input.createdBy,
       createdAt: FIXED,

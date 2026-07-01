@@ -99,6 +99,37 @@ describe('ExpenseCardUseCases', () => {
     assert.equal(dto.direction, 'in');
   });
 
+  it('happy: attributes create + partial update round-trip', async () => {
+    const create = new CreateExpenseCardUseCase(repo);
+    const c = await create.execute({
+      companyId: 100,
+      name: 'Kira',
+      attributes: { kdvRate: 20, paymentMethod: 'transfer', monthlyBudget: 5000 },
+    });
+    assert.equal(c.attributes.kdvRate, 20);
+    assert.equal(c.attributes.paymentMethod, 'transfer');
+    assert.equal(c.attributes.monthlyBudget, 5000);
+
+    const update = new UpdateExpenseCardUseCase(repo, clock);
+    const upd = await update.execute({
+      companyId: 100,
+      cardId: c.id,
+      attributes: { kdvRate: 10, taxDeductible: true },
+    });
+    // attributes tümüyle değiştirilir (merge değil) — yeni obje yazılır.
+    assert.equal(upd.attributes.kdvRate, 10);
+    assert.equal(upd.attributes.taxDeductible, true);
+    assert.equal(upd.attributes.paymentMethod, undefined);
+    // dokunulmayan alanlar korunur
+    assert.equal(upd.name, 'Kira');
+  });
+
+  it('happy: attributes verilmezse boş obje', async () => {
+    const create = new CreateExpenseCardUseCase(repo);
+    const c = await create.execute({ companyId: 100, name: 'X' });
+    assert.deepEqual(c.attributes, {});
+  });
+
   it('edge: olmayan kart update → ExpenseCardNotFoundError', async () => {
     const update = new UpdateExpenseCardUseCase(repo, clock);
     await assert.rejects(

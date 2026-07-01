@@ -7,6 +7,26 @@
 
 export type FlowDirection = 'in' | 'out';
 
+export type PaymentMethod = 'cash' | 'card' | 'transfer' | '';
+
+/**
+ * Gider kartı ek öznitelikleri — sekmeli editörün "Muhasebe & Vergi" ve
+ * "Bütçe & Varsayılanlar" sekmelerini besler. Backend JSONB `attributes`
+ * kolonuyla birebir eşlenir.
+ */
+export interface ExpenseCardAttributes {
+  kdvRate?: number;
+  tevkifatCode?: string;
+  taxDeductible?: boolean;
+  costCenter?: string;
+  paymentMethod?: PaymentMethod;
+  currency?: string;
+  defaultAmount?: number;
+  monthlyBudget?: number;
+  recurring?: boolean;
+  vendor?: string;
+}
+
 /** Gider kartı (malzeme kartı muadili) — kalıcı master data. */
 export interface ExpenseCardDto {
   id: number;
@@ -17,6 +37,7 @@ export interface ExpenseCardDto {
   direction: FlowDirection;
   defaultAccountCode: string | null;
   note: string | null;
+  attributes: ExpenseCardAttributes;
   active: boolean;
   createdAt: string;
   updatedAt: string;

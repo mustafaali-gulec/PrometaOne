@@ -43,6 +43,20 @@ const bulkCard = z.object({
   direction: direction.optional(),
 });
 
+/** Gider kartı ek öznitelikleri — bilinmeyen anahtarlar elenir. */
+const attributes = z.object({
+  kdvRate: z.number().min(0).max(100).optional(),
+  tevkifatCode: z.string().max(20).optional(),
+  taxDeductible: z.boolean().optional(),
+  costCenter: z.string().max(120).optional(),
+  paymentMethod: z.enum(['cash', 'card', 'transfer', '']).optional(),
+  currency: z.string().max(8).optional(),
+  defaultAmount: z.number().min(0).optional(),
+  monthlyBudget: z.number().min(0).optional(),
+  recurring: z.boolean().optional(),
+  vendor: z.string().max(200).optional(),
+});
+
 const genericColumnMap = z.object({
   headerRowIndex: z.number().int().nonnegative(),
   date: z.number().int().nonnegative(),
@@ -112,6 +126,7 @@ export function createExpenseRouter(deps: ExpenseRouterDeps): Hono {
         direction: direction.optional(),
         defaultAccountCode: z.string().max(40).nullable().optional(),
         note: z.string().max(4000).nullable().optional(),
+        attributes: attributes.optional(),
       }),
     ),
     async (c) => {
@@ -138,6 +153,7 @@ export function createExpenseRouter(deps: ExpenseRouterDeps): Hono {
         direction: direction.optional(),
         defaultAccountCode: z.string().max(40).nullable().optional(),
         note: z.string().max(4000).nullable().optional(),
+        attributes: attributes.optional(),
       }),
     ),
     async (c) => {

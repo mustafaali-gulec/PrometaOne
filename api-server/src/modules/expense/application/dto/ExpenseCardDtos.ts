@@ -1,7 +1,11 @@
 /**
  * ExpenseCard DTO'ları — REST sınırında kullanılan düz tipler.
  */
-import type { ExpenseCard, FlowDirection } from '../../domain/entities/ExpenseCard.js';
+import type {
+  ExpenseCard,
+  ExpenseCardAttributes,
+  FlowDirection,
+} from '../../domain/entities/ExpenseCard.js';
 
 export interface ExpenseCardDto {
   id: number;
@@ -12,6 +16,7 @@ export interface ExpenseCardDto {
   direction: FlowDirection;
   defaultAccountCode: string | null;
   note: string | null;
+  attributes: ExpenseCardAttributes;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -28,6 +33,7 @@ export function toExpenseCardDto(c: ExpenseCard): ExpenseCardDto {
     direction: j.direction,
     defaultAccountCode: j.defaultAccountCode,
     note: j.note,
+    attributes: j.attributes ?? {},
     active: j.active,
     createdAt: j.createdAt.toISOString(),
     updatedAt: j.updatedAt.toISOString(),

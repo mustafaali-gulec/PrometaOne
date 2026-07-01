@@ -8,6 +8,7 @@
 export type {
   BulkUpsertResult,
   DetectedExpenseCard,
+  ExpenseCardAttributes,
   ExpenseCardDto,
   ExpenseCardsResponse,
   FlowDirection,
@@ -17,6 +18,7 @@ export type {
   KasaImportResult,
   KasaImportSheet,
   KasaImportSummary,
+  PaymentMethod,
 } from './application/dto/ExpenseDtos';
 
 // --- Ports ----------------------------------------------------------------
