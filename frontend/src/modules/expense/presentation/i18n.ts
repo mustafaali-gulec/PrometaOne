@@ -69,6 +69,19 @@ export type ExpenseLabelKey =
   | 'cards.pm.none'
   | 'cards.meta.noAccount'
   | 'cards.meta.budget'
+  | 'cards.ledger.tooltip'
+  | 'cards.ledger.title'
+  | 'cards.ledger.empty'
+  | 'cards.ledger.count'
+  | 'cards.ledger.totalIn'
+  | 'cards.ledger.totalOut'
+  | 'cards.ledger.net'
+  | 'cards.ledger.col.date'
+  | 'cards.ledger.col.desc'
+  | 'cards.ledger.col.dir'
+  | 'cards.ledger.col.method'
+  | 'cards.ledger.col.source'
+  | 'cards.ledger.col.amount'
   | 'imp.title'
   | 'imp.format'
   | 'imp.format.canTekel'
@@ -343,6 +356,44 @@ const DICT: Record<ExpenseLabelKey, Record<Lang, string>> = {
     ar: 'لا يوجد حساب',
   },
   'cards.meta.budget': { tr: 'Bütçe', en: 'Budget', de: 'Budget', ar: 'الميزانية' },
+  'cards.ledger.tooltip': {
+    tr: 'Ekstre (hareket dökümü)',
+    en: 'Statement (transactions)',
+    de: 'Kontoauszug (Bewegungen)',
+    ar: 'كشف الحركات',
+  },
+  'cards.ledger.title': { tr: 'Ekstre', en: 'Statement', de: 'Kontoauszug', ar: 'كشف الحساب' },
+  'cards.ledger.empty': {
+    tr: 'Bu gider kartına ait kasa hareketi bulunamadı.',
+    en: 'No cash transactions found for this expense card.',
+    de: 'Keine Kassenbewegungen für diese Ausgabenkarte gefunden.',
+    ar: 'لا توجد حركات صندوق لبطاقة المصروف هذه.',
+  },
+  'cards.ledger.count': { tr: 'Hareket', en: 'Transactions', de: 'Bewegungen', ar: 'حركات' },
+  'cards.ledger.totalIn': {
+    tr: 'Toplam Giriş',
+    en: 'Total In',
+    de: 'Summe Eingang',
+    ar: 'إجمالي الوارد',
+  },
+  'cards.ledger.totalOut': {
+    tr: 'Toplam Çıkış',
+    en: 'Total Out',
+    de: 'Summe Ausgang',
+    ar: 'إجمالي الصادر',
+  },
+  'cards.ledger.net': { tr: 'Net', en: 'Net', de: 'Netto', ar: 'الصافي' },
+  'cards.ledger.col.date': { tr: 'Tarih', en: 'Date', de: 'Datum', ar: 'التاريخ' },
+  'cards.ledger.col.desc': { tr: 'Açıklama', en: 'Description', de: 'Beschreibung', ar: 'الوصف' },
+  'cards.ledger.col.dir': { tr: 'Yön', en: 'Direction', de: 'Richtung', ar: 'الاتجاه' },
+  'cards.ledger.col.method': { tr: 'Ödeme', en: 'Method', de: 'Methode', ar: 'الدفع' },
+  'cards.ledger.col.source': {
+    tr: 'Kasa/Kaynak',
+    en: 'Cash box/Source',
+    de: 'Kasse/Quelle',
+    ar: 'الصندوق/المصدر',
+  },
+  'cards.ledger.col.amount': { tr: 'Tutar', en: 'Amount', de: 'Betrag', ar: 'المبلغ' },
 
   'imp.title': {
     tr: 'Excel’den Kasa İçe Aktar',

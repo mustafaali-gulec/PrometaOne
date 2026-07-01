@@ -27,6 +27,30 @@ export interface ExpenseCardAttributes {
   vendor?: string;
 }
 
+/**
+ * Kasa hareketi (ekstre satırı) — gider kartı ekstresini besler. App.jsx'teki
+ * `data.kasaEntries` blob kayıtlarıyla eşlenir; `category` alanı hareketin hangi
+ * gider kartına (mahiyet) ait olduğunu belirtir.
+ */
+export interface ExpenseCardMovement {
+  id?: string;
+  date: string;
+  type: FlowDirection;
+  amount: number;
+  description?: string;
+  category?: string;
+  paymentMethod?: string;
+  source?: string;
+  invoiceNo?: string;
+  kasaAccountId?: string;
+}
+
+/** Ekstrede kasa adını göstermek için hafif kasa hesabı referansı. */
+export interface ExpenseKasaAccountRef {
+  id: string;
+  name: string;
+}
+
 /** Gider kartı (malzeme kartı muadili) — kalıcı master data. */
 export interface ExpenseCardDto {
   id: number;

@@ -9,11 +9,13 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { Pencil, Trash2 } from 'lucide-react';
+import { FileText, Pencil, Trash2 } from 'lucide-react';
 
 import type {
   ExpenseCardAttributes,
   ExpenseCardDto,
+  ExpenseCardMovement,
+  ExpenseKasaAccountRef,
   FlowDirection,
   PaymentMethod,
 } from '../application/dto/ExpenseDtos';
@@ -29,6 +31,10 @@ export interface ExpenseCardsPageProps {
   accessToken?: string;
   companyId?: number;
   lang?: string;
+  /** Kasa hareketleri (App.jsx `data.kasaEntries`) — kart ekstresini besler. */
+  movements?: ReadonlyArray<ExpenseCardMovement>;
+  /** Kasa hesapları — ekstrede kasa adını göstermek için. */
+  kasaAccounts?: ReadonlyArray<ExpenseKasaAccountRef>;
 }
 
 export function ExpenseCardsPage({
@@ -36,6 +42,8 @@ export function ExpenseCardsPage({
   accessToken,
   companyId = 1,
   lang = 'tr',
+  movements = [],
+  kasaAccounts = [],
 }: ExpenseCardsPageProps): JSX.Element {
   const api: ExpenseApi = useMemo(() => {
     const token = accessToken ?? extractToken();
@@ -49,6 +57,8 @@ export function ExpenseCardsPage({
   const [includeInactive, setIncludeInactive] = useState<boolean>(false);
   /** Editör açık mı: 'new' | düzenlenecek kart | null (kapalı). */
   const [editorState, setEditorState] = useState<'new' | ExpenseCardDto | null>(null);
+  /** Ekstresi açık olan kart (null = kapalı). */
+  const [ledgerCard, setLedgerCard] = useState<ExpenseCardDto | null>(null);
 
   const refetch = useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -184,6 +194,13 @@ export function ExpenseCardsPage({
                     <td onClick={(ev) => ev.stopPropagation()}>
                       <div className="flex gap-1">
                         <button
+                          onClick={() => setLedgerCard(c)}
+                          title={el('cards.ledger.tooltip', lang)}
+                          style={iconBtn()}
+                        >
+                          <FileText size={13} />
+                        </button>
+                        <button
                           onClick={() => setEditorState(c)}
                           title={el('cards.edit', lang)}
                           style={iconBtn()}
@@ -221,6 +238,16 @@ export function ExpenseCardsPage({
             void refetch();
           }}
           onError={(m) => setError(m)}
+        />
+      ) : null}
+
+      {ledgerCard !== null ? (
+        <ExpenseCardLedger
+          card={ledgerCard}
+          movements={movements}
+          kasaAccounts={kasaAccounts}
+          lang={lang}
+          onClose={() => setLedgerCard(null)}
         />
       ) : null}
     </div>
@@ -291,6 +318,180 @@ function StatChip({
     >
       {label}
       <b>{value}</b>
+    </span>
+  );
+}
+
+// --- Ekstre (hareket dökümü) modalı ------------------------------------------
+/**
+ * Eşleşme için normalize formları: hem tr-locale (İ/ı tutarlı, backend normKey
+ * ile aynı) hem locale-agnostik büyük harf (küçük i→I katlar) — elle girilmiş
+ * farklı büyük/küçük harfli mahiyetleri de yakalar.
+ */
+function normForms(s: string | undefined): string[] {
+  const t = (s ?? '').trim();
+  if (t === '') return [];
+  return [t.toLocaleUpperCase('tr-TR'), t.toUpperCase()];
+}
+/** Kasa hareketi bu gider kartına ait mi? (mahiyet = kart adı / kategori / kod) */
+function movementMatchesCard(m: ExpenseCardMovement, card: ExpenseCardDto): boolean {
+  const cat = normForms(m.category);
+  if (cat.length === 0) return false;
+  const cardForms = [...normForms(card.name), ...normForms(card.category), ...normForms(card.code)];
+  return cat.some((c) => cardForms.includes(c));
+}
+
+function ExpenseCardLedger({
+  card,
+  movements,
+  kasaAccounts,
+  lang,
+  onClose,
+}: {
+  card: ExpenseCardDto;
+  movements: ReadonlyArray<ExpenseCardMovement>;
+  kasaAccounts: ReadonlyArray<ExpenseKasaAccountRef>;
+  lang: string;
+  onClose: () => void;
+}): JSX.Element {
+  const rows = useMemo(
+    () =>
+      movements
+        .filter((m) => movementMatchesCard(m, card))
+        .slice()
+        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)), // en yeni üstte
+    [movements, card],
+  );
+
+  const kasaName = (id: string | undefined): string => {
+    if (id === undefined || id === '') return '';
+    return kasaAccounts.find((k) => k.id === id)?.name ?? '';
+  };
+
+  const totalIn = rows
+    .filter((r) => r.type === 'in')
+    .reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const totalOut = rows
+    .filter((r) => r.type === 'out')
+    .reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const net = totalIn - totalOut;
+
+  return (
+    <div
+      style={overlay}
+      onClick={(ev) => {
+        if (ev.target === ev.currentTarget) onClose();
+      }}
+      role="presentation"
+    >
+      <div style={{ ...panel, maxWidth: 880 }} role="dialog" aria-modal="true">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <h2 style={{ fontSize: 17, margin: 0 }}>{el('cards.ledger.title', lang)}</h2>
+          <code
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: 5,
+              background: 'var(--paper-2, #f3f4f6)',
+              color: 'var(--ink-muted, #4b5563)',
+            }}
+          >
+            {card.code}
+          </code>
+          <span style={{ fontWeight: 600 }}>{card.name}</span>
+          <button onClick={onClose} style={{ ...btnStyle(), marginLeft: 'auto' }}>
+            ✕
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          <StatChip label={el('cards.ledger.count', lang)} value={rows.length} tone="neutral" />
+          <LedgerTotalChip label={el('cards.ledger.totalIn', lang)} amount={totalIn} tone="in" />
+          <LedgerTotalChip label={el('cards.ledger.totalOut', lang)} amount={totalOut} tone="out" />
+          <LedgerTotalChip
+            label={el('cards.ledger.net', lang)}
+            amount={net}
+            tone={net >= 0 ? 'in' : 'out'}
+          />
+        </div>
+
+        {rows.length === 0 ? (
+          <div style={emptyBox}>{el('cards.ledger.empty', lang)}</div>
+        ) : (
+          <div className="card" style={{ overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto', maxHeight: '55vh' }}>
+              <table className="grid" style={{ minWidth: 640 }}>
+                <thead>
+                  <tr>
+                    <th>{el('cards.ledger.col.date', lang)}</th>
+                    <th>{el('cards.ledger.col.desc', lang)}</th>
+                    <th>{el('cards.ledger.col.dir', lang)}</th>
+                    <th>{el('cards.ledger.col.method', lang)}</th>
+                    <th>{el('cards.ledger.col.source', lang)}</th>
+                    <th>{el('cards.ledger.col.amount', lang)}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => (
+                    <tr key={r.id ?? String(i)}>
+                      <td className="mono text-xs">{r.date}</td>
+                      <td className="text-xs">{r.description ?? ''}</td>
+                      <td>
+                        <DirectionBadge dir={r.type} lang={lang} />
+                      </td>
+                      <td className="text-xs">{paymentLabel(r.paymentMethod, lang)}</td>
+                      <td className="text-xs">{kasaName(r.kasaAccountId) || (r.source ?? '')}</td>
+                      <td
+                        className="mono text-xs"
+                        style={{
+                          fontWeight: 600,
+                          color: r.type === 'in' ? 'var(--ok, #15803d)' : 'var(--danger, #b91c1c)',
+                        }}
+                      >
+                        {r.type === 'in' ? '+' : '−'}
+                        {fmtMoney(Number(r.amount) || 0)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LedgerTotalChip({
+  label,
+  amount,
+  tone,
+}: {
+  label: string;
+  amount: number;
+  tone: 'in' | 'out';
+}): JSX.Element {
+  const c =
+    tone === 'in'
+      ? { bg: 'var(--ok-bg, #dcfce7)', fg: 'var(--ok, #15803d)' }
+      : { bg: 'var(--warn-bg, #fef3c7)', fg: 'var(--warn, #b45309)' };
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 12,
+        padding: '4px 10px',
+        borderRadius: 999,
+        background: c.bg,
+        color: c.fg,
+      }}
+    >
+      {label}
+      <b>{fmtMoney(amount)}</b>
     </span>
   );
 }
@@ -682,6 +883,21 @@ function strToNum(s: string): number | undefined {
   if (t === '') return undefined;
   const n = Number(t);
   return Number.isNaN(n) ? undefined : n;
+}
+function paymentLabel(pm: string | undefined, lang: string): string {
+  switch (pm) {
+    case 'cash':
+      return el('cards.pm.cash', lang);
+    case 'card':
+      return el('cards.pm.card', lang);
+    case 'transfer':
+      return el('cards.pm.transfer', lang);
+    default:
+      return '—';
+  }
+}
+function fmtMoney(n: number): string {
+  return `${n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺`;
 }
 
 // --- stiller -----------------------------------------------------------------
