@@ -3,13 +3,13 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument */
 import { describe, it, expect } from 'vitest';
 
-// @ts-expect-error - plain JS module, no type declarations
 import {
   buildYevmiyeXbrl,
   buildKebirXbrl,
   gibDefterFileName,
   selectPeriodEntries,
   missingProfileFields,
+  // @ts-expect-error - plain JS module, no type declarations
 } from '../edefterXbrl.js';
 
 const profile = {
@@ -132,13 +132,13 @@ describe('buildYevmiyeXbrl', () => {
   });
 
   it('documentInfo: journal type, 15-char uniqueID starting YEV, matching period', () => {
-    expect(tags(doc, 'gl-cor:entriesType')[0].textContent).toBe('journal');
-    const uid = tags(doc, 'gl-cor:uniqueID')[0].textContent;
+    expect(tags(doc, 'gl-cor:entriesType')[0]!.textContent).toBe('journal');
+    const uid = tags(doc, 'gl-cor:uniqueID')[0]!.textContent;
     expect(uid).toMatch(/^YEV/);
     expect(uid.length).toBe(15);
     expect(uid).toContain('202606');
-    expect(tags(doc, 'gl-cor:periodCoveredStart')[0].textContent).toBe('2026-06-01');
-    expect(tags(doc, 'gl-cor:periodCoveredEnd')[0].textContent).toBe('2026-06-30');
+    expect(tags(doc, 'gl-cor:periodCoveredStart')[0]!.textContent).toBe('2026-06-01');
+    expect(tags(doc, 'gl-cor:periodCoveredEnd')[0]!.textContent).toBe('2026-06-30');
   });
 
   it('has one entryHeader per posted entry, in date order', () => {
@@ -150,15 +150,15 @@ describe('buildYevmiyeXbrl', () => {
 
   it('each entry: totalDebit == totalCredit == sum of side amounts', () => {
     tags(doc, 'gl-cor:entryHeader').forEach((h) => {
-      const td = Number(h.getElementsByTagName('gl-bus:totalDebit')[0].textContent);
-      const tc = Number(h.getElementsByTagName('gl-bus:totalCredit')[0].textContent);
+      const td = Number(h.getElementsByTagName('gl-bus:totalDebit')[0]!.textContent);
+      const tc = Number(h.getElementsByTagName('gl-bus:totalCredit')[0]!.textContent);
       expect(td).toBe(tc);
       let d = 0,
         c = 0;
       Array.from(h.getElementsByTagName('gl-cor:entryDetail')).forEach((det) => {
-        const amt = Number(det.getElementsByTagName('gl-cor:amount')[0].textContent);
+        const amt = Number(det.getElementsByTagName('gl-cor:amount')[0]!.textContent);
         expect(amt).toBeGreaterThan(0);
-        const code = det.getElementsByTagName('gl-cor:debitCreditCode')[0].textContent;
+        const code = det.getElementsByTagName('gl-cor:debitCreditCode')[0]!.textContent;
         if (code === 'D') d += amt;
         else c += amt;
       });
@@ -174,7 +174,7 @@ describe('buildYevmiyeXbrl', () => {
 
   it('lineNumberCounter equals parent entryNumberCounter', () => {
     tags(doc, 'gl-cor:entryHeader').forEach((h) => {
-      const ec = h.getElementsByTagName('gl-cor:entryNumberCounter')[0].textContent;
+      const ec = h.getElementsByTagName('gl-cor:entryNumberCounter')[0]!.textContent;
       Array.from(h.getElementsByTagName('gl-cor:lineNumberCounter')).forEach((lc) => {
         expect(lc.textContent).toBe(ec);
       });
@@ -188,28 +188,28 @@ describe('buildYevmiyeXbrl', () => {
 
   it('accountSubID starts with accountMainID', () => {
     tags(doc, 'gl-cor:accountSub').forEach((sub) => {
-      const subId = sub.getElementsByTagName('gl-cor:accountSubID')[0].textContent;
-      const main = sub.parentElement!.getElementsByTagName('gl-cor:accountMainID')[0].textContent;
+      const subId = sub.getElementsByTagName('gl-cor:accountSubID')[0]!.textContent;
+      const main = sub.parentElement!.getElementsByTagName('gl-cor:accountMainID')[0]!.textContent;
       expect(subId.startsWith(main)).toBe(true);
     });
   });
 
   it('postingDate == enteredDate and documentReference == entryNumber within each entry', () => {
     tags(doc, 'gl-cor:entryHeader').forEach((h) => {
-      const ed = h.getElementsByTagName('gl-cor:enteredDate')[0].textContent;
-      const en = h.getElementsByTagName('gl-cor:entryNumber')[0].textContent;
+      const ed = h.getElementsByTagName('gl-cor:enteredDate')[0]!.textContent;
+      const en = h.getElementsByTagName('gl-cor:entryNumber')[0]!.textContent;
       Array.from(h.getElementsByTagName('gl-cor:entryDetail')).forEach((det) => {
-        expect(det.getElementsByTagName('gl-cor:postingDate')[0].textContent).toBe(ed);
-        expect(det.getElementsByTagName('gl-cor:documentReference')[0].textContent).toBe(en);
+        expect(det.getElementsByTagName('gl-cor:postingDate')[0]!.textContent).toBe(ed);
+        expect(det.getElementsByTagName('gl-cor:documentReference')[0]!.textContent).toBe(en);
       });
     });
   });
 
   it('mandatory entityInformation fields present', () => {
-    expect(tags(doc, 'gl-bus:phoneNumber')[0].textContent).toBe('03121111111');
-    expect(tags(doc, 'gl-bus:entityEmailAddress')[0].textContent).toBe('info@test.com.tr');
-    expect(tags(doc, 'gl-bus:accountantName')[0].textContent).toBe('SMMM Ali Veli');
-    expect(tags(doc, 'gl-bus:organizationDescription')[0].textContent).toBe('Kurum Unvanı');
+    expect(tags(doc, 'gl-bus:phoneNumber')[0]!.textContent).toBe('03121111111');
+    expect(tags(doc, 'gl-bus:entityEmailAddress')[0]!.textContent).toBe('info@test.com.tr');
+    expect(tags(doc, 'gl-bus:accountantName')[0]!.textContent).toBe('SMMM Ali Veli');
+    expect(tags(doc, 'gl-bus:organizationDescription')[0]!.textContent).toBe('Kurum Unvanı');
   });
 
   it('all decimals attributes are INF', () => {
@@ -226,8 +226,8 @@ describe('buildKebirXbrl', () => {
 
   it('is well-formed, ledger type, KEB uniqueID', () => {
     expect(doc.getElementsByTagName('parsererror').length).toBe(0);
-    expect(tags(doc, 'gl-cor:entriesType')[0].textContent).toBe('ledger');
-    expect(tags(doc, 'gl-cor:uniqueID')[0].textContent).toMatch(/^KEB/);
+    expect(tags(doc, 'gl-cor:entriesType')[0]!.textContent).toBe('ledger');
+    expect(tags(doc, 'gl-cor:uniqueID')[0]!.textContent).toMatch(/^KEB/);
   });
 
   it('groups movements by account (one entryHeader per account)', () => {
