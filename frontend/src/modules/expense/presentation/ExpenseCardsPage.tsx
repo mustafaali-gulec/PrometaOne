@@ -9,6 +9,8 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { Pencil, Trash2 } from 'lucide-react';
+
 import type {
   ExpenseCardAttributes,
   ExpenseCardDto,
@@ -142,19 +144,17 @@ export function ExpenseCardsPage({
       {cards.length === 0 ? (
         <div style={emptyBox}>{loading ? el('cards.loading', lang) : el('cards.empty', lang)}</div>
       ) : (
-        <div style={listCard}>
+        <div className="card" style={{ overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <table className="grid" style={{ minWidth: 720 }}>
               <thead>
-                <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--line, #e5e7eb)' }}>
-                  <th style={thStyle()}>{el('cards.col.code', lang)}</th>
-                  <th style={thStyle()}>{el('cards.col.name', lang)}</th>
-                  <th style={thStyle()}>{el('cards.col.direction', lang)}</th>
-                  <th style={thStyle()}>{el('cards.col.account', lang)}</th>
-                  <th style={thStyle()}>{el('cards.status', lang)}</th>
-                  <th style={{ ...thStyle(), textAlign: 'right' }}>
-                    {el('cards.col.actions', lang)}
-                  </th>
+                <tr>
+                  <th>{el('cards.col.code', lang)}</th>
+                  <th>{el('cards.col.name', lang)}</th>
+                  <th>{el('cards.col.direction', lang)}</th>
+                  <th>{el('cards.col.account', lang)}</th>
+                  <th>{el('cards.status', lang)}</th>
+                  <th>{el('cards.col.actions', lang)}</th>
                 </tr>
               </thead>
               <tbody>
@@ -162,46 +162,44 @@ export function ExpenseCardsPage({
                   <tr
                     key={String(c.id)}
                     onClick={() => setEditorState(c)}
-                    style={{
-                      borderBottom: '1px solid var(--line, #f0f0f0)',
-                      opacity: c.active ? 1 : 0.5,
-                      cursor: 'pointer',
-                    }}
+                    style={{ cursor: 'pointer', opacity: c.active ? 1 : 0.5 }}
                   >
-                    <td style={tdStyle()}>
-                      <code style={{ fontSize: 12, color: 'var(--ink-muted, #4b5563)' }}>
-                        {c.code}
-                      </code>
+                    <td className="mono text-xs font-bold">{c.code}</td>
+                    <td className="text-xs" style={{ fontWeight: 600 }}>
+                      {c.name}
                     </td>
-                    <td style={{ ...tdStyle(), fontWeight: 600 }}>{c.name}</td>
-                    <td style={tdStyle()}>
+                    <td className="text-xs">
                       <DirectionBadge dir={c.direction} lang={lang} />
                     </td>
-                    <td style={tdStyle()}>
+                    <td className="mono text-xs">
                       {c.defaultAccountCode !== null && c.defaultAccountCode !== '' ? (
-                        <span style={{ fontFamily: 'monospace' }}>{c.defaultAccountCode}</span>
+                        c.defaultAccountCode
                       ) : (
-                        <span style={{ color: 'var(--ink-muted, #9ca3af)' }}>—</span>
+                        <span style={{ color: 'var(--ink-mute)' }}>—</span>
                       )}
                     </td>
-                    <td style={tdStyle()}>
+                    <td>
                       <StatusChip active={c.active} lang={lang} />
                     </td>
-                    <td
-                      style={{ ...tdStyle(), textAlign: 'right', whiteSpace: 'nowrap' }}
-                      onClick={(ev) => ev.stopPropagation()}
-                    >
-                      <button
-                        onClick={() => setEditorState(c)}
-                        style={{ ...btnStyle(), marginRight: 6 }}
-                      >
-                        {el('cards.edit', lang)}
-                      </button>
-                      {c.active ? (
-                        <button onClick={() => void onDeactivate(c)} style={btnDanger()}>
-                          {el('cards.deactivate', lang)}
+                    <td onClick={(ev) => ev.stopPropagation()}>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => setEditorState(c)}
+                          title={el('cards.edit', lang)}
+                          style={iconBtn()}
+                        >
+                          <Pencil size={13} />
                         </button>
-                      ) : null}
+                        {c.active ? (
+                          <button
+                            onClick={() => void onDeactivate(c)}
+                            title={el('cards.deactivate', lang)}
+                            style={iconBtnDanger()}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -249,13 +247,13 @@ function DirectionBadge({ dir, lang }: { dir: FlowDirection; lang: string }): JS
 function StatusChip({ active, lang }: { active: boolean; lang: string }): JSX.Element {
   return (
     <span
+      className="chip"
       style={{
+        background: active ? '#dcfce7' : '#f1f5f9',
+        color: active ? '#15803d' : '#64748b',
+        fontWeight: 700,
         fontSize: 10,
-        padding: '2px 7px',
-        borderRadius: 999,
-        border: `1px solid ${active ? 'var(--ok, #86efac)' : 'var(--line, #d1d5db)'}`,
-        color: active ? 'var(--ok, #15803d)' : 'var(--ink-muted, #6b7280)',
-        background: active ? 'var(--ok-bg, #f0fdf4)' : 'transparent',
+        textTransform: 'uppercase',
       }}
     >
       {active ? el('cards.status.active', lang) : el('cards.status.passive', lang)}
@@ -692,13 +690,6 @@ const grid2: React.CSSProperties = {
   gridTemplateColumns: 'repeat(2, 1fr)',
   gap: 12,
 };
-const listCard: React.CSSProperties = {
-  border: '1px solid var(--line, #e5e7eb)',
-  borderRadius: 10,
-  background: 'var(--paper, #fff)',
-  overflow: 'hidden',
-  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-};
 const emptyBox: React.CSSProperties = {
   padding: 32,
   textAlign: 'center',
@@ -707,12 +698,6 @@ const emptyBox: React.CSSProperties = {
   borderRadius: 8,
   fontSize: 13,
 };
-function thStyle(): React.CSSProperties {
-  return { padding: '8px 12px', fontSize: 12, color: 'var(--ink-muted, #666)', fontWeight: 600 };
-}
-function tdStyle(): React.CSSProperties {
-  return { padding: '8px 12px' };
-}
 const overlay: React.CSSProperties = {
   position: 'fixed',
   inset: 0,
@@ -768,14 +753,27 @@ function btnPrimary(): React.CSSProperties {
     cursor: 'pointer',
   };
 }
-function btnDanger(): React.CSSProperties {
+function iconBtn(): React.CSSProperties {
   return {
-    padding: '6px 12px',
-    border: '1px solid var(--danger, #fca5a5)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '4px 7px',
+    border: 'none',
     borderRadius: 4,
-    background: 'transparent',
-    color: 'var(--danger, #b91c1c)',
+    background: 'var(--bg-alt, #f1f5f9)',
+    color: 'var(--ink, #111)',
     cursor: 'pointer',
-    fontSize: 12,
+  };
+}
+function iconBtnDanger(): React.CSSProperties {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '4px 7px',
+    border: 'none',
+    borderRadius: 4,
+    background: '#fee2e2',
+    color: '#b91c1c',
+    cursor: 'pointer',
   };
 }
