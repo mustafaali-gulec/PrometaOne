@@ -23,9 +23,12 @@ jobs:
     # node/npm YOK, dolayisiyla "Install dependencies" (npm ci) ~2 sn'de exit 1
     # ile patliyordu. Cozum: kabugu ACIK sekilde Git Bash'e sabitle (node/npm
     # Windows PATH'ini miras alir). Yol bu self-hosted makinede sabit.
+    # NOT: Runner custom-shell dizesini bosluktan bolup ilk parcayi exe sayar ve
+    # tirnakli yolu ONURLANDIRMAZ ("C:\Program... hatasi verir). Bu yuzden bosluksuz
+    # 8.3 kisa yol kullaniyoruz (C:\PROGRA~1 = C:\Program Files).
     defaults:
       run:
-        shell: '"C:\Program Files\Git\bin\bash.exe" --noprofile --norc -eo pipefail "{0}"'
+        shell: 'C:\PROGRA~1\Git\bin\bash.exe --noprofile --norc -eo pipefail "{0}"'
 
     steps:
       - name: Checkout
