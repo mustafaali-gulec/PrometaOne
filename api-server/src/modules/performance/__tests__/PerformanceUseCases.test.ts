@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+// api-server test paketi node:test ile koşar (scripts/run-tests.mjs → tsx --test);
+// vitest importu burada "Vitest failed to access its internal state" ile patlar.
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
 
 import {
   ListPerfCyclesUseCase,
@@ -78,15 +81,15 @@ describe('SyncPerformanceUseCase', () => {
       cycles: [cycleInput()],
       reviews: [reviewInput()],
     });
-    expect(result).toEqual({
+    assert.deepEqual(result, {
       cyclesUpserted: 1,
       reviewsUpserted: 1,
       cyclesDeleted: 0,
       reviewsDeleted: 0,
     });
     const stored = await sut.listCycles.execute({ companyId: 1 });
-    expect(stored).toHaveLength(1);
-    expect(stored[0]!.name).toBe('2026 Yıl Sonu');
+    assert.equal(stored.length, 1);
+    assert.equal(stored[0]!.name, '2026 Yıl Sonu');
   });
 
   it('updates on re-sync and prunes rows missing from payload', async () => {
@@ -103,14 +106,14 @@ describe('SyncPerformanceUseCase', () => {
       cycles: [cycleInput({ status: 'calibration' })],
       reviews: [reviewInput({ id: 'pf_1', status: 'completed', overallScore: 4.2 })],
     });
-    expect(result.reviewsDeleted).toBe(1);
-    expect(result.cyclesDeleted).toBe(0);
+    assert.equal(result.reviewsDeleted, 1);
+    assert.equal(result.cyclesDeleted, 0);
     const reviews = await sut.listReviews.execute({ companyId: 1 });
-    expect(reviews).toHaveLength(1);
-    expect(reviews[0]!.status).toBe('completed');
-    expect(reviews[0]!.overallScore).toBeCloseTo(4.2, 5);
+    assert.equal(reviews.length, 1);
+    assert.equal(reviews[0]!.status, 'completed');
+    assert.ok(Math.abs(reviews[0]!.overallScore - 4.2) < 1e-5);
     const cycles = await sut.listCycles.execute({ companyId: 1 });
-    expect(cycles[0]!.status).toBe('calibration');
+    assert.equal(cycles[0]!.status, 'calibration');
   });
 
   it('prune does not touch other companies', async () => {
@@ -118,30 +121,32 @@ describe('SyncPerformanceUseCase', () => {
     await sut.sync.execute({ companyId: 1, cycles: [cycleInput({ id: 'pc_a' })], reviews: [] });
     await sut.sync.execute({ companyId: 2, cycles: [cycleInput({ id: 'pc_b' })], reviews: [] });
     const result = await sut.sync.execute({ companyId: 1, prune: true, cycles: [], reviews: [] });
-    expect(result.cyclesDeleted).toBe(1);
-    expect(await sut.listCycles.execute({ companyId: 2 })).toHaveLength(1);
+    assert.equal(result.cyclesDeleted, 1);
+    assert.equal((await sut.listCycles.execute({ companyId: 2 })).length, 1);
   });
 
   it('rejects an invalid cycle status', async () => {
     const sut = makeSut();
-    await expect(
+    await assert.rejects(
       sut.sync.execute({
         companyId: 1,
         cycles: [cycleInput({ status: 'bogus' as never })],
         reviews: [],
       }),
-    ).rejects.toBeInstanceOf(PerformanceValidationError);
+      PerformanceValidationError,
+    );
   });
 
   it('rejects an invalid date string', async () => {
     const sut = makeSut();
-    await expect(
+    await assert.rejects(
       sut.sync.execute({
         companyId: 1,
         cycles: [cycleInput({ periodStart: 'not-a-date' })],
         reviews: [],
       }),
-    ).rejects.toBeInstanceOf(PerformanceValidationError);
+      PerformanceValidationError,
+    );
   });
 
   it('filters reviews by cycleId in list', async () => {
@@ -155,7 +160,7 @@ describe('SyncPerformanceUseCase', () => {
       ],
     });
     const only = await sut.listReviews.execute({ companyId: 1, cycleId: 'pc_2' });
-    expect(only).toHaveLength(1);
-    expect(only[0]!.id).toBe('pf_2');
+    assert.equal(only.length, 1);
+    assert.equal(only[0]!.id, 'pf_2');
   });
 });
