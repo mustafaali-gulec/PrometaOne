@@ -133,6 +133,11 @@ export const RESOURCES: Readonly<Record<string, ResourceDef>> = {
     label: 'Bordro',
     actions: ['view', 'create', 'update', 'delete', 'export'],
   },
+  'hr.performance': {
+    module: 'HR',
+    label: 'Performans Yönetimi',
+    actions: ['view', 'create', 'update', 'delete', 'export'],
+  },
   // Faz B-1 / B-3 yeni dilimler — "RBAC RESOURCES sync" kuralı gereği eklendi
   'hr.leave': {
     module: 'HR',
