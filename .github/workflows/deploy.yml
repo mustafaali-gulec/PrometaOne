@@ -87,9 +87,10 @@ jobs:
       - name: Servis durumu
         run: docker compose -p api-server -f api-server/docker-compose.yml ps
 
+      # NOT: step-duzeyi 'shell: bash' YAZMA — job varsayilanini (Git Bash kisa
+      # yolu) ezip WSL bash'e dusurur ve adim exit 1 ile patlar.
       - name: İşlem logu yaz
         if: always()
-        shell: bash
         run: |
           mkdir -p deploy
           echo "$(date '+%Y-%m-%d %H:%M:%S') | commit=${GITHUB_SHA::8} | branch=${GITHUB_REF_NAME} | sonuc=${{ job.status }}" >> deploy/deploy-history.log
