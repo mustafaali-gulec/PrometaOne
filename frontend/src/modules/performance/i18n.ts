@@ -554,6 +554,32 @@ const DICT: Record<string, Row> = {
     ar: 'يُعرض تلقائياً من وحدة الأداء (للعرض فقط).',
   },
 
+  // --- Ücret entegrasyonu (performansa dayalı zam) ---
+  'compb.autoHint': {
+    tr: 'Skorlar Performans Yönetimi’ndeki son tamamlanan değerlendirmeden otomatik alındı (0-100’e oranlanır); elle değiştirebilirsiniz.',
+    en: 'Scores are auto-filled from the latest completed review in Performance Management (scaled to 0-100); you can override them manually.',
+    de: 'Die Punktzahlen werden automatisch aus der letzten abgeschlossenen Bewertung im Leistungsmanagement übernommen (auf 0-100 skaliert); manuelle Änderung möglich.',
+    ar: 'تُملأ الدرجات تلقائياً من آخر تقييم مكتمل في إدارة الأداء (مقياس 0-100)؛ يمكنك تعديلها يدوياً.',
+  },
+  'compb.fromPerf': {
+    tr: 'Performans Yönetiminden',
+    en: 'From Performance Management',
+    de: 'Aus dem Leistungsmanagement',
+    ar: 'من إدارة الأداء',
+  },
+  'compb.calibrated': {
+    tr: 'Kalibre derece esas alındı',
+    en: 'Calibrated rating applied',
+    de: 'Kalibrierte Bewertung zugrunde gelegt',
+    ar: 'اعتُمد التقدير المُعاير',
+  },
+  'compb.noReview': {
+    tr: 'Tamamlanmış değerlendirme yok',
+    en: 'No completed review',
+    de: 'Keine abgeschlossene Bewertung',
+    ar: 'لا يوجد تقييم مكتمل',
+  },
+
   // --- Bildirimler ---
   notifSelfTitle: {
     tr: 'Öz değerlendirme zamanı',
