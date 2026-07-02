@@ -25,6 +25,7 @@ import { registerFinanceModule } from './modules/finance/index.js';
 import { registerPartiesModule } from './modules/finance/parties/index.js';
 import { registerHrModule } from './modules/hr/index.js';
 import { registerNotificationsModule } from './modules/notifications/index.js';
+import { registerPerformanceModule } from './modules/performance/index.js';
 import { registerProductionModule } from './modules/production/index.js';
 import { registerPurchasingModule } from './modules/purchasing/index.js';
 import { registerReportingModule } from './modules/reporting/index.js';
@@ -164,6 +165,12 @@ const expenseModule = registerExpenseModule(pool);
 const appStateModule = registerAppStateModule(pool);
 
 // ============================================================================
+// Performans modülü — HR performans dönem/değerlendirme SQL aynası,
+// modüler /v1/performance (kaynak-of-truth app-state blob'u; sync ile yansır)
+// ============================================================================
+const performanceModule = registerPerformanceModule(pool);
+
+// ============================================================================
 // Routes — /v1 prefix
 // ============================================================================
 const v1 = new Hono();
@@ -212,6 +219,7 @@ v1.route('/reports', reportingModule.router);
 v1.route('/purchasing', purchasingModule);
 v1.route('/expense', expenseModule);
 v1.route('/app-state', appStateModule);
+v1.route('/performance', performanceModule);
 
 // Companies + cells + invoices
 v1.route('/companies', companiesRoutes);
