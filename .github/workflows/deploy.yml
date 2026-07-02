@@ -51,24 +51,41 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Deploy (docker compose up)
-        run: docker compose up -d --build
+      # Canli stack bu makinede IKI compose projesi: 'api-server' (db+api, CI bunu
+      # gunceller) ve kok 'prometa-one' (frontend/ml — elle yonetilir, DOKUNMA:
+      # kokten 'up' ayni container_name'lerle isim cakismasi + cekilemeyen
+      # bitnami/kafka imaji yuzunden bu makinede calismaz). Gizli degerler
+      # (api-server/.env) repo'da yok; makinedeki kanonik kopyadan alinir —
+      # yoksa GUVENLE DURUR (varsayilan JWT/DB secret'lariyla api'yi yeniden
+      # yaratmak oturumlari ve sifreli veriyi bozar).
+      - name: Deploy (docker compose up — api-server projesi)
+        run: |
+          if [ ! -f api-server/.env ]; then
+            if [ -f /c/prometa-one/api-server/.env ]; then
+              cp /c/prometa-one/api-server/.env api-server/.env
+              echo ".env makinedeki kanonik kopyadan alindi."
+            else
+              echo "HATA: api-server/.env bulunamadi (repo'da gizli; makine kopyasi da yok). Deploy durduruldu." >&2
+              exit 1
+            fi
+          fi
+          docker compose -p api-server -f api-server/docker-compose.yml up -d --build postgres api
 
       - name: Migrate DB
         run: |
           # api saglikli olana kadar bekle, sonra migration'lari calistir (idempotent)
           for i in $(seq 1 30); do
-            if docker compose exec -T api curl -fsS http://localhost:3000/v1/health >/dev/null 2>&1; then
+            if docker compose -p api-server -f api-server/docker-compose.yml exec -T api curl -fsS http://localhost:3000/v1/health >/dev/null 2>&1; then
               echo "API hazir."
               break
             fi
             echo "API bekleniyor ($i/30)..."
             sleep 2
           done
-          docker compose exec -T api npm run migrate
+          docker compose -p api-server -f api-server/docker-compose.yml exec -T api npm run migrate
 
       - name: Servis durumu
-        run: docker compose ps
+        run: docker compose -p api-server -f api-server/docker-compose.yml ps
 
       - name: İşlem logu yaz
         if: always()
