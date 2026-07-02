@@ -31,8 +31,9 @@ export class ExpenseApiClient implements ExpenseApi {
     options?: { includeInactive?: boolean; search?: string },
   ): Promise<ExpenseCardsResponse> {
     const q = new URLSearchParams({ companyId: String(companyId) });
-    if (options?.includeInactive !== undefined)
-      q.set('includeInactive', String(options.includeInactive));
+    // Yalnız true iken gönder — eski backend z.coerce.boolean() "false"
+    // string'ini true sayıyordu (pasifler default listeye sızıyordu).
+    if (options?.includeInactive === true) q.set('includeInactive', 'true');
     if (options?.search !== undefined && options.search !== '') q.set('search', options.search);
     return this.request<ExpenseCardsResponse>(`/v1/expense/cards?${q.toString()}`);
   }
@@ -51,6 +52,13 @@ export class ExpenseApiClient implements ExpenseApi {
   deactivateExpenseCard(id: number, companyId: number): Promise<ExpenseCardDto> {
     return this.request<ExpenseCardDto>(
       `/v1/expense/cards/${String(id)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  deleteExpenseCard(id: number, companyId: number): Promise<void> {
+    return this.request<void>(
+      `/v1/expense/cards/${String(id)}?companyId=${String(companyId)}&hard=true`,
       { method: 'DELETE' },
     );
   }

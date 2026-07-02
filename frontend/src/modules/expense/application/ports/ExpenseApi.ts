@@ -66,6 +66,8 @@ export interface ExpenseApi {
   createExpenseCard(body: CreateExpenseCardBody): Promise<ExpenseCardDto>;
   updateExpenseCard(id: number, body: UpdateExpenseCardBody): Promise<ExpenseCardDto>;
   deactivateExpenseCard(id: number, companyId: number): Promise<ExpenseCardDto>;
+  /** Kalıcı silme — yalnız işlem görmemiş kartlar için (kural çağıranda). */
+  deleteExpenseCard(id: number, companyId: number): Promise<void>;
   bulkUpsertExpenseCards(body: BulkUpsertBody): Promise<BulkUpsertResult>;
   parseKasaImport(body: ParseKasaImportBody): Promise<KasaImportResult>;
 }

@@ -8,6 +8,7 @@ import {
   BulkUpsertExpenseCardsUseCase,
   CreateExpenseCardUseCase,
   DeactivateExpenseCardUseCase,
+  DeleteExpenseCardUseCase,
   ListExpenseCardsUseCase,
   UpdateExpenseCardUseCase,
 } from '../application/useCases/ExpenseCardUseCases.js';
@@ -156,6 +157,43 @@ describe('ExpenseCardUseCases', () => {
     const list = new ListExpenseCardsUseCase(repo);
     assert.equal((await list.execute({ companyId: 100 })).length, 0);
     assert.equal((await list.execute({ companyId: 100, includeInactive: true })).length, 1);
+  });
+
+  describe('Delete (kalıcı)', () => {
+    it('happy: kart tamamen silinir (includeInactive listesinde de yok)', async () => {
+      const create = new CreateExpenseCardUseCase(repo);
+      const c = await create.execute({ companyId: 100, name: 'Silinecek' });
+      const del = new DeleteExpenseCardUseCase(repo);
+      await del.execute({ companyId: 100, cardId: c.id });
+      const list = new ListExpenseCardsUseCase(repo);
+      assert.equal((await list.execute({ companyId: 100, includeInactive: true })).length, 0);
+    });
+
+    it('edge: olmayan kart → ExpenseCardNotFoundError', async () => {
+      const del = new DeleteExpenseCardUseCase(repo);
+      await assert.rejects(del.execute({ companyId: 100, cardId: 999 }), ExpenseCardNotFoundError);
+    });
+
+    it('edge: multi-tenant — başka şirketin kartı silinemez', async () => {
+      const create = new CreateExpenseCardUseCase(repo);
+      const c = await create.execute({ companyId: 100, name: 'X' });
+      const del = new DeleteExpenseCardUseCase(repo);
+      await assert.rejects(del.execute({ companyId: 200, cardId: c.id }), ExpenseCardNotFoundError);
+      const list = new ListExpenseCardsUseCase(repo);
+      assert.equal((await list.execute({ companyId: 100 })).length, 1);
+    });
+
+    it('happy: pasif kart da (işlemsizse) silinebilir', async () => {
+      const create = new CreateExpenseCardUseCase(repo);
+      const c = await create.execute({ companyId: 100, name: 'Pasif' });
+      await new DeactivateExpenseCardUseCase(repo, clock).execute({
+        companyId: 100,
+        cardId: c.id,
+      });
+      await new DeleteExpenseCardUseCase(repo).execute({ companyId: 100, cardId: c.id });
+      const list = new ListExpenseCardsUseCase(repo);
+      assert.equal((await list.execute({ companyId: 100, includeInactive: true })).length, 0);
+    });
   });
 
   describe('BulkUpsert', () => {

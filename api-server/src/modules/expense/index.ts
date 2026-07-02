@@ -15,6 +15,7 @@ import {
   BulkUpsertExpenseCardsUseCase,
   CreateExpenseCardUseCase,
   DeactivateExpenseCardUseCase,
+  DeleteExpenseCardUseCase,
   ListExpenseCardsUseCase,
   UpdateExpenseCardUseCase,
 } from './application/useCases/ExpenseCardUseCases.js';
@@ -32,6 +33,7 @@ export function registerExpenseModule(pool: Pool): ReturnType<typeof createExpen
     listExpenseCards: new ListExpenseCardsUseCase(cards),
     updateExpenseCard: new UpdateExpenseCardUseCase(cards, clock),
     deactivateExpenseCard: new DeactivateExpenseCardUseCase(cards, clock),
+    deleteExpenseCard: new DeleteExpenseCardUseCase(cards),
     bulkUpsertExpenseCards: new BulkUpsertExpenseCardsUseCase(cards),
     parseKasaImport: new ParseKasaImportUseCase(),
   };

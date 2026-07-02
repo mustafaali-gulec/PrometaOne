@@ -36,6 +36,10 @@ export type ExpenseLabelKey =
   | 'cards.edit'
   | 'cards.deactivate'
   | 'cards.deactivateConfirm'
+  | 'cards.delete'
+  | 'cards.deleteConfirm'
+  | 'cards.deleteBlocked'
+  | 'cards.err.delete'
   | 'cards.err.nameRequired'
   | 'cards.err.create'
   | 'cards.err.update'
@@ -232,6 +236,25 @@ const DICT: Record<ExpenseLabelKey, Record<Lang, string>> = {
     en: 'Are you sure you want to deactivate this expense card?',
     de: 'Möchten Sie diese Ausgabenkarte wirklich deaktivieren?',
     ar: 'هل أنت متأكد أنك تريد إلغاء تنشيط بطاقة المصروف هذه؟',
+  },
+  'cards.delete': { tr: 'Sil', en: 'Delete', de: 'Löschen', ar: 'حذف' },
+  'cards.deleteConfirm': {
+    tr: 'Bu gider kartı KALICI olarak silinecek (işlem görmemiş). Emin misiniz?',
+    en: 'This expense card will be PERMANENTLY deleted (no transactions). Are you sure?',
+    de: 'Diese Ausgabenkarte wird ENDGÜLTIG gelöscht (keine Bewegungen). Sind Sie sicher?',
+    ar: 'سيتم حذف بطاقة المصروف هذه نهائيًا (بدون حركات). هل أنت متأكد؟',
+  },
+  'cards.deleteBlocked': {
+    tr: 'İşlem gördüğü için silinemez — yalnızca pasifleştirilebilir.',
+    en: 'Cannot be deleted because it has transactions — it can only be deactivated.',
+    de: 'Kann nicht gelöscht werden, da Bewegungen vorhanden sind — nur Deaktivieren möglich.',
+    ar: 'لا يمكن حذفها لوجود حركات — يمكن إلغاء تنشيطها فقط.',
+  },
+  'cards.err.delete': {
+    tr: 'Gider kartı silinemedi',
+    en: 'Could not delete expense card',
+    de: 'Ausgabenkarte konnte nicht gelöscht werden',
+    ar: 'تعذر حذف بطاقة المصروف',
   },
   'cards.err.nameRequired': {
     tr: 'Gider kartı adı zorunlu',

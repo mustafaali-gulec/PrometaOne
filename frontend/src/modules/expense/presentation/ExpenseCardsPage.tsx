@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { FileText, Pencil, Trash2 } from 'lucide-react';
+import { Archive, FileText, Pencil, Trash2 } from 'lucide-react';
 
 import type {
   ExpenseCardAttributes,
@@ -84,6 +84,30 @@ export function ExpenseCardsPage({
       await refetch();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  /** Hangi kartlar işlem görmüş (kasa hareketi var) — kalıcı silme yasağı. */
+  const cardsWithMovements = useMemo(() => {
+    const s = new Set<number>();
+    for (const c of cards) {
+      if (movements.some((m) => movementMatchesCard(m, c))) s.add(c.id);
+    }
+    return s;
+  }, [cards, movements]);
+
+  const onDelete = async (card: ExpenseCardDto): Promise<void> => {
+    if (cardsWithMovements.has(card.id)) {
+      // Savunma katmanı — buton zaten devre dışı, yine de kural burada da uygulanır.
+      setError(el('cards.deleteBlocked', lang));
+      return;
+    }
+    if (!window.confirm(el('cards.deleteConfirm', lang))) return;
+    try {
+      await api.deleteExpenseCard(card.id, companyId);
+      await refetch();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : el('cards.err.delete', lang));
     }
   };
 
@@ -207,15 +231,34 @@ export function ExpenseCardsPage({
                         >
                           <Pencil size={13} />
                         </button>
-                        {c.active ? (
+                        {/* Kural: işlem gören kart silinemez (yalnız pasifleştirilir);
+                            işlem görmeyen kart kalıcı silinebilir. */}
+                        {c.active && cardsWithMovements.has(c.id) ? (
                           <button
                             onClick={() => void onDeactivate(c)}
                             title={el('cards.deactivate', lang)}
+                            style={iconBtn()}
+                          >
+                            <Archive size={13} />
+                          </button>
+                        ) : null}
+                        {cardsWithMovements.has(c.id) ? (
+                          <button
+                            disabled
+                            title={el('cards.deleteBlocked', lang)}
+                            style={{ ...iconBtnDanger(), opacity: 0.35, cursor: 'not-allowed' }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => void onDelete(c)}
+                            title={el('cards.delete', lang)}
                             style={iconBtnDanger()}
                           >
                             <Trash2 size={13} />
                           </button>
-                        ) : null}
+                        )}
                       </div>
                     </td>
                   </tr>

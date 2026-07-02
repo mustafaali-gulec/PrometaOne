@@ -15,6 +15,7 @@ import type {
   BulkUpsertExpenseCardsUseCase,
   CreateExpenseCardUseCase,
   DeactivateExpenseCardUseCase,
+  DeleteExpenseCardUseCase,
   ListExpenseCardsUseCase,
   UpdateExpenseCardUseCase,
 } from '../application/useCases/ExpenseCardUseCases.js';
@@ -27,6 +28,7 @@ export interface ExpenseRouterDeps {
   listExpenseCards: ListExpenseCardsUseCase;
   updateExpenseCard: UpdateExpenseCardUseCase;
   deactivateExpenseCard: DeactivateExpenseCardUseCase;
+  deleteExpenseCard: DeleteExpenseCardUseCase;
   bulkUpsertExpenseCards: BulkUpsertExpenseCardsUseCase;
   parseKasaImport: ParseKasaImportUseCase;
 }
@@ -35,6 +37,9 @@ export interface ExpenseRouterDeps {
 const direction = z.enum(['in', 'out']);
 const companyIdQ = z.object({ companyId: z.coerce.number().int().positive() });
 const idParam = z.object({ id: z.coerce.number().int().positive() });
+/** Sıkı query-boolean — z.coerce.boolean() "false" string'ini true yapar
+ *  (Boolean("false")===true tuzağı); burada yalnız 'true'/'false' kabul edilir. */
+const boolQ = z.enum(['true', 'false']).transform((v) => v === 'true');
 
 const bulkCard = z.object({
   code: z.string().max(40).nullable().optional(),
@@ -94,7 +99,7 @@ export function createExpenseRouter(deps: ExpenseRouterDeps): Hono {
     zValidator(
       'query',
       companyIdQ.extend({
-        includeInactive: z.coerce.boolean().optional(),
+        includeInactive: boolQ.optional(),
         search: z.string().optional(),
       }),
     ),
@@ -168,15 +173,22 @@ export function createExpenseRouter(deps: ExpenseRouterDeps): Hono {
     },
   );
 
+  // Öndeğer: pasifleştir (soft). `hard=true` → kalıcı sil. Kural: yalnız
+  // İŞLEM GÖRMEMİŞ kartlar kalıcı silinir — kasa hareketleri app-state
+  // blob'unda olduğundan bu kontrol FE'de yapılır (backend göremez).
   app.delete(
     '/cards/:id',
     requireWrite,
     zValidator('param', idParam),
-    zValidator('query', companyIdQ),
+    zValidator('query', companyIdQ.extend({ hard: boolQ.optional() })),
     async (c) => {
       const { id } = c.req.valid('param');
-      const { companyId } = c.req.valid('query');
+      const { companyId, hard } = c.req.valid('query');
       try {
+        if (hard === true) {
+          await deps.deleteExpenseCard.execute({ companyId, cardId: id });
+          return c.body(null, 204);
+        }
         const dto = await deps.deactivateExpenseCard.execute({ companyId, cardId: id });
         return c.json(dto);
       } catch (err) {

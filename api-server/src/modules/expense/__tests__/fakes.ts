@@ -49,6 +49,11 @@ export class InMemoryExpenseCardRepository implements ExpenseCardRepository {
     this.store.set(card.id, card);
   }
 
+  async delete(id: number, companyId: number): Promise<void> {
+    const c = this.store.get(id);
+    if (c && c.companyId === companyId) this.store.delete(id);
+  }
+
   async findById(id: number, companyId: number): Promise<ExpenseCard | null> {
     const c = this.store.get(id);
     return c && c.companyId === companyId ? c : null;

@@ -29,6 +29,9 @@ export interface ListExpenseCardsOptions {
 export interface ExpenseCardRepository {
   insert(input: NewExpenseCardInput): Promise<ExpenseCard>;
   update(card: ExpenseCard): Promise<void>;
+  /** Kalıcı silme — yalnız işlem görmemiş kartlar için (kural FE'de; kasa
+   *  hareketleri app-state blob'unda olduğundan backend doğrulayamaz). */
+  delete(id: number, companyId: number): Promise<void>;
   findById(id: number, companyId: number): Promise<ExpenseCard | null>;
   findByCode(code: string, companyId: number): Promise<ExpenseCard | null>;
   list(options: ListExpenseCardsOptions): Promise<ReadonlyArray<ExpenseCard>>;

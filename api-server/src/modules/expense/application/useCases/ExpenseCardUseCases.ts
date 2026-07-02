@@ -156,6 +156,26 @@ export class DeactivateExpenseCardUseCase {
   }
 }
 
+export interface DeleteExpenseCardInput {
+  companyId: number;
+  cardId: number;
+}
+
+/**
+ * Kalıcı silme — işlem görmemiş kartlar için. "İşlem görmüş mü" kuralı
+ * FE'dedir (kasa hareketleri app-state blob'unda; backend göremez). İşlem
+ * gören kartlar için DeactivateExpenseCardUseCase kullanılır.
+ */
+export class DeleteExpenseCardUseCase {
+  constructor(private readonly cards: ExpenseCardRepository) {}
+
+  async execute(input: DeleteExpenseCardInput): Promise<void> {
+    const card = await this.cards.findById(input.cardId, input.companyId);
+    if (!card) throw new ExpenseCardNotFoundError(input.cardId);
+    await this.cards.delete(input.cardId, input.companyId);
+  }
+}
+
 export interface BulkUpsertCardInput {
   code?: string | null | undefined;
   name: string;

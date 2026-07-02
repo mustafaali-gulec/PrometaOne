@@ -81,6 +81,13 @@ export class PgExpenseCardRepository implements ExpenseCardRepository {
     );
   }
 
+  async delete(id: number, companyId: number): Promise<void> {
+    await this.db.query(`DELETE FROM expense_cards WHERE id = $1 AND company_id = $2`, [
+      id,
+      companyId,
+    ]);
+  }
+
   async findById(id: number, companyId: number): Promise<ExpenseCard | null> {
     const r = await this.db.query<ExpenseCardRow>(
       `SELECT ${COLS} FROM expense_cards WHERE id = $1 AND company_id = $2 LIMIT 1`,
