@@ -1,0 +1,96 @@
+diff --git a/frontend/src/App.jsx b/frontend/src/App.jsx
+index c654a46..74bcfd2 100644
+--- a/frontend/src/App.jsx
++++ b/frontend/src/App.jsx
+@@ -12063,11 +12063,79 @@ export default function App() {
+   };
+ 
+   /* ---- Persist data ---- */
++  // Veri blob'u backend'e (PostgreSQL JSONB, /v1/app-state) yazılır; localStorage
++  // yalnızca çevrimdışı önbellek (best-effort). Böylece ~5MB localStorage kotası
++  // dolsa bile kayıt backend'e gider (kota-bağımsız) ve tarayıcılar arası paylaşılır.
++  const BACKEND_DATA_KEY = "promet:data";
++  const getAccessToken = () => {
++    try { return typeof localStorage !== "undefined" ? localStorage.getItem("promet_access_token") : null; }
++    catch { return null; }
++  };
++  const persistData = async (blob) => {
++    // 1) Yerel önbellek (kota dolsa bile sorun değil — backend asıl kaynak)
++    let localOk = false;
++    try { localOk = await S.set("promet:data", blob); } catch { localOk = false; }
++    // 2) Backend (token varsa)
++    const token = getAccessToken();
++    if (!token) return localOk;
++    try {
++      const res = await fetch("/v1/app-state/" + encodeURIComponent(BACKEND_DATA_KEY), {
++        method: "PUT",
++        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
++        body: JSON.stringify({ value: blob }),
++      });
++      if (res.ok) return true;        // backend kalıcı yazdı → başarı (localStorage kotası önemsiz)
++      return localOk;                  // backend hatası → yerel sonuca düş
++    } catch {
++      return localOk;                  // backend erişilemez (çevrimdışı) → yerel önbellek
++    }
++  };
++
++  // Giriş sonrası backend'deki blob'u benimser; backend boşsa (404) mevcut yerel
++  // veriyi yukarı taşır (migration, veri kaybı yok). Backend yoksa yerelle devam.
++  const syncDataFromBackend = async () => {
++    const token = getAccessToken();
++    if (!token) return;
++    try {
++      const res = await fetch("/v1/app-state/" + encodeURIComponent(BACKEND_DATA_KEY), {
++        headers: { Authorization: `Bearer ${token}` },
++      });
++      if (res.status === 404) {
++        await persistData(data);       // backend'i mevcut yerel veriyle tohumla
++        return;
++      }
++      if (res.ok) {
++        const j = await res.json();
++        const v = j?.value;
++        // Sadece geçerli görünen blob'u benimse (boş/bozuk yanıt yereli ezmesin)
++        if (v && typeof v === "object" && (v.companyData || v.companies || v.activeCompanyId !== undefined)) {
++          const remote = migrateLegacyData(v).data;
++          setData(remote);
++          try { await S.set("promet:data", remote); } catch {}
++        }
++      }
++    } catch {
++      // çevrimdışı → yerel veriyle devam
++    }
++  };
++
+   // Component'ların onChange ile gönderdiği düz next'i tekrar çoklu-şirket yapısına yazar
+   const saveData = async (next) => {
+     const merged = updateCompanyData(data, next);
+     setData(merged);
+-    await S.set("promet:data", merged);
++    const ok = await persistData(merged);
++    // persistData hem backend hem localStorage başarısızsa false döner → sessiz
++    // veri kaybını önlemek için kullanıcıya bildir.
++    if (!ok) {
++      notify(
++        lang === "en" ? "Could not save — storage unavailable. Your change was NOT persisted."
++        : lang === "de" ? "Speichern fehlgeschlagen — Speicher nicht verfügbar. Änderung NICHT gespeichert."
++        : lang === "ar" ? "تعذّر الحفظ — التخزين غير متاح. لم يتم حفظ التغيير."
++        : "Kaydedilemedi — depolama erişilemiyor. Değişiklik KALICI OLARAK yazılamadı.",
++        "err"
++      );
++    }
++    return ok;
+   };
+ 
+   /* ---- Auth ---- */
+@@ -12099,6 +12167,10 @@ export default function App() {
+       // Backend yoksa veya kimlik farklıysa yerel login etkilenmesin
+     }
+ 
++    // Backend app-state'ten veri blob'unu senkronla (localStorage kota sınırını
++    // aşar + tarayıcılar arası paylaşım). Backend yoksa yerel veriyle devam eder.
++    await syncDataFromBackend();
++
+     // Kullanıcının tercih ettiği dili aktive et (eğer varsa)
+     if (u.preferredLanguage && LANGUAGES[u.preferredLanguage]) {
+       setLang(u.preferredLanguage);
