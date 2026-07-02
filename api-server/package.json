@@ -13,8 +13,8 @@
     "typecheck": "tsc --noEmit",
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
-    "test": "tsx --test \"src/**/*.test.ts\"",
-    "test:integration": "tsx --test \"src/**/*.itest.ts\""
+    "test": "node scripts/run-tests.mjs .test.ts",
+    "test:integration": "node scripts/run-tests.mjs .itest.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",
