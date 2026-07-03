@@ -80,6 +80,18 @@ export class CashMovementNotFoundError extends ConstructionError {
   }
 }
 
+export class MeasurementNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Yeşil defter kaydı bulunamadı: ${id}`);
+  }
+}
+
+export class AttachmentNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Ataşman bulunamadı: ${id}`);
+  }
+}
+
 export class PaymentNotFoundError extends ConstructionError {
   constructor(id: number) {
     super(`Ödeme bulunamadı: ${id}`);

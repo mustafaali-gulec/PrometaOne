@@ -9,6 +9,7 @@ import { HTTPException } from 'hono/http-exception';
 
 import {
   AdvanceNotFoundError,
+  AttachmentNotFoundError,
   CashMovementNotFoundError,
   ContractNotFoundError,
   ConstructionValidationError,
@@ -24,6 +25,7 @@ import {
   MaterialNotFoundError,
   MaterialRequestNotEditableError,
   MaterialRequestNotFoundError,
+  MeasurementNotFoundError,
   PaymentNotFoundError,
   PersonnelNotFoundError,
   PozNotFoundError,
@@ -49,7 +51,9 @@ export function mapConstructionError(err: unknown): never {
     err instanceof MaterialRequestNotFoundError ||
     err instanceof PersonnelNotFoundError ||
     err instanceof MachineNotFoundError ||
-    err instanceof TimesheetNotFoundError
+    err instanceof TimesheetNotFoundError ||
+    err instanceof MeasurementNotFoundError ||
+    err instanceof AttachmentNotFoundError
   ) {
     throw new HTTPException(404, { message: err.message });
   }
