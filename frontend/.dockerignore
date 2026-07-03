@@ -1,0 +1,10 @@
+# Frontend Docker build baglami — gereksiz/agir dosyalar haric
+node_modules
+dist
+.env
+.env.*
+!.env.example
+coverage
+playwright-report
+test-results
+*.log

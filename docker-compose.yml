@@ -71,6 +71,7 @@ services:
       SMTP_FROM: ${SMTP_FROM:-M Suite <noreply@prometahr.com>}
       SMTP_SECURE: ${SMTP_SECURE:-false}
       ENABLE_CRON: ${ENABLE_CRON:-true}
+      PROMETA_FINGERPRINT: ${PROMETA_FINGERPRINT:-}
       ML_SERVICE_URL: http://ml-service:8001
       KAFKA_BROKERS: kafka:9092
       KAFKA_CLIENT_ID: api-server

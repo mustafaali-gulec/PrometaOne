@@ -1,0 +1,226 @@
+# =============================================================================
+# PROMETA ONE — URETIM (PRODUCTION) Docker Compose
+# Senaryo: 1 SUNUCU + N TERMINAL (terminaller tarayicidan http://<SUNUCU_IP> acar)
+#
+# Kullanim (kurulum sihirbazi bunlari otomatik yapar — install/Kurulum-Sunucu.ps1):
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod exec api npm run migrate
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod exec api npm run seed   # opsiyonel, ilk kurulum
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod exec api npm run license:activate -- /license/license.lic
+#
+# Erisim:
+#   Web (tum terminaller): http://<SUNUCU_IP>:${HTTP_PORT:-80}
+#   Saglik:                http://localhost:${HTTP_PORT:-80}/v1/health
+#   Lisans durumu:         http://localhost:${HTTP_PORT:-80}/v1/license/status
+#
+# Guvenlik notlari (dev compose'dan farklar):
+#   - PostgreSQL ve API host'a PORT ACMAZ — sadece dahili Docker aginda.
+#   - Adminer bilerek YOK (uretimde DB arayuzu yayinlanmaz).
+#   - ml-service'in 8001 portu simdilik ACIK: App.jsx bir noktada
+#     hostname:8001'e dogrudan istek atiyor (AI feedback). O cagri
+#     /api/ml proxy'sine tasininca bu port kapatilabilir.
+#   - Santiye (kafka + construction-db + construction-service) OPSIYONEL:
+#     --profile construction ile etkinlesir.
+#
+# Degiskenler .env.prod'dan okunur: POSTGRES_PASSWORD, JWT_SECRET,
+# JWT_REFRESH_SECRET, PROMETA_FINGERPRINT, HTTP_PORT, CORS_ORIGINS, SMTP*.
+# =============================================================================
+
+# Sabit proje adi: musteri paketi hangi klasore acilirsa acilsin container /
+# volume / image adlari ayni kalir (docker load ile gelen image'lar bulunur).
+name: prometa-one
+
+services:
+  # === PostgreSQL (sadece dahili ag — host portu YOK) ===
+  postgres:
+    image: postgres:16-alpine
+    container_name: prometa-one-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-prometa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env.prod icinde tanimli olmali}
+      POSTGRES_DB: ${POSTGRES_DB:-prometa_one}
+      TZ: Europe/Istanbul
+      PGTZ: Europe/Istanbul
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-prometa} -d ${POSTGRES_DB:-prometa_one}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - prometa
+
+  # === Backend API (api-server — Hono + tsx; host portu YOK, nginx proxy'ler) ===
+  api:
+    build:
+      context: ./api-server
+      dockerfile: Dockerfile
+    image: prometa-one/api:latest
+    container_name: prometa-one-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      DATABASE_URL: postgres://${POSTGRES_USER:-prometa}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env.prod icinde tanimli olmali}@postgres:5432/${POSTGRES_DB:-prometa_one}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET .env.prod icinde tanimli olmali}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET .env.prod icinde tanimli olmali}
+      JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-15m}
+      JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES:-7d}
+      APP_URL: ${APP_URL:-http://localhost}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
+      TCMB_API_KEY: ${TCMB_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      EINVOICE_MASTER_KEY: ${EINVOICE_MASTER_KEY:-}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-Prometa One <noreply@prometahr.com>}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      ENABLE_CRON: ${ENABLE_CRON:-true}
+      ML_SERVICE_URL: http://ml-service:8001
+      # Kafka opsiyonel: bos -> producer no-op, consumer baslamaz.
+      # 'construction' profili etkinse .env.prod'da KAFKA_BROKERS=kafka:9092 yapin.
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-}
+      KAFKA_CLIENT_ID: api-server
+      # Lisans: sunucu donanim kimligi (kurulum sihirbazi hesaplar ve .env.prod'a yazar)
+      PROMETA_FINGERPRINT: ${PROMETA_FINGERPRINT:-}
+      TZ: Europe/Istanbul
+    volumes:
+      # Lisans dosyasi (license.lic) — salt okunur mount; aktivasyon:
+      #   exec api npm run license:activate -- /license/license.lic
+      - ./license:/license:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - prometa
+
+  # === Web (nginx: SPA + reverse proxy — tek yayinlanan giris noktasi) ===
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    image: prometa-one/web:latest
+    container_name: prometa-one-web
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    depends_on:
+      - api
+    networks:
+      - prometa
+
+  # === ML Service (Python + FastAPI) ===
+  # 8001 host portu App.jsx'teki dogrudan hostname:8001 cagrisi icin acik (bkz. ust not).
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    image: prometa-one/ml:latest
+    container_name: prometa-one-ml
+    restart: unless-stopped
+    environment:
+      MODEL_DIR: /app/models_data
+      TZ: Europe/Istanbul
+    ports:
+      - "8001:8001"
+    volumes:
+      # Egitilen modeller kalici — kaynak kod MOUNT EDILMEZ (image'dan calisir)
+      - ml_models_prod:/app/models_data
+    networks:
+      - prometa
+
+  # ===========================================================================
+  # OPSIYONEL: Santiye Yonetimi ('construction' profili)
+  #   docker compose -f docker-compose.prod.yml --env-file .env.prod \
+  #     --profile construction up -d
+  # NOT: Musteri paketinde bu image'lar varsayilan tarball'a dahil DEGILDIR
+  # (tools/package-release.ps1 -IncludeConstruction ile eklenir).
+  # ===========================================================================
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: prometa-one-kafka
+    restart: unless-stopped
+    profiles: ["construction"]
+    environment:
+      KAFKA_CFG_NODE_ID: "1"
+      KAFKA_CFG_PROCESS_ROLES: "controller,broker"
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CFG_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
+      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+      TZ: Europe/Istanbul
+    volumes:
+      - kafka_data_prod:/bitnami/kafka
+    networks:
+      - prometa
+
+  construction-db:
+    image: postgres:16-alpine
+    container_name: prometa-one-construction-db
+    restart: unless-stopped
+    profiles: ["construction"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-prometa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env.prod icinde tanimli olmali}
+      POSTGRES_DB: prometa_construction
+      TZ: Europe/Istanbul
+      PGTZ: Europe/Istanbul
+    volumes:
+      - construction_db_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-prometa} -d prometa_construction"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - prometa
+
+  construction-service:
+    build:
+      context: ./construction-service
+      dockerfile: Dockerfile
+    image: prometa-one/construction:latest
+    container_name: prometa-one-construction
+    restart: unless-stopped
+    profiles: ["construction"]
+    # Dev compose env_file (./construction-service/.env) kullanir; uretimde o
+    # dosya musteri paketinde OLMAYACAGI icin her sey environment ile verilir.
+    # JWT_SECRET monolit ile AYNI olmali (stateless token dogrulama).
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      HOST: 0.0.0.0
+      # DB-per-service: kendi Postgres'i (construction-db). Acilista migration
+      # otomatik kosar (Dockerfile CMD icinde migrate.js var).
+      DATABASE_URL: postgres://${POSTGRES_USER:-prometa}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env.prod icinde tanimli olmali}@construction-db:5432/prometa_construction
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET .env.prod icinde tanimli olmali}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-}
+      KAFKA_CLIENT_ID: construction-service
+      KAFKA_TOPIC_PREFIX: construction
+      TZ: Europe/Istanbul
+    depends_on:
+      construction-db:
+        condition: service_healthy
+    networks:
+      - prometa
+
+networks:
+  prometa:
+    driver: bridge
+
+volumes:
+  postgres_data_prod:
+  ml_models_prod:
+  construction_db_data_prod:
+  kafka_data_prod:

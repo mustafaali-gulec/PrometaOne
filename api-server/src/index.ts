@@ -24,6 +24,7 @@ import { registerEInvoiceModule } from './modules/finance/einvoice/index.js';
 import { registerFinanceModule } from './modules/finance/index.js';
 import { registerPartiesModule } from './modules/finance/parties/index.js';
 import { registerHrModule } from './modules/hr/index.js';
+import { registerLicensingModule } from './modules/licensing/index.js';
 import { registerNotificationsModule } from './modules/notifications/index.js';
 import { registerPerformanceModule } from './modules/performance/index.js';
 import { registerProductionModule } from './modules/production/index.js';
@@ -171,9 +172,21 @@ const appStateModule = registerAppStateModule(pool);
 const performanceModule = registerPerformanceModule(pool);
 
 // ============================================================================
+// Lisanslama modülü — Ed25519 imzalı license.lic doğrulama + koltuk sınırı,
+// modüler /v1/license. licenseGuard aşağıda TÜM /v1 route'larından önce bağlanır
+// (muaf: /health, /license, /auth).
+// ============================================================================
+const licensingModule = registerLicensingModule(pool);
+
+// ============================================================================
 // Routes — /v1 prefix
 // ============================================================================
 const v1 = new Hono();
+
+// LICENSE GUARD — route kayıtlarından ÖNCE bağlanmalı (Hono middleware'i
+// yalnız kendinden sonra kaydedilen route'lara uygular). Lisans yok/geçersiz/
+// süresi dolmuşsa 403 döner; /health, /license ve /auth muaftır.
+v1.use('*', licensingModule.licenseGuard);
 
 v1.get('/health', async (c) => {
   const dbOk = await healthCheck();
@@ -199,6 +212,9 @@ v1.get('/', (c) =>
 
 // Auth — YENI moduler endpoint (Faz 3 / PR 4 cutover)
 v1.route('/auth', authModule.router);
+
+// Lisanslama — durum (public) + aktivasyon/terminal yönetimi (admin)
+v1.route('/license', licensingModule.router);
 v1.route('/hr', hrModule.router);
 v1.route('/access', accessModule.router);
 v1.route('/finance', financeModule);

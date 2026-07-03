@@ -1,3 +1,4 @@
+import './license.js'; // lisans denetimi + terminal header fetch patch'i (App'ten ÖNCE kurulmalı)
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';

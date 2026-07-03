@@ -116,6 +116,14 @@ export default [
     },
   },
 
+  // 3a) Frontend duz JS (framework'suz tarayici kodu, orn. license.js)
+  {
+    files: ['frontend/src/**/*.js'],
+    languageOptions: {
+      globals: { ...globals.browser },
+    },
+  },
+
   // 4) api-server (Node env + import order)
   {
     files: ['api-server/src/**/*.ts'],
