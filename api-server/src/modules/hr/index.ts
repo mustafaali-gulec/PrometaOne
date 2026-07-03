@@ -469,6 +469,7 @@ import { PgApplicationStageHistoryRepository as _PgApplicationStageHistoryReposi
 import { PgAssetRepository as _PgAssetRepository } from './infrastructure/persistence/PgAssetRepository.js';
 import { PgCandidateRepository as _PgCandidateRepository } from './infrastructure/persistence/PgCandidateRepository.js';
 import { PgDepartmentRepository as _PgDepartmentRepository } from './infrastructure/persistence/PgDepartmentRepository.js';
+import { PgEmployeeDocumentRepository as _PgEmployeeDocumentRepository } from './infrastructure/persistence/PgEmployeeDocumentRepository.js';
 import { PgEmployeeRepository as _PgEmployeeRepository } from './infrastructure/persistence/PgEmployeeRepository.js';
 import { PgLeaveRequestRepository as _PgLeaveRequestRepository } from './infrastructure/persistence/PgLeaveRequestRepository.js';
 import { PgOrgUnitRepository as _PgOrgUnitRepository } from './infrastructure/persistence/PgOrgUnitRepository.js';
@@ -476,6 +477,7 @@ import { PgPayrollRepository as _PgPayrollRepository } from './infrastructure/pe
 import { PgPositionRepository as _PgPositionRepository } from './infrastructure/persistence/PgPositionRepository.js';
 import { PgEmployeeNumberGenerator as _PgEmployeeNumberGenerator } from './infrastructure/sequences/PgEmployeeNumberGenerator.js';
 import { PgUnitOfWork as _PgUnitOfWork } from './infrastructure/unitOfWork/PgUnitOfWork.js';
+import { createHrDocumentsRouter as _createHrDocumentsRouter } from './presentation/documentRoutes.js';
 import { createHrRouter as _createHrRouter } from './presentation/routes.js';
 
 export interface HrModuleDeps {
@@ -506,6 +508,7 @@ export function registerHrModule(deps: HrModuleDeps): RegisteredHrModule {
   const leaveRequests = new _PgLeaveRequestRepository(deps.pool);
   const payroll = new _PgPayrollRepository(deps.pool);
   const assets = new _PgAssetRepository(deps.pool);
+  const employeeDocuments = new _PgEmployeeDocumentRepository(deps.pool);
   const audit = new _PgAuditLogger(deps.pool);
   const empNoGen = new _PgEmployeeNumberGenerator(deps.pool, deps.employeeNumberOptions ?? {});
   const userLookup = new _AuthUserLookupAdapter(deps.authUserRepository);
@@ -653,6 +656,9 @@ export function registerHrModule(deps: HrModuleDeps): RegisteredHrModule {
     listAssets,
     getAsset,
   });
+
+  // Özlük belge yönetimi — /v1/hr/documents (BYTEA saklama, soft-ref employee_ref).
+  router.route('/documents', _createHrDocumentsRouter(employeeDocuments));
 
   void stageHistory;
   return { router };
