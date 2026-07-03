@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Archive, FileText, Pencil, Trash2 } from 'lucide-react';
 
+import { confirmDialog } from '../../../shared/feedback';
 import type {
   ExpenseCardAttributes,
   ExpenseCardDto,
@@ -78,7 +79,8 @@ export function ExpenseCardsPage({
   }, [refetch]);
 
   const onDeactivate = async (card: ExpenseCardDto): Promise<void> => {
-    if (!window.confirm(el('cards.deactivateConfirm', lang))) return;
+    if (!(await confirmDialog({ title: el('cards.deactivateConfirm', lang), tone: 'danger' })))
+      return;
     try {
       await api.deactivateExpenseCard(card.id, companyId);
       await refetch();
@@ -102,7 +104,7 @@ export function ExpenseCardsPage({
       setError(el('cards.deleteBlocked', lang));
       return;
     }
-    if (!window.confirm(el('cards.deleteConfirm', lang))) return;
+    if (!(await confirmDialog({ title: el('cards.deleteConfirm', lang), tone: 'danger' }))) return;
     try {
       await api.deleteExpenseCard(card.id, companyId);
       await refetch();

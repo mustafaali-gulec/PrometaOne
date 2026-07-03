@@ -56,7 +56,16 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
         .catch((e) => {
           if (!alive) return;
           setPreviewSql('');
-          setPreviewErr(e.message || 'derleme hatası');
+          setPreviewErr(
+            e.message ||
+              (lang === 'en'
+                ? 'compile error'
+                : lang === 'de'
+                  ? 'Kompilierfehler'
+                  : lang === 'ar'
+                    ? 'خطأ في الترجمة'
+                    : 'derleme hatası'),
+          );
         });
     }, 400);
     return () => {
@@ -166,7 +175,17 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
                   value={c.col}
                   onChange={(e) => setCol(i, { col: e.target.value })}
                 >
-                  {c.agg === 'count' && <option value="*">* (tümü)</option>}
+                  {c.agg === 'count' && (
+                    <option value="*">
+                      {lang === 'en'
+                        ? '* (all)'
+                        : lang === 'de'
+                          ? '* (alle)'
+                          : lang === 'ar'
+                            ? '* (الكل)'
+                            : '* (tümü)'}
+                    </option>
+                  )}
                   {colOptions.map((o) => (
                     <option key={o} value={o}>
                       {o}

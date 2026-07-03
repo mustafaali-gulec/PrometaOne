@@ -123,7 +123,10 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
       const res = await (preview ? api.preview(body) : api.run(body));
       setResult(res);
     } catch (e) {
-      setError(e.message || 'Hata');
+      setError(
+        e.message ||
+          (lang === 'en' ? 'Error' : lang === 'de' ? 'Fehler' : lang === 'ar' ? 'خطأ' : 'Hata'),
+      );
       setResult(null);
     } finally {
       setRunning(false);
@@ -161,7 +164,16 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
         .then(setSaved)
         .catch(() => {});
     } catch (e) {
-      setError(e.message || 'Kaydedilemedi');
+      setError(
+        e.message ||
+          (lang === 'en'
+            ? 'Could not save'
+            : lang === 'de'
+              ? 'Speichern fehlgeschlagen'
+              : lang === 'ar'
+                ? 'تعذر الحفظ'
+                : 'Kaydedilemedi'),
+      );
     }
   };
 
@@ -469,7 +481,15 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
               style={{ width: '100%', minHeight: 150, fontSize: 12, resize: 'vertical' }}
               value={sql}
               onChange={(e) => setSql(e.target.value)}
-              placeholder="SELECT ... ( :parametre ile parametre tanımlayın )"
+              placeholder={
+                lang === 'en'
+                  ? 'SELECT ... ( define parameters with :param )'
+                  : lang === 'de'
+                    ? 'SELECT ... ( Parameter mit :param definieren )'
+                    : lang === 'ar'
+                      ? 'SELECT ... ( عرّف المعاملات بـ :param )'
+                      : 'SELECT ... ( :parametre ile parametre tanımlayın )'
+              }
             />
             {params.length > 0 && (
               <div

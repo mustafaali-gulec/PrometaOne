@@ -49,10 +49,13 @@ export interface ConfirmOptions {
   confirmLabel?: string;
   cancelLabel?: string;
   tone?: ConfirmTone;
+  /** Verilirse diyalog tek satırlık metin girişi gösterir (promptDialog). */
+  input?: { placeholder?: string; defaultValue?: string };
 }
 
 /** Store'da bekleyen onay isteği — sonucu Promise'e bağlar. */
 export interface ConfirmRequest extends ConfirmOptions {
   id: string;
-  resolve: (ok: boolean) => void;
+  /** input'lu isteklerde value onaylanan giriş metnidir; onaysızda undefined. */
+  resolve: (ok: boolean, value?: string) => void;
 }

@@ -4,7 +4,7 @@
    Native confirm() yerine tema-uyumlu, erişilebilir onay diyaloğu.
    Aynı anda tek diyalog. z-index uygulama modallarının (z-50) üstünde.
 ===================================================================== */
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 
 import { pick } from './messages';
@@ -14,32 +14,46 @@ export function ConfirmDialog(): ReactElement | null {
   const req = useConfirmRequest();
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [inputValue, setInputValue] = useState('');
 
   const finish = useCallback(
     (ok: boolean) => {
-      if (req) req.resolve(ok);
+      if (req) req.resolve(ok, req.input ? inputValue : undefined);
       setConfirmRequest(null);
     },
-    [req],
+    [req, inputValue],
   );
 
   const isDanger = (req?.tone ?? 'default') === 'danger';
 
   useEffect(() => {
     if (!req) return;
-    // Yıkıcı işlemde kazara onaylamayı azaltmak için odağı "Vazgeç"e ver.
-    const focusTarget = isDanger ? cancelRef.current : confirmRef.current;
+    setInputValue(req.input?.defaultValue ?? '');
+    // Girişli diyalogda odak input'a; yıkıcı işlemde kazara onaylamayı
+    // azaltmak için odağı "Vazgeç"e ver.
+    const focusTarget = req.input
+      ? inputRef.current
+      : isDanger
+        ? cancelRef.current
+        : confirmRef.current;
     focusTarget?.focus();
+  }, [req, isDanger]);
 
+  useEffect(() => {
+    if (!req) return;
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
         e.preventDefault();
+        // Capture aşamasında kes: alttaki uygulama Modal'ının document-keydown
+        // onClose'u tetiklenmesin (ESC yalnız bu diyaloğu kapatır).
+        e.stopPropagation();
         finish(false);
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [req, isDanger, finish]);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [req, finish]);
 
   if (!req) return null;
 
@@ -104,6 +118,33 @@ export function ConfirmDialog(): ReactElement | null {
           >
             {req.description}
           </div>
+        )}
+
+        {req.input && (
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            placeholder={req.input.placeholder}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                finish(true);
+              }
+            }}
+            style={{
+              marginTop: 12,
+              width: '100%',
+              padding: '8px 10px',
+              fontSize: 13.5,
+              color: 'var(--ink)',
+              background: 'var(--bg-alt)',
+              border: '1px solid var(--line-strong)',
+              borderRadius: 'var(--radius-md, 6px)',
+              outline: 'none',
+            }}
+          />
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>

@@ -16,7 +16,8 @@ const esc = (s) =>
   );
 
 export function buildReportHtml({ result, viz = {}, layout = {}, lang = 'tr' }) {
-  const tr = lang !== 'en';
+  const T4 = (trS, en, de, ar) =>
+    lang === 'en' ? en : lang === 'de' ? de : lang === 'ar' ? ar : trS;
   const colCfg = viz.columns || {};
   const cfgOf = (k) => colCfg[k] || {};
   const colIndex = Object.fromEntries(result.columns.map((c, i) => [c.key, i]));
@@ -26,11 +27,11 @@ export function buildReportHtml({ result, viz = {}, layout = {}, lang = 'tr' }) 
   const paper = layout.paper || 'A4';
   const orientation = layout.orientation === 'landscape' ? 'landscape' : 'portrait';
   const m = layout.margins || { top: 18, right: 18, bottom: 18, left: 18 };
-  const title = layout.title || (tr ? 'Rapor' : 'Report');
+  const title = layout.title || T4('Rapor', 'Report', 'Bericht', 'تقرير');
   const company = layout.companyName || '';
   const footer = layout.footer || '';
   const groupBy = layout.groupBy && colIndex[layout.groupBy] !== undefined ? layout.groupBy : '';
-  const today = new Date().toLocaleDateString('tr-TR');
+  const today = new Date().toLocaleDateString(T4('tr-TR', 'en-US', 'de-DE', 'ar'));
 
   const rowsObj = result.rows.map((r) =>
     Object.fromEntries(result.columns.map((c, i) => [c.key, r[i]])),
@@ -69,21 +70,25 @@ export function buildReportHtml({ result, viz = {}, layout = {}, lang = 'tr' }) 
       const label = cfgOf(groupBy).label || groupBy;
       body += `<tr class="grp"><td colspan="${visibleCols.length}">${esc(label)}: ${esc(g)}</td></tr>`;
       groups[g].forEach((o) => (body += renderRow(o)));
-      if (subtotalKeys.length) body += sumRow(groups[g], tr ? 'Ara Toplam' : 'Subtotal');
+      if (subtotalKeys.length)
+        body += sumRow(groups[g], T4('Ara Toplam', 'Subtotal', 'Zwischensumme', 'مجموع فرعي'));
     }
   } else {
     rowsObj.forEach((o) => (body += renderRow(o)));
   }
-  if (subtotalKeys.length) body += sumRow(rowsObj, tr ? 'Genel Toplam' : 'Grand Total');
+  if (subtotalKeys.length)
+    body += sumRow(rowsObj, T4('Genel Toplam', 'Grand Total', 'Gesamtsumme', 'المجموع الكلي'));
 
   const meta = [
-    layout.showDate !== false ? `${tr ? 'Tarih' : 'Date'}: ${today}` : '',
-    layout.preparedBy ? `${tr ? 'Hazırlayan' : 'By'}: ${esc(layout.preparedBy)}` : '',
+    layout.showDate !== false ? `${T4('Tarih', 'Date', 'Datum', 'التاريخ')}: ${today}` : '',
+    layout.preparedBy
+      ? `${T4('Hazırlayan', 'By', 'Erstellt von', 'أعدّه')}: ${esc(layout.preparedBy)}`
+      : '',
   ]
     .filter(Boolean)
     .join('<br>');
 
-  return `<!doctype html><html lang="${tr ? 'tr' : 'en'}"><head><meta charset="utf-8"><title>${esc(title)}</title>
+  return `<!doctype html><html lang="${lang}"${lang === 'ar' ? ' dir="rtl"' : ''}><head><meta charset="utf-8"><title>${esc(title)}</title>
 <style>
   @page { size: ${paper} ${orientation}; margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm; }
   * { box-sizing: border-box; }

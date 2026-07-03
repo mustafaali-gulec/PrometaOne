@@ -7,6 +7,7 @@
  */
 import { useState } from 'react';
 
+import { confirmDialog } from '../../../../shared/feedback';
 import type { CustomRoleDto, RoleGrantDto, SubjectType } from '../../application/dto/AccessDtos';
 import type { CreateGrantBody } from '../../application/ports/AccessApi';
 
@@ -96,9 +97,19 @@ export function GrantsManager({
   }
 
   async function handleDelete(grant: RoleGrantDto): Promise<void> {
+    const L = (typeof window !== 'undefined' && window.__PROMETA_LANG__) || 'tr';
     if (
-      typeof window !== 'undefined' &&
-      !window.confirm(`"${roleName(grant.roleId)}" atamasi silinsin mi?`)
+      !(await confirmDialog({
+        title:
+          L === 'en'
+            ? `Delete grant "${roleName(grant.roleId)}"?`
+            : L === 'de'
+              ? `Zuweisung "${roleName(grant.roleId)}" löschen?`
+              : L === 'ar'
+                ? `حذف تعيين "${roleName(grant.roleId)}"؟`
+                : `"${roleName(grant.roleId)}" ataması silinsin mi?`,
+        tone: 'danger',
+      }))
     ) {
       return;
     }

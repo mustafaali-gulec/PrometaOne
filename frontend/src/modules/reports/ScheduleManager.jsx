@@ -82,7 +82,10 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
       setRecipients('');
       reload();
     } catch (e) {
-      setErr(e.message || 'Hata');
+      setErr(
+        e.message ||
+          (lang === 'en' ? 'Error' : lang === 'de' ? 'Fehler' : lang === 'ar' ? 'خطأ' : 'Hata'),
+      );
     } finally {
       setBusy(false);
     }
@@ -200,7 +203,17 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
                           : lang === 'ar'
                             ? 'الأخير'
                             : 'Son'}
-                      : {new Date(s.lastRunAt).toLocaleString('tr-TR')} ({s.lastStatus})
+                      :{' '}
+                      {new Date(s.lastRunAt).toLocaleString(
+                        lang === 'en'
+                          ? 'en-US'
+                          : lang === 'de'
+                            ? 'de-DE'
+                            : lang === 'ar'
+                              ? 'ar'
+                              : 'tr-TR',
+                      )}{' '}
+                      ({s.lastStatus})
                     </div>
                   )}
                 </div>
