@@ -5,6 +5,8 @@
  */
 import React, { useEffect, useState } from 'react';
 
+import { confirmDialog } from '../../shared/feedback';
+
 const FREQ = [
   ['daily', { tr: 'Günlük', en: 'Daily' }],
   ['weekly', { tr: 'Haftalık', en: 'Weekly' }],
@@ -72,7 +74,20 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
   };
 
   const del = async (id) => {
-    if (!confirm(tr ? 'Zamanlama silinsin mi?' : 'Delete schedule?')) return;
+    if (
+      !(await confirmDialog({
+        title:
+          lang === 'en'
+            ? 'Delete schedule?'
+            : lang === 'de'
+              ? 'Zeitplan löschen?'
+              : lang === 'ar'
+                ? 'حذف الجدولة؟'
+                : 'Zamanlama silinsin mi?',
+        tone: 'danger',
+      }))
+    )
+      return;
     await api.removeSchedule(id);
     reload();
   };

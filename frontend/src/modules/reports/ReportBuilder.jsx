@@ -9,6 +9,7 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
+import { confirmDialog } from '../../shared/feedback';
 import { makeReportsApi } from './reportsApi.js';
 import { ResultPanel } from './ResultPanel.jsx';
 import { ScheduleManager } from './ScheduleManager.jsx';
@@ -177,7 +178,20 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
   };
 
   const deleteReport = async (r) => {
-    if (!confirm(tr ? `"${r.name}" silinsin mi?` : `Delete "${r.name}"?`)) return;
+    if (
+      !(await confirmDialog({
+        title:
+          lang === 'en'
+            ? `Delete "${r.name}"?`
+            : lang === 'de'
+              ? `"${r.name}" löschen?`
+              : lang === 'ar'
+                ? `حذف "${r.name}"؟`
+                : `"${r.name}" silinsin mi?`,
+        tone: 'danger',
+      }))
+    )
+      return;
     try {
       await api.remove(r.id);
       if (currentId === r.id) setCurrentId(null);
