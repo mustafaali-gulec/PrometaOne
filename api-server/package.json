@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
+    "license:activate": "tsx scripts/license-activate.ts",
     "test": "node scripts/run-tests.mjs .test.ts",
     "test:integration": "node scripts/run-tests.mjs .itest.ts"
   },

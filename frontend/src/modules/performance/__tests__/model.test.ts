@@ -7,6 +7,7 @@ import {
   computeOverall,
   buildReview,
   effectiveRating,
+  perfCompScorePercent,
   type PerfCycle,
 } from '../model';
 
@@ -116,6 +117,34 @@ describe('buildReview', () => {
     expect(r.status).toBe('manager_pending');
     expect(r.competencies.length).toBe(0);
     expect(r.reviewerUserId).toBeNull();
+  });
+});
+
+describe('perfCompScorePercent', () => {
+  it('normalizes overall score to 0-100 by scale', () => {
+    const review = buildReview(cycle(), { id: 'e1' }, null);
+    review.overallScore = 4.87; // 4.87/5 -> 97.4
+    expect(perfCompScorePercent(review, cycle())).toBeCloseTo(97.4, 5);
+    review.overallScore = 3.07;
+    expect(perfCompScorePercent(review, cycle())).toBeCloseTo(61.4, 5);
+  });
+  it('returns null when unscored', () => {
+    const review = buildReview(cycle(), { id: 'e1' }, null);
+    expect(perfCompScorePercent(review, cycle())).toBeNull();
+  });
+  it('uses calibrated band midpoint when calibration differs', () => {
+    const review = buildReview(cycle(), { id: 'e1' }, null);
+    review.overallScore = 4.87; // derived: outstanding
+    review.calibratedRatingKey = 'exceeds'; // aşağı kalibre -> band ortası 80
+    expect(perfCompScorePercent(review, cycle())).toBeCloseTo(80, 5);
+    review.calibratedRatingKey = 'outstanding'; // derived ile aynı -> ham skor
+    expect(perfCompScorePercent(review, cycle())).toBeCloseTo(97.4, 5);
+  });
+  it('respects a custom scale', () => {
+    const c = cycle({ scaleMax: 10 });
+    const review = buildReview(c, { id: 'e1' }, null);
+    review.overallScore = 7.5; // 7.5/10 -> 75
+    expect(perfCompScorePercent(review, c)).toBeCloseTo(75, 5);
   });
 });
 

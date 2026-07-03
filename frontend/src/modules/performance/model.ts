@@ -175,6 +175,31 @@ export function computeOverall(
   return Math.round(val * 100) / 100;
 }
 
+// Ücret politikaları (performansa dayalı zam kademeleri) için 0-100 skor.
+// Genel puan skalaya oranlanır; değerlendirme KALİBRE edilmişse resmi sonuç
+// kalibre derecedir — skor o derecenin bandının orta noktasına çekilir
+// (outstanding 95, exceeds 80, meets 60, partially 40, below 15).
+export function perfCompScorePercent(
+  review: PerfReview,
+  cycle: PerfCycle | undefined,
+): number | null {
+  const scaleMax = Number(cycle?.scaleMax) || 5;
+  const overall = Number(review.overallScore) || 0;
+  if (overall <= 0) return null;
+  let pct = (overall / scaleMax) * 100;
+  const derived = ratingKeyFromScore(overall, scaleMax);
+  const calib = review.calibratedRatingKey;
+  if (calib && calib !== derived) {
+    const idx = PERF_RATING_BANDS.findIndex((b) => b.key === calib);
+    if (idx >= 0) {
+      const band = PERF_RATING_BANDS[idx]!;
+      const upper = idx === 0 ? 1 : PERF_RATING_BANDS[idx - 1]!.minPct;
+      pct = ((band.minPct + upper) / 2) * 100;
+    }
+  }
+  return Math.round(pct * 10) / 10;
+}
+
 // Etkin derece: kalibre edilmişse o, değilse ham puandan türetilen.
 export function effectiveRating(
   review: PerfReview,

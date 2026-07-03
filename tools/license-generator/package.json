@@ -1,0 +1,13 @@
+{
+  "name": "@prometa/license-generator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Prometa One — Ed25519 imzalı lisans üretici CLI (SADECE üretici firmada çalışır; müşteriye gitmez)",
+  "type": "module",
+  "bin": {
+    "prometa-license": "./cli.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

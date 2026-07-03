@@ -101,3 +101,12 @@ lint.log
 
 # ---- Claude Code (makineye-ozel ajan config/memory) ----
 .claude/
+
+# ---- Lisanslama (private key ASLA repoya girmez) ----
+tools/license-generator/keys/
+*.lic
+
+# ---- Uretim kurulumu (sifre icerir / makineye ozel / paket ciktisi) ----
+.env.prod
+/license/
+/release/

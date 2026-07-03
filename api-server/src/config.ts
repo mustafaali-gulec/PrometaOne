@@ -42,6 +42,11 @@ const envSchema = z.object({
 
   ENABLE_CRON: z.coerce.boolean().default(true),
 
+  // Lisanslama — makinenin donanım kimliği (kurulum sihirbazı üretir) ve
+  // gömülü lisans public key'inin opsiyonel override'ı (anahtar rotasyonu).
+  PROMETA_FINGERPRINT: z.string().optional(),
+  LICENSE_PUBLIC_KEY_PEM: z.string().optional(),
+
   // Kafka — opsiyonel. Tanımsızsa producer no-op, consumer başlatılmaz.
   KAFKA_BROKERS: z.string().optional(),
   KAFKA_CLIENT_ID: z.string().default('api-server'),

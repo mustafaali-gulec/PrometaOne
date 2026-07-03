@@ -26,6 +26,13 @@ export default defineConfig({
         target: process.env.VITE_PROXY_TARGET || 'http://host.docker.internal:3000',
         changeOrigin: true,
       },
+      // ML servisi (FastAPI :8001). Prod'daki nginx ile aynı sözleşme:
+      // /api/ml/x -> /x (ml-service rotaları kökte: /health, /models, /v1/feedback...)
+      '/api/ml': {
+        target: process.env.VITE_ML_PROXY_TARGET || 'http://host.docker.internal:8001',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api\/ml/, ''),
+      },
     },
   },
   build: {
