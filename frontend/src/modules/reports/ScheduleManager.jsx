@@ -8,22 +8,21 @@ import React, { useEffect, useState } from 'react';
 import { confirmDialog } from '../../shared/feedback';
 
 const FREQ = [
-  ['daily', { tr: 'Günlük', en: 'Daily' }],
-  ['weekly', { tr: 'Haftalık', en: 'Weekly' }],
-  ['monthly', { tr: 'Aylık', en: 'Monthly' }],
+  ['daily', { tr: 'Günlük', en: 'Daily', de: 'Täglich', ar: 'يومي' }],
+  ['weekly', { tr: 'Haftalık', en: 'Weekly', de: 'Wöchentlich', ar: 'أسبوعي' }],
+  ['monthly', { tr: 'Aylık', en: 'Monthly', de: 'Monatlich', ar: 'شهري' }],
 ];
 const DOW = [
-  { tr: 'Pazar', en: 'Sun' },
-  { tr: 'Pazartesi', en: 'Mon' },
-  { tr: 'Salı', en: 'Tue' },
-  { tr: 'Çarşamba', en: 'Wed' },
-  { tr: 'Perşembe', en: 'Thu' },
-  { tr: 'Cuma', en: 'Fri' },
-  { tr: 'Cumartesi', en: 'Sat' },
+  { tr: 'Pazar', en: 'Sun', de: 'Sonntag', ar: 'الأحد' },
+  { tr: 'Pazartesi', en: 'Mon', de: 'Montag', ar: 'الاثنين' },
+  { tr: 'Salı', en: 'Tue', de: 'Dienstag', ar: 'الثلاثاء' },
+  { tr: 'Çarşamba', en: 'Wed', de: 'Mittwoch', ar: 'الأربعاء' },
+  { tr: 'Perşembe', en: 'Thu', de: 'Donnerstag', ar: 'الخميس' },
+  { tr: 'Cuma', en: 'Fri', de: 'Freitag', ar: 'الجمعة' },
+  { tr: 'Cumartesi', en: 'Sat', de: 'Samstag', ar: 'السبت' },
 ];
 
 export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify, onClose }) {
-  const tr = lang !== 'en';
   const [list, setList] = useState([]);
   const [freq, setFreq] = useState('daily');
   const [dow, setDow] = useState(1);
@@ -49,7 +48,15 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
       .map((s) => s.trim())
       .filter(Boolean);
     if (!recs.length) {
-      setErr(tr ? 'En az bir e-posta adresi girin' : 'Enter at least one email');
+      setErr(
+        lang === 'en'
+          ? 'Enter at least one email'
+          : lang === 'de'
+            ? 'Mindestens eine E-Mail-Adresse eingeben'
+            : lang === 'ar'
+              ? 'أدخل عنوان بريد إلكتروني واحدًا على الأقل'
+              : 'En az bir e-posta adresi girin',
+      );
       return;
     }
     setBusy(true);
@@ -63,7 +70,15 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
         timeOfDay: time,
         recipients: recs,
       });
-      notify?.(tr ? 'Zamanlama eklendi' : 'Schedule added');
+      notify?.(
+        lang === 'en'
+          ? 'Schedule added'
+          : lang === 'de'
+            ? 'Zeitplan hinzugefügt'
+            : lang === 'ar'
+              ? 'تمت إضافة الجدولة'
+              : 'Zamanlama eklendi',
+      );
       setRecipients('');
       reload();
     } catch (e) {
@@ -98,10 +113,21 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
 
   const freqLabel = (f) => {
     const e = FREQ.find(([v]) => v === f);
-    return e ? (tr ? e[1].tr : e[1].en) : f;
+    return e ? e[1][lang] || e[1].tr : f;
   };
-  const describe = (s) =>
-    `${freqLabel(s.frequency)}${s.frequency === 'weekly' ? ' · ' + (tr ? DOW[s.dayOfWeek]?.tr : DOW[s.dayOfWeek]?.en) : ''}${s.frequency === 'monthly' ? ' · ' + (tr ? `ayın ${s.dayOfMonth}.` : `day ${s.dayOfMonth}`) : ''} · ${s.timeOfDay}`;
+  const describe = (s) => {
+    const d = DOW[s.dayOfWeek];
+    const dowLabel = d ? d[lang] || d.tr : '';
+    const domLabel =
+      lang === 'en'
+        ? `day ${s.dayOfMonth}`
+        : lang === 'de'
+          ? `Tag ${s.dayOfMonth}`
+          : lang === 'ar'
+            ? `اليوم ${s.dayOfMonth}`
+            : `ayın ${s.dayOfMonth}.`;
+    return `${freqLabel(s.frequency)}${s.frequency === 'weekly' ? ' · ' + dowLabel : ''}${s.frequency === 'monthly' ? ' · ' + domLabel : ''} · ${s.timeOfDay}`;
+  };
 
   return (
     <div
@@ -123,7 +149,15 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
       >
         <div className="flex items-center justify-between">
           <div className="font-bold">
-            🕒 {tr ? 'Zamanlanmış Raporlar' : 'Scheduled Reports'} — {reportName}
+            🕒{' '}
+            {lang === 'en'
+              ? 'Scheduled Reports'
+              : lang === 'de'
+                ? 'Geplante Berichte'
+                : lang === 'ar'
+                  ? 'التقارير المجدولة'
+                  : 'Zamanlanmış Raporlar'}{' '}
+            — {reportName}
           </div>
           <button className="btn" style={{ fontSize: 12 }} onClick={onClose}>
             ✕
@@ -133,7 +167,13 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
         {/* Mevcut zamanlamalar */}
         {list.length === 0 ? (
           <div className="text-xs" style={{ color: 'var(--ink-mute)' }}>
-            {tr ? 'Henüz zamanlama yok.' : 'No schedules yet.'}
+            {lang === 'en'
+              ? 'No schedules yet.'
+              : lang === 'de'
+                ? 'Noch keine Zeitpläne.'
+                : lang === 'ar'
+                  ? 'لا توجد جدولات بعد.'
+                  : 'Henüz zamanlama yok.'}
           </div>
         ) : (
           <div className="space-y-1">
@@ -153,21 +193,47 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
                   </div>
                   {s.lastRunAt && (
                     <div className="text-xs" style={{ color: 'var(--ink-mute)' }}>
-                      {tr ? 'Son' : 'Last'}: {new Date(s.lastRunAt).toLocaleString('tr-TR')} (
-                      {s.lastStatus})
+                      {lang === 'en'
+                        ? 'Last'
+                        : lang === 'de'
+                          ? 'Zuletzt'
+                          : lang === 'ar'
+                            ? 'الأخير'
+                            : 'Son'}
+                      : {new Date(s.lastRunAt).toLocaleString('tr-TR')} ({s.lastStatus})
                     </div>
                   )}
                 </div>
                 <div className="flex gap-1">
                   <button className="btn" style={{ fontSize: 10 }} onClick={() => toggle(s)}>
-                    {s.enabled ? (tr ? 'Duraklat' : 'Pause') : tr ? 'Aktifleştir' : 'Enable'}
+                    {s.enabled
+                      ? lang === 'en'
+                        ? 'Pause'
+                        : lang === 'de'
+                          ? 'Pausieren'
+                          : lang === 'ar'
+                            ? 'إيقاف مؤقت'
+                            : 'Duraklat'
+                      : lang === 'en'
+                        ? 'Enable'
+                        : lang === 'de'
+                          ? 'Aktivieren'
+                          : lang === 'ar'
+                            ? 'تفعيل'
+                            : 'Aktifleştir'}
                   </button>
                   <button
                     className="btn"
                     style={{ fontSize: 10, color: '#b91c1c' }}
                     onClick={() => del(s.id)}
                   >
-                    {tr ? 'Sil' : 'Delete'}
+                    {lang === 'en'
+                      ? 'Delete'
+                      : lang === 'de'
+                        ? 'Löschen'
+                        : lang === 'ar'
+                          ? 'حذف'
+                          : 'Sil'}
                   </button>
                 </div>
               </div>
@@ -178,7 +244,13 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
         {/* Yeni zamanlama */}
         <div className="card p-2 space-y-2" style={{ border: '1px dashed var(--line)' }}>
           <div className="text-xs font-bold" style={{ color: 'var(--ink-mute)' }}>
-            {tr ? 'Yeni Zamanlama' : 'New Schedule'}
+            {lang === 'en'
+              ? 'New Schedule'
+              : lang === 'de'
+                ? 'Neuer Zeitplan'
+                : lang === 'ar'
+                  ? 'جدولة جديدة'
+                  : 'Yeni Zamanlama'}
           </div>
           <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
             <select
@@ -189,7 +261,7 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
             >
               {FREQ.map(([v, l]) => (
                 <option key={v} value={v}>
-                  {tr ? l.tr : l.en}
+                  {l[lang] || l.tr}
                 </option>
               ))}
             </select>
@@ -202,7 +274,7 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
               >
                 {DOW.map((d, i) => (
                   <option key={i} value={i}>
-                    {tr ? d.tr : d.en}
+                    {d[lang] || d.tr}
                   </option>
                 ))}
               </select>
@@ -229,7 +301,15 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
           <input
             className="input"
             style={{ width: '100%', fontSize: 11 }}
-            placeholder={tr ? 'Alıcı e-postalar (virgülle)' : 'Recipient emails (comma)'}
+            placeholder={
+              lang === 'en'
+                ? 'Recipient emails (comma)'
+                : lang === 'de'
+                  ? 'Empfänger-E-Mails (kommagetrennt)'
+                  : lang === 'ar'
+                    ? 'عناوين بريد المستلمين (بفواصل)'
+                    : 'Alıcı e-postalar (virgülle)'
+            }
             value={recipients}
             onChange={(e) => setRecipients(e.target.value)}
           />
@@ -244,12 +324,22 @@ export function ScheduleManager({ api, reportId, reportName, lang = 'tr', notify
             style={{ background: '#7c3aed', color: '#fff', fontWeight: 700 }}
             onClick={add}
           >
-            {tr ? '+ Zamanlama Ekle' : '+ Add Schedule'}
+            {lang === 'en'
+              ? '+ Add Schedule'
+              : lang === 'de'
+                ? '+ Zeitplan hinzufügen'
+                : lang === 'ar'
+                  ? '+ إضافة جدولة'
+                  : '+ Zamanlama Ekle'}
           </button>
           <div className="text-xs" style={{ color: 'var(--ink-mute)' }}>
-            {tr
-              ? 'Rapor xlsx olarak e-posta ile gönderilir. (SMTP yapılandırılmamışsa sunucu loguna düşer.)'
-              : 'Report is emailed as xlsx. (Logged to server if SMTP not configured.)'}
+            {lang === 'en'
+              ? 'Report is emailed as xlsx. (Logged to server if SMTP not configured.)'
+              : lang === 'de'
+                ? 'Der Bericht wird als xlsx per E-Mail gesendet. (Ohne SMTP-Konfiguration nur Server-Log.)'
+                : lang === 'ar'
+                  ? 'يُرسل التقرير بالبريد الإلكتروني بصيغة xlsx. (إذا لم يُهيأ SMTP يُسجل في سجل الخادم.)'
+                  : 'Rapor xlsx olarak e-posta ile gönderilir. (SMTP yapılandırılmamışsa sunucu loguna düşer.)'}
           </div>
         </div>
       </div>

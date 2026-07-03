@@ -14,15 +14,14 @@ import { ReportChart } from './ReportChart.jsx';
 
 const FORMATS = ['auto', 'number', 'money', 'percent', 'date', 'text'];
 const CHART_TYPES = [
-  ['none', { tr: 'Yok', en: 'None' }],
-  ['bar', { tr: 'Bar', en: 'Bar' }],
-  ['line', { tr: 'Çizgi', en: 'Line' }],
-  ['pie', { tr: 'Pasta', en: 'Pie' }],
-  ['kpi', { tr: 'KPI Kart', en: 'KPI' }],
+  ['none', { tr: 'Yok', en: 'None', de: 'Keine', ar: 'بدون' }],
+  ['bar', { tr: 'Bar', en: 'Bar', de: 'Balken', ar: 'أعمدة' }],
+  ['line', { tr: 'Çizgi', en: 'Line', de: 'Linie', ar: 'خطي' }],
+  ['pie', { tr: 'Pasta', en: 'Pie', de: 'Kreis', ar: 'دائري' }],
+  ['kpi', { tr: 'KPI Kart', en: 'KPI', de: 'KPI-Karte', ar: 'بطاقة KPI' }],
 ];
 
 export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' }) {
-  const tr = lang !== 'en';
   const [designOpen, setDesignOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
 
@@ -97,9 +96,18 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
     <div className="card p-2 space-y-2">
       <div className="flex items-center justify-between" style={{ flexWrap: 'wrap', gap: 6 }}>
         <div className="text-xs" style={{ color: 'var(--ink-mute)' }}>
-          {result.rowCount} {tr ? 'satır' : 'rows'}
+          {result.rowCount}{' '}
+          {lang === 'en' ? 'rows' : lang === 'de' ? 'Zeilen' : lang === 'ar' ? 'صف' : 'satır'}
           {result.durationMs != null ? ` · ${result.durationMs} ms` : ''}
-          {result.truncated ? (tr ? ` · ⚠ ilk ${result.rowCount} satır` : ` · ⚠ truncated`) : ''}
+          {result.truncated
+            ? lang === 'en'
+              ? ` · ⚠ first ${result.rowCount} rows`
+              : lang === 'de'
+                ? ` · ⚠ erste ${result.rowCount} Zeilen`
+                : lang === 'ar'
+                  ? ` · ⚠ أول ${result.rowCount} صف`
+                  : ` · ⚠ ilk ${result.rowCount} satır`
+            : ''}
         </div>
         <div className="flex gap-1">
           <button
@@ -111,7 +119,14 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
             }}
             onClick={() => setDesignOpen((o) => !o)}
           >
-            ⚙ {tr ? 'Tasarım' : 'Design'}
+            ⚙{' '}
+            {lang === 'en'
+              ? 'Design'
+              : lang === 'de'
+                ? 'Design'
+                : lang === 'ar'
+                  ? 'تصميم'
+                  : 'Tasarım'}
           </button>
           <button
             className="btn"
@@ -139,7 +154,13 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
           {/* Grafik */}
           <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
             <span className="text-xs font-bold" style={{ color: 'var(--ink-mute)' }}>
-              {tr ? 'Grafik:' : 'Chart:'}
+              {lang === 'en'
+                ? 'Chart:'
+                : lang === 'de'
+                  ? 'Diagramm:'
+                  : lang === 'ar'
+                    ? 'الرسم البياني:'
+                    : 'Grafik:'}
             </span>
             <select
               className="input"
@@ -149,13 +170,19 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
             >
               {CHART_TYPES.map(([v, l]) => (
                 <option key={v} value={v}>
-                  {tr ? l.tr : l.en}
+                  {l[lang] || l.tr}
                 </option>
               ))}
             </select>
             {chart.type !== 'none' && chart.type !== 'kpi' && (
               <label className="text-xs flex items-center gap-1">
-                {tr ? 'X ekseni' : 'X'}
+                {lang === 'en'
+                  ? 'X'
+                  : lang === 'de'
+                    ? 'X-Achse'
+                    : lang === 'ar'
+                      ? 'محور X'
+                      : 'X ekseni'}
                 <select
                   className="input mono"
                   style={{ fontSize: 11, maxWidth: 140 }}
@@ -172,10 +199,22 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
             )}
             {chart.type !== 'none' && (
               <span className="text-xs flex items-center gap-1" style={{ flexWrap: 'wrap' }}>
-                {tr ? 'Değer(ler):' : 'Y:'}
+                {lang === 'en'
+                  ? 'Y:'
+                  : lang === 'de'
+                    ? 'Wert(e):'
+                    : lang === 'ar'
+                      ? 'القيم:'
+                      : 'Değer(ler):'}
                 {numericKeys.length === 0 && (
                   <em style={{ color: 'var(--ink-mute)' }}>
-                    {tr ? 'sayısal kolon yok' : 'no numeric col'}
+                    {lang === 'en'
+                      ? 'no numeric col'
+                      : lang === 'de'
+                        ? 'keine numerische Spalte'
+                        : lang === 'ar'
+                          ? 'لا يوجد عمود رقمي'
+                          : 'sayısal kolon yok'}
                   </em>
                 )}
                 {numericKeys.map((k) => (
@@ -199,7 +238,13 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
           {/* Kolon biçimleri */}
           <div className="space-y-1">
             <span className="text-xs font-bold" style={{ color: 'var(--ink-mute)' }}>
-              {tr ? 'Kolonlar' : 'Columns'}
+              {lang === 'en'
+                ? 'Columns'
+                : lang === 'de'
+                  ? 'Spalten'
+                  : lang === 'ar'
+                    ? 'الأعمدة'
+                    : 'Kolonlar'}
             </span>
             <div
               style={{
@@ -212,7 +257,15 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
                 <div key={c.key} className="flex items-center gap-1" style={{ fontSize: 11 }}>
                   <input
                     type="checkbox"
-                    title={tr ? 'görünür' : 'visible'}
+                    title={
+                      lang === 'en'
+                        ? 'visible'
+                        : lang === 'de'
+                          ? 'sichtbar'
+                          : lang === 'ar'
+                            ? 'مرئي'
+                            : 'görünür'
+                    }
                     checked={cfgOf(c.key).visible !== false}
                     onChange={(e) => setColCfg(c.key, { visible: e.target.checked })}
                   />
@@ -237,7 +290,15 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
                   {c.type === 'number' && (
                     <label
                       className="text-xs"
-                      title={tr ? 'alt-toplam' : 'subtotal'}
+                      title={
+                        lang === 'en'
+                          ? 'subtotal'
+                          : lang === 'de'
+                            ? 'Zwischensumme'
+                            : lang === 'ar'
+                              ? 'مجموع فرعي'
+                              : 'alt-toplam'
+                      }
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}
                     >
                       <input
@@ -309,7 +370,17 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
               <tr style={{ fontWeight: 700, borderTop: '2px solid var(--line)' }}>
                 {visibleCols.map((c, idx) => {
                   if (idx === 0 && !subtotalKeys.includes(c.key)) {
-                    return <td key={c.key}>{tr ? 'Toplam' : 'Total'}</td>;
+                    return (
+                      <td key={c.key}>
+                        {lang === 'en'
+                          ? 'Total'
+                          : lang === 'de'
+                            ? 'Summe'
+                            : lang === 'ar'
+                              ? 'الإجمالي'
+                              : 'Toplam'}
+                      </td>
+                    );
                   }
                   const cfg = cfgOf(c.key);
                   return (
