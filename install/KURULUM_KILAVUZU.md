@@ -107,7 +107,11 @@ otomatik üretilir** ve sunucuya kaydedilir; ek bir işlem gerekmez.
 - Süresi dolan/eksik lisansta uygulama tam ekran bir kilitleme ekranı gösterir;
   bitişe 14 gün kala sağ altta uyarı bandı çıkar.
 - Terminal limiti aşılırsa yeni terminal `403 Terminal limiti aşıldı` alır;
-  yönetici, yönetim ekranından kullanılmayan terminalleri kaldırabilir.
+  yönetici, uygulamadaki **Sistem → Lisans Yönetimi** ekranından kullanılmayan
+  terminalleri kaldırarak koltuk boşaltabilir.
+- **Lisans Yönetimi ekranı** (yönetici): lisans durumu, bitiş tarihi/kalan gün,
+  koltuk doluluğu, Donanım Kimliği (kopyala), kayıtlı terminaller (silme) ve
+  uygulama içinden lisans dosyası yükleme.
 
 ### Yeni/yenilenen lisansı yükleme (iki yol)
 

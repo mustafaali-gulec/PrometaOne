@@ -14,11 +14,10 @@
 #   Lisans durumu:         http://localhost:${HTTP_PORT:-80}/v1/license/status
 #
 # Guvenlik notlari (dev compose'dan farklar):
-#   - PostgreSQL ve API host'a PORT ACMAZ — sadece dahili Docker aginda.
+#   - PostgreSQL, API ve ML host'a PORT ACMAZ — sadece dahili Docker aginda.
+#     Disariya acilan TEK port web (nginx, HTTP_PORT). ML trafigi /api/ml
+#     proxy'sinden gecer.
 #   - Adminer bilerek YOK (uretimde DB arayuzu yayinlanmaz).
-#   - ml-service'in 8001 portu simdilik ACIK: App.jsx bir noktada
-#     hostname:8001'e dogrudan istek atiyor (AI feedback). O cagri
-#     /api/ml proxy'sine tasininca bu port kapatilabilir.
 #   - Santiye (kafka + construction-db + construction-service) OPSIYONEL:
 #     --profile construction ile etkinlesir.
 #
@@ -117,7 +116,7 @@ services:
       - prometa
 
   # === ML Service (Python + FastAPI) ===
-  # 8001 host portu App.jsx'teki dogrudan hostname:8001 cagrisi icin acik (bkz. ust not).
+  # Host portu YOK — tum ML trafigi nginx'in /api/ml proxy'sinden gecer.
   ml-service:
     build:
       context: ./ml-service
@@ -128,8 +127,6 @@ services:
     environment:
       MODEL_DIR: /app/models_data
       TZ: Europe/Istanbul
-    ports:
-      - "8001:8001"
     volumes:
       # Egitilen modeller kalici — kaynak kod MOUNT EDILMEZ (image'dan calisir)
       - ml_models_prod:/app/models_data
