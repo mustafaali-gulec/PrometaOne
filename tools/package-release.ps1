@@ -61,8 +61,14 @@ try {
     if (-not $SkipBuild) {
         Write-Bilgi 'Uretim image''lari derleniyor (api, web, ml-service)...'
         $servisler = @('api', 'web', 'ml-service')
-        if ($IncludeConstruction) { $servisler += 'construction-service' }
-        & docker compose -f docker-compose.prod.yml --env-file $geciciEnv build @servisler
+        $profilArgs = @()
+        # construction-service prod compose'da 'construction' profili altinda —
+        # ismen hedeflense de profili acik tutmak derlemeyi deterministik yapar.
+        if ($IncludeConstruction) {
+            $servisler += 'construction-service'
+            $profilArgs = @('--profile', 'construction')
+        }
+        & docker compose -f docker-compose.prod.yml --env-file $geciciEnv @profilArgs build @servisler
         if ($LASTEXITCODE -ne 0) {
             Write-Hata 'Derleme basarisiz. Yukaridaki hatayi kontrol edin.'
             exit 1

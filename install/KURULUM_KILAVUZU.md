@@ -151,6 +151,37 @@ volume'larında tutulur).
   docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T postgres pg_dump -U prometa prometa_one > yedek.sql
   ```
 
+## 9. Şantiye (Construction) modülü — opsiyonel, ileri düzey
+
+Şantiye modülü **opsiyoneldir** ve kurulum sihirbazı tarafından **otomatik
+başlatılMAZ** (varsayılan kurulum: postgres + api + web + ml). Yalnızca paket
+**şantiye dahil** üretildiyse ilgili image'lar (`prometa-one/construction`,
+`bitnami/kafka`) pakette bulunur.
+
+Bu modül kendi veritabanı (`construction-db`) ve olay akışı için Kafka ile
+`construction` compose profili altında çalışır. Etkinleştirmek için sunucuda:
+
+1. `.env.prod` dosyasına Kafka adresini ekleyin (yoksa olaylar devre dışı kalır):
+
+   ```
+   KAFKA_BROKERS=kafka:9092
+   ```
+
+2. Servisleri `construction` profiliyle başlatın:
+
+   ```
+   docker compose -f docker-compose.prod.yml --env-file .env.prod --profile construction up -d
+   ```
+
+Construction-service kendi migration'ını açılışta otomatik çalıştırır. Uygulama
+menüsündeki Şantiye ekranları hazırdır; trafik nginx `/v1/construction/*`
+üzerinden servise gider. Devre dışı bırakmak için profili açmadan `up -d`
+çalıştırmanız yeterlidir (yalnız çekirdek servisler kalkar).
+
+> Not: Şantiye modülünün bazı entegrasyon uçları (dış portal, muhasebe tetiği)
+> hâlâ geliştirme aşamasındadır; üretimde etkinleştirmeden önce Promet Bilişim'e
+> danışın.
+
 ---
 
 > **Kurulum öncesi doğrulama (Promet Bilişim ekibi için):** Yeni bir sürümü
