@@ -153,5 +153,9 @@ volume'larında tutulur).
 
 ---
 
+> **Kurulum öncesi doğrulama (Promet Bilişim ekibi için):** Yeni bir sürümü
+> müşteriye vermeden önce `install/TEST_KILAVUZU.md` kontrol listesini temiz bir
+> test makinesinde baştan sona uygulayın.
+
 Destek: **Promet Bilişim** — kurulum sırasında görüntülenen Donanım Kimliği'ni
 ve varsa hata ekran görüntüsünü iletin.
