@@ -234,6 +234,46 @@ export interface CashResponse {
   movements: ReadonlyArray<CashMovementDto>;
 }
 
+// --- Yeşil Defter (metraj) + Ataşman — SF-8 --------------------------------
+export interface MeasurementDto {
+  id: number;
+  companyId: number;
+  contractId: number;
+  boqLineId: number;
+  progressId: number | null;
+  measuredQty: number;
+  measuredAt: string | null;
+  note: string | null;
+  createdAt: string;
+}
+export interface AttachmentDto {
+  id: number;
+  companyId: number;
+  measurementId: number;
+  boqLineId: number | null;
+  formula: string | null;
+  dimA: number | null;
+  dimB: number | null;
+  dimC: number | null;
+  countN: number | null;
+  resultQty: number;
+  fileUrl: string | null;
+  createdAt: string;
+}
+export interface MeasurementSummaryLineDto {
+  boqLineId: number;
+  totalMeasured: number;
+}
+export interface MeasurementsResponse {
+  measurements: ReadonlyArray<MeasurementDto>;
+}
+export interface AttachmentsResponse {
+  attachments: ReadonlyArray<AttachmentDto>;
+}
+export interface MeasurementSummaryResponse {
+  lines: ReadonlyArray<MeasurementSummaryLineDto>;
+}
+
 // ===== Ödeme Listesi =========================================================
 export type PaymentStatus = 'planned' | 'paid';
 export type PaymentSource = 'manual' | 'hakedis' | 'expense' | 'advance';

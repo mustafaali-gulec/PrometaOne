@@ -24,6 +24,7 @@ import { DepoManager } from '../presentation/components/DepoManager';
 import { FinansManager } from '../presentation/components/FinansManager';
 import { HakedisManager } from '../presentation/components/HakedisManager';
 import { IsgucuManager } from '../presentation/components/IsgucuManager';
+import { MetrajManager } from '../presentation/components/MetrajManager';
 import { PozCatalogTable } from '../presentation/components/PozCatalogTable';
 import { ProjectsKanban } from '../presentation/components/ProjectsKanban';
 import { ProjectsTable } from '../presentation/components/ProjectsTable';
@@ -37,6 +38,7 @@ export type ConstructionTab =
   | 'contracts'
   | 'boq'
   | 'progress'
+  | 'measurements'
   | 'finance'
   | 'depot'
   | 'labor'
@@ -48,6 +50,7 @@ const ALL_TABS: ConstructionTab[] = [
   'contracts',
   'boq',
   'progress',
+  'measurements',
   'finance',
   'depot',
   'labor',
@@ -59,6 +62,7 @@ const TAB_LABELS: Record<ConstructionTab, string> = {
   contracts: 'Sözleşme & İhale',
   boq: 'Keşif & Pursantaj',
   progress: 'Hakediş',
+  measurements: 'Yeşil Defter & Ataşman',
   finance: 'Harcama & Finans',
   depot: 'Malzeme & Depo',
   labor: 'İş Gücü & Makine',
@@ -134,6 +138,7 @@ export function ConstructionPage({
         {tab === 'contracts' ? <ContractsTab api={api} companyId={companyId} /> : null}
         {tab === 'boq' ? <BoqTab api={api} companyId={companyId} /> : null}
         {tab === 'progress' ? <HakedisManager api={api} companyId={companyId} /> : null}
+        {tab === 'measurements' ? <MetrajManager api={api} companyId={companyId} /> : null}
         {tab === 'finance' ? <FinansManager api={api} companyId={companyId} /> : null}
         {tab === 'depot' ? <DepoManager api={api} companyId={companyId} /> : null}
         {tab === 'labor' ? <IsgucuManager api={api} companyId={companyId} /> : null}
