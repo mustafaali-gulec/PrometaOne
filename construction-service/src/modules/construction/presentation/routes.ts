@@ -9,7 +9,7 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { authMiddleware, requireRole } from '../../../middleware/auth.js';
+import { authMiddleware, companyScopeGuard, requireRole } from '../../../middleware/auth.js';
 import type { GetBoqUseCase, SaveBoqLinesUseCase } from '../application/useCases/BoqUseCases.js';
 import type {
   CreateAttachmentUseCase,
@@ -224,6 +224,9 @@ const tenderSchema = z
 export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
   const app = new Hono();
   app.use('*', authMiddleware);
+  // Çapraz-tenant koruması: companyId, kullanıcının erişebileceği şirketlerle
+  // sınırlanır (access-token `companies` claim'i; admin sınırsız).
+  app.use('*', companyScopeGuard);
   const requireWrite = requireRole('editor');
 
   const actorId = (c: { get: (k: string) => unknown }): number | null => {

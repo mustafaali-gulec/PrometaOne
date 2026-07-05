@@ -8,6 +8,12 @@ export interface AuthContext {
   userId: number;
   username: string;
   role: UserRole;
+  /**
+   * Erişilebilir şirket id'leri (monolit access-token'ındaki `companies` claim'i).
+   * companyId yetkilendirmesi buna karşı yapılır (admin sınırsız). Claim yoksa
+   * (eski token / geçiş dönemi) undefined kalır → enforcement geçici atlanır.
+   */
+  companies?: number[];
 }
 
 export const ROLE_LEVEL: Record<UserRole, number> = {
