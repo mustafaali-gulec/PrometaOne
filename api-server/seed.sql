@@ -24,6 +24,24 @@ BEGIN
   END IF;
 END $$;
 
+-- Şirket erişimi (user_company_access) — companyId artık access-token'daki
+-- `companies` claim'inden yetkilendiriliyor; bu claim user_company_access'ten
+-- türetilir. Grant yoksa kullanıcı companies=[] alır → tüm company-scoped
+-- endpoint'lerde 403. Her aktif kullanıcıya mevcut her şirkete kendi global
+-- rolüyle erişim verilir (migration 042 ile aynı; taze kurulumda kullanıcı+
+-- şirket seed'lendikten SONRA çalıştığı için burada da gerekli).
+-- Idempotent: ON CONFLICT (user_id, company_id) DO NOTHING.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'user_company_access') THEN
+    INSERT INTO user_company_access (user_id, company_id, role, granted_at)
+    SELECT u.id, c.id, u.role, NOW()
+    FROM users u CROSS JOIN companies c
+    WHERE u.active = TRUE
+    ON CONFLICT (user_id, company_id) DO NOTHING;
+  END IF;
+END $$;
+
 
 -- =====================================================================
 -- HR DEMO VERİSİ (Faz 4) — org ağacı, departman, pozisyon, çalışan,
