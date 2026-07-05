@@ -18,7 +18,7 @@ async function setup() {
   const users = InMemoryUserRepo.withSeed({ id: 1, username: 'admin', active: true });
   const sessions = new InMemoryRefreshSessionStore();
   const tokens = new FakeTokenIssuer();
-  const issued = tokens.issue({ sub: 1, username: 'admin', role: 'admin' });
+  const issued = tokens.issue({ sub: 1, username: 'admin', role: 'admin', companies: [] });
   await sessions.create({
     jti: issued.refreshTokenJti,
     userId: 1,
@@ -50,17 +50,11 @@ describe('RefreshTokenUseCase', () => {
     const { uc, issued, users } = await setup();
     const u = await users.findById(1);
     if (u) await users.save(u.deactivate());
-    await assert.rejects(
-      uc.execute({ refreshToken: issued.refreshToken }),
-      AccountInactiveError,
-    );
+    await assert.rejects(uc.execute({ refreshToken: issued.refreshToken }), AccountInactiveError);
   });
 
   it('bozuk token -> hata', async () => {
     const { uc } = await setup();
-    await assert.rejects(
-      uc.execute({ refreshToken: 'bozuk' }),
-      /Bozuk refresh token/,
-    );
+    await assert.rejects(uc.execute({ refreshToken: 'bozuk' }), /Bozuk refresh token/);
   });
 });

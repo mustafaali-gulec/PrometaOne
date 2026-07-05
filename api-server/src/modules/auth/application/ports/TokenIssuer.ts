@@ -10,6 +10,13 @@ export interface AccessTokenPayload {
   sub: number;
   username: string;
   role: UserRole;
+  /**
+   * Kullanıcının erişebileceği şirket id'leri (user_company_access).
+   * Çapraz-tenant erişimi önlemek için companyId doğrulaması bu kümeye
+   * karşı yapılır (admin sınırsız). Bağımsız mikroservisler (construction)
+   * monolit DB'sini sorgulayamadığından bu bilgi token'da taşınır.
+   */
+  companies: number[];
 }
 
 export interface RefreshTokenPayload {

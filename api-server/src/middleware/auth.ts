@@ -21,6 +21,7 @@ interface JwtPayloadShape {
   sub: number | string;
   username?: string;
   role?: UserRole;
+  companies?: number[];
 }
 
 export const authMiddleware: MiddlewareHandler = async (c, next) => {
@@ -56,6 +57,7 @@ export const authMiddleware: MiddlewareHandler = async (c, next) => {
     userId: Number(payload.sub),
     username: payload.username ?? '',
     role: payload.role ?? 'viewer',
+    ...(Array.isArray(payload.companies) ? { companies: payload.companies } : {}),
   });
 
   await next();

@@ -100,6 +100,14 @@ export class PgUserRepository implements UserRepository {
       ],
     );
   }
+
+  async listAccessibleCompanyIds(userId: number): Promise<number[]> {
+    const r = await this.pool.query<{ company_id: number }>(
+      `SELECT company_id FROM user_company_access WHERE user_id = $1 ORDER BY company_id`,
+      [userId],
+    );
+    return r.rows.map((row) => Number(row.company_id));
+  }
 }
 
 function rowToUser(row: UserRow | undefined): User | null {

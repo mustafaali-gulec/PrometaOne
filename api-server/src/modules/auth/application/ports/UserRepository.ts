@@ -21,4 +21,10 @@ export interface UserRepository {
   updatePasswordHash(userId: number, newHash: string): Promise<void>;
   /** lastLoginAt + diğer prop'ları kaydet. */
   save(user: User): Promise<void>;
+  /**
+   * Kullanıcının erişebileceği şirket id'leri (user_company_access).
+   * Access-token'a gömülür; companyId yetkilendirmesi buna karşı yapılır.
+   * Admin kullanıcılar sınırsızdır (bu liste boş olsa da tüm şirketlere erişir).
+   */
+  listAccessibleCompanyIds(userId: number): Promise<number[]>;
 }

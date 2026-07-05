@@ -44,10 +44,12 @@ export class RefreshTokenUseCase {
     if (!user) throw new InvalidCredentialsError();
     if (!user.active) throw new AccountInactiveError();
 
+    const companies = await this.deps.users.listAccessibleCompanyIds(user.id);
     const issued = this.deps.tokens.issueAccessToken({
       sub: user.id,
       username: user.username,
       role: user.role,
+      companies,
     });
 
     return {
