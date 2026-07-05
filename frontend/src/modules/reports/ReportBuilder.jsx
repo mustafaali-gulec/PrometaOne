@@ -54,7 +54,6 @@ const defaultLayout = {
 };
 
 export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
-  const tr = lang !== 'en';
   const api = useMemo(() => makeReportsApi(companyId), [companyId]);
   const canSql = canAct ? !!canAct('reports.sql.view') : true;
 
@@ -124,7 +123,10 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
       const res = await (preview ? api.preview(body) : api.run(body));
       setResult(res);
     } catch (e) {
-      setError(e.message || 'Hata');
+      setError(
+        e.message ||
+          (lang === 'en' ? 'Error' : lang === 'de' ? 'Fehler' : lang === 'ar' ? 'خطأ' : 'Hata'),
+      );
       setResult(null);
     } finally {
       setRunning(false);
@@ -147,14 +149,31 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
         const d = await api.create(payload);
         setCurrentId(d?.id ?? null);
       }
-      notify?.(tr ? 'Rapor kaydedildi' : 'Report saved');
+      notify?.(
+        lang === 'en'
+          ? 'Report saved'
+          : lang === 'de'
+            ? 'Bericht gespeichert'
+            : lang === 'ar'
+              ? 'تم حفظ التقرير'
+              : 'Rapor kaydedildi',
+      );
       setSaveOpen(false);
       api
         .list()
         .then(setSaved)
         .catch(() => {});
     } catch (e) {
-      setError(e.message || 'Kaydedilemedi');
+      setError(
+        e.message ||
+          (lang === 'en'
+            ? 'Could not save'
+            : lang === 'de'
+              ? 'Speichern fehlgeschlagen'
+              : lang === 'ar'
+                ? 'تعذر الحفظ'
+                : 'Kaydedilemedi'),
+      );
     }
   };
 
@@ -226,7 +245,17 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
         fontWeight: mode === value ? 700 : 400,
         opacity: disabled ? 0.5 : 1,
       }}
-      title={disabled ? (tr ? 'Ham SQL yetkiniz yok' : 'No raw-SQL permission') : ''}
+      title={
+        disabled
+          ? lang === 'en'
+            ? 'No raw-SQL permission'
+            : lang === 'de'
+              ? 'Keine Berechtigung für Roh-SQL'
+              : lang === 'ar'
+                ? 'لا توجد صلاحية SQL خام'
+                : 'Ham SQL yetkiniz yok'
+          : ''
+      }
     >
       {label}
     </button>
@@ -240,8 +269,20 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
           className="flex gap-1"
           style={{ border: '1px solid var(--line)', borderRadius: 4, padding: 2 }}
         >
-          <ModeBtn value="sql" label={tr ? 'SQL' : 'SQL'} disabled={!canSql} />
-          <ModeBtn value="visual" label={tr ? 'Görsel' : 'Visual'} disabled={false} />
+          <ModeBtn value="sql" label="SQL" disabled={!canSql} />
+          <ModeBtn
+            value="visual"
+            label={
+              lang === 'en'
+                ? 'Visual'
+                : lang === 'de'
+                  ? 'Visuell'
+                  : lang === 'ar'
+                    ? 'مرئي'
+                    : 'Görsel'
+            }
+            disabled={false}
+          />
         </div>
         <select
           className="input"
@@ -252,7 +293,15 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
             if (r) loadReport(r);
           }}
         >
-          <option value="">{tr ? '— Kayıtlı rapor —' : '— Saved report —'}</option>
+          <option value="">
+            {lang === 'en'
+              ? '— Saved report —'
+              : lang === 'de'
+                ? '— Gespeicherter Bericht —'
+                : lang === 'ar'
+                  ? '— تقرير محفوظ —'
+                  : '— Kayıtlı rapor —'}
+          </option>
           {saved.map((r) => (
             <option key={r.id} value={r.id}>
               {r.name} {r.mode === 'visual' ? '◧' : '⌨'}
@@ -260,7 +309,7 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
           ))}
         </select>
         <button className="btn" onClick={newReport}>
-          {tr ? 'Yeni' : 'New'}
+          {lang === 'en' ? 'New' : lang === 'de' ? 'Neu' : lang === 'ar' ? 'جديد' : 'Yeni'}
         </button>
         {currentId && (
           <button
@@ -272,12 +321,18 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
               )
             }
           >
-            {tr ? 'Sil' : 'Delete'}
+            {lang === 'en' ? 'Delete' : lang === 'de' ? 'Löschen' : lang === 'ar' ? 'حذف' : 'Sil'}
           </button>
         )}
         <div style={{ flex: 1 }} />
         <button className="btn" disabled={running} onClick={() => run(true)}>
-          {tr ? 'Önizle' : 'Preview'}
+          {lang === 'en'
+            ? 'Preview'
+            : lang === 'de'
+              ? 'Vorschau'
+              : lang === 'ar'
+                ? 'معاينة'
+                : 'Önizle'}
         </button>
         <button
           className="btn"
@@ -285,25 +340,65 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
           onClick={() => run(false)}
           style={{ background: '#7c3aed', color: '#fff', fontWeight: 700 }}
         >
-          {running ? (tr ? 'Çalışıyor…' : 'Running…') : tr ? 'Çalıştır' : 'Run'}
+          {running
+            ? lang === 'en'
+              ? 'Running…'
+              : lang === 'de'
+                ? 'Läuft…'
+                : lang === 'ar'
+                  ? 'قيد التشغيل…'
+                  : 'Çalışıyor…'
+            : lang === 'en'
+              ? 'Run'
+              : lang === 'de'
+                ? 'Ausführen'
+                : lang === 'ar'
+                  ? 'تشغيل'
+                  : 'Çalıştır'}
         </button>
         <button
           className="btn"
           onClick={() => {
-            setSaveName(saveName || (tr ? 'Yeni Rapor' : 'New Report'));
+            setSaveName(
+              saveName ||
+                (lang === 'en'
+                  ? 'New Report'
+                  : lang === 'de'
+                    ? 'Neuer Bericht'
+                    : lang === 'ar'
+                      ? 'تقرير جديد'
+                      : 'Yeni Rapor'),
+            );
             setSaveOpen(true);
           }}
         >
-          {tr ? 'Kaydet' : 'Save'}
+          {lang === 'en' ? 'Save' : lang === 'de' ? 'Speichern' : lang === 'ar' ? 'حفظ' : 'Kaydet'}
         </button>
         <button
           className="btn"
           disabled={!currentId}
-          title={!currentId ? (tr ? 'Önce raporu kaydedin' : 'Save the report first') : ''}
+          title={
+            !currentId
+              ? lang === 'en'
+                ? 'Save the report first'
+                : lang === 'de'
+                  ? 'Bericht zuerst speichern'
+                  : lang === 'ar'
+                    ? 'احفظ التقرير أولاً'
+                    : 'Önce raporu kaydedin'
+              : ''
+          }
           style={{ opacity: currentId ? 1 : 0.5 }}
           onClick={() => setScheduleOpen(true)}
         >
-          🕒 {tr ? 'Zamanla' : 'Schedule'}
+          🕒{' '}
+          {lang === 'en'
+            ? 'Schedule'
+            : lang === 'de'
+              ? 'Planen'
+              : lang === 'ar'
+                ? 'جدولة'
+                : 'Zamanla'}
         </button>
       </div>
 
@@ -316,11 +411,23 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
             style={{ width: 240, maxHeight: 460, overflow: 'auto', flexShrink: 0 }}
           >
             <div className="text-xs font-bold mb-1" style={{ color: 'var(--ink-mute)' }}>
-              {tr ? 'ŞEMA (tıkla → ekle)' : 'SCHEMA (click → insert)'}
+              {lang === 'en'
+                ? 'SCHEMA (click → insert)'
+                : lang === 'de'
+                  ? 'SCHEMA (Klick → einfügen)'
+                  : lang === 'ar'
+                    ? 'المخطط (انقر → إدراج)'
+                    : 'ŞEMA (tıkla → ekle)'}
             </div>
             {catalog.length === 0 && (
               <div className="text-xs" style={{ color: 'var(--ink-mute)' }}>
-                {tr ? 'Katalog yükleniyor…' : 'Loading…'}
+                {lang === 'en'
+                  ? 'Loading…'
+                  : lang === 'de'
+                    ? 'Katalog wird geladen…'
+                    : lang === 'ar'
+                      ? 'جارٍ تحميل الكتالوج…'
+                      : 'Katalog yükleniyor…'}
               </div>
             )}
             {catalog.map((t) => (
@@ -374,7 +481,15 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
               style={{ width: '100%', minHeight: 150, fontSize: 12, resize: 'vertical' }}
               value={sql}
               onChange={(e) => setSql(e.target.value)}
-              placeholder="SELECT ... ( :parametre ile parametre tanımlayın )"
+              placeholder={
+                lang === 'en'
+                  ? 'SELECT ... ( define parameters with :param )'
+                  : lang === 'de'
+                    ? 'SELECT ... ( Parameter mit :param definieren )'
+                    : lang === 'ar'
+                      ? 'SELECT ... ( عرّف المعاملات بـ :param )'
+                      : 'SELECT ... ( :parametre ile parametre tanımlayın )'
+              }
             />
             {params.length > 0 && (
               <div
@@ -382,7 +497,13 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
                 style={{ flexWrap: 'wrap', background: 'var(--bg-alt)' }}
               >
                 <span className="text-xs font-bold" style={{ color: 'var(--ink-mute)' }}>
-                  {tr ? 'Parametreler:' : 'Params:'}
+                  {lang === 'en'
+                    ? 'Params:'
+                    : lang === 'de'
+                      ? 'Parameter:'
+                      : lang === 'ar'
+                        ? 'المعاملات:'
+                        : 'Parametreler:'}
                 </span>
                 {params.map((p) => (
                   <label
@@ -457,26 +578,53 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="font-bold">
-              {tr ? 'Raporu Kaydet' : 'Save Report'} {mode === 'visual' ? '◧' : '⌨'}
+              {lang === 'en'
+                ? 'Save Report'
+                : lang === 'de'
+                  ? 'Bericht speichern'
+                  : lang === 'ar'
+                    ? 'حفظ التقرير'
+                    : 'Raporu Kaydet'}{' '}
+              {mode === 'visual' ? '◧' : '⌨'}
             </div>
             <input
               className="input"
               style={{ width: '100%' }}
               value={saveName}
               onChange={(e) => setSaveName(e.target.value)}
-              placeholder={tr ? 'Rapor adı' : 'Report name'}
+              placeholder={
+                lang === 'en'
+                  ? 'Report name'
+                  : lang === 'de'
+                    ? 'Berichtsname'
+                    : lang === 'ar'
+                      ? 'اسم التقرير'
+                      : 'Rapor adı'
+              }
               autoFocus
             />
             <div className="flex justify-end gap-2">
               <button className="btn" onClick={() => setSaveOpen(false)}>
-                {tr ? 'İptal' : 'Cancel'}
+                {lang === 'en'
+                  ? 'Cancel'
+                  : lang === 'de'
+                    ? 'Abbrechen'
+                    : lang === 'ar'
+                      ? 'إلغاء'
+                      : 'İptal'}
               </button>
               <button
                 className="btn"
                 style={{ background: '#7c3aed', color: '#fff' }}
                 onClick={doSave}
               >
-                {tr ? 'Kaydet' : 'Save'}
+                {lang === 'en'
+                  ? 'Save'
+                  : lang === 'de'
+                    ? 'Speichern'
+                    : lang === 'ar'
+                      ? 'حفظ'
+                      : 'Kaydet'}
               </button>
             </div>
           </div>
@@ -487,7 +635,16 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
         <ScheduleManager
           api={api}
           reportId={currentId}
-          reportName={saveName || (tr ? 'Rapor' : 'Report')}
+          reportName={
+            saveName ||
+            (lang === 'en'
+              ? 'Report'
+              : lang === 'de'
+                ? 'Bericht'
+                : lang === 'ar'
+                  ? 'تقرير'
+                  : 'Rapor')
+          }
           lang={lang}
           notify={notify}
           onClose={() => setScheduleOpen(false)}

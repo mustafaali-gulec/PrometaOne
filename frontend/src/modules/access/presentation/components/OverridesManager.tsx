@@ -7,6 +7,7 @@
  */
 import { useMemo, useState } from 'react';
 
+import { confirmDialog } from '../../../../shared/feedback';
 import type { CatalogResponse, PermissionOverrideDto } from '../../application/dto/AccessDtos';
 import type { SetOverrideBody } from '../../application/ports/AccessApi';
 
@@ -85,9 +86,19 @@ export function OverridesManager({
   }
 
   async function handleDelete(ov: PermissionOverrideDto): Promise<void> {
+    const L = (typeof window !== 'undefined' && window.__PROMETA_LANG__) || 'tr';
     if (
-      typeof window !== 'undefined' &&
-      !window.confirm(`"${ov.username}" icin ${ov.resource}.${ov.action} override'i silinsin mi?`)
+      !(await confirmDialog({
+        title:
+          L === 'en'
+            ? `Delete override ${ov.resource}.${ov.action} for "${ov.username}"?`
+            : L === 'de'
+              ? `Override ${ov.resource}.${ov.action} für "${ov.username}" löschen?`
+              : L === 'ar'
+                ? `حذف التجاوز ${ov.resource}.${ov.action} للمستخدم "${ov.username}"؟`
+                : `"${ov.username}" için ${ov.resource}.${ov.action} override'ı silinsin mi?`,
+        tone: 'danger',
+      }))
     ) {
       return;
     }

@@ -51,10 +51,12 @@ export class LoginUseCase {
     const ok = await this.deps.hasher.verify(input.password, hash);
     if (!ok) throw new InvalidCredentialsError();
 
+    const companies = await this.deps.users.listAccessibleCompanyIds(user.id);
     const issued = this.deps.tokens.issue({
       sub: user.id,
       username: user.username,
       role: user.role,
+      companies,
     });
 
     const now = this.deps.clock.now();

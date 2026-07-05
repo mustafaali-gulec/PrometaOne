@@ -9,8 +9,19 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { authMiddleware, requireRole } from '../../../middleware/auth.js';
+import { authMiddleware, companyScopeGuard, requireRole } from '../../../middleware/auth.js';
 import type { GetBoqUseCase, SaveBoqLinesUseCase } from '../application/useCases/BoqUseCases.js';
+import type {
+  CreateAttachmentUseCase,
+  CreateMeasurementUseCase,
+  DeleteAttachmentUseCase,
+  DeleteMeasurementUseCase,
+  GetMeasurementSummaryUseCase,
+  ListAttachmentsUseCase,
+  ListMeasurementsUseCase,
+  UpdateAttachmentUseCase,
+  UpdateMeasurementUseCase,
+} from '../application/useCases/MeasurementUseCases.js';
 import type {
   CreateContractUseCase,
   ListContractsUseCase,
@@ -161,6 +172,16 @@ export interface ConstructionRouterDeps {
   getLaborCostSummary: GetLaborCostSummaryUseCase;
   getProjectDashboard: GetProjectDashboardUseCase;
   getProgressCurve: GetProgressCurveUseCase;
+  // Yeşil Defter (metraj) + Ataşman — SF-8
+  createMeasurement: CreateMeasurementUseCase;
+  listMeasurements: ListMeasurementsUseCase;
+  updateMeasurement: UpdateMeasurementUseCase;
+  deleteMeasurement: DeleteMeasurementUseCase;
+  getMeasurementSummary: GetMeasurementSummaryUseCase;
+  createAttachment: CreateAttachmentUseCase;
+  listAttachments: ListAttachmentsUseCase;
+  updateAttachment: UpdateAttachmentUseCase;
+  deleteAttachment: DeleteAttachmentUseCase;
 }
 
 // --- Schema fragmanları ---------------------------------------------------
@@ -203,6 +224,9 @@ const tenderSchema = z
 export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
   const app = new Hono();
   app.use('*', authMiddleware);
+  // Çapraz-tenant koruması: companyId, kullanıcının erişebileceği şirketlerle
+  // sınırlanır (access-token `companies` claim'i; admin sınırsız).
+  app.use('*', companyScopeGuard);
   const requireWrite = requireRole('editor');
 
   const actorId = (c: { get: (k: string) => unknown }): number | null => {
@@ -859,6 +883,201 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
       try {
         const dto = await deps.getCostSummary.execute({ projectId: id, companyId: q.companyId });
         return c.json(dto);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== YEŞİL DEFTER (Metraj) + ATAŞMAN — SF-8 ===========================
+  const contractQ = companyIdQ.extend({ contractId: z.coerce.number().int().positive() });
+  const measurementQ = companyIdQ.extend({ measurementId: z.coerce.number().int().positive() });
+  const dim = z.number().nonnegative().nullable().optional();
+
+  app.get('/measurements', zValidator('query', contractQ), async (c) => {
+    const q = c.req.valid('query');
+    try {
+      const list = await deps.listMeasurements.execute({
+        companyId: q.companyId,
+        contractId: q.contractId,
+      });
+      return c.json({ measurements: list });
+    } catch (err) {
+      mapConstructionError(err);
+    }
+  });
+
+  app.get(
+    '/contracts/:id/measurement-summary',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const lines = await deps.getMeasurementSummary.execute({
+          companyId: q.companyId,
+          contractId: id,
+        });
+        return c.json({ lines });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/measurements',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        contractId: z.number().int().positive(),
+        boqLineId: z.number().int().positive(),
+        progressId: z.number().int().positive().nullable().optional(),
+        measuredQty: z.number().nonnegative().optional(),
+        measuredAt: dateStr.nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.createMeasurement.execute({ ...b, createdBy: actorId(c) });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/measurements/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        progressId: z.number().int().positive().nullable().optional(),
+        measuredQty: z.number().nonnegative().optional(),
+        measuredAt: dateStr.nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.updateMeasurement.execute({ measurementId: id, ...b });
+        return c.json(dto);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/measurements/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        await deps.deleteMeasurement.execute({ measurementId: id, companyId: q.companyId });
+        return c.body(null, 204);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get('/attachments', zValidator('query', measurementQ), async (c) => {
+    const q = c.req.valid('query');
+    try {
+      const list = await deps.listAttachments.execute({
+        companyId: q.companyId,
+        measurementId: q.measurementId,
+      });
+      return c.json({ attachments: list });
+    } catch (err) {
+      mapConstructionError(err);
+    }
+  });
+
+  app.post(
+    '/attachments',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        measurementId: z.number().int().positive(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        formula: z.string().max(500).nullable().optional(),
+        dimA: dim,
+        dimB: dim,
+        dimC: dim,
+        countN: z.number().nonnegative().nullable().optional(),
+        manualQty: z.number().nonnegative().nullable().optional(),
+        fileUrl: z.string().max(1000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.createAttachment.execute(b);
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/attachments/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        formula: z.string().max(500).nullable().optional(),
+        dimA: dim,
+        dimB: dim,
+        dimC: dim,
+        countN: z.number().nonnegative().nullable().optional(),
+        manualQty: z.number().nonnegative().nullable().optional(),
+        fileUrl: z.string().max(1000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.updateAttachment.execute({ attachmentId: id, ...b });
+        return c.json(dto);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/attachments/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        await deps.deleteAttachment.execute({ attachmentId: id, companyId: q.companyId });
+        return c.body(null, 204);
       } catch (err) {
         mapConstructionError(err);
       }

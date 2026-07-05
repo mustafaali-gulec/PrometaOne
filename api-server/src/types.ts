@@ -312,6 +312,8 @@ export interface AuthContext {
   username: string;
   role: UserRole;
   companyId?: number;
+  /** Erişilebilir şirket id'leri (access-token'dan). Admin sınırsız. */
+  companies?: number[];
 }
 
 export interface ErrorResponse {

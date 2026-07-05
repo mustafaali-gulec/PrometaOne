@@ -14,7 +14,7 @@
 ===================================================================== */
 export { FeedbackProvider } from './FeedbackProvider';
 export { toast, useToast } from './toast';
-export { confirmDialog, useConfirm } from './confirm';
+export { confirmDialog, promptDialog, useConfirm } from './confirm';
 export { msg, pick, currentLang } from './messages';
 export { clearToasts } from './store';
 

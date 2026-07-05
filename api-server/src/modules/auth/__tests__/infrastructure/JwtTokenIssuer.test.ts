@@ -3,14 +3,8 @@ import { describe, it } from 'node:test';
 
 import jwt from 'jsonwebtoken';
 
-import {
-  InvalidTokenError,
-  TokenExpiredError,
-} from '../../application/ports/TokenIssuer.js';
-import {
-  JwtTokenIssuer,
-  sha256Hex,
-} from '../../infrastructure/jwt/JwtTokenIssuer.js';
+import { InvalidTokenError, TokenExpiredError } from '../../application/ports/TokenIssuer.js';
+import { JwtTokenIssuer, sha256Hex } from '../../infrastructure/jwt/JwtTokenIssuer.js';
 
 const cfg = {
   accessSecret: 'a'.repeat(32),
@@ -22,16 +16,13 @@ const cfg = {
 
 describe('JwtTokenIssuer', () => {
   it('secret 32 karakterden kısaysa fırlatır', () => {
-    assert.throws(
-      () => new JwtTokenIssuer({ ...cfg, accessSecret: 'short' }),
-      /32 karakter/,
-    );
+    assert.throws(() => new JwtTokenIssuer({ ...cfg, accessSecret: 'short' }), /32 karakter/);
   });
 
   it('issue access + refresh üretir, jti unique', () => {
     const t = new JwtTokenIssuer(cfg);
-    const a = t.issue({ sub: 1, username: 'admin', role: 'admin' });
-    const b = t.issue({ sub: 1, username: 'admin', role: 'admin' });
+    const a = t.issue({ sub: 1, username: 'admin', role: 'admin', companies: [] });
+    const b = t.issue({ sub: 1, username: 'admin', role: 'admin', companies: [] });
 
     assert.match(a.accessToken, /^eyJ/);
     assert.match(a.refreshToken, /^eyJ/);
@@ -41,14 +32,14 @@ describe('JwtTokenIssuer', () => {
 
   it('issueAccessToken sadece access üretir', () => {
     const t = new JwtTokenIssuer(cfg);
-    const r = t.issueAccessToken({ sub: 5, username: 'u', role: 'editor' });
+    const r = t.issueAccessToken({ sub: 5, username: 'u', role: 'editor', companies: [] });
     assert.match(r.token, /^eyJ/);
     assert.equal(r.ttlSeconds, 900);
   });
 
   it('verifyRefreshToken doğru imzayı kabul eder', () => {
     const t = new JwtTokenIssuer(cfg);
-    const a = t.issue({ sub: 42, username: 'x', role: 'cfo' });
+    const a = t.issue({ sub: 42, username: 'x', role: 'cfo', companies: [1, 2] });
     const payload = t.verifyRefreshToken(a.refreshToken);
     assert.equal(payload.sub, 42);
     assert.equal(payload.jti, a.refreshTokenJti);

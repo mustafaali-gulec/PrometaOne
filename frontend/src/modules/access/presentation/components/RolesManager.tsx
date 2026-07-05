@@ -6,6 +6,7 @@
  */
 import { useMemo, useState } from 'react';
 
+import { confirmDialog } from '../../../../shared/feedback';
 import type {
   CatalogResource,
   CatalogResponse,
@@ -120,7 +121,20 @@ export function RolesManager({
   }
 
   async function handleDelete(role: CustomRoleDto): Promise<void> {
-    if (typeof window !== 'undefined' && !window.confirm(`"${role.name}" rolü silinsin mi?`)) {
+    const L = (typeof window !== 'undefined' && window.__PROMETA_LANG__) || 'tr';
+    if (
+      !(await confirmDialog({
+        title:
+          L === 'en'
+            ? `Delete role "${role.name}"?`
+            : L === 'de'
+              ? `Rolle "${role.name}" löschen?`
+              : L === 'ar'
+                ? `حذف دور "${role.name}"؟`
+                : `"${role.name}" rolü silinsin mi?`,
+        tone: 'danger',
+      }))
+    ) {
       return;
     }
     try {

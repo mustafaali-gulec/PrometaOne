@@ -14,6 +14,17 @@ import { SystemClock } from './application/ports/Clock.js';
 import type { EventPublisher } from './application/ports/EventPublisher.js';
 import { GetBoqUseCase, SaveBoqLinesUseCase } from './application/useCases/BoqUseCases.js';
 import {
+  CreateAttachmentUseCase,
+  CreateMeasurementUseCase,
+  DeleteAttachmentUseCase,
+  DeleteMeasurementUseCase,
+  GetMeasurementSummaryUseCase,
+  ListAttachmentsUseCase,
+  ListMeasurementsUseCase,
+  UpdateAttachmentUseCase,
+  UpdateMeasurementUseCase,
+} from './application/useCases/MeasurementUseCases.js';
+import {
   CreateContractUseCase,
   ListContractsUseCase,
   UpdateContractUseCase,
@@ -96,6 +107,10 @@ import {
 import { PgBoqRepository } from './infrastructure/persistence/PgBoqRepository.js';
 import { PgContractRepository } from './infrastructure/persistence/PgContractRepository.js';
 import {
+  PgAttachmentRepository,
+  PgMeasurementBookRepository,
+} from './infrastructure/persistence/PgMeasurementRepositories.js';
+import {
   PgAdvanceRepository,
   PgCashMovementRepository,
   PgExpenseRepository,
@@ -143,6 +158,8 @@ export function registerConstructionModule(
   const machines = new PgMachineRepository(pool);
   const machineLogs = new PgMachineLogRepository(pool);
   const laborCost = new PgLaborCostRepository(pool);
+  const measurements = new PgMeasurementBookRepository(pool);
+  const attachments = new PgAttachmentRepository(pool);
 
   const deps: ConstructionRouterDeps = {
     createProject: new CreateProjectUseCase(projects),
@@ -218,6 +235,15 @@ export function registerConstructionModule(
       laborCost,
     ),
     getProgressCurve: new GetProgressCurveUseCase(progress, contracts),
+    createMeasurement: new CreateMeasurementUseCase(measurements, contracts, boq),
+    listMeasurements: new ListMeasurementsUseCase(measurements),
+    updateMeasurement: new UpdateMeasurementUseCase(measurements),
+    deleteMeasurement: new DeleteMeasurementUseCase(measurements),
+    getMeasurementSummary: new GetMeasurementSummaryUseCase(measurements, contracts),
+    createAttachment: new CreateAttachmentUseCase(attachments, measurements),
+    listAttachments: new ListAttachmentsUseCase(attachments),
+    updateAttachment: new UpdateAttachmentUseCase(attachments, measurements),
+    deleteAttachment: new DeleteAttachmentUseCase(attachments, measurements),
   };
 
   return createConstructionRouter(deps);

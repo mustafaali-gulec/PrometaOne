@@ -13,8 +13,13 @@ import type {
   ContractsResponse,
   CurrencyCode,
   DeductionKind,
+  AttachmentDto,
+  AttachmentsResponse,
   ExpenseDto,
   ExpensesResponse,
+  MeasurementDto,
+  MeasurementsResponse,
+  MeasurementSummaryResponse,
   MaterialDto,
   MaterialRequestDto,
   MaterialRequestStatus,
@@ -216,6 +221,47 @@ export interface UpdateExpenseBody {
   currency?: CurrencyCode;
   spentAt?: string;
 }
+// --- Yeşil Defter (metraj) + Ataşman — SF-8 --------------------------------
+export interface CreateMeasurementBody {
+  companyId: number;
+  contractId: number;
+  boqLineId: number;
+  progressId?: number | null;
+  measuredQty?: number;
+  measuredAt?: string | null;
+  note?: string | null;
+}
+export interface UpdateMeasurementBody {
+  companyId: number;
+  progressId?: number | null;
+  measuredQty?: number;
+  measuredAt?: string | null;
+  note?: string | null;
+}
+export interface CreateAttachmentBody {
+  companyId: number;
+  measurementId: number;
+  boqLineId?: number | null;
+  formula?: string | null;
+  dimA?: number | null;
+  dimB?: number | null;
+  dimC?: number | null;
+  countN?: number | null;
+  manualQty?: number | null;
+  fileUrl?: string | null;
+}
+export interface UpdateAttachmentBody {
+  companyId: number;
+  boqLineId?: number | null;
+  formula?: string | null;
+  dimA?: number | null;
+  dimB?: number | null;
+  dimC?: number | null;
+  countN?: number | null;
+  manualQty?: number | null;
+  fileUrl?: string | null;
+}
+
 export interface CreatePaymentBody {
   companyId: number;
   projectId?: number | null;
@@ -394,6 +440,16 @@ export interface ConstructionApi {
   updateExpense(id: number, body: UpdateExpenseBody): Promise<ExpenseDto>;
   deleteExpense(id: number, companyId: number): Promise<void>;
   getCostSummary(projectId: number, companyId: number): Promise<ProjectCostSummaryDto>;
+  // Yeşil Defter (metraj) + Ataşman — SF-8
+  listMeasurements(companyId: number, contractId: number): Promise<MeasurementsResponse>;
+  getMeasurementSummary(contractId: number, companyId: number): Promise<MeasurementSummaryResponse>;
+  createMeasurement(body: CreateMeasurementBody): Promise<MeasurementDto>;
+  updateMeasurement(id: number, body: UpdateMeasurementBody): Promise<MeasurementDto>;
+  deleteMeasurement(id: number, companyId: number): Promise<void>;
+  listAttachments(companyId: number, measurementId: number): Promise<AttachmentsResponse>;
+  createAttachment(body: CreateAttachmentBody): Promise<AttachmentDto>;
+  updateAttachment(id: number, body: UpdateAttachmentBody): Promise<AttachmentDto>;
+  deleteAttachment(id: number, companyId: number): Promise<void>;
   // Ödeme Listesi (birleşik: manuel + hakediş + gider + avans)
   listPaymentList(companyId: number, projectId?: number | null): Promise<PaymentListResponse>;
   createPayment(body: CreatePaymentBody): Promise<ManualPaymentDto>;

@@ -11,7 +11,7 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 
-import { authMiddleware, requireRole } from '../../../middleware/auth.js';
+import { authMiddleware, companyScopeGuard, requireRole } from '../../../middleware/auth.js';
 import { canRole } from '../../../types.js';
 import {
   toReportDefinitionDto,
@@ -142,6 +142,7 @@ interface Auth {
 export function createReportingRouter(deps: ReportingRouterDeps): Hono {
   const app = new Hono();
   app.use('*', authMiddleware);
+  app.use('*', companyScopeGuard);
   const requireWrite = requireRole('cfo');
 
   const auth = (c: { get: (k: string) => unknown }): Auth => {

@@ -13,7 +13,7 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { authMiddleware, requireRole } from '../../../middleware/auth.js';
+import { authMiddleware, companyScopeGuard, requireRole } from '../../../middleware/auth.js';
 import type { ApproveLeaveRequestUseCase } from '../application/useCases/ApproveLeaveRequestUseCase.js';
 import type { ArchiveDepartmentUseCase } from '../application/useCases/ArchiveDepartmentUseCase.js';
 import type { ArchiveOrgUnitUseCase } from '../application/useCases/ArchiveOrgUnitUseCase.js';
@@ -189,6 +189,7 @@ export function createHrRouter(deps: HrRouterDeps): Hono {
 
   // Tüm route'lar authentication gerektirir
   app.use('*', authMiddleware);
+  app.use('*', companyScopeGuard);
 
   // Writer middleware shortcut (admin or hr_manager+)
   const requireHrWrite = requireRole('hr_manager');

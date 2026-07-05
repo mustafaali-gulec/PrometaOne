@@ -7,6 +7,8 @@
 import type {
   AdvanceDto,
   AdvancesResponse,
+  AttachmentDto,
+  AttachmentsResponse,
   BoqDto,
   CashMovementDto,
   CashResponse,
@@ -15,6 +17,9 @@ import type {
   ContractsResponse,
   ExpenseDto,
   ExpensesResponse,
+  MeasurementDto,
+  MeasurementsResponse,
+  MeasurementSummaryResponse,
   MaterialDto,
   MaterialRequestDto,
   MaterialRequestStatus,
@@ -55,9 +60,11 @@ import type {
   ChangeProjectStatusBody,
   ConstructionApi,
   CreateAdvanceBody,
+  CreateAttachmentBody,
   CreateCashBody,
   CreateContractBody,
   CreateExpenseBody,
+  CreateMeasurementBody,
   CreateMachineBody,
   CreateMachineLogBody,
   CreateMaterialBody,
@@ -73,8 +80,10 @@ import type {
   SaveBoqBody,
   SaveDeductionsBody,
   SaveProgressLinesBody,
+  UpdateAttachmentBody,
   UpdateContractBody,
   UpdateExpenseBody,
+  UpdateMeasurementBody,
   UpdateMaterialBody,
   UpdatePaymentBody,
   UpdatePozBody,
@@ -264,6 +273,56 @@ export class ConstructionApiClient implements ConstructionApi {
   getCostSummary(projectId: number, companyId: number): Promise<ProjectCostSummaryDto> {
     return this.request<ProjectCostSummaryDto>(
       `/v1/construction/projects/${String(projectId)}/cost-summary?companyId=${String(companyId)}`,
+    );
+  }
+
+  // ===== YEŞİL DEFTER (Metraj) + ATAŞMAN — SF-8 ===========================
+  listMeasurements(companyId: number, contractId: number): Promise<MeasurementsResponse> {
+    return this.request<MeasurementsResponse>(
+      `/v1/construction/measurements?companyId=${String(companyId)}&contractId=${String(contractId)}`,
+    );
+  }
+  getMeasurementSummary(
+    contractId: number,
+    companyId: number,
+  ): Promise<MeasurementSummaryResponse> {
+    return this.request<MeasurementSummaryResponse>(
+      `/v1/construction/contracts/${String(contractId)}/measurement-summary?companyId=${String(companyId)}`,
+    );
+  }
+  createMeasurement(body: CreateMeasurementBody): Promise<MeasurementDto> {
+    return this.request<MeasurementDto>(`/v1/construction/measurements`, { method: 'POST', body });
+  }
+  updateMeasurement(id: number, body: UpdateMeasurementBody): Promise<MeasurementDto> {
+    return this.request<MeasurementDto>(`/v1/construction/measurements/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+  deleteMeasurement(id: number, companyId: number): Promise<void> {
+    return this.request<void>(
+      `/v1/construction/measurements/${String(id)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+  listAttachments(companyId: number, measurementId: number): Promise<AttachmentsResponse> {
+    return this.request<AttachmentsResponse>(
+      `/v1/construction/attachments?companyId=${String(companyId)}&measurementId=${String(measurementId)}`,
+    );
+  }
+  createAttachment(body: CreateAttachmentBody): Promise<AttachmentDto> {
+    return this.request<AttachmentDto>(`/v1/construction/attachments`, { method: 'POST', body });
+  }
+  updateAttachment(id: number, body: UpdateAttachmentBody): Promise<AttachmentDto> {
+    return this.request<AttachmentDto>(`/v1/construction/attachments/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+  deleteAttachment(id: number, companyId: number): Promise<void> {
+    return this.request<void>(
+      `/v1/construction/attachments/${String(id)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
     );
   }
   listPaymentList(companyId: number, projectId?: number | null): Promise<PaymentListResponse> {

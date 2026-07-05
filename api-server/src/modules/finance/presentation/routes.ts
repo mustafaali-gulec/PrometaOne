@@ -10,7 +10,7 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { authMiddleware, requireRole } from '../../../middleware/auth.js';
+import { authMiddleware, companyScopeGuard, requireRole } from '../../../middleware/auth.js';
 import type {
   ArchiveBankAccountUseCase,
   ArchiveKasaAccountUseCase,
@@ -106,6 +106,7 @@ const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 export function createFinanceRouter(deps: FinanceRouterDeps): Hono {
   const app = new Hono();
   app.use('*', authMiddleware);
+  app.use('*', companyScopeGuard);
   const requireWrite = requireRole('cfo');
 
   const actor = (c: { get: (k: string) => unknown }): { userId: number | null } => {

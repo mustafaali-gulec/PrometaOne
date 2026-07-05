@@ -96,6 +96,10 @@ export class InMemoryUserRepo implements UserRepository {
     if (i >= 0) this.users[i] = user;
     else this.users.push(user);
   }
+  companyAccess = new Map<number, number[]>();
+  async listAccessibleCompanyIds(userId: number): Promise<number[]> {
+    return this.companyAccess.get(userId) ?? [];
+  }
 }
 
 export class FakePasswordHasher implements PasswordHasher {

@@ -7,6 +7,7 @@
  */
 import { useMemo, useState } from 'react';
 
+import { promptDialog } from '../../../shared/feedback';
 import type { AccessApi } from '../../access/application/ports/AccessApi';
 import { StaticAuthTokenProvider as AccessStaticAuthTokenProvider } from '../../access/application/ports/AuthTokenProvider';
 import { AccessApiClient } from '../../access/infrastructure/api/AccessApiClient';
@@ -402,7 +403,17 @@ function AssetsTab({ api, companyId }: { api: HrApi; companyId: number }): JSX.E
     await refetch();
   };
   const handleAssign = async (id: number): Promise<void> => {
-    const raw = window.prompt('Zimmetlenecek personel ID:');
+    const L = (typeof window !== 'undefined' && window.__PROMETA_LANG__) || 'tr';
+    const raw = await promptDialog({
+      title:
+        L === 'en'
+          ? 'Employee ID to assign:'
+          : L === 'de'
+            ? 'Mitarbeiter-ID für Zuweisung:'
+            : L === 'ar'
+              ? 'معرّف الموظف للتسليم:'
+              : 'Zimmetlenecek personel ID:',
+    });
     if (raw === null) return;
     const employeeId = Number(raw);
     if (!Number.isInteger(employeeId) || employeeId <= 0) return;
@@ -410,7 +421,17 @@ function AssetsTab({ api, companyId }: { api: HrApi; companyId: number }): JSX.E
     await refetch();
   };
   const handleReturn = async (id: number): Promise<void> => {
-    const note = window.prompt('İade notu (opsiyonel):');
+    const L = (typeof window !== 'undefined' && window.__PROMETA_LANG__) || 'tr';
+    const note = await promptDialog({
+      title:
+        L === 'en'
+          ? 'Return note (optional):'
+          : L === 'de'
+            ? 'Rückgabenotiz (optional):'
+            : L === 'ar'
+              ? 'ملاحظة الإرجاع (اختياري):'
+              : 'İade notu (opsiyonel):',
+    });
     await api.returnAsset(id, companyId, note === null || note === '' ? undefined : note);
     await refetch();
   };

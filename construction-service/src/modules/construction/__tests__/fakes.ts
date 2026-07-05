@@ -60,7 +60,16 @@ import type {
   NewProjectInput,
   ProjectRepository,
 } from '../application/ports/ProjectRepository.js';
+import type {
+  AttachmentRepository,
+  MeasurementBookRepository,
+  NewAttachmentInput,
+  NewMeasurementInput,
+} from '../application/ports/MeasurementRepositories.js';
+import type { MeasurementSummaryLineDto } from '../application/dto/MeasurementDtos.js';
+import { MeasurementBook } from '../domain/entities/MeasurementBook.js';
 import { Advance } from '../domain/entities/Advance.js';
+import { Attachment } from '../domain/entities/Attachment.js';
 import { BoqLine } from '../domain/entities/BoqLine.js';
 import { CashMovement } from '../domain/entities/CashMovement.js';
 import { Contract } from '../domain/entities/Contract.js';
@@ -888,5 +897,84 @@ export class InMemoryMachineLogRepository implements MachineLogRepository {
   }
   async listByProject(projectId: number, companyId: number): Promise<ReadonlyArray<MachineLog>> {
     return this.items.filter((x) => x.projectId === projectId && x.companyId === companyId);
+  }
+}
+
+// ===== YEŞİL DEFTER (Metraj) + ATAŞMAN — SF-8 ===============================
+export class InMemoryMeasurementBookRepository implements MeasurementBookRepository {
+  items: MeasurementBook[] = [];
+  private seq = 0;
+
+  async insert(input: NewMeasurementInput): Promise<MeasurementBook> {
+    this.seq += 1;
+    const m = MeasurementBook.create({ id: this.seq, ...input, createdAt: FNOW });
+    this.items.push(m);
+    return m;
+  }
+  async update(m: MeasurementBook): Promise<void> {
+    const idx = this.items.findIndex((x) => x.id === m.id && x.companyId === m.companyId);
+    if (idx >= 0) this.items[idx] = m;
+  }
+  async delete(id: number, companyId: number): Promise<boolean> {
+    const before = this.items.length;
+    this.items = this.items.filter((x) => !(x.id === id && x.companyId === companyId));
+    return this.items.length < before;
+  }
+  async findById(id: number, companyId: number): Promise<MeasurementBook | null> {
+    return this.items.find((x) => x.id === id && x.companyId === companyId) ?? null;
+  }
+  async listByContract(
+    contractId: number,
+    companyId: number,
+  ): Promise<ReadonlyArray<MeasurementBook>> {
+    return this.items.filter((x) => x.contractId === contractId && x.companyId === companyId);
+  }
+  async summaryByContract(
+    contractId: number,
+    companyId: number,
+  ): Promise<ReadonlyArray<MeasurementSummaryLineDto>> {
+    const sums = new Map<number, number>();
+    for (const m of this.items) {
+      if (m.contractId !== contractId || m.companyId !== companyId) continue;
+      sums.set(m.boqLineId, (sums.get(m.boqLineId) ?? 0) + m.measuredQty);
+    }
+    return Array.from(sums.entries())
+      .map(([boqLineId, totalMeasured]) => ({ boqLineId, totalMeasured }))
+      .sort((a, b) => a.boqLineId - b.boqLineId);
+  }
+}
+
+export class InMemoryAttachmentRepository implements AttachmentRepository {
+  items: Attachment[] = [];
+  private seq = 0;
+
+  async insert(input: NewAttachmentInput): Promise<Attachment> {
+    this.seq += 1;
+    const a = Attachment.create({ id: this.seq, ...input, createdAt: FNOW });
+    this.items.push(a);
+    return a;
+  }
+  async update(a: Attachment): Promise<void> {
+    const idx = this.items.findIndex((x) => x.id === a.id && x.companyId === a.companyId);
+    if (idx >= 0) this.items[idx] = a;
+  }
+  async delete(id: number, companyId: number): Promise<boolean> {
+    const before = this.items.length;
+    this.items = this.items.filter((x) => !(x.id === id && x.companyId === companyId));
+    return this.items.length < before;
+  }
+  async findById(id: number, companyId: number): Promise<Attachment | null> {
+    return this.items.find((x) => x.id === id && x.companyId === companyId) ?? null;
+  }
+  async listByMeasurement(
+    measurementId: number,
+    companyId: number,
+  ): Promise<ReadonlyArray<Attachment>> {
+    return this.items.filter((x) => x.measurementId === measurementId && x.companyId === companyId);
+  }
+  async sumByMeasurement(measurementId: number, companyId: number): Promise<number> {
+    return this.items
+      .filter((x) => x.measurementId === measurementId && x.companyId === companyId)
+      .reduce((s, x) => s + x.resultQty, 0);
   }
 }

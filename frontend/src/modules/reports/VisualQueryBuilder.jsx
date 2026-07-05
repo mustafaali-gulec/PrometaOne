@@ -28,7 +28,6 @@ const NO_VALUE_OPS = new Set(['is null', 'is not null']);
 const emptySpec = { source: '', columns: [], filters: [], orderBy: [], limit: 1000 };
 
 export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 'tr' }) {
-  const tr = lang !== 'en';
   const spec = value && value.source !== undefined ? value : emptySpec;
   const set = (patch) => onChange({ ...spec, ...patch });
 
@@ -57,7 +56,16 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
         .catch((e) => {
           if (!alive) return;
           setPreviewSql('');
-          setPreviewErr(e.message || 'derleme hatası');
+          setPreviewErr(
+            e.message ||
+              (lang === 'en'
+                ? 'compile error'
+                : lang === 'de'
+                  ? 'Kompilierfehler'
+                  : lang === 'ar'
+                    ? 'خطأ في الترجمة'
+                    : 'derleme hatası'),
+          );
         });
     }, 400);
     return () => {
@@ -103,7 +111,13 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
       {/* Kaynak */}
       <div className={grp()}>
         <label className="text-xs font-bold" style={{ color: 'var(--ink-mute)' }}>
-          {tr ? 'KAYNAK (tablo/görünüm)' : 'SOURCE'}
+          {lang === 'en'
+            ? 'SOURCE'
+            : lang === 'de'
+              ? 'QUELLE (Tabelle/View)'
+              : lang === 'ar'
+                ? 'المصدر (جدول/عرض)'
+                : 'KAYNAK (tablo/görünüm)'}
         </label>
         <select
           className="input"
@@ -111,7 +125,15 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
           value={spec.source}
           onChange={(e) => onChange({ ...emptySpec, source: e.target.value })}
         >
-          <option value="">{tr ? '— seç —' : '— pick —'}</option>
+          <option value="">
+            {lang === 'en'
+              ? '— pick —'
+              : lang === 'de'
+                ? '— wählen —'
+                : lang === 'ar'
+                  ? '— اختر —'
+                  : '— seç —'}
+          </option>
           {catalog.map((t) => (
             <option key={t.key} value={t.key}>
               {t.label} ({t.key})
@@ -126,10 +148,23 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
           <div className={grp()}>
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold" style={{ color: 'var(--ink-mute)' }}>
-                {tr ? 'KOLONLAR' : 'COLUMNS'}
+                {lang === 'en'
+                  ? 'COLUMNS'
+                  : lang === 'de'
+                    ? 'SPALTEN'
+                    : lang === 'ar'
+                      ? 'الأعمدة'
+                      : 'KOLONLAR'}
               </span>
               <button className="btn" style={{ fontSize: 10 }} onClick={addCol}>
-                + {tr ? 'Kolon' : 'Column'}
+                +{' '}
+                {lang === 'en'
+                  ? 'Column'
+                  : lang === 'de'
+                    ? 'Spalte'
+                    : lang === 'ar'
+                      ? 'عمود'
+                      : 'Kolon'}
               </button>
             </div>
             {spec.columns.map((c, i) => (
@@ -140,7 +175,17 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
                   value={c.col}
                   onChange={(e) => setCol(i, { col: e.target.value })}
                 >
-                  {c.agg === 'count' && <option value="*">* (tümü)</option>}
+                  {c.agg === 'count' && (
+                    <option value="*">
+                      {lang === 'en'
+                        ? '* (all)'
+                        : lang === 'de'
+                          ? '* (alle)'
+                          : lang === 'ar'
+                            ? '* (الكل)'
+                            : '* (tümü)'}
+                    </option>
+                  )}
                   {colOptions.map((o) => (
                     <option key={o} value={o}>
                       {o}
@@ -155,14 +200,30 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
                 >
                   {AGGS.map((a) => (
                     <option key={a} value={a}>
-                      {a === '' ? (tr ? 'agg yok' : 'no agg') : a.toUpperCase()}
+                      {a === ''
+                        ? lang === 'en'
+                          ? 'no agg'
+                          : lang === 'de'
+                            ? 'keine Agg.'
+                            : lang === 'ar'
+                              ? 'بدون تجميع'
+                              : 'agg yok'
+                        : a.toUpperCase()}
                     </option>
                   ))}
                 </select>
                 <input
                   className="input"
                   style={{ fontSize: 11, maxWidth: 120 }}
-                  placeholder={tr ? 'takma ad' : 'alias'}
+                  placeholder={
+                    lang === 'en'
+                      ? 'alias'
+                      : lang === 'de'
+                        ? 'Alias'
+                        : lang === 'ar'
+                          ? 'اسم بديل'
+                          : 'takma ad'
+                  }
                   value={c.alias || ''}
                   onChange={(e) => setCol(i, { alias: e.target.value })}
                 />
@@ -177,9 +238,13 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
             ))}
             {hasAgg && (
               <div className="text-xs" style={{ color: 'var(--ink-mute)' }}>
-                {tr
-                  ? 'ℹ Agregasyon var → agregasız kolonlar otomatik gruplanır.'
-                  : 'ℹ Auto GROUP BY on non-aggregated columns.'}
+                {lang === 'en'
+                  ? 'ℹ Auto GROUP BY on non-aggregated columns.'
+                  : lang === 'de'
+                    ? 'ℹ Aggregation aktiv → nicht aggregierte Spalten werden automatisch gruppiert.'
+                    : lang === 'ar'
+                      ? 'ℹ توجد دالة تجميع ← تُجمَّع الأعمدة غير المجمَّعة تلقائيًا.'
+                      : 'ℹ Agregasyon var → agregasız kolonlar otomatik gruplanır.'}
               </div>
             )}
           </div>
@@ -188,10 +253,23 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
           <div className={grp()}>
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold" style={{ color: 'var(--ink-mute)' }}>
-                {tr ? 'FİLTRELER' : 'FILTERS'}
+                {lang === 'en'
+                  ? 'FILTERS'
+                  : lang === 'de'
+                    ? 'FILTER'
+                    : lang === 'ar'
+                      ? 'المرشحات'
+                      : 'FİLTRELER'}
               </span>
               <button className="btn" style={{ fontSize: 10 }} onClick={addFilter}>
-                + {tr ? 'Filtre' : 'Filter'}
+                +{' '}
+                {lang === 'en'
+                  ? 'Filter'
+                  : lang === 'de'
+                    ? 'Filter'
+                    : lang === 'ar'
+                      ? 'مرشح'
+                      : 'Filtre'}
               </button>
             </div>
             {(spec.filters || []).map((f, i) => (
@@ -246,7 +324,7 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
                   <input
                     className="input"
                     style={{ fontSize: 11, maxWidth: 200 }}
-                    placeholder={tr ? 'a, b, c' : 'a, b, c'}
+                    placeholder="a, b, c"
                     value={(Array.isArray(f.value) ? f.value : []).join(', ')}
                     onChange={(e) =>
                       setFilter(i, {
@@ -262,7 +340,15 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
                   <input
                     className="input"
                     style={{ fontSize: 11, maxWidth: 160 }}
-                    placeholder={tr ? 'değer' : 'value'}
+                    placeholder={
+                      lang === 'en'
+                        ? 'value'
+                        : lang === 'de'
+                          ? 'Wert'
+                          : lang === 'ar'
+                            ? 'قيمة'
+                            : 'değer'
+                    }
                     value={typeof f.value === 'string' ? f.value : ''}
                     onChange={(e) => setFilter(i, { value: e.target.value })}
                   />
@@ -282,10 +368,23 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
           <div className={grp()}>
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold" style={{ color: 'var(--ink-mute)' }}>
-                {tr ? 'SIRALAMA & LİMİT' : 'ORDER & LIMIT'}
+                {lang === 'en'
+                  ? 'ORDER & LIMIT'
+                  : lang === 'de'
+                    ? 'SORTIERUNG & LIMIT'
+                    : lang === 'ar'
+                      ? 'الترتيب والحد'
+                      : 'SIRALAMA & LİMİT'}
               </span>
               <button className="btn" style={{ fontSize: 10 }} onClick={addOrder}>
-                + {tr ? 'Sırala' : 'Sort'}
+                +{' '}
+                {lang === 'en'
+                  ? 'Sort'
+                  : lang === 'de'
+                    ? 'Sortieren'
+                    : lang === 'ar'
+                      ? 'ترتيب'
+                      : 'Sırala'}
               </button>
             </div>
             {(spec.orderBy || []).map((o, i) => (
@@ -321,7 +420,7 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
               </div>
             ))}
             <label className="text-xs flex items-center gap-2" style={{ color: 'var(--ink-mute)' }}>
-              {tr ? 'Limit' : 'Limit'}
+              Limit
               <input
                 className="input mono"
                 type="number"
@@ -337,7 +436,13 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
           {/* Canlı SQL önizleme */}
           <div className="card p-2">
             <div className="text-xs font-bold mb-1" style={{ color: 'var(--ink-mute)' }}>
-              {tr ? 'SQL ÖNİZLEME (otomatik)' : 'SQL PREVIEW'}
+              {lang === 'en'
+                ? 'SQL PREVIEW'
+                : lang === 'de'
+                  ? 'SQL-VORSCHAU (automatisch)'
+                  : lang === 'ar'
+                    ? 'معاينة SQL (تلقائية)'
+                    : 'SQL ÖNİZLEME (otomatik)'}
             </div>
             {previewErr ? (
               <div className="text-xs" style={{ color: '#b91c1c' }}>
@@ -348,7 +453,14 @@ export function VisualQueryBuilder({ catalog = [], value, onChange, api, lang = 
                 className="mono"
                 style={{ fontSize: 11, whiteSpace: 'pre-wrap', margin: 0, color: 'var(--ink)' }}
               >
-                {previewSql || (tr ? '(kolon ekleyin)' : '(add columns)')}
+                {previewSql ||
+                  (lang === 'en'
+                    ? '(add columns)'
+                    : lang === 'de'
+                      ? '(Spalten hinzufügen)'
+                      : lang === 'ar'
+                        ? '(أضف أعمدة)'
+                        : '(kolon ekleyin)')}
               </pre>
             )}
           </div>
