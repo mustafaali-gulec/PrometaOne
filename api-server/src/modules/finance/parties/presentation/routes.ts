@@ -9,7 +9,7 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { authMiddleware, requireRole } from '../../../../middleware/auth.js';
+import { authMiddleware, companyScopeGuard, requireRole } from '../../../../middleware/auth.js';
 import type { BulkImportPartiesUseCase } from '../application/useCases/BulkImportPartiesUseCase.js';
 import type { ListPartiesUseCase } from '../application/useCases/ListPartiesUseCase.js';
 
@@ -40,6 +40,7 @@ const bulkImportBody = z.object({
 export function createPartiesRouter(deps: PartiesRouterDeps): Hono {
   const app = new Hono();
   app.use('*', authMiddleware);
+  app.use('*', companyScopeGuard);
   const requireWrite = requireRole('cfo');
 
   app.get('/parties', zValidator('query', companyIdQ), async (c) => {

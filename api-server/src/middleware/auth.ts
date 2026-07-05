@@ -64,6 +64,51 @@ export const authMiddleware: MiddlewareHandler = async (c, next) => {
 };
 
 /**
+ * Çapraz-tenant koruması: istenen companyId, kullanıcının erişebileceği
+ * şirketler (`auth.companies`, access-token'daki claim) içinde olmalı.
+ * companyId query'de (GET/DELETE) ya da JSON gövdede (POST/PATCH/PUT) taşınır.
+ *
+ * requireCompanyAccess'ten farkı: bu guard DB SORGUSU YAPMAZ (token claim'ini
+ * kullanır) ve companyId'yi GÖVDEDEN de okur → yeni Clean-Arch modüllerinin
+ * (hr/warehouse/production/purchasing/finance/...) body-companyId route'larıyla
+ * uyumludur. Şirket-kapsamlı modül router'larına app.use('*', ...) ile takılır.
+ *
+ * - admin → sınırsız (bypass).
+ * - `companies` claim'i YOKSA (eski token / geçiş dönemi) → geçici izin
+ *   (rollout kırılmasın; token yenilenince tam aktif).
+ * - companyId çıkarılamıyorsa (companyId'siz route) → geç (route/zValidator ele alır).
+ * - Aksi hâlde üyelik zorunlu; değilse 403.
+ */
+export const companyScopeGuard: MiddlewareHandler = async (c, next) => {
+  const auth = c.get('auth');
+  if (!auth) throw new HTTPException(401, { message: 'Yetkilendirme gerekli' });
+  if (auth.role === 'admin') return next();
+  if (auth.companies === undefined) return next(); // geçiş dönemi (claim'siz token)
+
+  let cid: number | null = null;
+  const q = c.req.query('companyId');
+  if (q != null && q !== '') {
+    cid = Number(q);
+  } else {
+    const m = c.req.method;
+    if (m === 'POST' || m === 'PATCH' || m === 'PUT') {
+      try {
+        const body = (await c.req.json()) as { companyId?: unknown } | null;
+        if (body != null && body.companyId != null) cid = Number(body.companyId);
+      } catch {
+        cid = null; // JSON değil → route zaten reddeder
+      }
+    }
+  }
+
+  if (cid === null || Number.isNaN(cid)) return next(); // companyId'siz route → route/zValidator ele alır
+  if (!auth.companies.includes(cid)) {
+    throw new HTTPException(403, { message: 'Bu şirkete erişim yetkiniz yok' });
+  }
+  await next();
+};
+
+/**
  * `authMiddleware`'in eski API ismi. Geriye uyumluluk için tutuluyor.
  * Yeni kodda `authMiddleware` kullanın.
  */

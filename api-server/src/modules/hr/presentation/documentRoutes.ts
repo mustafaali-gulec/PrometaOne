@@ -14,7 +14,7 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 
-import { authMiddleware, requireRole } from '../../../middleware/auth.js';
+import { authMiddleware, companyScopeGuard, requireRole } from '../../../middleware/auth.js';
 import type { EmployeeDocumentRepository } from '../application/ports/EmployeeDocumentRepository.js';
 
 // 10 MB ham dosya sınırı (base64 ~13.4 MB'a şişer — gövde sınırı ona göre).
@@ -38,6 +38,7 @@ export function createHrDocumentsRouter(repo: EmployeeDocumentRepository): Hono 
   const app = new Hono();
 
   app.use('*', authMiddleware);
+  app.use('*', companyScopeGuard);
   const requireHrWrite = requireRole('hr_manager');
 
   // --- LİSTE (metadata) ------------------------------------------------------

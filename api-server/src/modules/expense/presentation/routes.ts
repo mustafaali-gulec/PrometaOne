@@ -10,7 +10,7 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { authMiddleware, requireRole } from '../../../middleware/auth.js';
+import { authMiddleware, companyScopeGuard, requireRole } from '../../../middleware/auth.js';
 import type {
   BulkUpsertExpenseCardsUseCase,
   CreateExpenseCardUseCase,
@@ -86,6 +86,7 @@ const kasaSheets = z
 export function createExpenseRouter(deps: ExpenseRouterDeps): Hono {
   const app = new Hono();
   app.use('*', authMiddleware);
+  app.use('*', companyScopeGuard);
   const requireWrite = requireRole('editor');
 
   const actorId = (c: { get: (k: string) => unknown }): number | null => {

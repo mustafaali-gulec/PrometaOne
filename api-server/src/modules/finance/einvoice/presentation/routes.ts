@@ -9,7 +9,7 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { authMiddleware, requireRole } from '../../../../middleware/auth.js';
+import { authMiddleware, companyScopeGuard, requireRole } from '../../../../middleware/auth.js';
 import type {
   FetchAndStoreRatesUseCase,
   GetCurrentRatesUseCase,
@@ -72,6 +72,7 @@ const idParam = z.object({ id: z.coerce.number().int().positive() });
 export function createEInvoiceRouter(deps: EInvoiceRouterDeps): Hono {
   const app = new Hono();
   app.use('*', authMiddleware);
+  app.use('*', companyScopeGuard);
   const requireWrite = requireRole('cfo');
 
   const actor = (c: { get: (k: string) => unknown }): number | null => {
