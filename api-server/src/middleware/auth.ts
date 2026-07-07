@@ -93,7 +93,7 @@ export const companyScopeGuard: MiddlewareHandler = async (c, next) => {
     const m = c.req.method;
     if (m === 'POST' || m === 'PATCH' || m === 'PUT') {
       try {
-        const body = (await c.req.json()) as { companyId?: unknown } | null;
+        const body = await c.req.json<{ companyId?: unknown } | null>();
         if (body != null && body.companyId != null) cid = Number(body.companyId);
       } catch {
         cid = null; // JSON değil → route zaten reddeder
