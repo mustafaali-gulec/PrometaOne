@@ -92,6 +92,34 @@ services:
     profiles:
       - tools
 
+  # === Şantiye Yönetim mikroservisi (bağımsız; aynı postgres örneği) ===
+  # DB-per-service: kendi DB'si prometa_construction (aynı postgres instance'ta).
+  # JWT_SECRET monolit (api) ile AYNI — token stateless doğrulaması için şart;
+  # ikisi de bu projenin .env'indeki aynı ${JWT_SECRET}'i okur. Kod build
+  # aninda COPY ile gömülür → yeni kod için REBUILD gerekir (CI --build eder).
+  # KAFKA_BROKERS set edilmedi → event publisher no-op.
+  construction-service:
+    build:
+      context: ../construction-service
+      dockerfile: Dockerfile
+    container_name: prometa-construction
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3002
+      HOST: 0.0.0.0
+      DATABASE_URL: postgres://${POSTGRES_USER:-prometa}:${POSTGRES_PASSWORD:-prometa123}@postgres:5432/prometa_construction
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-long-random-string-min-32-chars-please}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      TZ: Europe/Istanbul
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - prometa-one
+
 networks:
   prometa-one:
     driver: bridge

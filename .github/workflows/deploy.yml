@@ -84,6 +84,37 @@ jobs:
           done
           docker compose -p api-server -f api-server/docker-compose.yml exec -T api npm run migrate
 
+      # Şantiye mikroservisi (construction-service) — aynı api-server projesi/ağı.
+      # CI eskiden yalnız db+api rebuild ediyordu; construction elle deploy
+      # ediliyordu (kalıcı boşluk). Artık burada otomatik build+deploy edilir.
+      - name: Deploy construction-service (şantiye mikroservis)
+        run: |
+          # 1) prometa_construction DB'si yoksa oluştur (postgres yalnız POSTGRES_DB'yi oto-yaratır)
+          if ! docker compose -p api-server -f api-server/docker-compose.yml exec -T postgres \
+                 psql -U prometa -tAc "SELECT 1 FROM pg_database WHERE datname='prometa_construction'" | grep -q 1; then
+            echo "prometa_construction DB olusturuluyor..."
+            docker compose -p api-server -f api-server/docker-compose.yml exec -T postgres createdb -U prometa prometa_construction
+          fi
+          # 2) Compose-dışı (elle docker run ile başlatılmış) prometa-construction varsa,
+          #    compose'un adopt edebilmesi için kaldır (yalnız ilk geçişte tetiklenir;
+          #    compose-managed olduktan sonra proje etiketi 'api-server' olur → no-op).
+          CS_PROJ=$(docker inspect prometa-construction --format '{{index .Config.Labels "com.docker.compose.project"}}' 2>/dev/null || echo "")
+          if [ -n "$(docker ps -aq -f name=^/prometa-construction$)" ] && [ "$CS_PROJ" != "api-server" ]; then
+            echo "prometa-construction compose-disi (proje='$CS_PROJ') -> adopt icin kaldiriliyor"
+            docker rm -f prometa-construction || true
+          fi
+          # 3) Build + up. Container CMD'i migrate'i kendisi çalıştırır (node scripts/migrate.js && tsx).
+          docker compose -p api-server -f api-server/docker-compose.yml up -d --build construction-service
+          # 4) Sağlık kontrolü
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3002/v1/health >/dev/null 2>&1; then
+              echo "construction-service hazir."
+              break
+            fi
+            echo "construction-service bekleniyor ($i/30)..."
+            sleep 2
+          done
+
       - name: Servis durumu
         run: docker compose -p api-server -f api-server/docker-compose.yml ps
 
