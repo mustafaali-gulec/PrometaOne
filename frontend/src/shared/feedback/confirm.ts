@@ -63,10 +63,13 @@ export function promptDialog(opts: PromptDialogOptions): Promise<string | null> 
     pending = (ok: boolean) => settle(ok);
     setConfirmRequest({
       title: opts.title,
-      description: opts.description,
-      confirmLabel: opts.confirmLabel,
-      cancelLabel: opts.cancelLabel,
-      input: { placeholder: opts.placeholder, defaultValue: opts.defaultValue },
+      ...(opts.description !== undefined ? { description: opts.description } : {}),
+      ...(opts.confirmLabel !== undefined ? { confirmLabel: opts.confirmLabel } : {}),
+      ...(opts.cancelLabel !== undefined ? { cancelLabel: opts.cancelLabel } : {}),
+      input: {
+        ...(opts.placeholder !== undefined ? { placeholder: opts.placeholder } : {}),
+        ...(opts.defaultValue !== undefined ? { defaultValue: opts.defaultValue } : {}),
+      },
       id: nextId(),
       resolve: settle,
     });
