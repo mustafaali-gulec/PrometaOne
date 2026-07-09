@@ -103,8 +103,11 @@ jobs:
           # 2) Compose-dışı (elle docker run ile başlatılmış) prometa-construction varsa,
           #    compose'un adopt edebilmesi için kaldır (yalnız ilk geçişte tetiklenir;
           #    compose-managed olduktan sonra proje etiketi 'api-server' olur → no-op).
+          # NOT: filtre '^/ad$' YAZMA — Git Bash (MSYS) '=^/...' argümanındaki '/'ı Windows
+          # yoluna çevirir, filtre hiç eşleşmez, rm atlanır ve compose up 'isim zaten
+          # kullanımda' ile patlar. Docker ad filtresi slash'sız '^ad$' ile de tam eşleşir.
           CS_PROJ=$(docker inspect prometa-construction --format '{{index .Config.Labels "com.docker.compose.project"}}' 2>/dev/null || echo "")
-          if [ -n "$(docker ps -aq -f name=^/prometa-construction$)" ] && [ "$CS_PROJ" != "api-server" ]; then
+          if [ -n "$(docker ps -aq -f name=^prometa-construction$)" ] && [ "$CS_PROJ" != "api-server" ]; then
             echo "prometa-construction compose-disi (proje='$CS_PROJ') -> adopt icin kaldiriliyor"
             docker rm -f prometa-construction || true
           fi
