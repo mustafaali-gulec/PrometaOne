@@ -23,6 +23,7 @@ import { registerEdefterModule } from './modules/finance/edefter/index.js';
 import { registerEInvoiceModule } from './modules/finance/einvoice/index.js';
 import { registerFinanceModule } from './modules/finance/index.js';
 import { registerPartiesModule } from './modules/finance/parties/index.js';
+import { registerFixedAssetsModule } from './modules/fixedassets/index.js';
 import { registerHrModule } from './modules/hr/index.js';
 import { registerLicensingModule } from './modules/licensing/index.js';
 import { registerNotificationsModule } from './modules/notifications/index.js';
@@ -172,6 +173,13 @@ const appStateModule = registerAppStateModule(pool);
 const performanceModule = registerPerformanceModule(pool);
 
 // ============================================================================
+// Sabit Kıymet modülü — kıymet kartı/hareket/amortisman koşumu SQL aynası +
+// VUK amortisman hesap motoru, modüler /v1/fixed-assets
+// (kaynak-of-truth app-state blob'u; sync ile yansır)
+// ============================================================================
+const fixedAssetsModule = registerFixedAssetsModule(pool);
+
+// ============================================================================
 // Lisanslama modülü — Ed25519 imzalı license.lic doğrulama + koltuk sınırı,
 // modüler /v1/license. licenseGuard aşağıda TÜM /v1 route'larından önce bağlanır
 // (muaf: /health, /license, /auth).
@@ -236,6 +244,7 @@ v1.route('/purchasing', purchasingModule);
 v1.route('/expense', expenseModule);
 v1.route('/app-state', appStateModule);
 v1.route('/performance', performanceModule);
+v1.route('/fixed-assets', fixedAssetsModule);
 
 // Companies + cells + invoices
 v1.route('/companies', companiesRoutes);
