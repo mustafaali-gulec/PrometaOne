@@ -217,6 +217,28 @@ export const RESOURCES: Readonly<Record<string, ResourceDef>> = {
     label: 'Satınalma Siparişleri',
     actions: ['view', 'create', 'update', 'delete'],
   },
+
+  // Sabit Kıymet
+  'fixedassets.cards': {
+    module: 'Sabit Kıymet',
+    label: 'Kıymet Kartları',
+    actions: ['view', 'create', 'update', 'delete', 'export'],
+  },
+  'fixedassets.depreciation': {
+    module: 'Sabit Kıymet',
+    label: 'Amortisman',
+    actions: ['view', 'create', 'delete'],
+  },
+  'fixedassets.movements': {
+    module: 'Sabit Kıymet',
+    label: 'Kıymet Hareketleri',
+    actions: ['view', 'create', 'delete'],
+  },
+  'fixedassets.reports': {
+    module: 'Sabit Kıymet',
+    label: 'Sabit Kıymet Raporları',
+    actions: ['view', 'export'],
+  },
 };
 
 /** Verilen resource katalogda var mı? */
