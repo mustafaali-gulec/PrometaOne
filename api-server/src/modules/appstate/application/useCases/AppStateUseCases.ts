@@ -4,8 +4,17 @@
  * Genel amaçlı key→JSONB deposu: frontend'in localStorage'da tuttuğu büyük
  * uygulama durumu blob'unu sunucuya taşır. İş kuralı yoktur; sadece okuma ve
  * upsert. RBAC eylem düzeyinde UI tarafında uygulanır.
+ *
+ * MIRROR FAN-OUT: SetAppStateUseCase, upsert BAŞARILI olduktan sonra blob'u
+ * app_state_entities SQL aynasına projeksiyon eder (BlobProjector →
+ * AppStateMirror). Fire-and-forget'tir: await edilmez, hatası console.error
+ * ile loglanıp YUTULUR — kullanıcı kaydı kutsaldır, ayna PUT yanıtını asla
+ * bozmaz/geciktirmez. Yalnız 'global' scope aynalanır (farklı scope'lar tek
+ * aynayı ezmesin).
  */
+import { projectBlobWithGroups } from '../../domain/BlobProjector.js';
 import type { AppStateDto } from '../dto/AppStateDtos.js';
+import type { AppStateMirror } from '../ports/AppStateMirror.js';
 import type { AppStateRepository } from '../ports/AppStateRepository.js';
 import type { Clock } from '../ports/Clock.js';
 
@@ -49,6 +58,8 @@ export class SetAppStateUseCase {
   constructor(
     private readonly repo: AppStateRepository,
     private readonly clock: Clock,
+    /** Opsiyonel SQL aynası — verilmezse fan-out atlanır (geriye uyumlu). */
+    private readonly mirror?: AppStateMirror,
   ) {}
 
   async execute(input: SetAppStateInput): Promise<SetAppStateResult> {
@@ -60,6 +71,28 @@ export class SetAppStateUseCase {
       actorUserId: input.actorUserId ?? null,
       now: this.clock.now(),
     });
+
+    // Upsert başarılı → aynayı ateşle (fire-and-forget; hata yutulur).
+    if (scope === DEFAULT_SCOPE) this.fireMirror(input.key, input.value);
+
     return { scope, key: input.key, updatedAt };
+  }
+
+  private fireMirror(key: string, value: unknown): void {
+    if (!this.mirror) return;
+    try {
+      const { rows, groups } = projectBlobWithGroups(key, value, {
+        onDomainSkipped: (g) =>
+          console.error(
+            `[appstate:mirror] domain atlandı (runaway guard, >50k eleman): company=${g.companyId} domain=${g.domain} eleman=${g.itemCount}`,
+          ),
+      });
+      if (groups.length === 0) return; // bu anahtar aynalanmıyor
+      void this.mirror.replaceAll(rows, groups).catch((err) => {
+        console.error('[appstate:mirror] fan-out hatası (PUT yanıtı etkilenmez):', err);
+      });
+    } catch (err) {
+      console.error('[appstate:mirror] projeksiyon hatası (PUT yanıtı etkilenmez):', err);
+    }
   }
 }

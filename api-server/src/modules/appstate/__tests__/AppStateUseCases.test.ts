@@ -2,12 +2,14 @@
  * AppState use-case testleri.
  */
 import assert from 'node:assert/strict';
-import { beforeEach, describe, it } from 'node:test';
+import { beforeEach, describe, it, mock } from 'node:test';
 
+import type { AppStateMirror } from '../application/ports/AppStateMirror.js';
 import {
   GetAppStateUseCase,
   SetAppStateUseCase,
 } from '../application/useCases/AppStateUseCases.js';
+import type { MirrorGroup, MirrorRow } from '../domain/BlobProjector.js';
 
 import { FixedClock, InMemoryAppStateRepository } from './fakes.js';
 
@@ -94,5 +96,83 @@ describe('AppStateUseCases', () => {
     await set.execute({ key: 'k', value: { x: 1 }, scope: '   ' });
     // Boş/whitespace scope → 'global' olarak normalize; default get ile bulunur.
     assert.deepEqual((await get.execute({ key: 'k' }))?.value, { x: 1 });
+  });
+});
+
+describe('SetAppStateUseCase — mirror fan-out', () => {
+  interface CapturedCall {
+    rows: readonly MirrorRow[];
+    groups: readonly MirrorGroup[] | undefined;
+  }
+
+  function makeMirror(fail = false): { mirror: AppStateMirror; calls: CapturedCall[] } {
+    const calls: CapturedCall[] = [];
+    return {
+      calls,
+      mirror: {
+        async replaceAll(rows, groups) {
+          calls.push({ rows, groups });
+          if (fail) throw new Error('ayna çöktü');
+        },
+      },
+    };
+  }
+
+  it("happy: 'promet:data' PUT sonrası ayna projeksiyon satırlarıyla çağrılır", async () => {
+    const { mirror, calls } = makeMirror();
+    const set = new SetAppStateUseCase(new InMemoryAppStateRepository(), new FixedClock(), mirror);
+
+    await set.execute({
+      key: 'promet:data',
+      value: { companies: [{ id: 'comp_promet', name: 'Promet' }] },
+    });
+
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0]!.rows, [
+      {
+        companyId: '0',
+        domain: 'companies',
+        clientId: 'comp_promet',
+        data: { id: 'comp_promet', name: 'Promet' },
+      },
+    ]);
+    assert.deepEqual(calls[0]!.groups, [{ companyId: '0', domain: 'companies' }]);
+  });
+
+  it('edge: ayna hatası PUT sonucunu BOZMAZ (fire-and-forget, hata yutulur)', async () => {
+    const errSpy = mock.method(console, 'error', () => undefined);
+    try {
+      const { mirror, calls } = makeMirror(true);
+      const set = new SetAppStateUseCase(
+        new InMemoryAppStateRepository(),
+        new FixedClock(),
+        mirror,
+      );
+
+      const res = await set.execute({ key: 'promet:data', value: { banks: [{ id: 'b1' }] } });
+      assert.equal(res.key, 'promet:data'); // yanıt normal döner
+      assert.equal(calls.length, 1);
+      // Reddedilen ayna promise'inin catch'i mikrotask'ta koşar — bekle.
+      await new Promise((r) => setImmediate(r));
+      assert.ok(errSpy.mock.calls.length >= 1);
+    } finally {
+      errSpy.mock.restore();
+    }
+  });
+
+  it('edge: aynalanmayan anahtar ve global-dışı scope aynayı ÇAĞIRMAZ', async () => {
+    const { mirror, calls } = makeMirror();
+    const set = new SetAppStateUseCase(new InMemoryAppStateRepository(), new FixedClock(), mirror);
+
+    await set.execute({ key: 'baska:anahtar', value: { x: 1 } });
+    await set.execute({ key: 'promet:data', value: { banks: [] }, scope: 'user-42' });
+
+    assert.equal(calls.length, 0);
+  });
+
+  it('geriye uyum: mirror verilmeden kurulabilir ve çalışır', async () => {
+    const set = new SetAppStateUseCase(new InMemoryAppStateRepository(), new FixedClock());
+    const res = await set.execute({ key: 'promet:data', value: { banks: [] } });
+    assert.equal(res.scope, 'global');
   });
 });
