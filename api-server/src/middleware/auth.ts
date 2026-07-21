@@ -109,6 +109,24 @@ export const companyScopeGuard: MiddlewareHandler = async (c, next) => {
 };
 
 /**
+ * Opsiyonel auth: Authorization Bearer header'ı VARSA mevcut authMiddleware
+ * doğrulaması aynen uygulanır (geçersiz/süresi dolmuş token → 401; auth'suz
+ * devam ETMEZ). Header hiç yoksa `auth` context'i set edilmeden devam edilir —
+ * route handler `c.get('auth')`'u `AuthContext | undefined` olarak görmelidir.
+ *
+ * Kullanım: FE'nin token'sız da çağırabildiği best-effort uçlar
+ * (/v1/push/register-device, /v1/push/unregister-device).
+ */
+export const optionalAuthMiddleware: MiddlewareHandler = async (c, next) => {
+  const authHeader = c.req.header('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    await next();
+    return;
+  }
+  return authMiddleware(c, next);
+};
+
+/**
  * `authMiddleware`'in eski API ismi. Geriye uyumluluk için tutuluyor.
  * Yeni kodda `authMiddleware` kullanın.
  */

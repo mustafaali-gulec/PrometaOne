@@ -39,8 +39,9 @@ class InMemoryRepo implements NotificationRepository {
 }
 
 class FakeEmail implements EmailService {
-  async send(): Promise<void> {
+  async send(): Promise<{ messageId?: string }> {
     /* no-op */
+    return {};
   }
 }
 

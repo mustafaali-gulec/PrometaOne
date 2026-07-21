@@ -40,8 +40,9 @@ class SequentialIds implements IdGenerator {
 
 class FakeEmailService implements EmailService {
   public sent: SendEmailRequest[] = [];
-  async send(req: SendEmailRequest): Promise<void> {
+  async send(req: SendEmailRequest): Promise<{ messageId?: string }> {
     this.sent.push(req);
+    return {};
   }
 }
 
