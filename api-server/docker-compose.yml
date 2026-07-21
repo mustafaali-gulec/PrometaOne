@@ -49,6 +49,11 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-prometa}:${POSTGRES_PASSWORD:-prometa123}@postgres:5432/${POSTGRES_DB:-prometa_one}
       JWT_SECRET: ${JWT_SECRET:-change-this-to-a-long-random-string-min-32-chars-please}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-another-long-random-string-also-min-32-chars-please}
+      # Web Push (VAPID) — host .env'den gecer (CI deploy adimi .env'i checkout'a kopyalar);
+      # bos kalirsa push gonderimi Noop olur (boot etkilenmez). SMTP passthrough asagida zaten var.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-15m}
       JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES:-7d}
       APP_URL: ${APP_URL:-http://localhost:5173}
