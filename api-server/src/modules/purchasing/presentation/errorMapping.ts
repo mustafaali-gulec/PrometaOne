@@ -8,6 +8,7 @@
 import { HTTPException } from 'hono/http-exception';
 
 import {
+  AdoptConflictError,
   DuplicateVendorCodeError,
   InvalidStatusTransitionError,
   PurchaseOrderNotFoundError,
@@ -25,7 +26,7 @@ export function mapPurchasingError(err: unknown): never {
     throw new HTTPException(404, { message: err.message });
   }
 
-  if (err instanceof DuplicateVendorCodeError) {
+  if (err instanceof DuplicateVendorCodeError || err instanceof AdoptConflictError) {
     throw new HTTPException(409, { message: err.message });
   }
 

@@ -49,3 +49,9 @@ export class PurchasingValidationError extends PurchasingError {
     super(`Geçersiz veri: ${reason}`);
   }
 }
+
+export class AdoptConflictError extends PurchasingError {
+  constructor(detail: string) {
+    super(`Blob devralma çakışması (mevcut kayıtla kod/no çakışıyor): ${detail}`);
+  }
+}
