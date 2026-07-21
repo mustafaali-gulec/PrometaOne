@@ -10,6 +10,7 @@
 import type { Pool } from 'pg';
 
 import { SystemClock } from './application/ports/Clock.js';
+import { AdoptBlobPurchasingUseCase } from './application/useCases/AdoptBlobPurchasing.js';
 import {
   ChangePoStatusUseCase,
   CreatePurchaseOrderUseCase,
@@ -29,6 +30,7 @@ import {
   ListVendorsUseCase,
   UpdateVendorUseCase,
 } from './application/useCases/VendorUseCases.js';
+import { PgAdoptBlobRepository } from './infrastructure/persistence/PgAdoptBlobRepository.js';
 import { PgPurchaseOrderRepository } from './infrastructure/persistence/PgPurchaseOrderRepository.js';
 import { PgPurchaseRequestRepository } from './infrastructure/persistence/PgPurchaseRequestRepository.js';
 import { PgVendorRepository } from './infrastructure/persistence/PgVendorRepository.js';
@@ -40,6 +42,7 @@ export function registerPurchasingModule(pool: Pool): ReturnType<typeof createPu
   const vendors = new PgVendorRepository(pool);
   const prs = new PgPurchaseRequestRepository(pool);
   const pos = new PgPurchaseOrderRepository(pool);
+  const adopt = new PgAdoptBlobRepository(pool);
 
   const deps: PurchasingRouterDeps = {
     createVendor: new CreateVendorUseCase(vendors),
@@ -55,6 +58,7 @@ export function registerPurchasingModule(pool: Pool): ReturnType<typeof createPu
     listPurchaseOrders: new ListPurchaseOrdersUseCase(pos),
     updatePurchaseOrder: new UpdatePurchaseOrderUseCase(pos, clock),
     changePoStatus: new ChangePoStatusUseCase(pos, clock),
+    adoptBlob: new AdoptBlobPurchasingUseCase(adopt),
   };
 
   return createPurchasingRouter(deps);

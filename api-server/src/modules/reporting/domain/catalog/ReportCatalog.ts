@@ -26,6 +26,7 @@ export interface RelationDef {
 export const ALLOWED_RELATIONS: Readonly<Record<string, RelationDef>> = {
   // --- Finans ---
   invoices: { label: 'Faturalar', kind: 'table', group: 'Finans' },
+  expense_cards: { label: 'Gider Kartları', kind: 'table', group: 'Finans' },
   invoice_payments: { label: 'Fatura Ödemeleri', kind: 'table', group: 'Finans' },
   banks: { label: 'Bankalar', kind: 'table', group: 'Finans' },
   bank_accounts: { label: 'Banka Hesapları', kind: 'table', group: 'Finans' },
@@ -54,6 +55,89 @@ export const ALLOWED_RELATIONS: Readonly<Record<string, RelationDef>> = {
   hr_payroll_items: { label: 'Bordro Kalemleri', kind: 'table', group: 'İK' },
   hr_leave_requests: { label: 'İzin Talepleri', kind: 'table', group: 'İK' },
   hr_assets: { label: 'Zimmet / Varlıklar', kind: 'table', group: 'İK' },
+  hr_perf_cycles: { label: 'Performans Dönemleri', kind: 'table', group: 'İK' },
+  hr_perf_reviews: { label: 'Performans Değerlendirmeleri', kind: 'table', group: 'İK' },
+
+  // --- Sabit Kıymet ---
+  fixed_assets: { label: 'Sabit Kıymetler', kind: 'table', group: 'Sabit Kıymet' },
+  fixed_asset_movements: {
+    label: 'Sabit Kıymet Hareketleri',
+    kind: 'table',
+    group: 'Sabit Kıymet',
+  },
+  fixed_asset_depreciation_runs: {
+    label: 'Amortisman Koşumları',
+    kind: 'table',
+    group: 'Sabit Kıymet',
+  },
+
+  // --- Şantiye ---
+  construction_journal_entries: {
+    label: 'Şantiye Yevmiye Fişleri',
+    kind: 'table',
+    group: 'Şantiye',
+  },
+  construction_journal_lines: {
+    label: 'Şantiye Yevmiye Satırları',
+    kind: 'table',
+    group: 'Şantiye',
+  },
+
+  // --- Uygulama Aynası (app-state blob → SQL; 044_app_state_mirror.sql) ---
+  // company_id TEXT'tir ('0' = global; aksi halde blob companyData anahtarı,
+  // örn. "comp_promet"). Hassas anahtarlar projeksiyon sırasında silinir.
+  app_state_entities: {
+    label: 'Uygulama Durumu Aynası (ham JSONB)',
+    kind: 'table',
+    group: 'Uygulama Aynası',
+  },
+  v_hr_employees: { label: 'Çalışanlar (blob görünüm)', kind: 'view', group: 'Uygulama Aynası' },
+  v_acc_journal_entries: {
+    label: 'Yevmiye Fişleri (blob görünüm)',
+    kind: 'view',
+    group: 'Uygulama Aynası',
+  },
+  v_acc_journal_lines: {
+    label: 'Yevmiye Satırları (blob görünüm)',
+    kind: 'view',
+    group: 'Uygulama Aynası',
+  },
+  v_blob_invoices: { label: 'Faturalar (blob görünüm)', kind: 'view', group: 'Uygulama Aynası' },
+  v_bank_entries: {
+    label: 'Banka Hareketleri (blob görünüm)',
+    kind: 'view',
+    group: 'Uygulama Aynası',
+  },
+  v_kasa_entries: {
+    label: 'Kasa Hareketleri (blob görünüm)',
+    kind: 'view',
+    group: 'Uygulama Aynası',
+  },
+  v_loans: { label: 'Krediler (blob görünüm)', kind: 'view', group: 'Uygulama Aynası' },
+  v_checks: { label: 'Çek/Senet (blob görünüm)', kind: 'view', group: 'Uygulama Aynası' },
+  v_manual_payments: {
+    label: 'Manuel Planlı Ödemeler (blob görünüm)',
+    kind: 'view',
+    group: 'Uygulama Aynası',
+  },
+  v_crm_deals: { label: 'CRM Fırsatları (blob görünüm)', kind: 'view', group: 'Uygulama Aynası' },
+  v_tasks: { label: 'Görevler (blob görünüm)', kind: 'view', group: 'Uygulama Aynası' },
+  v_purchase_requests: {
+    label: 'Satınalma Talepleri (blob görünüm)',
+    kind: 'view',
+    group: 'Uygulama Aynası',
+  },
+  v_purchase_orders: {
+    label: 'Satınalma Siparişleri (blob görünüm)',
+    kind: 'view',
+    group: 'Uygulama Aynası',
+  },
+  v_projects: { label: 'Projeler (blob görünüm)', kind: 'view', group: 'Uygulama Aynası' },
+  v_users: {
+    label: 'Kullanıcılar (blob görünüm, parolasız)',
+    kind: 'view',
+    group: 'Uygulama Aynası',
+  },
 
   // --- Depo / Stok ---
   warehouses: { label: 'Depolar', kind: 'table', group: 'Depo' },

@@ -30,6 +30,7 @@ import { registerNotificationsModule } from './modules/notifications/index.js';
 import { registerPerformanceModule } from './modules/performance/index.js';
 import { registerProductionModule } from './modules/production/index.js';
 import { registerPurchasingModule } from './modules/purchasing/index.js';
+import { registerPushModule } from './modules/push/index.js';
 import { registerReportingModule } from './modules/reporting/index.js';
 import { registerWarehouseModule } from './modules/warehouse/index.js';
 import cellsRoutes from './routes/cells.js';
@@ -180,6 +181,12 @@ const performanceModule = registerPerformanceModule(pool);
 const fixedAssetsModule = registerFixedAssetsModule(pool);
 
 // ============================================================================
+// Push modülü — Web Push (VAPID) cihaz kaydı + gönderim, modüler /v1/push
+// (VAPID env yoksa NoopPushSender: kayıt çalışır, gönderim loglanıp atlanır)
+// ============================================================================
+const pushModule = registerPushModule(pool);
+
+// ============================================================================
 // Lisanslama modülü — Ed25519 imzalı license.lic doğrulama + koltuk sınırı,
 // modüler /v1/license. licenseGuard aşağıda TÜM /v1 route'larından önce bağlanır
 // (muaf: /health, /license, /auth).
@@ -264,6 +271,12 @@ v1.route('/companies', archives);
 // Bildirimler — YENI moduler endpoint (/v1/notifications)
 // =======================================================================
 v1.route('/notifications', notificationsModule.router);
+
+// Push bildirimleri — cihaz kaydı + gönderim (/v1/push)
+v1.route('/push', pushModule.router);
+
+// E-posta gönderimi + log (/v1/email) — notifications modülünün email router'ı
+v1.route('/email', notificationsModule.emailRouter);
 
 // AI Asistan — YENI moduler endpoint (Faz 2 / PR 1)
 v1.route('/ai', aiModule.router);

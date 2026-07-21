@@ -42,6 +42,12 @@ const envSchema = z.object({
 
   ENABLE_CRON: z.coerce.boolean().default(true),
 
+  // Web Push (VAPID) — opsiyonel. Yoksa push modülü NoopPushSender ile ayağa
+  // kalkar: cihaz kaydı çalışır, gönderim loglanıp atlanır (boot patlamaz).
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().optional(),
+
   // Lisanslama — makinenin donanım kimliği (kurulum sihirbazı üretir) ve
   // gömülü lisans public key'inin opsiyonel override'ı (anahtar rotasyonu).
   PROMETA_FINGERPRINT: z.string().optional(),

@@ -11,6 +11,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 
 import { authMiddleware, companyScopeGuard, requireRole } from '../../../middleware/auth.js';
+import type { AdoptBlobPurchasingUseCase } from '../application/useCases/AdoptBlobPurchasing.js';
 import type {
   ChangePoStatusUseCase,
   CreatePurchaseOrderUseCase,
@@ -47,6 +48,7 @@ export interface PurchasingRouterDeps {
   listPurchaseOrders: ListPurchaseOrdersUseCase;
   updatePurchaseOrder: UpdatePurchaseOrderUseCase;
   changePoStatus: ChangePoStatusUseCase;
+  adoptBlob: AdoptBlobPurchasingUseCase;
 }
 
 // --- Schema fragmanları ---------------------------------------------------
@@ -390,6 +392,33 @@ export function createPurchasingRouter(deps: PurchasingRouterDeps): Hono {
       const b = c.req.valid('json');
       try {
         const dto = await deps.updatePurchaseOrder.execute({ poId: id, ...b });
+        return c.json(dto);
+      } catch (err) {
+        mapPurchasingError(err);
+      }
+    },
+  );
+
+  // ===== BLOB DEVRALMA (tek seferlik, idempotent) =========================
+  // Blob (promet:data) purchaseRequests/purchaseOrders/accParties(supplier)
+  // koleksiyonlarını client_id anahtarıyla devralır; ikinci çağrı dupe
+  // üretmez. Gövde blob alan adlarıyla GEVŞEK gelir; normalizasyon use-case'te.
+  app.post(
+    '/adopt-blob',
+    requireRole('cfo'),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.coerce.number().int().positive(),
+        vendors: z.array(z.record(z.unknown())).optional(),
+        requests: z.array(z.record(z.unknown())).optional(),
+        orders: z.array(z.record(z.unknown())).optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.adoptBlob.execute(b);
         return c.json(dto);
       } catch (err) {
         mapPurchasingError(err);
