@@ -33,6 +33,11 @@ const envSchema = z.object({
 
   TCMB_API_KEY: z.string().optional(),
 
+  // Beyanname (GİB e-Beyan) entegrasyon kimliği şifreleme anahtarı — opsiyonel.
+  // Yoksa EINVOICE_MASTER_KEY'e düşer; o da yoksa dev'de efemeral anahtar + uyarı.
+  EBEYAN_MASTER_KEY: z.string().optional(),
+  EINVOICE_MASTER_KEY: z.string().optional(),
+
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),
