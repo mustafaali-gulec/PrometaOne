@@ -16,14 +16,33 @@
  * (companyData[cid].hrCustomRoles/hrRoleGrants/hrPermOverrides) access_*
  * tablolarına yansıtılır (AccessProjection → AccessProjectionMirror). Yalnız
  * 'promet:data' anahtarı + 'global' scope; hata yutulur, PUT asla bozulmaz.
+ *
+ * HR FAN-OUT: üçüncü projeksiyon — blob HR çekirdeği (companyData[cid].
+ * hrPositions/hrEmployees/hrCandidates/hrApplications/hrLeaveRequests/
+ * hrPayrollRuns/hrAssets) MEVCUT normalize hr tablolarına yansıtılır
+ * (HrProjection → HrProjectionMirror). hrOrgUnits/hrDepartments MEZUNDUR
+ * (yazma-cutover; HrProjection.GRADUATED_COLLECTIONS) — sunucu-otoriter
+ * org_units/departments tablolarına yansıtılmaz. Aynı kurallar: yalnız
+ * 'promet:data' + 'global' scope; fire-and-forget, hata yutulur.
+ *
+ * FİNANS FAN-OUT: dördüncü projeksiyon — blob finans çekirdeği (banks [kök
+ * alan] + companyData[cid].bankAccounts/kasaAccounts/kasaEntries/transfers/
+ * invoices/inflows/outflows/nonPnlOutflows/kasaCategories/cells) MEVCUT
+ * normalize finance tablolarına yansıtılır (FinanceProjection →
+ * FinanceProjectionMirror). Aynı kurallar: yalnız 'promet:data' + 'global'
+ * scope; fire-and-forget, hata yutulur.
  */
 import { projectAccess } from '../../domain/AccessProjection.js';
 import { projectBlobWithGroups } from '../../domain/BlobProjector.js';
+import { projectFinance } from '../../domain/FinanceProjection.js';
+import { projectHr } from '../../domain/HrProjection.js';
 import type { AppStateDto } from '../dto/AppStateDtos.js';
 import type { AccessProjectionMirror } from '../ports/AccessProjectionMirror.js';
 import type { AppStateMirror } from '../ports/AppStateMirror.js';
 import type { AppStateRepository } from '../ports/AppStateRepository.js';
 import type { Clock } from '../ports/Clock.js';
+import type { FinanceProjectionMirror } from '../ports/FinanceProjectionMirror.js';
+import type { HrProjectionMirror } from '../ports/HrProjectionMirror.js';
 
 const DEFAULT_SCOPE = 'global';
 
@@ -72,6 +91,10 @@ export class SetAppStateUseCase {
     private readonly mirror?: AppStateMirror,
     /** Opsiyonel access_* projeksiyonu — verilmezse fan-out atlanır (geriye uyumlu). */
     private readonly accessMirror?: AccessProjectionMirror,
+    /** Opsiyonel hr tablo projeksiyonu — verilmezse fan-out atlanır (geriye uyumlu). */
+    private readonly hrMirror?: HrProjectionMirror,
+    /** Opsiyonel finance tablo projeksiyonu — verilmezse fan-out atlanır (geriye uyumlu). */
+    private readonly financeMirror?: FinanceProjectionMirror,
   ) {}
 
   async execute(input: SetAppStateInput): Promise<SetAppStateResult> {
@@ -88,6 +111,8 @@ export class SetAppStateUseCase {
     if (scope === DEFAULT_SCOPE) {
       this.fireMirror(input.key, input.value);
       this.fireAccessProjection(input.key, input.value);
+      this.fireHrProjection(input.key, input.value);
+      this.fireFinanceProjection(input.key, input.value);
     }
 
     return { scope, key: input.key, updatedAt };
@@ -121,6 +146,40 @@ export class SetAppStateUseCase {
       });
     } catch (err) {
       console.error('[appstate:access] projeksiyon hatası (PUT yanıtı etkilenmez):', err);
+    }
+  }
+
+  private fireHrProjection(key: string, value: unknown): void {
+    if (!this.hrMirror) return;
+    if (key !== ACCESS_SOURCE_KEY) return; // HR çekirdeği yalnız promet:data blob'unda yaşar
+    try {
+      const projection = projectHr(value);
+      for (const [reason, count] of Object.entries(projection.dropped)) {
+        console.error(`[appstate:hr] ${count} satır düşürüldü/uyarlandı (${reason}) — şema uyumu`);
+      }
+      void this.hrMirror.replaceAll(projection).catch((err) => {
+        console.error('[appstate:hr] fan-out hatası (PUT yanıtı etkilenmez):', err);
+      });
+    } catch (err) {
+      console.error('[appstate:hr] projeksiyon hatası (PUT yanıtı etkilenmez):', err);
+    }
+  }
+
+  private fireFinanceProjection(key: string, value: unknown): void {
+    if (!this.financeMirror) return;
+    if (key !== ACCESS_SOURCE_KEY) return; // finans çekirdeği yalnız promet:data blob'unda yaşar
+    try {
+      const projection = projectFinance(value);
+      for (const [reason, count] of Object.entries(projection.dropped)) {
+        console.error(
+          `[appstate:finance] ${count} satır düşürüldü/uyarlandı (${reason}) — şema uyumu`,
+        );
+      }
+      void this.financeMirror.replaceAll(projection).catch((err) => {
+        console.error('[appstate:finance] fan-out hatası (PUT yanıtı etkilenmez):', err);
+      });
+    } catch (err) {
+      console.error('[appstate:finance] projeksiyon hatası (PUT yanıtı etkilenmez):', err);
     }
   }
 }

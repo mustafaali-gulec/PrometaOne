@@ -269,3 +269,13 @@ export class AssetNotAssignedError extends Error {
     this.name = 'AssetNotAssignedError';
   }
 }
+
+// ============================================================================
+// Org adopt (blob yazma-cutover devralması)
+// ============================================================================
+export class HrOrgAdoptConflictError extends Error {
+  constructor(detail: string) {
+    super(`Org devralma benzersizlik çakışması: ${detail}`);
+    this.name = 'HrOrgAdoptConflictError';
+  }
+}

@@ -249,6 +249,20 @@ export {
 // ---------------------------------------------------------------------------
 // Application — use-cases (PR 2)
 // ---------------------------------------------------------------------------
+// Org adopt (blob yazma-cutover devralması)
+export { AdoptBlobHrOrgUseCase } from './application/useCases/AdoptBlobHrOrgUseCase.js';
+export type {
+  AdoptHrOrgInput,
+  AdoptHrOrgResultDto,
+  NormalizedAdoptDepartment,
+  NormalizedAdoptOrgUnit,
+} from './application/dto/AdoptHrOrgDtos.js';
+export type {
+  AdoptHrOrgOutcome,
+  AdoptHrOrgPayload,
+  AdoptHrOrgRepository,
+} from './application/ports/AdoptHrOrgRepository.js';
+
 // OrgUnit
 export { CreateOrgUnitUseCase } from './application/useCases/CreateOrgUnitUseCase.js';
 export type { CreateOrgUnitInput } from './application/useCases/CreateOrgUnitUseCase.js';
@@ -270,6 +284,8 @@ export { ArchiveDepartmentUseCase } from './application/useCases/ArchiveDepartme
 export type { ArchiveDepartmentInput } from './application/useCases/ArchiveDepartmentUseCase.js';
 export { AssignDepartmentManagerUseCase } from './application/useCases/AssignDepartmentManagerUseCase.js';
 export type { AssignDepartmentManagerInput } from './application/useCases/AssignDepartmentManagerUseCase.js';
+export { ListDepartmentsForCompanyUseCase } from './application/useCases/ListDepartmentsForCompanyUseCase.js';
+export type { ListDepartmentsForCompanyInput } from './application/useCases/ListDepartmentsForCompanyUseCase.js';
 
 // Position
 export { CreatePositionUseCase } from './application/useCases/CreatePositionUseCase.js';
@@ -380,6 +396,7 @@ export type { GetAssetInput, GetAssetResult } from './application/useCases/GetAs
 // ---------------------------------------------------------------------------
 // Infrastructure (PR 4a)
 // ---------------------------------------------------------------------------
+export { PgAdoptHrOrgRepository } from './infrastructure/persistence/PgAdoptHrOrgRepository.js';
 export { PgOrgUnitRepository } from './infrastructure/persistence/PgOrgUnitRepository.js';
 export { PgDepartmentRepository } from './infrastructure/persistence/PgDepartmentRepository.js';
 export { PgPositionRepository } from './infrastructure/persistence/PgPositionRepository.js';
@@ -413,6 +430,7 @@ import type { Pool } from 'pg';
 import type { UserRepository as AuthUserRepository } from '../auth/index.js';
 
 import { systemClock as _systemClock } from './application/ports/Clock.js';
+import { AdoptBlobHrOrgUseCase as _AdoptBlobHrOrgUseCase } from './application/useCases/AdoptBlobHrOrgUseCase.js';
 import { ApproveLeaveRequestUseCase as _ApproveLeaveRequestUseCase } from './application/useCases/ApproveLeaveRequestUseCase.js';
 import { ArchiveDepartmentUseCase as _ArchiveDepartmentUseCase } from './application/useCases/ArchiveDepartmentUseCase.js';
 import { ArchiveOrgUnitUseCase as _ArchiveOrgUnitUseCase } from './application/useCases/ArchiveOrgUnitUseCase.js';
@@ -438,6 +456,7 @@ import { ListApplicationsForCandidateUseCase as _ListApplicationsForCandidateUse
 import { ListApplicationsForPositionUseCase as _ListApplicationsForPositionUseCase } from './application/useCases/ListApplicationsForPositionUseCase.js';
 import { ListAssetsUseCase as _ListAssetsUseCase } from './application/useCases/ListAssetsUseCase.js';
 import { ListCandidatesUseCase as _ListCandidatesUseCase } from './application/useCases/ListCandidatesUseCase.js';
+import { ListDepartmentsForCompanyUseCase as _ListDepartmentsForCompanyUseCase } from './application/useCases/ListDepartmentsForCompanyUseCase.js';
 import { ListEmployeesUseCase as _ListEmployeesUseCase } from './application/useCases/ListEmployeesUseCase.js';
 import { ListLeaveRequestsUseCase as _ListLeaveRequestsUseCase } from './application/useCases/ListLeaveRequestsUseCase.js';
 import { ListOrgTreeForCompanyUseCase as _ListOrgTreeForCompanyUseCase } from './application/useCases/ListOrgTreeForCompanyUseCase.js';
@@ -464,6 +483,7 @@ import { UpdatePositionUseCase as _UpdatePositionUseCase } from './application/u
 import { WithdrawApplicationUseCase as _WithdrawApplicationUseCase } from './application/useCases/WithdrawApplicationUseCase.js';
 import { PgAuditLogger as _PgAuditLogger } from './infrastructure/audit/PgAuditLogger.js';
 import { AuthUserLookupAdapter as _AuthUserLookupAdapter } from './infrastructure/auth/AuthUserLookupAdapter.js';
+import { PgAdoptHrOrgRepository as _PgAdoptHrOrgRepository } from './infrastructure/persistence/PgAdoptHrOrgRepository.js';
 import { PgApplicationRepository as _PgApplicationRepository } from './infrastructure/persistence/PgApplicationRepository.js';
 import { PgApplicationStageHistoryRepository as _PgApplicationStageHistoryRepository } from './infrastructure/persistence/PgApplicationStageHistoryRepository.js';
 import { PgAssetRepository as _PgAssetRepository } from './infrastructure/persistence/PgAssetRepository.js';
@@ -513,7 +533,10 @@ export function registerHrModule(deps: HrModuleDeps): RegisteredHrModule {
   const empNoGen = new _PgEmployeeNumberGenerator(deps.pool, deps.employeeNumberOptions ?? {});
   const userLookup = new _AuthUserLookupAdapter(deps.authUserRepository);
   const uow = new _PgUnitOfWork(deps.pool);
+  const adoptHrOrg = new _PgAdoptHrOrgRepository(deps.pool);
   const clock = _systemClock;
+
+  const adoptBlobHrOrg = new _AdoptBlobHrOrgUseCase(adoptHrOrg);
 
   const createOrgUnit = new _CreateOrgUnitUseCase(orgUnits, clock, audit);
   const updateOrgUnit = new _UpdateOrgUnitUseCase(orgUnits, clock, audit);
@@ -530,6 +553,7 @@ export function registerHrModule(deps: HrModuleDeps): RegisteredHrModule {
     clock,
     audit,
   );
+  const listDepartments = new _ListDepartmentsForCompanyUseCase(departments);
 
   const createPosition = new _CreatePositionUseCase(positions, departments, clock, audit);
   const updatePosition = new _UpdatePositionUseCase(positions, departments, clock, audit);
@@ -606,6 +630,7 @@ export function registerHrModule(deps: HrModuleDeps): RegisteredHrModule {
   const getAsset = new _GetAssetUseCase(assets);
 
   const router = _createHrRouter({
+    adoptBlobHrOrg,
     createOrgUnit,
     updateOrgUnit,
     moveOrgUnit,
@@ -615,6 +640,7 @@ export function registerHrModule(deps: HrModuleDeps): RegisteredHrModule {
     updateDepartment,
     archiveDepartment,
     assignDepartmentManager,
+    listDepartments,
     createPosition,
     updatePosition,
     closePosition,
