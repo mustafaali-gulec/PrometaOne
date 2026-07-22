@@ -7,10 +7,8 @@
  * verir (access projeksiyonu ile aynı fire-and-forget kalıbı).
  *
  * Blob kaynak şekilleri (frontend/src/App.jsx'ten hedefli grep ile DOĞRULANDI):
- *   hrOrgUnits[]     = { id:"ou_...", name, code?, parentId?, type?,
- *                        managerEmployeeId?, authorizedUsers? }
- *   hrDepartments[]  = { id:"dept_...", name, code?, color?, orgUnitId,
- *                        parentDeptId?, managerEmployeeId? }
+ *   hrOrgUnits[]     = MEZUN (bkz. GRADUATED_COLLECTIONS) — yansıtılmaz.
+ *   hrDepartments[]  = MEZUN (bkz. GRADUATED_COLLECTIONS) — yansıtılmaz.
  *   hrJobTitles[]    = { id:"jt_...", title, departmentId, headcount?,
  *                        standardBrutSalary? }  → TABLO KARŞILIĞI YOK, ATLANIR;
  *                        yalnız çalışan→departman zinciri için okunur.
@@ -68,8 +66,11 @@
  *
  * ŞEMA UYUM KURALLARI:
  *   - employees.department_id NOT NULL: önce emp.departmentId, yoksa
- *     hrJobTitles[jobTitleId].departmentId zinciri; çözülemezse ÇALIŞAN DÜŞER
- *     (sayaç employees.department).
+ *     hrJobTitles[jobTitleId].departmentId zinciri; hiç referans yoksa ÇALIŞAN
+ *     DÜŞER (sayaç employees.department). hrDepartments MEZUN olduğundan
+ *     referansın kendisi (client-id "dept_..." VEYA önbellekten gelen SAYISAL
+ *     sunucu id'si) olduğu gibi taşınır; DB'deki geçerli departman kümesiyle
+ *     doğrulama REPOSITORY'de yapılır (çözülemeyen çalışan orada düşer).
  *   - employees.hire_date NOT NULL: startDate → createdAt(ilk 10) → yoksa DÜŞER
  *     (sayaç employees.hireDate). endDate < hireDate ise hireDate'e kırpılır.
  *     status=terminated + endDate yoksa termination_date=hire_date (CHECK
@@ -78,9 +79,6 @@
  *     şirket içi çift sicilNo'da sonraki clientId'ye düşer.
  *   - employees.tc_kimlik: tam 11 karakter değilse NULL; şirket içi çiftte
  *     SON kazanır, öncekiler NULL'lanır (partial unique).
- *   - org_units/departments (company_id, code) partial unique: batch içi çift
- *     kodda SON kazanır, öncekiler NULL'lanır. parent self/cycle → NULL
- *     (sayaç orgUnits.parentCycle) — DB cycle trigger'ı PUT'u bozmasın.
  *   - applications: aktif (hired/rejected/withdrawn dışı) stage'de aynı
  *     (candidate, position) çiftinde SON kazanır (partial unique), öncekiler
  *     düşer (sayaç applications.duplicateActive).
@@ -94,6 +92,21 @@
 import { resolveAccessCompanyId } from './AccessProjection.js';
 
 export const DEFAULT_HR_COMPANY_ID = 1;
+
+/**
+ * YAZMA-CUTOVER'LANAN (MEZUN) KOLEKSİYONLAR — projeksiyondan çıkarıldı.
+ *
+ * org_units + departments artık SUNUCU-OTORİTERDİR: tek seferlik devralma
+ * POST /v1/hr/org/adopt-blob ile yapıldı; FE blob'daki hrOrgUnits/hrDepartments
+ * alanlarını sunucudan doldurulan SALT-OKUNUR önbellek olarak taşır ve önbellek
+ * satırlarının id'si SUNUCU id'sidir (ör. "12").
+ *
+ * Bu koleksiyonlar yansıtılmaya devam etseydi önbellek yankısı client_id='12'
+ * gibi ÇİFT satırlar üretir ve prune, hr CRUD/adopt yazımlarını silerdi.
+ * Bu yüzden projectHr bu koleksiyonlar için satır ÜRETMEZ ve
+ * PgHrProjectionRepository bu tabloları upsert/prune ETMEZ.
+ */
+export const GRADUATED_COLLECTIONS = ['hrOrgUnits', 'hrDepartments'] as const;
 
 // --- DB enum'ları ------------------------------------------------------------
 export type DbEmployeeStatus = 'probation' | 'active' | 'on_leave' | 'terminated';
@@ -240,6 +253,7 @@ const TERMINAL_STAGES: ReadonlySet<DbRecruitmentStage> = new Set([
 ]);
 
 // --- Projeksiyon satır tipleri -----------------------------------------------
+/** MEZUN — projectHr artık org unit satırı üretmez; tip geriye uyum için durur. */
 export interface HrOrgUnitProjection {
   companyId: number;
   clientId: string;
@@ -248,6 +262,7 @@ export interface HrOrgUnitProjection {
   code: string | null;
 }
 
+/** MEZUN — projectHr artık departman satırı üretmez; tip geriye uyum için durur. */
 export interface HrDepartmentProjection {
   companyId: number;
   clientId: string;
@@ -260,6 +275,12 @@ export interface HrDepartmentProjection {
 export interface HrPositionProjection {
   companyId: number;
   clientId: string;
+  /**
+   * Departman referansı OLDUĞU GİBİ taşınır (hrDepartments MEZUN): eski
+   * "dept_..." client-id'si VEYA önbellekten gelen sayısal sunucu id'si
+   * ("12"). Repository DB'deki geçerli departman kümesiyle çözer/doğrular;
+   * çözülemezse NULL yazar (nullable FK).
+   */
   departmentClientId: string | null;
   title: string;
   description: string | null;
@@ -272,6 +293,12 @@ export interface HrPositionProjection {
 export interface HrEmployeeProjection {
   companyId: number;
   clientId: string;
+  /**
+   * Departman referansı OLDUĞU GİBİ taşınır (hrDepartments MEZUN): eski
+   * "dept_..." client-id'si VEYA önbellekten gelen sayısal sunucu id'si
+   * ("12"). Repository DB'deki geçerli departman kümesiyle çözer/doğrular;
+   * çözülemeyen çalışan orada düşer (department_id NOT NULL).
+   */
   departmentClientId: string;
   employeeNo: string;
   firstName: string;
@@ -370,7 +397,9 @@ export interface HrAssetAssignmentProjection {
 }
 
 export interface HrProjection {
+  /** MEZUN — her zaman boş (bkz. GRADUATED_COLLECTIONS). */
   orgUnits: HrOrgUnitProjection[];
+  /** MEZUN — her zaman boş (bkz. GRADUATED_COLLECTIONS). */
   departments: HrDepartmentProjection[];
   positions: HrPositionProjection[];
   employees: HrEmployeeProjection[];
@@ -490,8 +519,7 @@ export function projectHr(blobValue: unknown, opts?: ProjectHrOptions): HrProjec
   }
 
   // clientId → projeksiyon satırı (SON kazanır; şirketler arası birleşim).
-  const orgUnits = new Map<string, HrOrgUnitProjection>();
-  const departments = new Map<string, HrDepartmentProjection>();
+  // NOT: hrOrgUnits/hrDepartments MEZUN (GRADUATED_COLLECTIONS) — satır üretilmez.
   const positions = new Map<string, HrPositionProjection>();
   const employees = new Map<string, HrEmployeeProjection>();
   const candidates = new Map<string, HrCandidateProjection>();
@@ -504,7 +532,6 @@ export function projectHr(blobValue: unknown, opts?: ProjectHrOptions): HrProjec
   const jobTitleDept = new Map<string, string | null>();
   /** Ham blob elemanları (2. faz çözümlemeler için). */
   const rawEmployees = new Map<string, { companyId: number; item: Record<string, unknown> }>();
-  const rawDepartments = new Map<string, { companyId: number; item: Record<string, unknown> }>();
   const rawLeaves = new Map<string, { companyId: number; item: Record<string, unknown> }>();
   const rawApplications = new Map<string, { companyId: number; item: Record<string, unknown> }>();
   const rawRuns = new Map<string, { companyId: number; item: Record<string, unknown> }>();
@@ -514,20 +541,8 @@ export function projectHr(blobValue: unknown, opts?: ProjectHrOptions): HrProjec
     for (const [clientId, item] of collectItems(fields['hrJobTitles'])) {
       jobTitleDept.set(clientId, idString(item['departmentId']));
     }
-    for (const [clientId, item] of collectItems(fields['hrOrgUnits'])) {
-      const name = textOrNull(item['name'], 200);
-      if (name === null) continue; // adsız birim atlanır (NOT NULL + not-empty CHECK)
-      orgUnits.set(clientId, {
-        companyId,
-        clientId,
-        parentClientId: idString(item['parentId']),
-        name,
-        code: textOrNull(item['code'], 40),
-      });
-    }
-    for (const [clientId, item] of collectItems(fields['hrDepartments'])) {
-      rawDepartments.set(clientId, { companyId, item });
-    }
+    // hrOrgUnits + hrDepartments: MEZUN — okunmaz, satır üretilmez
+    // (bkz. GRADUATED_COLLECTIONS; sunucu-otoriter, önbellek yankısı yasak).
     for (const [clientId, item] of collectItems(fields['hrPositions'])) {
       const title = textOrNull(item['title'], 200);
       if (title === null) continue;
@@ -582,55 +597,6 @@ export function projectHr(blobValue: unknown, opts?: ProjectHrOptions): HrProjec
     }
   }
 
-  // --- Org birimleri: self/cycle parent kırma (DB cycle trigger'ı PUT'u bozmasın)
-  for (const ou of orgUnits.values()) {
-    if (ou.parentClientId === null) continue;
-    if (ou.parentClientId === ou.clientId || !orgUnits.has(ou.parentClientId)) {
-      if (ou.parentClientId === ou.clientId) dropped.add('orgUnits.parentCycle');
-      ou.parentClientId = null;
-      continue;
-    }
-  }
-  for (const ou of orgUnits.values()) {
-    // Yukarı yürü; kendine dönüyorsa bu kaydın parent'ını kes.
-    const seen = new Set<string>([ou.clientId]);
-    let cursor = ou.parentClientId;
-    while (cursor !== null) {
-      if (seen.has(cursor)) {
-        ou.parentClientId = null;
-        dropped.add('orgUnits.parentCycle');
-        break;
-      }
-      seen.add(cursor);
-      cursor = orgUnits.get(cursor)?.parentClientId ?? null;
-    }
-  }
-  dedupCodes(orgUnits.values(), dropped, 'orgUnits.duplicateCode');
-
-  // --- Departmanlar (manager 2. fazda, çalışanlar çözüldükten sonra) --------
-  for (const [clientId, { companyId, item }] of rawDepartments) {
-    const name = textOrNull(item['name'], 200);
-    if (name === null) continue;
-    const orgUnitClientId = idString(item['orgUnitId']);
-    departments.set(clientId, {
-      companyId,
-      clientId,
-      orgUnitClientId:
-        orgUnitClientId !== null && orgUnits.has(orgUnitClientId) ? orgUnitClientId : null,
-      name,
-      code: textOrNull(item['code'], 40),
-      managerEmployeeClientId: idString(item['managerEmployeeId']),
-    });
-  }
-  dedupCodes(departments.values(), dropped, 'departments.duplicateCode');
-
-  // Pozisyonların departman bağı yalnız projeksiyon kümesinde geçerli.
-  for (const pos of positions.values()) {
-    if (pos.departmentClientId !== null && !departments.has(pos.departmentClientId)) {
-      pos.departmentClientId = null; // nullable FK → NULL
-    }
-  }
-
   // --- Çalışanlar -------------------------------------------------------------
   const employeeNoSeen = new Set<string>(); // "companyId no"
   const tcOwner = new Map<string, HrEmployeeProjection>(); // "companyId tc" → önceki
@@ -643,11 +609,13 @@ export function projectHr(blobValue: unknown, opts?: ProjectHrOptions): HrProjec
     }
 
     // Departman zinciri: direkt departmentId → jobTitle.departmentId → düşür.
+    // hrDepartments MEZUN — üyelik burada doğrulanamaz; referans (client-id
+    // "dept_..." VEYA önbellekten gelen sayısal sunucu id'si) olduğu gibi
+    // taşınır, repository DB'deki geçerli kümeyle çözer/doğrular.
     let deptClientId = idString(item['departmentId']);
-    if (deptClientId === null || !departments.has(deptClientId)) {
+    if (deptClientId === null) {
       const jtId = idString(item['jobTitleId']);
-      const viaJobTitle = jtId !== null ? (jobTitleDept.get(jtId) ?? null) : null;
-      deptClientId = viaJobTitle !== null && departments.has(viaJobTitle) ? viaJobTitle : null;
+      deptClientId = jtId !== null ? (jobTitleDept.get(jtId) ?? null) : null;
     }
     if (deptClientId === null) {
       dropped.add('employees.department'); // department_id NOT NULL — düşür
@@ -702,13 +670,6 @@ export function projectHr(blobValue: unknown, opts?: ProjectHrOptions): HrProjec
     };
     if (tcKimlik !== null) tcOwner.set(`${companyId} ${tcKimlik}`, emp);
     employees.set(clientId, emp);
-  }
-
-  // Departman yöneticileri (nullable FK) yalnız çözülen çalışanlara bağlanır.
-  for (const dept of departments.values()) {
-    if (dept.managerEmployeeClientId !== null && !employees.has(dept.managerEmployeeClientId)) {
-      dept.managerEmployeeClientId = null;
-    }
   }
 
   // --- Başvurular --------------------------------------------------------------
@@ -926,8 +887,8 @@ export function projectHr(blobValue: unknown, opts?: ProjectHrOptions): HrProjec
   }
 
   return {
-    orgUnits: [...orgUnits.values()],
-    departments: [...departments.values()],
+    orgUnits: [], // MEZUN (GRADUATED_COLLECTIONS)
+    departments: [], // MEZUN (GRADUATED_COLLECTIONS)
     positions: [...positions.values()],
     employees: [...employees.values()],
     candidates: [...candidates.values()],
@@ -943,23 +904,4 @@ export function projectHr(blobValue: unknown, opts?: ProjectHrOptions): HrProjec
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
-}
-
-/** (company_id, code) partial unique: batch içi çift kodda öncekiler NULL'lanır. */
-function dedupCodes(
-  rows: Iterable<{ companyId: number; code: string | null }>,
-  dropped: DropCounter,
-  reason: string,
-): void {
-  const owner = new Map<string, { code: string | null }>();
-  for (const row of rows) {
-    if (row.code === null) continue;
-    const key = `${row.companyId} ${row.code}`;
-    const prev = owner.get(key);
-    if (prev !== undefined) {
-      prev.code = null;
-      dropped.add(reason);
-    }
-    owner.set(key, row);
-  }
 }

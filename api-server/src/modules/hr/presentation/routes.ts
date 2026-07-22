@@ -14,6 +14,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 
 import { authMiddleware, companyScopeGuard, requireRole } from '../../../middleware/auth.js';
+import type { AdoptBlobHrOrgUseCase } from '../application/useCases/AdoptBlobHrOrgUseCase.js';
 import type { ApproveLeaveRequestUseCase } from '../application/useCases/ApproveLeaveRequestUseCase.js';
 import type { ArchiveDepartmentUseCase } from '../application/useCases/ArchiveDepartmentUseCase.js';
 import type { ArchiveOrgUnitUseCase } from '../application/useCases/ArchiveOrgUnitUseCase.js';
@@ -39,6 +40,7 @@ import type { ListApplicationsForCandidateUseCase } from '../application/useCase
 import type { ListApplicationsForPositionUseCase } from '../application/useCases/ListApplicationsForPositionUseCase.js';
 import type { ListAssetsUseCase } from '../application/useCases/ListAssetsUseCase.js';
 import type { ListCandidatesUseCase } from '../application/useCases/ListCandidatesUseCase.js';
+import type { ListDepartmentsForCompanyUseCase } from '../application/useCases/ListDepartmentsForCompanyUseCase.js';
 import type { ListEmployeesUseCase } from '../application/useCases/ListEmployeesUseCase.js';
 import type { ListLeaveRequestsUseCase } from '../application/useCases/ListLeaveRequestsUseCase.js';
 import type { ListOrgTreeForCompanyUseCase } from '../application/useCases/ListOrgTreeForCompanyUseCase.js';
@@ -67,17 +69,20 @@ import type { WithdrawApplicationUseCase } from '../application/useCases/Withdra
 import { mapHrError } from './errorMapping.js';
 
 export interface HrRouterDeps {
+  // Org adopt (blob yazma-cutover devralması — 1)
+  adoptBlobHrOrg: AdoptBlobHrOrgUseCase;
   // OrgUnit (5)
   createOrgUnit: CreateOrgUnitUseCase;
   updateOrgUnit: UpdateOrgUnitUseCase;
   moveOrgUnit: MoveOrgUnitUseCase;
   archiveOrgUnit: ArchiveOrgUnitUseCase;
   listOrgTree: ListOrgTreeForCompanyUseCase;
-  // Department (4)
+  // Department (5)
   createDepartment: CreateDepartmentUseCase;
   updateDepartment: UpdateDepartmentUseCase;
   archiveDepartment: ArchiveDepartmentUseCase;
   assignDepartmentManager: AssignDepartmentManagerUseCase;
+  listDepartments: ListDepartmentsForCompanyUseCase;
   // Position (4)
   createPosition: CreatePositionUseCase;
   updatePosition: UpdatePositionUseCase;
@@ -216,6 +221,35 @@ export function createHrRouter(deps: HrRouterDeps): Hono {
   );
 
   // -------------------------------------------------------------------------
+  // ORG BLOB DEVRALMA (tek seferlik, idempotent — yazma-cutover)
+  // -------------------------------------------------------------------------
+  // Blob (promet:data) hrOrgUnits/hrDepartments koleksiyonlarını client_id
+  // (047) anahtarıyla devralır; ikinci çağrı dupe üretmez. Gövde blob alan
+  // adlarıyla GEVŞEK gelir; normalizasyon use-case'te. Emsal:
+  // POST /v1/purchasing/adopt-blob.
+  app.post(
+    '/org/adopt-blob',
+    requireHrWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.coerce.number().int().positive(),
+        orgUnits: z.array(z.record(z.unknown())).optional(),
+        departments: z.array(z.record(z.unknown())).optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.adoptBlobHrOrg.execute(b);
+        return c.json(dto);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  // -------------------------------------------------------------------------
   // ORG UNIT
   // -------------------------------------------------------------------------
   app.post(
@@ -341,6 +375,33 @@ export function createHrRouter(deps: HrRouterDeps): Hono {
   // -------------------------------------------------------------------------
   // DEPARTMENT
   // -------------------------------------------------------------------------
+  // Şirket-scoped departman listesi (FE sunucu-otoriter org önbelleği buradan
+  // dolar; /org-tree ile aynı guard/format düzeni).
+  app.get(
+    '/departments',
+    zValidator(
+      'query',
+      companyIdQuery.extend({
+        includeInactive: z.coerce.boolean().optional(),
+        orgUnitId: z.coerce.number().int().positive().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const opts: { companyId: number; includeInactive?: boolean; orgUnitId?: number } = {
+          companyId: q.companyId,
+        };
+        if (q.includeInactive !== undefined) opts.includeInactive = q.includeInactive;
+        if (q.orgUnitId !== undefined) opts.orgUnitId = q.orgUnitId;
+        const departments = await deps.listDepartments.execute(opts);
+        return c.json({ departments });
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
   app.post(
     '/departments',
     requireHrWrite,

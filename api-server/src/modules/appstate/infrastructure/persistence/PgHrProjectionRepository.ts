@@ -1,9 +1,18 @@
 /**
  * PgHrProjectionRepository — HrProjectionMirror PG implementasyonu.
- * Tablolar: org_units / departments / positions / employees / candidates /
- * applications / hr_leave_requests / hr_payroll_runs / hr_payroll_items /
- * hr_assets / hr_asset_assignments (012/018/019/020 + 047_hr_projection.sql
- * client_id kolonları).
+ * Tablolar: positions / employees / candidates / applications /
+ * hr_leave_requests / hr_payroll_runs / hr_payroll_items / hr_assets /
+ * hr_asset_assignments (012/018/019/020 + 047_hr_projection.sql client_id
+ * kolonları).
+ *
+ * MEZUNİYET (yazma-cutover): org_units + departments SUNUCU-OTORİTERDİR
+ * (HrProjection.GRADUATED_COLLECTIONS). Bu repository o iki tabloya ASLA
+ * dokunmaz — upsert de prune da yok. Prune edilseydi adopt edilen (client_id
+ * dolu) satırlar boş projeksiyon kümesiyle SİLİNİRDİ. Çalışan/pozisyon
+ * departman bağları DB'deki geçerli departman kümesinden çözülür:
+ * client_id eşleşmesi (eski "dept_..." referansları / önceki adopt) →
+ * sayısal sunucu id doğrulaması (FE önbelleği sunucu id taşır) → çözülemeyen
+ * çalışan düşer (department_id NOT NULL), pozisyon NULL yazar (nullable FK).
  *
  * replaceAll TEK transaction'da (PgAccessProjectionRepository kalıbı) ve YALNIZ
  * projeksiyon-sahipli satırlara (client_id IS NOT NULL) dokunur; hr CRUD
@@ -11,8 +20,8 @@
  *
  *   0. companies lookup: var olmayan company_id'li satırlar FK ihlali yerine
  *      DÜŞÜRÜLÜR (console.error) — projeksiyon asla PUT'u bozmaz.
+ *      + departments lookup: departman çözücü (id kümesi + client_id haritası).
  *   1. ÜST ENTİTELER — upsert (id kararlı) + prune, FK sırasıyla:
- *      org_units (parent 2. geçişte) → departments (manager 2. geçişte) →
  *      positions → employees → candidates → hr_payroll_runs → hr_assets.
  *      Upsert: UPDATE ... WHERE client_id → yoksa INSERT. Doğal anahtar
  *      devralması yalnız tam-unique kısıtı olan tablolarda:
@@ -25,15 +34,11 @@
  *      FK'lar 1. adımda kurulan client→serial haritalarından çözülür;
  *      çözülemeyen satır düşürülür + sayaç loglanır.
  *   3. PRUNE — çocuktan ebeveyne: employees → candidates → positions →
- *      hr_assets → departments → org_units (önce doomed parent'lar detach
- *      edilir; org_units.parent_id RESTRICT tek DELETE'i bozmasın).
+ *      hr_assets (org_units/departments MEZUN — prune edilmez).
  *
  * Bilinen sınırlar (access emsalindeki gibi — hata üst katmanda yutulur, ayna
  * bir önceki tutarlı hâlinde kalır; kaynak-of-truth blob olduğundan veri kaybı
  * yoktur):
- *   - org_units/departments (company_id, code) partial unique: blob kodu bir
- *     CRUD satırının koduyla çakışırsa transaction geri alınır (batch içi
- *     çiftler domain'de NULL'lanır).
  *   - CRUD satırı bir projeksiyon satırına elle FK bağlanmışsa RESTRICT prune'u
  *     geri alabilir.
  */
@@ -43,10 +48,8 @@ import type {
   HrAssetAssignmentProjection,
   HrAssetProjection,
   HrCandidateProjection,
-  HrDepartmentProjection,
   HrEmployeeProjection,
   HrLeaveRequestProjection,
-  HrOrgUnitProjection,
   HrPayrollItemProjection,
   HrPayrollRunProjection,
   HrPositionProjection,
@@ -80,6 +83,35 @@ function firstIdOf(result: { rows?: unknown[] }): number | null {
 
 type IdMap = Map<string, number>;
 
+const NUMERIC_ID_RE = /^[0-9]+$/;
+
+/**
+ * MEZUN departments tablosu için çözücü: blob referansı ("dept_..." client-id
+ * VEYA sayısal sunucu id'si) → DB'de VAR OLAN, şirketi eşleşen departments.id.
+ */
+interface DepartmentResolver {
+  /** "companyId id" → geçerli. */
+  validIds: ReadonlySet<string>;
+  /** "companyId clientId" → id (adopt edilmiş satırlar). */
+  byClientId: ReadonlyMap<string, number>;
+}
+
+function resolveDepartmentId(
+  resolver: DepartmentResolver,
+  companyId: number,
+  ref: string,
+): number | null {
+  const viaClient = resolver.byClientId.get(`${companyId} ${ref}`);
+  if (viaClient !== undefined) return viaClient;
+  if (NUMERIC_ID_RE.test(ref)) {
+    // FE önbelleği sunucu id'si taşır — şirketin geçerli kümesiyle doğrula,
+    // geçersiz id FK ihlaliyle transaction'ı ÖLDÜRMESİN.
+    const n = Number(ref);
+    if (resolver.validIds.has(`${companyId} ${n}`)) return n;
+  }
+  return null;
+}
+
 export class PgHrProjectionRepository implements HrProjectionMirror {
   constructor(private readonly pool: HrProjectionPool) {}
 
@@ -93,12 +125,13 @@ export class PgHrProjectionRepository implements HrProjectionMirror {
       const known = new Set((companiesRes.rows ?? []).map((r) => Number((r as IdRow).id)));
       const p = filterByCompany(projection, known);
 
+      // 0b) MEZUN departments: DB'deki geçerli küme + client_id haritası
+      //     (org_units/departments'a yazılmaz; yalnız FK çözümü için okunur).
+      const deptResolver = await this.loadDepartmentResolver(client);
+
       // 1) ÜST ENTİTELER — upsert + (sonda) prune.
-      const orgUnitIds = await this.upsertOrgUnits(client, p.orgUnits);
-      const departmentIds = await this.upsertDepartments(client, p.departments, orgUnitIds);
-      const positionIds = await this.upsertPositions(client, p.positions, departmentIds);
-      const employeeIds = await this.upsertEmployees(client, p.employees, departmentIds);
-      await this.setDepartmentManagers(client, p.departments, employeeIds);
+      const positionIds = await this.upsertPositions(client, p.positions, deptResolver);
+      const employeeIds = await this.upsertEmployees(client, p.employees, deptResolver);
       const candidateIds = await this.upsertCandidates(client, p.candidates);
 
       // 2) DETAYLAR — delete-then-insert (yalnız projeksiyon-sahipli satırlar).
@@ -122,18 +155,12 @@ export class PgHrProjectionRepository implements HrProjectionMirror {
       await this.insertAssetAssignments(client, p.assetAssignments, assetIds, employeeIds);
 
       // 3) PRUNE — çocuktan ebeveyne (detaylar zaten silindi/yeniden yazıldı).
+      // org_units/departments MEZUN: prune EDİLMEZ — projeksiyon kümesi artık
+      // hep boş; prune edilseydi adopt edilen satırlar (client_id dolu) silinirdi.
       await this.prune(client, 'employees', p.employees);
       await this.prune(client, 'candidates', p.candidates);
       await this.prune(client, 'positions', p.positions);
       await this.prune(client, 'hr_assets', p.assets);
-      await this.prune(client, 'departments', p.departments);
-      // org_units.parent_id RESTRICT: doomed satırların parent bağını önce kes.
-      await client.query(
-        `UPDATE org_units SET parent_id = NULL
-          WHERE client_id IS NOT NULL AND NOT (client_id = ANY($1::text[]))`,
-        [p.orgUnits.map((o) => o.clientId)],
-      );
-      await this.prune(client, 'org_units', p.orgUnits);
 
       await client.query('COMMIT');
     } catch (err) {
@@ -162,86 +189,40 @@ export class PgHrProjectionRepository implements HrProjectionMirror {
 
   // --- Üst entite upsert'leri ------------------------------------------------
 
-  private async upsertOrgUnits(
+  /**
+   * MEZUN departments tablosundan çözücü yükler (salt-okunur): geçerli
+   * (company_id, id) kümesi + adopt edilmiş client_id → id haritası.
+   */
+  private async loadDepartmentResolver(
     client: HrProjectionPoolClient,
-    orgUnits: readonly HrOrgUnitProjection[],
-  ): Promise<IdMap> {
-    const ids: IdMap = new Map();
-    // 1. geçiş: parent_id NULL (ebeveyn henüz var olmayabilir; cycle trigger'ı
-    // pas geçer). 2. geçişte bağlanır.
-    for (const ou of orgUnits) {
-      const updated = await client.query(
-        `UPDATE org_units
-            SET company_id = $1, name = $2, code = $3, parent_id = NULL, updated_at = NOW()
-          WHERE client_id = $4
-          RETURNING id`,
-        [ou.companyId, ou.name, ou.code, ou.clientId],
-      );
-      let id = (updated.rowCount ?? 0) > 0 ? firstIdOf(updated) : null;
-      if (id === null) {
-        const inserted = await client.query(
-          `INSERT INTO org_units (company_id, name, code, client_id)
-           VALUES ($1, $2, $3, $4)
-           RETURNING id`,
-          [ou.companyId, ou.name, ou.code, ou.clientId],
-        );
-        id = firstIdOf(inserted);
+  ): Promise<DepartmentResolver> {
+    const res = await client.query('SELECT id, company_id, client_id FROM departments');
+    const validIds = new Set<string>();
+    const byClientId = new Map<string, number>();
+    for (const raw of res.rows ?? []) {
+      const row = raw as { id: number; company_id: number; client_id: string | null };
+      const id = Number(row.id);
+      const companyId = Number(row.company_id);
+      if (!Number.isFinite(id) || !Number.isFinite(companyId)) continue;
+      validIds.add(`${companyId} ${id}`);
+      if (row.client_id !== null && row.client_id !== undefined) {
+        byClientId.set(`${companyId} ${row.client_id}`, id);
       }
-      if (id !== null) ids.set(ou.clientId, id);
     }
-    // 2. geçiş: parent bağları (domain self/cycle'ı kırdı; küme içi çözüm).
-    for (const ou of orgUnits) {
-      if (ou.parentClientId === null) continue;
-      const id = ids.get(ou.clientId);
-      const parentId = ids.get(ou.parentClientId);
-      if (id === undefined || parentId === undefined) continue;
-      await client.query('UPDATE org_units SET parent_id = $1 WHERE id = $2', [parentId, id]);
-    }
-    return ids;
-  }
-
-  private async upsertDepartments(
-    client: HrProjectionPoolClient,
-    departments: readonly HrDepartmentProjection[],
-    orgUnitIds: ReadonlyMap<string, number>,
-  ): Promise<IdMap> {
-    const ids: IdMap = new Map();
-    for (const dept of departments) {
-      const orgUnitId =
-        dept.orgUnitClientId !== null ? (orgUnitIds.get(dept.orgUnitClientId) ?? null) : null;
-      const updated = await client.query(
-        `UPDATE departments
-            SET company_id = $1, org_unit_id = $2, name = $3, code = $4,
-                manager_employee_id = NULL, updated_at = NOW()
-          WHERE client_id = $5
-          RETURNING id`,
-        [dept.companyId, orgUnitId, dept.name, dept.code, dept.clientId],
-      );
-      let id = (updated.rowCount ?? 0) > 0 ? firstIdOf(updated) : null;
-      if (id === null) {
-        const inserted = await client.query(
-          `INSERT INTO departments (company_id, org_unit_id, name, code, client_id)
-           VALUES ($1, $2, $3, $4, $5)
-           RETURNING id`,
-          [dept.companyId, orgUnitId, dept.name, dept.code, dept.clientId],
-        );
-        id = firstIdOf(inserted);
-      }
-      if (id !== null) ids.set(dept.clientId, id);
-    }
-    return ids;
+    return { validIds, byClientId };
   }
 
   private async upsertPositions(
     client: HrProjectionPoolClient,
     positions: readonly HrPositionProjection[],
-    departmentIds: ReadonlyMap<string, number>,
+    deptResolver: DepartmentResolver,
   ): Promise<IdMap> {
     const ids: IdMap = new Map();
     for (const pos of positions) {
+      // Çözülemeyen departman bağı NULL yazılır (nullable FK).
       const departmentId =
         pos.departmentClientId !== null
-          ? (departmentIds.get(pos.departmentClientId) ?? null)
+          ? resolveDepartmentId(deptResolver, pos.companyId, pos.departmentClientId)
           : null;
       const values = [
         pos.companyId,
@@ -283,14 +264,14 @@ export class PgHrProjectionRepository implements HrProjectionMirror {
   private async upsertEmployees(
     client: HrProjectionPoolClient,
     employees: readonly HrEmployeeProjection[],
-    departmentIds: ReadonlyMap<string, number>,
+    deptResolver: DepartmentResolver,
   ): Promise<IdMap> {
     const ids: IdMap = new Map();
     let unresolved = 0;
     for (const emp of employees) {
-      const departmentId = departmentIds.get(emp.departmentClientId);
-      if (departmentId === undefined) {
-        unresolved += 1; // department_id NOT NULL — düşür (şirket filtresi vb.)
+      const departmentId = resolveDepartmentId(deptResolver, emp.companyId, emp.departmentClientId);
+      if (departmentId === null) {
+        unresolved += 1; // department_id NOT NULL — düşür (geçersiz/yabancı ref)
         continue;
       }
       const values = [
@@ -349,26 +330,10 @@ export class PgHrProjectionRepository implements HrProjectionMirror {
     }
     if (unresolved > 0) {
       console.error(
-        `[appstate:hr] ${unresolved} çalışan düşürüldü (department_id çözülemedi — şirket filtresi)`,
+        `[appstate:hr] ${unresolved} çalışan düşürüldü (department_id DB kümesinde çözülemedi)`,
       );
     }
     return ids;
-  }
-
-  private async setDepartmentManagers(
-    client: HrProjectionPoolClient,
-    departments: readonly HrDepartmentProjection[],
-    employeeIds: ReadonlyMap<string, number>,
-  ): Promise<void> {
-    for (const dept of departments) {
-      if (dept.managerEmployeeClientId === null) continue;
-      const managerId = employeeIds.get(dept.managerEmployeeClientId);
-      if (managerId === undefined) continue; // upsert'te zaten NULL'landı
-      await client.query('UPDATE departments SET manager_employee_id = $1 WHERE client_id = $2', [
-        managerId,
-        dept.clientId,
-      ]);
-    }
   }
 
   private async upsertCandidates(

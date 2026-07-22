@@ -323,9 +323,10 @@ describe('SetAppStateUseCase — hr projeksiyon fan-out', () => {
     });
 
     assert.equal(calls.length, 1);
-    assert.equal(calls[0]!.orgUnits.length, 1);
-    assert.equal(calls[0]!.orgUnits[0]!.companyId, 2);
-    assert.equal(calls[0]!.departments[0]!.orgUnitClientId, 'ou_1');
+    // hrOrgUnits/hrDepartments MEZUN (GRADUATED_COLLECTIONS) — yansıtılmaz;
+    // çalışanın departman referansı olduğu gibi taşınır (çözüm repository'de).
+    assert.deepEqual(calls[0]!.orgUnits, []);
+    assert.deepEqual(calls[0]!.departments, []);
     assert.equal(calls[0]!.employees[0]!.clientId, 'emp_1');
     assert.equal(calls[0]!.employees[0]!.departmentClientId, 'dept_1');
   });

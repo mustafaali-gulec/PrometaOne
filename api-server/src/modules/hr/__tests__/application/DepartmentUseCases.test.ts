@@ -12,6 +12,7 @@ import { AssignDepartmentManagerUseCase } from '../../application/useCases/Assig
 import { CreateDepartmentUseCase } from '../../application/useCases/CreateDepartmentUseCase.js';
 import { CreateOrgUnitUseCase } from '../../application/useCases/CreateOrgUnitUseCase.js';
 import { HireEmployeeUseCase } from '../../application/useCases/HireEmployeeUseCase.js';
+import { ListDepartmentsForCompanyUseCase } from '../../application/useCases/ListDepartmentsForCompanyUseCase.js';
 import { UpdateDepartmentUseCase } from '../../application/useCases/UpdateDepartmentUseCase.js';
 import { SequentialEmployeeNumberGenerator } from '../../domain/services/EmployeeNumberGenerator.js';
 
@@ -280,5 +281,76 @@ describe('AssignDepartmentManagerUseCase', () => {
       employeeId: null,
     });
     assert.equal(cleared.managerEmployeeId, null);
+  });
+});
+
+describe('ListDepartmentsForCompanyUseCase', () => {
+  async function seedThree(ctx: ReturnType<typeof makeFakeHrContext>) {
+    const ou = await setupOrgRoot(ctx);
+    const create = new CreateDepartmentUseCase(ctx.departments, ctx.orgUnits, ctx.clock, ctx.audit);
+    const d1 = await create.execute({
+      ...ACTOR,
+      companyId: COMPANY,
+      orgUnitId: ou.id,
+      name: 'Finans',
+      code: 'FIN',
+    });
+    const d2 = await create.execute({
+      ...ACTOR,
+      companyId: COMPANY,
+      orgUnitId: null,
+      name: 'IT',
+      code: null,
+    });
+    // Başka şirketin departmanı listeye SIZMAMALI.
+    const yabanci = await create.execute({
+      ...ACTOR,
+      companyId: COMPANY + 1,
+      orgUnitId: null,
+      name: 'Yabancı',
+      code: null,
+    });
+    return { ou, d1, d2, yabanci };
+  }
+
+  it('şirket-scoped liste: DepartmentDto alanları (orgUnitId + managerEmployeeId dahil) döner', async () => {
+    const ctx = makeFakeHrContext();
+    const { ou, d1 } = await seedThree(ctx);
+    const uc = new ListDepartmentsForCompanyUseCase(ctx.departments);
+
+    const list = await uc.execute({ companyId: COMPANY });
+
+    assert.equal(list.length, 2); // yabancı şirket dışarıda
+    const fin = list.find((d) => d.id === d1.id)!;
+    assert.equal(fin.name, 'Finans');
+    assert.equal(fin.code, 'FIN');
+    assert.equal(fin.orgUnitId, ou.id);
+    assert.equal(fin.managerEmployeeId, null);
+    assert.equal(fin.companyId, COMPANY);
+    assert.equal(fin.active, true);
+    assert.equal(typeof fin.createdAt, 'string');
+  });
+
+  it('öndeğer yalnız aktifler; includeInactive=true arşivlileri de döner; orgUnitId filtresi uygulanır', async () => {
+    const ctx = makeFakeHrContext();
+    const { ou, d1, d2 } = await seedThree(ctx);
+    const archive = new ArchiveDepartmentUseCase(ctx.departments, ctx.clock, ctx.audit);
+    await archive.execute({ ...ACTOR, companyId: COMPANY, id: d2.id });
+    const uc = new ListDepartmentsForCompanyUseCase(ctx.departments);
+
+    const actives = await uc.execute({ companyId: COMPANY });
+    assert.deepEqual(
+      actives.map((d) => d.id),
+      [d1.id],
+    );
+
+    const all = await uc.execute({ companyId: COMPANY, includeInactive: true });
+    assert.equal(all.length, 2);
+
+    const scoped = await uc.execute({ companyId: COMPANY, orgUnitId: ou.id });
+    assert.deepEqual(
+      scoped.map((d) => d.id),
+      [d1.id],
+    );
   });
 });

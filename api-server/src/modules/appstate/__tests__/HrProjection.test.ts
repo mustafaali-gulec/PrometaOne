@@ -1,12 +1,13 @@
 /**
- * HrProjection birim testleri — blob→hr tablo eşlemesi, FK zinciri (org unit →
- * departman → pozisyon/çalışan → detaylar), enum haritaları, şema uyum
- * kırpmaları ve düşürme sayaçları.
+ * HrProjection birim testleri — blob→hr tablo eşlemesi, enum haritaları, şema
+ * uyum kırpmaları, düşürme sayaçları ve MEZUNİYET (hrOrgUnits/hrDepartments
+ * yazma-cutover sonrası yansıtılmaz; departman referansları olduğu gibi taşınır,
+ * çözüm repository'dedir).
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { APPLICATION_STAGE_MAP, projectHr } from '../domain/HrProjection.js';
+import { APPLICATION_STAGE_MAP, GRADUATED_COLLECTIONS, projectHr } from '../domain/HrProjection.js';
 
 /** companyData['2'] altına HR alanları koyan yardımcı. */
 function blob(fields: Record<string, unknown>, cid = '2'): unknown {
@@ -45,15 +46,15 @@ describe('projectHr — genel & şirket çözümü', () => {
   it('şirket anahtarı: sayısal cid → o, sayısal olmayan → 1 (öndeğer)', () => {
     const p = projectHr({
       companyData: {
-        '7': { hrOrgUnits: [{ id: 'ou_a', name: 'A' }] },
-        comp_promet: { hrOrgUnits: [{ id: 'ou_b', name: 'B' }] },
+        '7': { hrPositions: [{ id: 'pos_a', title: 'A' }] },
+        comp_promet: { hrPositions: [{ id: 'pos_b', title: 'B' }] },
       },
     });
-    assert.equal(p.orgUnits.find((o) => o.clientId === 'ou_a')?.companyId, 7);
-    assert.equal(p.orgUnits.find((o) => o.clientId === 'ou_b')?.companyId, 1);
+    assert.equal(p.positions.find((o) => o.clientId === 'pos_a')?.companyId, 7);
+    assert.equal(p.positions.find((o) => o.clientId === 'pos_b')?.companyId, 1);
   });
 
-  it('happy: FK zinciri — org unit → departman → pozisyon + çalışan client_id bağları', () => {
+  it('happy: pozisyon + çalışan client_id bağları; departman referansı olduğu gibi taşınır', () => {
     const p = projectHr(
       blob({
         hrOrgUnits: [{ id: 'ou_1', name: 'Genel Müdürlük', code: 'GM-001', parentId: null }],
@@ -73,19 +74,6 @@ describe('projectHr — genel & şirket çözümü', () => {
         hrEmployees: [emp('emp_1', { sicilNo: 'S-1', email: 'a@b.c', tcNo: '12345678901' })],
       }),
     );
-
-    assert.equal(p.orgUnits.length, 1);
-    assert.deepEqual(p.orgUnits[0], {
-      companyId: 2,
-      clientId: 'ou_1',
-      parentClientId: null,
-      name: 'Genel Müdürlük',
-      code: 'GM-001',
-    });
-
-    assert.equal(p.departments.length, 1);
-    assert.equal(p.departments[0]!.orgUnitClientId, 'ou_1');
-    assert.equal(p.departments[0]!.managerEmployeeClientId, 'emp_1'); // çalışan çözüldü
 
     assert.equal(p.positions.length, 1);
     assert.deepEqual(p.positions[0], {
@@ -118,46 +106,57 @@ describe('projectHr — genel & şirket çözümü', () => {
     });
     assert.deepEqual(p.dropped, {});
   });
+});
 
-  it('org unit: self-parent ve cycle kırılır (sayaç), küme dışı parent NULL', () => {
-    const p = projectHr(
-      blob({
-        hrOrgUnits: [
-          { id: 'ou_self', name: 'Kendisi', parentId: 'ou_self' },
-          { id: 'ou_a', name: 'A', parentId: 'ou_b' },
-          { id: 'ou_b', name: 'B', parentId: 'ou_a' }, // a↔b cycle
-          { id: 'ou_yetim', name: 'Yetim', parentId: 'ou_yok' },
-        ],
-      }),
-    );
-    for (const ou of p.orgUnits) {
-      if (ou.clientId === 'ou_self' || ou.clientId === 'ou_yetim') {
-        assert.equal(ou.parentClientId, null);
-      }
-    }
-    // Cycle'da en az bir bağ kesilmiş olmalı (a→b→a zinciri kopar).
-    const a = p.orgUnits.find((o) => o.clientId === 'ou_a')!;
-    const b = p.orgUnits.find((o) => o.clientId === 'ou_b')!;
-    assert.ok(a.parentClientId === null || b.parentClientId === null);
-    assert.ok((p.dropped['orgUnits.parentCycle'] ?? 0) >= 2); // self + cycle
+describe('projectHr — MEZUNİYET (hrOrgUnits/hrDepartments yazma-cutover)', () => {
+  it('GRADUATED_COLLECTIONS tam olarak hrOrgUnits + hrDepartments içerir', () => {
+    assert.deepEqual([...GRADUATED_COLLECTIONS], ['hrOrgUnits', 'hrDepartments']);
   });
 
-  it('org unit/departman (company, code) batch içi çift kodda öncekiler NULL (partial unique)', () => {
+  it('mezun koleksiyonlar blob dolu olsa da SATIR ÜRETMEZ (önbellek yankısı yok), sayaç yok', () => {
     const p = projectHr(
       blob({
         hrOrgUnits: [
-          { id: 'ou_1', name: 'Bir', code: 'GM' },
-          { id: 'ou_2', name: 'İki', code: 'GM' },
+          { id: 'ou_1', name: 'Genel Müdürlük', code: 'GM' },
+          { id: 'ou_self', name: 'Kendisi', parentId: 'ou_self' },
+          // Önbellek yankısı: sunucu id'li satır — asla client_id='12' üretmemeli.
+          { id: '12', name: 'Sunucu Önbelleği' },
         ],
-        hrDepartments: [dept('dept_1', { code: 'FIN' }), dept('dept_2', { code: 'FIN' })],
+        hrDepartments: [dept('dept_1', { code: 'YZL' }), dept('34', { code: 'FIN' })],
       }),
     );
-    const codes = p.orgUnits.map((o) => o.code).sort();
-    assert.deepEqual(codes, ['GM', null].sort());
-    const dcodes = p.departments.map((d) => d.code).sort();
-    assert.deepEqual(dcodes, ['FIN', null].sort());
-    assert.equal(p.dropped['orgUnits.duplicateCode'], 1);
-    assert.equal(p.dropped['departments.duplicateCode'], 1);
+    assert.deepEqual(p.orgUnits, []);
+    assert.deepEqual(p.departments, []);
+    assert.deepEqual(p.dropped, {}); // mezun koleksiyon sayaç da üretmez
+  });
+
+  it("çalışan departman referansı SAYISAL sunucu id'si olabilir — olduğu gibi taşınır (repo doğrular)", () => {
+    const p = projectHr(
+      blob({
+        hrEmployees: [
+          emp('e_num', { departmentId: '12' }),
+          emp('e_cli', { departmentId: 'dept_1' }),
+        ],
+      }),
+    );
+    const byId = new Map(p.employees.map((e) => [e.clientId, e]));
+    assert.equal(byId.get('e_num')!.departmentClientId, '12');
+    assert.equal(byId.get('e_cli')!.departmentClientId, 'dept_1');
+    assert.deepEqual(p.dropped, {});
+  });
+
+  it("pozisyon departman referansı da olduğu gibi taşınır (üyelik denetimi repo'da)", () => {
+    const p = projectHr(
+      blob({
+        hrPositions: [
+          { id: 'p_num', title: 'A', departmentId: '34' },
+          { id: 'p_cli', title: 'B', departmentId: 'dept_x' },
+        ],
+      }),
+    );
+    const byId = new Map(p.positions.map((x) => [x.clientId, x]));
+    assert.equal(byId.get('p_num')!.departmentClientId, '34');
+    assert.equal(byId.get('p_cli')!.departmentClientId, 'dept_x');
   });
 });
 
@@ -201,20 +200,24 @@ describe('projectHr — çalışanlar', () => {
     assert.equal(e2.terminationDate, '2025-03-01'); // hire_date'e kırpıldı
   });
 
-  it('departman zinciri: direkt departmentId yoksa jobTitle üzerinden; o da yoksa DÜŞER (sayaç)', () => {
+  it('departman zinciri: direkt departmentId yoksa jobTitle üzerinden; HİÇ referans yoksa DÜŞER (sayaç)', () => {
     const p = projectHr(
       blob({
-        hrDepartments: [dept('dept_1')],
         hrJobTitles: [{ id: 'jt_1', title: 'Dev', departmentId: 'dept_1' }],
         hrEmployees: [
           emp('e1', { departmentId: undefined, jobTitleId: 'jt_1' }), // zincirle çözülür
-          emp('e2', { departmentId: 'dept_yok', jobTitleId: 'jt_yok' }), // çözülemez
+          // Referans VAR ama küme bilinmiyor (hrDepartments MEZUN) → olduğu
+          // gibi taşınır; geçerlilik denetimi repository'de.
+          emp('e2', { departmentId: 'dept_belirsiz', jobTitleId: 'jt_yok' }),
+          emp('e3', { departmentId: undefined, jobTitleId: 'jt_yok' }), // hiç referans yok
         ],
       }),
     );
-    assert.equal(p.employees.length, 1);
-    assert.equal(p.employees[0]!.clientId, 'e1');
-    assert.equal(p.employees[0]!.departmentClientId, 'dept_1');
+    const byId = new Map(p.employees.map((e) => [e.clientId, e]));
+    assert.equal(p.employees.length, 2);
+    assert.equal(byId.get('e1')!.departmentClientId, 'dept_1');
+    assert.equal(byId.get('e2')!.departmentClientId, 'dept_belirsiz');
+    assert.equal(byId.get('e3'), undefined);
     assert.equal(p.dropped['employees.department'], 1);
   });
 
@@ -277,7 +280,7 @@ describe('projectHr — pozisyon / aday / başvuru', () => {
     const p4 = p.positions.find((x) => x.clientId === 'p4')!;
     assert.equal(p4.minSalary, 100); // CHECK positions_salary_order
     assert.equal(p4.maxSalary, 300);
-    // Küme dışı departman bağı NULL'lanır (nullable FK).
+    // departmentId alanı hiç yoksa referans NULL kalır.
     assert.equal(p.positions[0]!.departmentClientId, null);
   });
 

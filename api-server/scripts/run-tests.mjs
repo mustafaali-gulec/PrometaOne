@@ -26,5 +26,12 @@ if (files.length === 0) {
   process.exit(1);
 }
 
-const result = spawnSync('tsx', ['--test', ...files], { stdio: 'inherit', shell: true });
+// shell:true (cmd.exe) 8191 karakter komut sinirina takilir — test dosyasi
+// sayisi arttikca liste bu siniri asti ("The syntax of the command is
+// incorrect."). node'u dogrudan (kabuksuz) calistirip tsx'i --import ile
+// yukluyoruz; CreateProcess siniri ~32k oldugundan liste rahat sigar ve
+// davranis tsx --test ile ayni kalir (Linux/CI'da da birebir calisir).
+const result = spawnSync(process.execPath, ['--import', 'tsx', '--test', ...files], {
+  stdio: 'inherit',
+});
 process.exit(result.status ?? 1);

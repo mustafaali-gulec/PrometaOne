@@ -18,9 +18,11 @@
  * 'promet:data' anahtarı + 'global' scope; hata yutulur, PUT asla bozulmaz.
  *
  * HR FAN-OUT: üçüncü projeksiyon — blob HR çekirdeği (companyData[cid].
- * hrOrgUnits/hrDepartments/hrPositions/hrEmployees/hrCandidates/hrApplications/
- * hrLeaveRequests/hrPayrollRuns/hrAssets) MEVCUT normalize hr tablolarına
- * yansıtılır (HrProjection → HrProjectionMirror). Aynı kurallar: yalnız
+ * hrPositions/hrEmployees/hrCandidates/hrApplications/hrLeaveRequests/
+ * hrPayrollRuns/hrAssets) MEVCUT normalize hr tablolarına yansıtılır
+ * (HrProjection → HrProjectionMirror). hrOrgUnits/hrDepartments MEZUNDUR
+ * (yazma-cutover; HrProjection.GRADUATED_COLLECTIONS) — sunucu-otoriter
+ * org_units/departments tablolarına yansıtılmaz. Aynı kurallar: yalnız
  * 'promet:data' + 'global' scope; fire-and-forget, hata yutulur.
  *
  * FİNANS FAN-OUT: dördüncü projeksiyon — blob finans çekirdeği (banks [kök
