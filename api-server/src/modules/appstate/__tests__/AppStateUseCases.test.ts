@@ -6,12 +6,16 @@ import { beforeEach, describe, it, mock } from 'node:test';
 
 import type { AccessProjectionMirror } from '../application/ports/AccessProjectionMirror.js';
 import type { AppStateMirror } from '../application/ports/AppStateMirror.js';
+import type { FinanceProjectionMirror } from '../application/ports/FinanceProjectionMirror.js';
+import type { HrProjectionMirror } from '../application/ports/HrProjectionMirror.js';
 import {
   GetAppStateUseCase,
   SetAppStateUseCase,
 } from '../application/useCases/AppStateUseCases.js';
 import type { AccessProjection } from '../domain/AccessProjection.js';
 import type { MirrorGroup, MirrorRow } from '../domain/BlobProjector.js';
+import type { FinanceProjection } from '../domain/FinanceProjection.js';
+import type { HrProjection } from '../domain/HrProjection.js';
 
 import { FixedClock, InMemoryAppStateRepository } from './fakes.js';
 
@@ -259,6 +263,195 @@ describe('SetAppStateUseCase — access projeksiyon fan-out', () => {
   it("edge: 'promet:data' dışı anahtar ve global-dışı scope access aynasını ÇAĞIRMAZ", async () => {
     const { accessMirror, calls } = makeAccessMirror();
     const set = makeSut(accessMirror);
+
+    await set.execute({ key: 'promet:users', value: [{ username: 'ali' }] });
+    await set.execute({ key: 'promet:data', value: { companyData: {} }, scope: 'user-42' });
+
+    assert.equal(calls.length, 0);
+  });
+});
+
+describe('SetAppStateUseCase — hr projeksiyon fan-out', () => {
+  function makeHrMirror(fail = false): {
+    hrMirror: HrProjectionMirror;
+    calls: HrProjection[];
+  } {
+    const calls: HrProjection[] = [];
+    return {
+      calls,
+      hrMirror: {
+        async replaceAll(projection) {
+          calls.push(projection);
+          if (fail) throw new Error('hr aynası çöktü');
+        },
+      },
+    };
+  }
+
+  const makeSut = (hrMirror: HrProjectionMirror): SetAppStateUseCase =>
+    new SetAppStateUseCase(
+      new InMemoryAppStateRepository(),
+      new FixedClock(),
+      undefined,
+      undefined,
+      hrMirror,
+    );
+
+  it("happy: 'promet:data' PUT sonrası hr aynası HR projeksiyonuyla çağrılır", async () => {
+    const { hrMirror, calls } = makeHrMirror();
+    const set = makeSut(hrMirror);
+
+    await set.execute({
+      key: 'promet:data',
+      value: {
+        companyData: {
+          '2': {
+            hrOrgUnits: [{ id: 'ou_1', name: 'GM' }],
+            hrDepartments: [{ id: 'dept_1', name: 'Yazılım', orgUnitId: 'ou_1' }],
+            hrEmployees: [
+              {
+                id: 'emp_1',
+                firstName: 'Ali',
+                lastName: 'Veli',
+                departmentId: 'dept_1',
+                startDate: '2025-03-01',
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]!.orgUnits.length, 1);
+    assert.equal(calls[0]!.orgUnits[0]!.companyId, 2);
+    assert.equal(calls[0]!.departments[0]!.orgUnitClientId, 'ou_1');
+    assert.equal(calls[0]!.employees[0]!.clientId, 'emp_1');
+    assert.equal(calls[0]!.employees[0]!.departmentClientId, 'dept_1');
+  });
+
+  it('HR koleksiyonu boş/yok olsa da çağrılır (boş projeksiyon = prune sinyali)', async () => {
+    const { hrMirror, calls } = makeHrMirror();
+    const set = makeSut(hrMirror);
+
+    await set.execute({ key: 'promet:data', value: { banks: [] } });
+
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0]!.employees, []);
+    assert.deepEqual(calls[0]!.orgUnits, []);
+  });
+
+  it('edge: hr aynası hatası PUT sonucunu BOZMAZ (fire-and-forget, hata yutulur)', async () => {
+    const errSpy = mock.method(console, 'error', () => undefined);
+    try {
+      const { hrMirror, calls } = makeHrMirror(true);
+      const set = makeSut(hrMirror);
+
+      const res = await set.execute({ key: 'promet:data', value: { companyData: {} } });
+      assert.equal(res.key, 'promet:data'); // yanıt normal döner
+      assert.equal(calls.length, 1);
+      await new Promise((r) => setImmediate(r));
+      assert.ok(errSpy.mock.calls.length >= 1);
+    } finally {
+      errSpy.mock.restore();
+    }
+  });
+
+  it("edge: 'promet:data' dışı anahtar ve global-dışı scope hr aynasını ÇAĞIRMAZ", async () => {
+    const { hrMirror, calls } = makeHrMirror();
+    const set = makeSut(hrMirror);
+
+    await set.execute({ key: 'promet:users', value: [{ username: 'ali' }] });
+    await set.execute({ key: 'promet:data', value: { companyData: {} }, scope: 'user-42' });
+
+    assert.equal(calls.length, 0);
+  });
+});
+
+describe('SetAppStateUseCase — finans projeksiyon fan-out', () => {
+  function makeFinanceMirror(fail = false): {
+    financeMirror: FinanceProjectionMirror;
+    calls: FinanceProjection[];
+  } {
+    const calls: FinanceProjection[] = [];
+    return {
+      calls,
+      financeMirror: {
+        async replaceAll(projection) {
+          calls.push(projection);
+          if (fail) throw new Error('finans aynası çöktü');
+        },
+      },
+    };
+  }
+
+  const makeSut = (financeMirror: FinanceProjectionMirror): SetAppStateUseCase =>
+    new SetAppStateUseCase(
+      new InMemoryAppStateRepository(),
+      new FixedClock(),
+      undefined,
+      undefined,
+      undefined,
+      financeMirror,
+    );
+
+  it("happy: 'promet:data' PUT sonrası finans aynası FİNANS projeksiyonuyla çağrılır", async () => {
+    const { financeMirror, calls } = makeFinanceMirror();
+    const set = makeSut(financeMirror);
+
+    await set.execute({
+      key: 'promet:data',
+      value: {
+        banks: [{ id: 'bnk_1', name: 'YKB', code: 'YKB' }],
+        companyData: {
+          '2': {
+            bankAccounts: [{ id: 'acc_1', bankId: 'bnk_1', name: 'Vadesiz', currency: 'TRY' }],
+            kasaAccounts: [{ id: 'ksa_1', name: 'Merkez Kasa' }],
+            inflows: [{ id: 'in_1', name: 'Satış' }],
+          },
+        },
+      },
+    });
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]!.banks.length, 1);
+    assert.equal(calls[0]!.banks[0]!.clientId, 'bnk_1');
+    assert.equal(calls[0]!.bankAccounts[0]!.companyId, 2);
+    assert.equal(calls[0]!.bankAccounts[0]!.bankClientId, 'bnk_1');
+    assert.equal(calls[0]!.kasaAccounts[0]!.clientId, 'ksa_1');
+    assert.equal(calls[0]!.categories[0]!.section, 'inflows');
+  });
+
+  it('finans koleksiyonu boş/yok olsa da çağrılır (boş projeksiyon = prune sinyali)', async () => {
+    const { financeMirror, calls } = makeFinanceMirror();
+    const set = makeSut(financeMirror);
+
+    await set.execute({ key: 'promet:data', value: { companyData: {} } });
+
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0]!.banks, []);
+    assert.deepEqual(calls[0]!.invoices, []);
+  });
+
+  it('edge: finans aynası hatası PUT sonucunu BOZMAZ (fire-and-forget, hata yutulur)', async () => {
+    const errSpy = mock.method(console, 'error', () => undefined);
+    try {
+      const { financeMirror, calls } = makeFinanceMirror(true);
+      const set = makeSut(financeMirror);
+
+      const res = await set.execute({ key: 'promet:data', value: { companyData: {} } });
+      assert.equal(res.key, 'promet:data'); // yanıt normal döner
+      assert.equal(calls.length, 1);
+      await new Promise((r) => setImmediate(r));
+      assert.ok(errSpy.mock.calls.length >= 1);
+    } finally {
+      errSpy.mock.restore();
+    }
+  });
+
+  it("edge: 'promet:data' dışı anahtar ve global-dışı scope finans aynasını ÇAĞIRMAZ", async () => {
+    const { financeMirror, calls } = makeFinanceMirror();
+    const set = makeSut(financeMirror);
 
     await set.execute({ key: 'promet:users', value: [{ username: 'ali' }] });
     await set.execute({ key: 'promet:data', value: { companyData: {} }, scope: 'user-42' });

@@ -13,6 +13,8 @@ import { SystemClock } from './application/ports/Clock.js';
 import { GetAppStateUseCase, SetAppStateUseCase } from './application/useCases/AppStateUseCases.js';
 import { PgAccessProjectionRepository } from './infrastructure/persistence/PgAccessProjectionRepository.js';
 import { PgAppStateRepository } from './infrastructure/persistence/PgAppStateRepository.js';
+import { PgFinanceProjectionRepository } from './infrastructure/persistence/PgFinanceProjectionRepository.js';
+import { PgHrProjectionRepository } from './infrastructure/persistence/PgHrProjectionRepository.js';
 import { PgMirrorRepository } from './infrastructure/persistence/PgMirrorRepository.js';
 import { createAppStateRouter, type AppStateRouterDeps } from './presentation/routes.js';
 
@@ -24,10 +26,14 @@ export function registerAppStateModule(pool: Pool): ReturnType<typeof createAppS
   const mirror = new PgMirrorRepository(pool);
   // RBAC projeksiyonu (access_*) — PUT sonrası ikinci fire-and-forget fan-out.
   const accessMirror = new PgAccessProjectionRepository(pool);
+  // HR projeksiyonu (normalize hr tabloları) — PUT sonrası üçüncü fire-and-forget fan-out.
+  const hrMirror = new PgHrProjectionRepository(pool);
+  // Finans projeksiyonu (normalize finance tabloları) — PUT sonrası dördüncü fire-and-forget fan-out.
+  const financeMirror = new PgFinanceProjectionRepository(pool);
 
   const deps: AppStateRouterDeps = {
     getAppState: new GetAppStateUseCase(repo),
-    setAppState: new SetAppStateUseCase(repo, clock, mirror, accessMirror),
+    setAppState: new SetAppStateUseCase(repo, clock, mirror, accessMirror, hrMirror, financeMirror),
   };
 
   return createAppStateRouter(deps);
