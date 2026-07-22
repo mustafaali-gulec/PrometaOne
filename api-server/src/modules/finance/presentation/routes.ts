@@ -21,6 +21,7 @@ import type {
   ListBankAccountsUseCase,
   ListKasaAccountsUseCase,
 } from '../application/useCases/AccountUseCases.js';
+import type { AdoptBlobFinanceKasaUseCase } from '../application/useCases/AdoptBlobFinanceKasaUseCase.js';
 import type {
   BulkSetCellsInput,
   BulkSetCellsUseCase,
@@ -31,10 +32,14 @@ import type {
 import type {
   CreateTransferInput,
   CreateTransferUseCase,
+  DeleteKasaEntryUseCase,
   GetCashPositionUseCase,
+  ListKasaEntriesUseCase,
   ListTransfersUseCase,
   RecordKasaEntryInput,
   RecordKasaEntryUseCase,
+  UpdateKasaEntryInput,
+  UpdateKasaEntryUseCase,
 } from '../application/useCases/CashFlowUseCases.js';
 import type {
   ArchiveCategoryUseCase,
@@ -79,6 +84,10 @@ export interface FinanceRouterDeps {
   archiveKasaAccount: ArchiveKasaAccountUseCase;
   listKasaAccounts: ListKasaAccountsUseCase;
   recordKasaEntry: RecordKasaEntryUseCase;
+  listKasaEntries: ListKasaEntriesUseCase;
+  updateKasaEntry: UpdateKasaEntryUseCase;
+  deleteKasaEntry: DeleteKasaEntryUseCase;
+  adoptBlobFinanceKasa: AdoptBlobFinanceKasaUseCase;
   createTransfer: CreateTransferUseCase;
   listTransfers: ListTransfersUseCase;
   getCashPosition: GetCashPositionUseCase;
@@ -431,6 +440,101 @@ export function createFinanceRouter(deps: FinanceRouterDeps): Hono {
           } as RecordKasaEntryInput),
           201,
         );
+      } catch (err) {
+        mapFinanceError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/kasa-entries',
+    zValidator(
+      'query',
+      companyIdQ.extend({ kasaAccountId: z.coerce.number().int().positive().optional() }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const entries = await deps.listKasaEntries.execute({
+          companyId: q.companyId,
+          ...(q.kasaAccountId !== undefined ? { kasaAccountId: q.kasaAccountId } : {}),
+        });
+        return c.json({ entries });
+      } catch (err) {
+        mapFinanceError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/kasa-entries/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        kasaAccountId: z.number().int().positive().optional(),
+        date: dateStr.optional(),
+        type: flow.optional(),
+        amount: z.number().positive().optional(),
+        description: z.string().nullable().optional(),
+        category: z.string().nullable().optional(),
+        cashflowCatId: z.number().int().positive().nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.updateKasaEntry.execute({ ...b, entryId: id } as UpdateKasaEntryInput),
+        );
+      } catch (err) {
+        mapFinanceError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/kasa-entries/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.deleteKasaEntry.execute({ companyId: q.companyId, entryId: id }));
+      } catch (err) {
+        mapFinanceError(err);
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // KASA BLOB DEVRALMA (tek seferlik, idempotent — yazma-cutover)
+  // ---------------------------------------------------------------------------
+  // Blob (promet:data) kasaAccounts/kasaEntries koleksiyonlarını client_id
+  // (048) anahtarıyla devralır; ikinci çağrı dupe üretmez. Gövde blob alan
+  // adlarıyla GEVŞEK gelir; normalizasyon use-case'te. kasaCategories BLOB'DA
+  // KALIR (hareketler kategori ADI serbest metniyle referans verir). Emsal:
+  // POST /v1/hr/recruiting/adopt-blob.
+  app.post(
+    '/kasa/adopt-blob',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.coerce.number().int().positive(),
+        accounts: z.array(z.record(z.unknown())).optional(),
+        entries: z.array(z.record(z.unknown())).optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.adoptBlobFinanceKasa.execute(b));
       } catch (err) {
         mapFinanceError(err);
       }

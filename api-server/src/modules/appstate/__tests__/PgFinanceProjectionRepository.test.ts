@@ -1,7 +1,9 @@
 /**
  * PgFinanceProjectionRepository birim testleri — SQL üretimi mock Pool/Client
  * ile doğrulanır (üst entite upsert + doğal anahtar devralma + prune, detay
- * delete-then-insert, FK serial çözümü, FK-siz şirket düşürme, rollback).
+ * delete-then-insert, FK serial çözümü, FK-siz şirket düşürme, rollback,
+ * MEZUNİYET: kasa_accounts/kasa_entries'e dokunulmaz — kasa referansları
+ * DB kümesinden çözülür [client_id + sayısal sunucu id fallback]).
  */
 import assert from 'node:assert/strict';
 import { describe, it, mock } from 'node:test';
@@ -22,6 +24,8 @@ interface FakeOptions {
   companies?: number[];
   /** UPDATE ... WHERE client_id — bu client_id'ler "var" sayılır (rowCount 1). */
   existingClientIds?: string[];
+  /** MEZUN kasa_accounts çözücü SELECT'inin döneceği satırlar (DB içeriği). */
+  dbKasaAccounts?: Array<{ id: number; client_id: string | null }>;
   failOn?: (sql: string) => boolean;
 }
 
@@ -39,6 +43,9 @@ function makeFakePool(opts: FakeOptions = {}): {
       if (opts.failOn?.(sql)) throw new Error('patladı');
       if (sql.includes('SELECT id FROM companies')) {
         return { rows: (opts.companies ?? [1, 2, 3]).map((id) => ({ id })) };
+      }
+      if (sql.includes('SELECT id, client_id FROM kasa_accounts')) {
+        return { rows: opts.dbKasaAccounts ?? [] };
       }
       if (sql.trimStart().startsWith('UPDATE') && sql.includes('WHERE client_id = $')) {
         const clientId = values?.[values.length - 1];
@@ -99,16 +106,7 @@ const fullProjection = (): FinanceProjection =>
         active: true,
       },
     ],
-    kasaAccounts: [
-      {
-        companyId: 2,
-        clientId: 'ksa_1',
-        name: 'Merkez Kasa',
-        currency: 'TRY',
-        openingBalance: 0,
-        active: true,
-      },
-    ],
+    // kasaAccounts/kasaEntries MEZUN — projeksiyon her zaman boş üretir.
     cells: [
       {
         companyId: 2,
@@ -117,19 +115,6 @@ const fullProjection = (): FinanceProjection =>
         fiscalYear: 2025,
         monthIdx: 0,
         value: 100,
-      },
-    ],
-    kasaEntries: [
-      {
-        companyId: 2,
-        clientId: 'kse_1',
-        kasaAccountClientId: 'ksa_1',
-        date: '2026-01-01',
-        type: 'in',
-        amount: 10,
-        description: null,
-        category: null,
-        cashflowCatClientId: null,
       },
     ],
     transfers: [
@@ -186,7 +171,9 @@ const fullProjection = (): FinanceProjection =>
 
 describe('PgFinanceProjectionRepository', () => {
   it('happy: BEGIN → companies lookup → upsert/insert zinciri → COMMIT + release', async () => {
-    const { pool, calls, released } = makeFakePool();
+    const { pool, calls, released } = makeFakePool({
+      dbKasaAccounts: [{ id: 7, client_id: 'ksa_1' }],
+    });
     await new PgFinanceProjectionRepository(pool).replaceAll(fullProjection());
 
     assert.equal(calls[0]!.sql, 'BEGIN');
@@ -218,7 +205,9 @@ describe('PgFinanceProjectionRepository', () => {
   });
 
   it('categories: doğal anahtar devralması ON CONFLICT (company_id, section, name)', async () => {
-    const { pool, calls } = makeFakePool();
+    const { pool, calls } = makeFakePool({
+      dbKasaAccounts: [{ id: 7, client_id: 'ksa_1' }],
+    });
     await new PgFinanceProjectionRepository(pool).replaceAll(fullProjection());
 
     const insert = calls.find((c) => c.sql.includes('INSERT INTO categories'));
@@ -226,8 +215,10 @@ describe('PgFinanceProjectionRepository', () => {
     assert.ok(insert.sql.includes('ON CONFLICT (company_id, section, name)'));
   });
 
-  it('FK zinciri: hesap banka serial id ile, transfer hesap serial idleriyle, ödeme fatura serial id ile yazılır', async () => {
-    const { pool, calls } = makeFakePool();
+  it('FK zinciri: hesap banka serial id ile, transferin kasa ucu DB kasa kümesinden, ödeme fatura serial id ile yazılır', async () => {
+    const { pool, calls } = makeFakePool({
+      dbKasaAccounts: [{ id: 7, client_id: 'ksa_1' }],
+    });
     await new PgFinanceProjectionRepository(pool).replaceAll(fullProjection());
 
     const bankInsert = calls.find((c) => c.sql.includes('INSERT INTO banks'));
@@ -240,8 +231,8 @@ describe('PgFinanceProjectionRepository', () => {
 
     const transferInsert = calls.find((c) => c.sql.includes('INSERT INTO transfers'));
     assert.ok(transferInsert);
-    assert.equal(typeof transferInsert.values?.[3], 'number'); // from_id
-    assert.equal(typeof transferInsert.values?.[5], 'number'); // to_id
+    assert.equal(typeof transferInsert.values?.[3], 'number'); // from_id (banka upsert'i)
+    assert.equal(transferInsert.values?.[5], 7); // to_id — MEZUN kasa DB client_id'den
     assert.notEqual(transferInsert.values?.[3], transferInsert.values?.[5]);
 
     const paymentInsert = calls.find((c) => c.sql.includes('INSERT INTO invoice_payments'));
@@ -252,16 +243,22 @@ describe('PgFinanceProjectionRepository', () => {
     assert.equal(paymentInsert.values?.[7], 'pay_1');
   });
 
-  it('detaylar delete-then-insert: cells/kasa_entries/transfers/invoice_payments/invoices projeksiyon-sahipli silinir', async () => {
+  it('detaylar delete-then-insert: cells/transfers/invoice_payments/invoices projeksiyon-sahipli silinir; kasa_entries MEZUN — silinmez', async () => {
     const { pool, calls } = makeFakePool();
     await new PgFinanceProjectionRepository(pool).replaceAll(emptyProjection());
 
-    for (const table of ['cells', 'kasa_entries', 'transfers', 'invoice_payments', 'invoices']) {
+    for (const table of ['cells', 'transfers', 'invoice_payments', 'invoices']) {
       assert.ok(
         calls.some((c) => c.sql.includes(`DELETE FROM ${table} WHERE client_id IS NOT NULL`)),
         `${table} delete bekleniyordu`,
       );
     }
+    // MEZUN: kasa_entries delete edilseydi adopt edilen (client_id dolu)
+    // satırlar silinirdi.
+    assert.equal(
+      calls.some((c) => c.sql.includes('DELETE FROM kasa_entries')),
+      false,
+    );
     // Fatura silinmeden önce ödemeler silinmeli (CASCADE + CRUD koruması).
     const payIdx = calls.findIndex((c) =>
       c.sql.includes('DELETE FROM invoice_payments WHERE client_id IS NOT NULL'),
@@ -272,8 +269,119 @@ describe('PgFinanceProjectionRepository', () => {
     assert.ok(payIdx >= 0 && invIdx > payIdx);
   });
 
-  it('cells: doğal anahtar devralması ON CONFLICT (company_id, category_id, fiscal_year, month_idx)', async () => {
+  it('MEZUNİYET: kasa_accounts/kasa_entries tablolarına hiç dokunulmaz (INSERT/UPDATE/DELETE yok)', async () => {
+    const { pool, calls } = makeFakePool({
+      dbKasaAccounts: [{ id: 7, client_id: 'ksa_1' }],
+    });
+    await new PgFinanceProjectionRepository(pool).replaceAll(fullProjection());
+
+    const touching = calls.filter(
+      (c) =>
+        (c.sql.includes('kasa_accounts') || c.sql.includes('kasa_entries')) &&
+        !c.sql.trimStart().startsWith('SELECT'),
+    );
+    assert.deepEqual(
+      touching.map((c) => c.sql),
+      [],
+    );
+  });
+
+  it('MEZUN kasa çözücüsü tembel: kasa referansı yoksa kasa_accounts hiç sorgulanmaz', async () => {
     const { pool, calls } = makeFakePool();
+    await new PgFinanceProjectionRepository(pool).replaceAll(emptyProjection());
+
+    assert.equal(
+      calls.some((c) => c.sql.includes('FROM kasa_accounts')),
+      false,
+    );
+  });
+
+  it('MEZUN kasa çözücüsü: sayısal sunucu id fallback — geçerli id kullanılır, ödemede çözülemeyen NULL kalır', async () => {
+    const { pool, calls } = makeFakePool({
+      dbKasaAccounts: [{ id: 7, client_id: null }], // CRUD/adopt satırı — client_id yok
+    });
+    const projection = emptyProjection({
+      banks: [{ clientId: 'bnk_1', name: 'YKB', code: 'YKB', color: null }],
+      bankAccounts: [
+        {
+          companyId: 2,
+          clientId: 'acc_1',
+          bankClientId: 'bnk_1',
+          name: 'Vadesiz',
+          iban: null,
+          accountingCode: null,
+          currency: 'TRY',
+          openingBalance: 0,
+          cashflowCatClientId: null,
+          active: true,
+        },
+      ],
+      transfers: [
+        {
+          companyId: 2,
+          clientId: 'trf_1',
+          date: '2026-01-02',
+          fromType: 'bank',
+          fromClientId: 'acc_1',
+          toType: 'kasa',
+          toClientId: '7', // FE önbelleğinden sunucu id'si
+          fromAmount: 500,
+          toAmount: 500,
+          fromCurrency: 'TRY',
+          toCurrency: 'TRY',
+          description: null,
+          cashflowCatClientId: null,
+        },
+      ],
+      invoices: [
+        {
+          companyId: 2,
+          clientId: 'inv_1',
+          type: 'out',
+          invoiceNo: null,
+          counterparty: 'Acme',
+          issueDate: null,
+          dueDate: '2026-02-05',
+          currency: 'TRY',
+          subtotal: 100,
+          kdvRate: 0,
+          kdv: 0,
+          total: 120,
+          paidAmount: 50,
+          cashflowCatClientId: null,
+          committedToCells: false,
+          note: null,
+        },
+      ],
+      invoicePayments: [
+        {
+          companyId: 2,
+          clientId: 'pay_1',
+          invoiceClientId: 'inv_1',
+          amount: 50,
+          date: '2026-02-01',
+          currency: 'TRY',
+          bankAccountClientId: null,
+          kasaAccountClientId: 'ksa_bilinmez', // çözülemez → NULL (kolon nullable)
+          note: null,
+        },
+      ],
+    });
+    await new PgFinanceProjectionRepository(pool).replaceAll(projection);
+
+    const transferInsert = calls.find((c) => c.sql.includes('INSERT INTO transfers'));
+    assert.ok(transferInsert);
+    assert.equal(transferInsert.values?.[5], 7); // sayısal fallback doğrulandı
+
+    const paymentInsert = calls.find((c) => c.sql.includes('INSERT INTO invoice_payments'));
+    assert.ok(paymentInsert); // ödeme DÜŞMEZ — kasa referansı NULL'lanır
+    assert.equal(paymentInsert.values?.[5], null);
+  });
+
+  it('cells: doğal anahtar devralması ON CONFLICT (company_id, category_id, fiscal_year, month_idx)', async () => {
+    const { pool, calls } = makeFakePool({
+      dbKasaAccounts: [{ id: 7, client_id: 'ksa_1' }],
+    });
     await new PgFinanceProjectionRepository(pool).replaceAll(fullProjection());
 
     const insert = calls.find((c) => c.sql.includes('INSERT INTO cells'));
@@ -282,8 +390,10 @@ describe('PgFinanceProjectionRepository', () => {
     assert.equal(insert.values?.[5], 'in_1:0');
   });
 
-  it('prune: çocuktan ebeveyne — bank_accounts → kasa_accounts → categories → banks (banks EN SON)', async () => {
-    const { pool, calls } = makeFakePool();
+  it('prune: çocuktan ebeveyne — bank_accounts → categories → banks (banks EN SON); kasa_accounts MEZUN — prune edilmez', async () => {
+    const { pool, calls } = makeFakePool({
+      dbKasaAccounts: [{ id: 7, client_id: 'ksa_1' }],
+    });
     await new PgFinanceProjectionRepository(pool).replaceAll(fullProjection());
 
     const pruneIdx = (table: string): number =>
@@ -293,10 +403,11 @@ describe('PgFinanceProjectionRepository', () => {
           c.sql.includes('NOT (client_id = ANY($1::text[]))'),
       );
     const ba = pruneIdx('bank_accounts');
-    const ka = pruneIdx('kasa_accounts');
     const cat = pruneIdx('categories');
     const banks = pruneIdx('banks');
-    assert.ok(ba >= 0 && ka > ba && cat > ka && banks > cat);
+    assert.ok(ba >= 0 && cat > ba && banks > cat);
+    // MEZUN: kasa_accounts prune edilseydi adopt satırları silinirdi.
+    assert.equal(pruneIdx('kasa_accounts'), -1);
     // Prune listesi projeksiyondaki client_id'leri taşır.
     assert.deepEqual(calls[banks]!.values, [['bnk_1']]);
   });
@@ -317,30 +428,34 @@ describe('PgFinanceProjectionRepository', () => {
     }
   });
 
-  it('çözülmeyen detay FK satırı atlanır + loglanır (kasa hesabı projeksiyonda yok)', async () => {
+  it('çözülmeyen detay FK satırı atlanır + loglanır (transferin kasa ucu DB kümesinde yok)', async () => {
     const errSpy = mock.method(console, 'error', () => undefined);
     try {
-      const { pool, calls } = makeFakePool();
+      const { pool, calls } = makeFakePool({ dbKasaAccounts: [] }); // DB'de kasa yok
       await new PgFinanceProjectionRepository(pool).replaceAll(
         emptyProjection({
-          kasaEntries: [
+          transfers: [
             {
               companyId: 2,
-              clientId: 'kse_1',
-              kasaAccountClientId: 'ksa_yok',
-              date: '2026-01-01',
-              type: 'in',
-              amount: 5,
+              clientId: 'trf_1',
+              date: '2026-01-02',
+              fromType: 'kasa',
+              fromClientId: 'ksa_yok',
+              toType: 'kasa',
+              toClientId: 'ksa_yok_2',
+              fromAmount: 5,
+              toAmount: 5,
+              fromCurrency: 'TRY',
+              toCurrency: 'TRY',
               description: null,
-              category: null,
               cashflowCatClientId: null,
             },
           ],
         }),
       );
-      assert.ok(!calls.some((c) => c.sql.includes('INSERT INTO kasa_entries')));
+      assert.ok(!calls.some((c) => c.sql.includes('INSERT INTO transfers')));
       assert.ok(
-        errSpy.mock.calls.some((c) => String(c.arguments[0]).includes('kasa hareketi düşürüldü')),
+        errSpy.mock.calls.some((c) => String(c.arguments[0]).includes('transfer düşürüldü')),
       );
     } finally {
       errSpy.mock.restore();
@@ -349,6 +464,7 @@ describe('PgFinanceProjectionRepository', () => {
 
   it('edge: hata → ROLLBACK + release, hata fırlatılır (üst katman yutar)', async () => {
     const { pool, calls, released } = makeFakePool({
+      dbKasaAccounts: [{ id: 7, client_id: 'ksa_1' }],
       failOn: (sql) => sql.includes('INSERT INTO invoices'),
     });
     await assert.rejects(

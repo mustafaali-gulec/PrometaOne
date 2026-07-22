@@ -253,11 +253,19 @@ export class InMemoryKasaAccountRepository implements KasaAccountRepository {
       (a) => a.companyId === companyId && (options?.includeArchived === true || a.active),
     );
   }
+
+  /** Test yardımcı — hesabın şirketini şirket-filtresiz çöz. */
+  _companyOf(id: number): number | undefined {
+    return this.store.get(id)?.companyId;
+  }
 }
 
 export class InMemoryKasaEntryRepository implements KasaEntryRepository {
   private seq = 0;
   private store: KasaEntry[] = [];
+
+  /** listByCompany için hesap→şirket çözümü (opsiyonel — eski testler vermez). */
+  constructor(private readonly accounts?: InMemoryKasaAccountRepository) {}
 
   async insert(entry: KasaEntry): Promise<KasaEntry> {
     this.seq += 1;
@@ -276,6 +284,14 @@ export class InMemoryKasaEntryRepository implements KasaEntryRepository {
 
   async listByAccount(kasaAccountId: number): Promise<ReadonlyArray<KasaEntry>> {
     return this.store.filter((e) => e.kasaAccountId === kasaAccountId);
+  }
+
+  async listByCompany(companyId: number): Promise<ReadonlyArray<KasaEntry>> {
+    return this.store.filter((e) => this.accounts?._companyOf(e.kasaAccountId) === companyId);
+  }
+
+  async delete(id: number): Promise<void> {
+    this.store = this.store.filter((e) => e.id !== id);
   }
 
   __snapshot(): { store: KasaEntry[]; seq: number } {

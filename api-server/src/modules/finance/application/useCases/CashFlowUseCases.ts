@@ -1,11 +1,14 @@
 /**
  * Nakit akış use-case'leri (Faz 5 / PR 3):
- * RecordKasaEntry, CreateTransfer, GetCashPosition, ListTransfers.
+ * RecordKasaEntry, CreateTransfer, GetCashPosition, ListTransfers
+ * + kasa yazma-cutover'ı için ListKasaEntries / UpdateKasaEntry /
+ *   DeleteKasaEntry (FE düzenleme/silme akışı).
  */
 import { KasaEntry } from '../../domain/entities/KasaEntry.js';
 import { Transfer } from '../../domain/entities/Transfer.js';
 import {
   KasaAccountNotFoundError,
+  KasaEntryNotFoundError,
   TransferEndpointNotFoundError,
 } from '../../domain/errors/FinanceErrors.js';
 import { CashPositionCalculator } from '../../domain/services/CashPositionCalculator.js';
@@ -72,6 +75,120 @@ export class RecordKasaEntryUseCase {
     });
     const persisted = await this.entries.insert(entry);
     return toKasaEntryDto(persisted);
+  }
+}
+
+export interface ListKasaEntriesInput {
+  companyId: number;
+  /** Verilirse yalnız bu kasa hesabının hareketleri (şirket doğrulanır). */
+  kasaAccountId?: number;
+}
+
+export class ListKasaEntriesUseCase {
+  constructor(
+    private readonly kasaAccounts: KasaAccountRepository,
+    private readonly entries: KasaEntryRepository,
+  ) {}
+
+  async execute(input: ListKasaEntriesInput): Promise<KasaEntryDto[]> {
+    if (input.kasaAccountId !== undefined) {
+      const account = await this.kasaAccounts.findById(input.kasaAccountId, input.companyId);
+      if (!account) {
+        throw new KasaAccountNotFoundError(input.kasaAccountId);
+      }
+      const list = await this.entries.listByAccount(input.kasaAccountId);
+      return list.map(toKasaEntryDto);
+    }
+    const list = await this.entries.listByCompany(input.companyId);
+    return list.map(toKasaEntryDto);
+  }
+}
+
+export interface UpdateKasaEntryInput {
+  companyId: number;
+  entryId: number;
+  /** undefined = değişmez; null = temizle (description/category/cashflowCatId). */
+  kasaAccountId?: number;
+  date?: string;
+  type?: FlowDirection;
+  amount?: number;
+  description?: string | null;
+  category?: string | null;
+  cashflowCatId?: number | null;
+}
+
+export class UpdateKasaEntryUseCase {
+  constructor(
+    private readonly kasaAccounts: KasaAccountRepository,
+    private readonly entries: KasaEntryRepository,
+    private readonly clock: Clock,
+  ) {}
+
+  async execute(input: UpdateKasaEntryInput): Promise<KasaEntryDto> {
+    const entry = await this.entries.findById(input.entryId);
+    if (!entry) {
+      throw new KasaEntryNotFoundError(input.entryId);
+    }
+    // Şirket kapsamı: hareketin kasası bu şirkette değilse 404 (çapraz-tenant
+    // sızıntısı olmasın — kasa_entries'te company kolonu yok, kasadan gelir).
+    const currentAccount = await this.kasaAccounts.findById(entry.kasaAccountId, input.companyId);
+    if (!currentAccount) {
+      throw new KasaEntryNotFoundError(input.entryId);
+    }
+
+    let account = currentAccount;
+    if (input.kasaAccountId !== undefined && input.kasaAccountId !== entry.kasaAccountId) {
+      const target = await this.kasaAccounts.findById(input.kasaAccountId, input.companyId);
+      if (!target) {
+        throw new KasaAccountNotFoundError(input.kasaAccountId);
+      }
+      account = target;
+    }
+
+    const amountMajor = input.amount !== undefined ? input.amount : entry.amount.toMajor();
+    const updated = KasaEntry.create({
+      id: entry.id,
+      kasaAccountId: account.id,
+      date: input.date ?? entry.date,
+      type: input.type ?? entry.type,
+      // Tutar hedef kasanın para biriminde (kasa değişince birim de değişir).
+      amount: Money.fromMajor(amountMajor, account.currency),
+      description: input.description !== undefined ? input.description : entry.description,
+      category: input.category !== undefined ? input.category : entry.category,
+      cashflowCatId: input.cashflowCatId !== undefined ? input.cashflowCatId : entry.cashflowCatId,
+      committedToCells: entry.committedToCells,
+      committedAt: entry.committedAt,
+      createdBy: entry.createdBy,
+      createdAt: this.clock.now(),
+      updatedAt: this.clock.now(),
+    });
+    await this.entries.update(updated);
+    return toKasaEntryDto(updated);
+  }
+}
+
+export interface DeleteKasaEntryInput {
+  companyId: number;
+  entryId: number;
+}
+
+export class DeleteKasaEntryUseCase {
+  constructor(
+    private readonly kasaAccounts: KasaAccountRepository,
+    private readonly entries: KasaEntryRepository,
+  ) {}
+
+  async execute(input: DeleteKasaEntryInput): Promise<{ deleted: true }> {
+    const entry = await this.entries.findById(input.entryId);
+    if (!entry) {
+      throw new KasaEntryNotFoundError(input.entryId);
+    }
+    const account = await this.kasaAccounts.findById(entry.kasaAccountId, input.companyId);
+    if (!account) {
+      throw new KasaEntryNotFoundError(input.entryId); // çapraz-tenant → 404
+    }
+    await this.entries.delete(input.entryId);
+    return { deleted: true };
   }
 }
 

@@ -16,6 +16,7 @@ import {
   CommitNotApplicableError,
   CurrencyMismatchError,
   DuplicateCategoryNameError,
+  FinanceKasaAdoptConflictError,
   InvalidAllocationError,
   InvalidCurrencyError,
   InvalidFiscalYearError,
@@ -44,7 +45,11 @@ export function mapFinanceError(err: unknown): never {
     throw new HTTPException(404, { message: err.message });
   }
 
-  if (err instanceof DuplicateCategoryNameError || err instanceof AlreadyCommittedError) {
+  if (
+    err instanceof DuplicateCategoryNameError ||
+    err instanceof AlreadyCommittedError ||
+    err instanceof FinanceKasaAdoptConflictError
+  ) {
     throw new HTTPException(409, { message: err.message });
   }
 

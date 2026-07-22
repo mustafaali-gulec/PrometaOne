@@ -113,6 +113,16 @@ export class KasaEntryNotFoundError extends FinanceError {
   }
 }
 
+/**
+ * Kasa blob devralmasında (POST /v1/finance/kasa/adopt-blob) beklenmedik
+ * benzersizlik çakışması (23505) — 409'a map'lenir.
+ */
+export class FinanceKasaAdoptConflictError extends FinanceError {
+  constructor(detail: string) {
+    super(`Kasa devralma çakışması: ${detail}`);
+  }
+}
+
 export class TransferNotFoundError extends FinanceError {
   constructor(id: number) {
     super(`Transfer bulunamadı: ${id}`);

@@ -1,13 +1,19 @@
 /**
  * FinanceProjection birim testleri — blob→finance tablo eşlemesi, global banks
  * kök alanı, kategori section'ları, cells map çözümü, FK zinciri (banka →
- * hesap → transfer; fatura → ödeme), enum haritaları, şema uyum kırpmaları ve
- * düşürme sayaçları.
+ * hesap → transfer; fatura → ödeme), enum haritaları, şema uyum kırpmaları,
+ * düşürme sayaçları ve MEZUNİYET (kasaAccounts/kasaEntries yazma-cutover
+ * sonrası yansıtılmaz; kasa referansları olduğu gibi taşınır, çözüm
+ * repository'dedir).
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { INVOICE_TYPE_MAP, projectFinance } from '../domain/FinanceProjection.js';
+import {
+  GRADUATED_COLLECTIONS,
+  INVOICE_TYPE_MAP,
+  projectFinance,
+} from '../domain/FinanceProjection.js';
 
 /** companyData['2'] altına finans alanları + kök banks koyan yardımcı. */
 function blob(
@@ -70,12 +76,12 @@ describe('projectFinance — genel & şirket çözümü', () => {
   it('şirket anahtarı: sayısal cid → o, sayısal olmayan → 1 (öndeğer)', () => {
     const p = projectFinance({
       companyData: {
-        '7': { kasaAccounts: [kasa('ksa_a')] },
-        comp_promet: { kasaAccounts: [kasa('ksa_b')] },
+        '7': { inflows: [{ id: 'in_a', name: 'Satış A' }] },
+        comp_promet: { inflows: [{ id: 'in_b', name: 'Satış B' }] },
       },
     });
-    assert.equal(p.kasaAccounts.find((k) => k.clientId === 'ksa_a')?.companyId, 7);
-    assert.equal(p.kasaAccounts.find((k) => k.clientId === 'ksa_b')?.companyId, 1);
+    assert.equal(p.categories.find((c) => c.clientId === 'in_a')?.companyId, 7);
+    assert.equal(p.categories.find((c) => c.clientId === 'in_b')?.companyId, 1);
   });
 });
 
@@ -252,77 +258,118 @@ describe('projectFinance — banka & kasa hesapları', () => {
   it('para birimi: TL→TRY, EURO→EUR, boş→TRY; bilinmeyen → satır düşer', () => {
     const p = projectFinance(
       blob({
-        bankAccounts: [bankAccount('acc_1', { currency: 'tl' })],
-        kasaAccounts: [
-          kasa('ksa_1', { currency: 'EURO' }),
-          kasa('ksa_2', { currency: undefined }),
-          kasa('ksa_3', { currency: 'GBP' }),
+        bankAccounts: [
+          bankAccount('acc_1', { currency: 'tl' }),
+          bankAccount('acc_2', { currency: 'EURO' }),
+          bankAccount('acc_3', { currency: undefined }),
+          bankAccount('acc_4', { currency: 'GBP' }),
         ],
       }),
     );
-    assert.equal(p.bankAccounts[0]!.currency, 'TRY');
-    assert.equal(p.kasaAccounts.find((k) => k.clientId === 'ksa_1')?.currency, 'EUR');
-    assert.equal(p.kasaAccounts.find((k) => k.clientId === 'ksa_2')?.currency, 'TRY');
+    assert.equal(p.bankAccounts.find((a) => a.clientId === 'acc_1')?.currency, 'TRY');
+    assert.equal(p.bankAccounts.find((a) => a.clientId === 'acc_2')?.currency, 'EUR');
+    assert.equal(p.bankAccounts.find((a) => a.clientId === 'acc_3')?.currency, 'TRY');
     assert.equal(
-      p.kasaAccounts.find((k) => k.clientId === 'ksa_3'),
+      p.bankAccounts.find((a) => a.clientId === 'acc_4'),
       undefined,
     );
-    assert.equal(p.dropped['kasaAccounts.currency'], 1);
+    assert.equal(p.dropped['bankAccounts.currency'], 1);
   });
 });
 
-describe('projectFinance — kasa hareketleri', () => {
-  it('happy: kasa hareketi; şirket bağlı kasadan; kategori adı serbest metin', () => {
+describe('projectFinance — MEZUNİYET (kasa yazma-cutover)', () => {
+  it('GRADUATED_COLLECTIONS tam olarak kasa (2) koleksiyonlarını içerir', () => {
+    assert.deepEqual([...GRADUATED_COLLECTIONS], ['kasaAccounts', 'kasaEntries']);
+  });
+
+  it('mezun kasa koleksiyonları blob dolu olsa da SATIR ÜRETMEZ (önbellek yankısı yok), sayaç yok', () => {
     const p = projectFinance(
       blob({
-        kasaAccounts: [kasa('ksa_1')],
-        inflows: [{ id: 'in_1', name: 'Satış' }],
+        kasaAccounts: [
+          kasa('ksa_1'),
+          { id: '12', name: 'Sunucu Önbelleği', currency: 'TRY' }, // cutover sonrası şekil
+        ],
         kasaEntries: [
           {
             id: 'kse_1',
             kasaAccountId: 'ksa_1',
             date: '2026-03-10',
             type: 'out',
-            amount: '150.257', // string + 2 haneye yuvarlama
-            description: 'Yakıt alımı',
+            amount: 150,
             category: 'Yakıt',
-            cashflowCatId: 'in_1',
+          },
+          { id: 'kse_bozuk', kasaAccountId: 'yok', date: 'dün', type: 'giris', amount: -1 },
+        ],
+      }),
+    );
+    assert.deepEqual(p.kasaAccounts, []);
+    assert.deepEqual(p.kasaEntries, []);
+    assert.deepEqual(p.dropped, {}); // mezun koleksiyon sayaç da üretmez
+  });
+
+  it("transferin kasa ucu doğrulanmadan OLDUĞU GİBİ taşınır (çözüm repository'de) — sayısal önbellek id dahil", () => {
+    const p = projectFinance(
+      blob({
+        bankAccounts: [bankAccount('acc_1')],
+        transfers: [
+          {
+            id: 'trf_1',
+            date: '2026-05-01',
+            fromType: 'bank',
+            fromId: 'acc_1',
+            toType: 'kasa',
+            toId: '12', // FE önbelleğinden sunucu id'si — blob kasaAccounts'ta YOK
+            fromAmount: 500,
+            toAmount: 500,
+            fromCurrency: 'TRY',
+            toCurrency: 'TRY',
           },
         ],
       }),
     );
-    assert.deepEqual(p.kasaEntries, [
-      {
-        companyId: 2,
-        clientId: 'kse_1',
-        kasaAccountClientId: 'ksa_1',
-        date: '2026-03-10',
-        type: 'out',
-        amount: 150.26,
-        description: 'Yakıt alımı',
-        category: 'Yakıt',
-        cashflowCatClientId: 'in_1',
-      },
-    ]);
+    assert.equal(p.transfers.length, 1);
+    assert.equal(p.transfers[0]!.toClientId, '12');
+    assert.deepEqual(p.dropped, {});
   });
 
-  it('kırpmalar: kasa yok / tarih bozuk / tip bozuk / tutar <= 0 → düşer', () => {
+  it("kasa ucu para birimi fallback'i mezuniyet sonrası da çalışır (kasaAccounts salt-çözüm okunur)", () => {
     const p = projectFinance(
       blob({
-        kasaAccounts: [kasa('ksa_1')],
-        kasaEntries: [
-          { id: 'k1', kasaAccountId: 'yok', date: '2026-01-01', type: 'in', amount: 5 },
-          { id: 'k2', kasaAccountId: 'ksa_1', date: 'dün', type: 'in', amount: 5 },
-          { id: 'k3', kasaAccountId: 'ksa_1', date: '2026-01-01', type: 'giris', amount: 5 },
-          { id: 'k4', kasaAccountId: 'ksa_1', date: '2026-01-01', type: 'in', amount: 0 },
+        bankAccounts: [bankAccount('acc_1')],
+        kasaAccounts: [kasa('ksa_eur', { currency: 'EUR' })],
+        transfers: [
+          {
+            id: 'trf_1',
+            date: '2026-05-01',
+            fromType: 'bank',
+            fromId: 'acc_1',
+            toType: 'kasa',
+            toId: 'ksa_eur',
+            fromAmount: 100, // fromCurrency/toCurrency YOK → uç hesaplardan
+          },
         ],
       }),
     );
-    assert.deepEqual(p.kasaEntries, []);
-    assert.equal(p.dropped['kasaEntries.kasaAccount'], 1);
-    assert.equal(p.dropped['kasaEntries.date'], 1);
-    assert.equal(p.dropped['kasaEntries.type'], 1);
-    assert.equal(p.dropped['kasaEntries.amount'], 1);
+    assert.equal(p.transfers[0]!.fromCurrency, 'TRY'); // banka hesabından
+    assert.equal(p.transfers[0]!.toCurrency, 'EUR'); // MEZUN kasadan (salt-çözüm)
+    assert.deepEqual(p.kasaAccounts, []); // satır yine de üretilmez
+  });
+
+  it("fatura ödemesinin kasa referansı doğrulanmadan OLDUĞU GİBİ taşınır (çözüm repository'de)", () => {
+    const p = projectFinance(
+      blob({
+        invoices: [
+          invoice('inv_1', {
+            payments: [
+              { id: 'pay_1', date: '2026-02-01', amount: 50, fromType: 'kasa', fromId: '34' },
+            ],
+          }),
+        ],
+      }),
+    );
+    assert.equal(p.invoicePayments.length, 1);
+    assert.equal(p.invoicePayments[0]!.kasaAccountClientId, '34'); // pass-through
+    assert.equal(p.invoicePayments[0]!.bankAccountClientId, null);
   });
 });
 
@@ -383,7 +430,7 @@ describe('projectFinance — transferler', () => {
     assert.equal(p.transfers[0]!.toCurrency, 'TRY');
   });
 
-  it('kırpmalar: aynı uca transfer / çözülmeyen uç / tutar <= 0 → düşer', () => {
+  it('kırpmalar: aynı uca transfer / çözülmeyen BANKA ucu / tutar <= 0 / çözülmeyen kasa para birimi → düşer', () => {
     const p = projectFinance(
       blob({
         ...accounts,
@@ -400,8 +447,8 @@ describe('projectFinance — transferler', () => {
           {
             id: 't2',
             date: '2026-01-01',
-            fromType: 'kasa',
-            fromId: 'acc_1', // kasa tipiyle banka id'si çözülmez
+            fromType: 'bank',
+            fromId: 'yok', // banka ucu blob bankAccounts'ta doğrulanır — düşer
             toType: 'bank',
             toId: 'acc_2',
             fromAmount: 5,
@@ -415,6 +462,16 @@ describe('projectFinance — transferler', () => {
             toId: 'ksa_1',
             fromAmount: -3,
           },
+          {
+            id: 't4',
+            date: '2026-01-01',
+            fromType: 'kasa',
+            fromId: 'ksa_bilinmez', // MEZUN kasa ucu taşınır AMA para birimi
+            toType: 'bank', //          çözülemez (blob'da yok, currency alanı da yok)
+            toId: 'acc_2',
+            fromAmount: 5,
+            toCurrency: 'TRY',
+          },
         ],
       }),
     );
@@ -422,6 +479,7 @@ describe('projectFinance — transferler', () => {
     assert.equal(p.dropped['transfers.sameEndpoint'], 1);
     assert.equal(p.dropped['transfers.endpoint'], 1);
     assert.equal(p.dropped['transfers.amount'], 1);
+    assert.equal(p.dropped['transfers.currency'], 1);
   });
 });
 

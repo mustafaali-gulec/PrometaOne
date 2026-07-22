@@ -15,6 +15,7 @@ import {
   ListBankAccountsUseCase,
   ListKasaAccountsUseCase,
 } from './application/useCases/AccountUseCases.js';
+import { AdoptBlobFinanceKasaUseCase } from './application/useCases/AdoptBlobFinanceKasaUseCase.js';
 import {
   BulkSetCellsUseCase,
   GetBudgetMatrixUseCase,
@@ -22,9 +23,12 @@ import {
 } from './application/useCases/BudgetMatrixUseCases.js';
 import {
   CreateTransferUseCase,
+  DeleteKasaEntryUseCase,
   GetCashPositionUseCase,
+  ListKasaEntriesUseCase,
   ListTransfersUseCase,
   RecordKasaEntryUseCase,
+  UpdateKasaEntryUseCase,
 } from './application/useCases/CashFlowUseCases.js';
 import {
   ArchiveCategoryUseCase,
@@ -45,6 +49,7 @@ import {
   ListInvoicesUseCase,
   RecordPaymentUseCase,
 } from './application/useCases/InvoiceUseCases.js';
+import { PgAdoptFinanceKasaRepository } from './infrastructure/persistence/PgAdoptFinanceKasaRepository.js';
 import { PgBankAccountRepository } from './infrastructure/persistence/PgBankAccountRepository.js';
 import { PgCategoryRepository } from './infrastructure/persistence/PgCategoryRepository.js';
 import { PgCellRepository } from './infrastructure/persistence/PgCellRepository.js';
@@ -90,6 +95,10 @@ export function registerFinanceModule(pool: Pool): ReturnType<typeof createFinan
     archiveKasaAccount: new ArchiveKasaAccountUseCase(kasaAccounts, clock),
     listKasaAccounts: new ListKasaAccountsUseCase(kasaAccounts),
     recordKasaEntry: new RecordKasaEntryUseCase(kasaAccounts, kasaEntries, clock),
+    listKasaEntries: new ListKasaEntriesUseCase(kasaAccounts, kasaEntries),
+    updateKasaEntry: new UpdateKasaEntryUseCase(kasaAccounts, kasaEntries, clock),
+    deleteKasaEntry: new DeleteKasaEntryUseCase(kasaAccounts, kasaEntries),
+    adoptBlobFinanceKasa: new AdoptBlobFinanceKasaUseCase(new PgAdoptFinanceKasaRepository(pool)),
     createTransfer: new CreateTransferUseCase(bankAccounts, kasaAccounts, transfers, clock),
     listTransfers: new ListTransfersUseCase(transfers),
     getCashPosition: new GetCashPositionUseCase(bankAccounts, kasaAccounts, kasaEntries, transfers),

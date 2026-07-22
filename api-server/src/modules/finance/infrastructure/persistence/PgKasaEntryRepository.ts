@@ -63,9 +63,22 @@ export class PgKasaEntryRepository implements KasaEntryRepository {
   async update(entry: KasaEntry): Promise<void> {
     await this.db.query(
       `UPDATE kasa_entries
-         SET cashflow_cat_id = $1, committed_to_cells = $2, committed_at = $3, updated_at = NOW()
-       WHERE id = $4`,
-      [entry.cashflowCatId, entry.committedToCells, entry.committedAt, entry.id],
+         SET kasa_account_id = $1, date = $2, type = $3, amount = $4,
+             description = $5, category = $6, cashflow_cat_id = $7,
+             committed_to_cells = $8, committed_at = $9, updated_at = NOW()
+       WHERE id = $10`,
+      [
+        entry.kasaAccountId,
+        entry.date,
+        entry.type,
+        entry.amount.toDecimalString(),
+        entry.description,
+        entry.category,
+        entry.cashflowCatId,
+        entry.committedToCells,
+        entry.committedAt,
+        entry.id,
+      ],
     );
   }
 
@@ -81,6 +94,18 @@ export class PgKasaEntryRepository implements KasaEntryRepository {
       [kasaAccountId],
     );
     return r.rows.map(rowToKasaEntry);
+  }
+
+  async listByCompany(companyId: number): Promise<ReadonlyArray<KasaEntry>> {
+    const r = await this.db.query<KasaEntryRow>(
+      `${SELECT} WHERE ka.company_id = $1 ORDER BY e.date DESC, e.id DESC`,
+      [companyId],
+    );
+    return r.rows.map(rowToKasaEntry);
+  }
+
+  async delete(id: number): Promise<void> {
+    await this.db.query('DELETE FROM kasa_entries WHERE id = $1', [id]);
   }
 }
 

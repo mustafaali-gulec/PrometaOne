@@ -54,6 +54,9 @@ export interface KasaEntryRepository {
   findById(id: number): Promise<KasaEntry | null>;
   /** Bir kasa hesabının tüm hareketleri (bakiye hesabı için). */
   listByAccount(kasaAccountId: number): Promise<ReadonlyArray<KasaEntry>>;
+  /** Şirketin tüm kasa hareketleri (kasa hesabı JOIN'iyle şirket-scoped). */
+  listByCompany(companyId: number): Promise<ReadonlyArray<KasaEntry>>;
+  delete(id: number): Promise<void>;
 }
 
 export interface TransferRepository {

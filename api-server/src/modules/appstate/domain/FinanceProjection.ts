@@ -13,18 +13,16 @@
  *   companyData[cid].bankAccounts[] (~76547)
  *                    = { id:"acc_...", bankId, name, iban, accountingCode,
  *                        currency, openingBalance, cashflowCatId, active }
- *   companyData[cid].kasaAccounts[] = { id:"ksa_...", name, currency,
- *                        openingBalance, active }
+ *   companyData[cid].kasaAccounts[] = MEZUN (bkz. GRADUATED_COLLECTIONS) —
+ *                      yansıtılmaz; yalnız transfer para-birimi fallback'i için
+ *                      salt-okunur okunur (satır üretilmez).
  *   companyData[cid].inflows/outflows/nonPnlOutflows/kasaCategories[]
  *                    = { id:"in_1"/"out_1"/"npo_1"/"kc_...", name }
  *                      — 4 alan adı categories.section enum'uyla BİREBİR.
  *   companyData[cid].cells = MAP { "<catId>:<monthIdx>": number } (~30319,
  *                      ~75649); fiscal_year şirket alanı fiscalYear'dan gelir.
- *   companyData[cid].kasaEntries[] (~107758)
- *                    = { id:"kse_...", kasaAccountId, date, type(in|out),
- *                        amount, description, category (kategori ADI, serbest
- *                        metin — EntitySelect getId=c.name ~108171),
- *                        cashflowCatId? }
+ *   companyData[cid].kasaEntries[] = MEZUN (bkz. GRADUATED_COLLECTIONS) —
+ *                      yansıtılmaz.
  *   companyData[cid].transfers[] (~65089 + TransferModal ~95773)
  *                    = { id:"trf_...", date, fromType(bank|kasa), fromId,
  *                        toType, toId, fromAmount, toAmount, fromCurrency,
@@ -51,7 +49,8 @@
  * ENUM EŞLEME TABLOLARI (blob → DB; eşlenemeyenler düşer + sayaç):
  *   currency_code   : TRY/USD/EUR→aynı, TL→TRY, EURO→EUR (büyük/küçük harf
  *                     duyarsız); boş/yok→TRY (frontend öndeğeri); diğer→DÜŞER.
- *   flow_direction  : in→in, out→out (kasa hareketi); diğer→DÜŞER.
+ *   flow_direction  : in→in, out→out; diğer→DÜŞER (adopt use-case'i de
+ *                     kullanır — kasa hareketleri MEZUN, projeksiyonda yok).
  *   invoices.type   : in/AP→in, out/AR→out (büyük/küçük harf duyarsız);
  *                     diğer→DÜŞER (yön verisi kritik — öndeğer verilmez).
  *   category_section: blob alan adları (inflows/outflows/nonPnlOutflows/
@@ -66,7 +65,7 @@
  *   - cells: fiscalYear şirket alanı geçersizse o şirketin TÜM hücreleri düşer
  *     (sayaç cells.fiscalYear); month_idx 0-11 dışı, çözülmeyen kategori,
  *     sayısal olmayan değer → düşer.
- *   - kasa_entries/invoice_payments CHECK (amount > 0): pozitif olmayan düşer.
+ *   - invoice_payments CHECK (amount > 0): pozitif olmayan düşer.
  *   - invoices CHECK (total > 0): düşer. paid_amount [0, total] aralığına
  *     kırpılır (CHECK paid_amount <= total + 0.01).
  *   - invoice_payments toplamı total'i aşamaz (DB trigger'ı paid_amount'u
@@ -82,6 +81,29 @@
 import { resolveAccessCompanyId } from './AccessProjection.js';
 
 export const DEFAULT_FINANCE_COMPANY_ID = 1;
+
+/**
+ * YAZMA-CUTOVER'LANAN (MEZUN) KOLEKSİYONLAR — projeksiyondan çıkarıldı
+ * (HrProjection.GRADUATED_COLLECTIONS kalıbı).
+ *
+ * kasa_accounts + kasa_entries artık SUNUCU-OTORİTERDİR: tek seferlik devralma
+ * POST /v1/finance/kasa/adopt-blob ile yapılır; FE blob'daki kasaAccounts/
+ * kasaEntries alanlarını sunucudan doldurulan SALT-OKUNUR önbellek olarak
+ * taşır ve önbellek satırlarının id'si SUNUCU id'sidir (ör. "12").
+ *
+ * Bu koleksiyonlar yansıtılmaya devam etseydi önbellek yankısı client_id='12'
+ * gibi ÇİFT satırlar üretir ve prune, kasa CRUD/adopt yazımlarını silerdi.
+ * Bu yüzden projectFinance bu koleksiyonlar için satır ÜRETMEZ ve
+ * PgFinanceProjectionRepository bu iki tabloya upsert/prune/delete YAPMAZ.
+ *
+ * Bağımlılıklar mezuniyet sonrası:
+ *   - transfers'ın kasa uçları ve invoice_payments'ın kasa referansı olduğu
+ *     gibi taşınır; çözüm PgFinanceProjectionRepository'dedir (DB client_id
+ *     haritası + geçerli SAYISAL sunucu id fallback'i — işe alım emsali).
+ *   - kasaAccounts blob alanı yalnız transfer para-birimi fallback'i için
+ *     okunur (hrJobTitles'ın salt-çözüm kalıbı; satır üretmez).
+ */
+export const GRADUATED_COLLECTIONS = ['kasaAccounts', 'kasaEntries'] as const;
 
 // --- DB enum'ları ------------------------------------------------------------
 export type DbCurrency = 'TRY' | 'USD' | 'EUR';
@@ -182,6 +204,12 @@ export interface FinanceTransferProjection {
   clientId: string;
   date: string;
   fromType: DbEndpointType;
+  /**
+   * bank uçları blob bankAccounts'a karşı doğrulanır; kasa uçları MEZUN
+   * kasa_accounts'a olduğu gibi taşınır (eski "ksa_..." client-id'si VEYA
+   * önbellekten gelen SAYISAL sunucu id'si) — çözüm repository'dedir,
+   * çözülemeyen transfer orada düşer.
+   */
   fromClientId: string;
   toType: DbEndpointType;
   toClientId: string;
@@ -222,6 +250,11 @@ export interface FinanceInvoicePaymentProjection {
   date: string;
   currency: DbCurrency;
   bankAccountClientId: string | null;
+  /**
+   * MEZUN kasa_accounts referansı — olduğu gibi taşınır ("ksa_..." VEYA
+   * sayısal sunucu id'si); çözüm repository'dedir, çözülemezse NULL
+   * (nullable kolon).
+   */
   kasaAccountClientId: string | null;
   note: string | null;
 }
@@ -229,9 +262,11 @@ export interface FinanceInvoicePaymentProjection {
 export interface FinanceProjection {
   banks: FinanceBankProjection[];
   bankAccounts: FinanceBankAccountProjection[];
+  /** MEZUN — her zaman boş (bkz. GRADUATED_COLLECTIONS). */
   kasaAccounts: FinanceKasaAccountProjection[];
   categories: FinanceCategoryProjection[];
   cells: FinanceCellProjection[];
+  /** MEZUN — her zaman boş (bkz. GRADUATED_COLLECTIONS). */
   kasaEntries: FinanceKasaEntryProjection[];
   transfers: FinanceTransferProjection[];
   invoices: FinanceInvoiceProjection[];
@@ -286,8 +321,11 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-/** Boş/yok → TRY (frontend öndeğeri); bilinen → eşlenik; bilinmeyen → null (DÜŞ). */
-function currencyOrNull(value: unknown): DbCurrency | null {
+/**
+ * Boş/yok → TRY (frontend öndeğeri); bilinen → eşlenik; bilinmeyen → null (DÜŞ).
+ * Dışa açık: AdoptBlobFinanceKasaUseCase aynı kuralı TEK KAYNAK'tan kullanır.
+ */
+export function currencyOrNull(value: unknown): DbCurrency | null {
   if (value === undefined || value === null) return 'TRY';
   if (typeof value !== 'string') return null;
   const t = value.trim().toUpperCase();
@@ -295,7 +333,8 @@ function currencyOrNull(value: unknown): DbCurrency | null {
   return CURRENCY_MAP[t] ?? null;
 }
 
-function flowDirectionOrNull(value: unknown): DbFlowDirection | null {
+/** Dışa açık: AdoptBlobFinanceKasaUseCase aynı kuralı TEK KAYNAK'tan kullanır. */
+export function flowDirectionOrNull(value: unknown): DbFlowDirection | null {
   if (typeof value !== 'string') return null;
   const t = value.trim().toLowerCase();
   return t === 'in' || t === 'out' ? t : null;
@@ -387,18 +426,25 @@ export function projectFinance(
   dedupByKey(banks, (b) => b.name, dropped, 'banks.duplicateName');
 
   // clientId → projeksiyon satırı (SON kazanır; şirketler arası birleşim).
+  // NOT: kasaAccounts/kasaEntries MEZUN (GRADUATED_COLLECTIONS) — satır
+  // üretilmez.
   const categories = new Map<string, FinanceCategoryProjection>();
-  const kasaAccounts = new Map<string, FinanceKasaAccountProjection>();
   const bankAccounts = new Map<string, FinanceBankAccountProjection>();
   const cells = new Map<string, FinanceCellProjection>(); // anahtar: "cid|catId:mi"
-  const kasaEntries = new Map<string, FinanceKasaEntryProjection>();
   const transfers = new Map<string, FinanceTransferProjection>();
   const invoices = new Map<string, FinanceInvoiceProjection>();
   const invoicePayments = new Map<string, FinanceInvoicePaymentProjection>();
 
+  /**
+   * kasaAccounts MEZUN: tablo satırı üretilmez; yalnız transfer para-birimi
+   * fallback'i için id → currency haritası okunur (hrJobTitles salt-çözüm
+   * kalıbı). Önbellek satırları sunucu id'si taşıyabilir — anahtar her ikisini
+   * de kapsar.
+   */
+  const kasaCurrencyByRef = new Map<string, DbCurrency>();
+
   /** Ham blob elemanları (2. faz — tüm üst entiteler toplandıktan sonra). */
   const rawBankAccounts = new Map<string, RawItem>();
-  const rawKasaEntries = new Map<string, RawItem>();
   const rawTransfers = new Map<string, RawItem>();
   const rawInvoices = new Map<string, RawItem>();
   const rawCells: { companyId: number; fiscalYear: number | null; map: Record<string, unknown> }[] =
@@ -431,32 +477,16 @@ export function projectFinance(
       }
     }
 
+    // kasaAccounts + kasaEntries: MEZUN — satır üretilmez (bkz.
+    // GRADUATED_COLLECTIONS; sunucu-otoriter, önbellek yankısı yasak).
+    // kasaAccounts yalnız para-birimi çözümü için okunur.
     for (const [clientId, item] of collectItems(fields['kasaAccounts'])) {
-      const name = textOrNull(item['name'], 200);
-      if (name === null) {
-        dropped.add('kasaAccounts.name');
-        continue;
-      }
       const currency = currencyOrNull(item['currency']);
-      if (currency === null) {
-        dropped.add('kasaAccounts.currency');
-        continue;
-      }
-      kasaAccounts.set(clientId, {
-        companyId,
-        clientId,
-        name,
-        currency,
-        openingBalance: round2(finiteOrNull(item['openingBalance']) ?? 0),
-        active: item['active'] !== false,
-      });
+      if (currency !== null) kasaCurrencyByRef.set(clientId, currency);
     }
 
     for (const [clientId, item] of collectItems(fields['bankAccounts'])) {
       rawBankAccounts.set(clientId, { companyId, item });
-    }
-    for (const [clientId, item] of collectItems(fields['kasaEntries'])) {
-      rawKasaEntries.set(clientId, { companyId, item });
     }
     for (const [clientId, item] of collectItems(fields['transfers'])) {
       rawTransfers.set(clientId, { companyId, item });
@@ -556,49 +586,13 @@ export function projectFinance(
     }
   }
 
-  // --- Kasa hareketleri ---------------------------------------------------------
-  for (const [clientId, { item }] of rawKasaEntries) {
-    const kasaAccountClientId = idString(item['kasaAccountId']);
-    const account =
-      kasaAccountClientId !== null ? kasaAccounts.get(kasaAccountClientId) : undefined;
-    if (kasaAccountClientId === null || account === undefined) {
-      dropped.add('kasaEntries.kasaAccount'); // kasa_account_id NOT NULL FK — düşür
-      continue;
-    }
-    const date = isoDateOrNull(item['date']);
-    if (date === null) {
-      dropped.add('kasaEntries.date'); // date NOT NULL — düşür
-      continue;
-    }
-    const type = flowDirectionOrNull(item['type']);
-    if (type === null) {
-      dropped.add('kasaEntries.type');
-      continue;
-    }
-    const amountRaw = finiteOrNull(item['amount']);
-    const amount = amountRaw !== null ? round2(amountRaw) : null;
-    if (amount === null || amount <= 0) {
-      dropped.add('kasaEntries.amount'); // CHECK amount > 0 — düşür
-      continue;
-    }
-    kasaEntries.set(clientId, {
-      companyId: account.companyId, // şirket bağlı kasadan gelir
-      clientId,
-      kasaAccountClientId,
-      date,
-      type,
-      amount,
-      description: textOrNull(item['description']),
-      category: textOrNull(item['category'], 200),
-      cashflowCatClientId: resolveCategory(item['cashflowCatId']),
-    });
-  }
-
   // --- Transferler ---------------------------------------------------------------
+  // Kasa ucu para birimi: MEZUN kasaAccounts'tan salt-çözüm haritası
+  // (kasaCurrencyByRef) — satır üretmez, yalnız fallback.
   const endpointCurrency = (type: DbEndpointType, clientId: string): DbCurrency | null =>
     type === 'bank'
       ? (bankAccounts.get(clientId)?.currency ?? null)
-      : (kasaAccounts.get(clientId)?.currency ?? null);
+      : (kasaCurrencyByRef.get(clientId) ?? null);
 
   for (const [clientId, { companyId, item }] of rawTransfers) {
     const date = isoDateOrNull(item['date']) ?? isoDateOrNull(item['ts']);
@@ -614,12 +608,10 @@ export function projectFinance(
     }
     const fromClientId = idString(item['fromId']);
     const toClientId = idString(item['toId']);
-    const fromOk =
-      fromClientId !== null &&
-      (fromType === 'bank' ? bankAccounts.has(fromClientId) : kasaAccounts.has(fromClientId));
-    const toOk =
-      toClientId !== null &&
-      (toType === 'bank' ? bankAccounts.has(toClientId) : kasaAccounts.has(toClientId));
+    // bank uçları blob bankAccounts'a karşı doğrulanır; kasa uçları MEZUN —
+    // olduğu gibi taşınır, çözüm/düşürme repository'dedir.
+    const fromOk = fromClientId !== null && (fromType === 'kasa' || bankAccounts.has(fromClientId));
+    const toOk = toClientId !== null && (toType === 'kasa' || bankAccounts.has(toClientId));
     if (!fromOk || !toOk) {
       dropped.add('transfers.endpoint'); // from_id/to_id NOT NULL — düşür
       continue;
@@ -764,8 +756,9 @@ export function projectFinance(
       const fromId = idString(raw['fromId']);
       const bankAccountClientId =
         fromType === 'bank' && fromId !== null && bankAccounts.has(fromId) ? fromId : null;
-      const kasaAccountClientId =
-        fromType === 'kasa' && fromId !== null && kasaAccounts.has(fromId) ? fromId : null;
+      // kasa MEZUN — referans olduğu gibi taşınır; çözüm repository'de
+      // (çözülemezse NULL, kolon nullable).
+      const kasaAccountClientId = fromType === 'kasa' && fromId !== null ? fromId : null;
 
       cumulative = round2(cumulative + amount);
       const paymentClientId = idString(raw['id']) ?? `${clientId}:p${pIdx}`;
@@ -786,10 +779,10 @@ export function projectFinance(
   return {
     banks: [...banks.values()],
     bankAccounts: [...bankAccounts.values()],
-    kasaAccounts: [...kasaAccounts.values()],
+    kasaAccounts: [], // MEZUN (GRADUATED_COLLECTIONS)
     categories: [...categories.values()],
     cells: [...cells.values()],
-    kasaEntries: [...kasaEntries.values()],
+    kasaEntries: [], // MEZUN (GRADUATED_COLLECTIONS)
     transfers: [...transfers.values()],
     invoices: [...invoices.values()],
     invoicePayments: [...invoicePayments.values()],

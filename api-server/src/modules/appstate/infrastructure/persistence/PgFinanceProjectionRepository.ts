@@ -1,8 +1,18 @@
 /**
  * PgFinanceProjectionRepository — FinanceProjectionMirror PG implementasyonu.
- * Tablolar: banks / bank_accounts / kasa_accounts / categories (üst entiteler)
- * + cells / kasa_entries / transfers / invoices / invoice_payments (detaylar)
+ * Tablolar: banks / bank_accounts / categories (üst entiteler)
+ * + cells / transfers / invoices / invoice_payments (detaylar)
  * (003/004/005/015/017 + 048_finance_projection.sql client_id kolonları).
+ *
+ * MEZUNİYET (yazma-cutover): kasa_accounts + kasa_entries SUNUCU-OTORİTERDİR
+ * (FinanceProjection.GRADUATED_COLLECTIONS; POST /v1/finance/kasa/adopt-blob).
+ * Bu repository o iki tabloya ASLA dokunmaz — upsert de prune/delete da yok.
+ * Prune/delete edilseydi adopt edilen (client_id dolu) satırlar boş projeksiyon
+ * kümesiyle SİLİNİRDİ. Transferlerin kasa uçları ve invoice_payments'ın kasa
+ * referansı DB'deki geçerli kasa kümesinden çözülür: client_id eşleşmesi (eski
+ * "ksa_..." referansları / önceki adopt) → sayısal sunucu id doğrulaması (FE
+ * önbelleği sunucu id taşır) → çözülemeyen transfer düşer (from_id/to_id NOT
+ * NULL), çözülemeyen ödeme referansı NULL kalır (kolon nullable).
  *
  * replaceAll TEK transaction'da (PgHrProjectionRepository kalıbı) ve YALNIZ
  * projeksiyon-sahipli satırlara (client_id IS NOT NULL) dokunur; finance CRUD
@@ -12,7 +22,7 @@
  *      DÜŞÜRÜLÜR (console.error). banks GLOBAL'dir (şirket kolonu yok) —
  *      filtrelenmez.
  *   1. ÜST ENTİTELER — upsert (serial id kararlı) + (sonda) prune, FK sırasıyla:
- *      banks → categories → bank_accounts → kasa_accounts.
+ *      banks → categories → bank_accounts.
  *      Upsert: UPDATE ... WHERE client_id → yoksa INSERT. Doğal anahtar
  *      devralması yalnız tam-unique kısıtı olan tablolarda:
  *        banks      → ON CONFLICT (code)
@@ -20,16 +30,17 @@
  *   2. DETAYLAR — delete-then-insert (serial id churn'ü ayna için kabul):
  *      cells (doğal anahtar (company, category, fiscal_year, month_idx)
  *      çakışmasında CRUD hücresi DEVRALINIR — ON CONFLICT DO UPDATE),
- *      kasa_entries, transfers, invoices (+ invoice_payments; fatura silme
+ *      transfers, invoices (+ invoice_payments; fatura silme
  *      ödemeleri CASCADE süpürür). FK'lar 1. adımda kurulan client→serial
- *      haritalarından çözülür; çözülemeyen satır düşürülür + sayaç loglanır.
+ *      haritalarından çözülür (kasa uçları MEZUN kasa_accounts kümesinden —
+ *      yukarıya bkz.); çözülemeyen satır düşürülür + sayaç loglanır.
  *      NOT: invoice_payments INSERT'i DB trigger'ıyla invoices.paid_amount'u
  *      ödemelerin toplamına eşitler — payments'ı OLAN faturada trigger kazanır,
  *      olmayanda blob paidAmount (kırpılmış) kalır. Domain, ödeme toplamını
  *      total + 0.01 ile sınırlar (CHECK patlamaz).
- *   3. PRUNE — çocuktan ebeveyne: bank_accounts → kasa_accounts → categories →
+ *   3. PRUNE — çocuktan ebeveyne: bank_accounts → categories →
  *      banks (bank_accounts.bank_id FK'sı RESTRICT-benzeri NO ACTION olduğundan
- *      banks en son).
+ *      banks en son). kasa_accounts MEZUN — prune edilmez.
  *
  * Bilinen sınırlar (access/hr emsallerindeki gibi — hata üst katmanda yutulur,
  * ayna bir önceki tutarlı hâlinde kalır; kaynak-of-truth blob olduğundan veri
@@ -49,8 +60,6 @@ import type {
   FinanceCellProjection,
   FinanceInvoicePaymentProjection,
   FinanceInvoiceProjection,
-  FinanceKasaAccountProjection,
-  FinanceKasaEntryProjection,
   FinanceProjection,
   FinanceTransferProjection,
 } from '../../domain/FinanceProjection.js';
@@ -82,6 +91,11 @@ function firstIdOf(result: { rows?: unknown[] }): number | null {
 
 type IdMap = Map<string, number>;
 
+const NUMERIC_ID_RE = /^[0-9]+$/;
+
+/** MEZUN kasa_accounts referans çözücüsü — çözülemezse undefined. */
+type KasaAccountResolver = (ref: string) => number | undefined;
+
 export class PgFinanceProjectionRepository implements FinanceProjectionMirror {
   constructor(private readonly pool: FinanceProjectionPool) {}
 
@@ -96,6 +110,8 @@ export class PgFinanceProjectionRepository implements FinanceProjectionMirror {
       const p = filterByCompany(projection, known);
 
       // 1) ÜST ENTİTELER — upsert + (sonda) prune.
+      // kasa_accounts MEZUN — upsert edilmez; kasa referansları DB'deki geçerli
+      // kümeden çözülür (yalnız kasa referansı varsa yüklenir).
       const bankIds = await this.upsertBanks(client, p.banks);
       const categoryIds = await this.upsertCategories(client, p.categories);
       const bankAccountIds = await this.upsertBankAccounts(
@@ -104,17 +120,16 @@ export class PgFinanceProjectionRepository implements FinanceProjectionMirror {
         bankIds,
         categoryIds,
       );
-      const kasaAccountIds = await this.upsertKasaAccounts(client, p.kasaAccounts);
+      const kasaResolver = await this.loadKasaResolver(client, p);
 
       // 2) DETAYLAR — delete-then-insert (yalnız projeksiyon-sahipli satırlar).
+      // kasa_entries MEZUN — delete de insert da yok (adopt/CRUD satırları
+      // korunur).
       await client.query('DELETE FROM cells WHERE client_id IS NOT NULL');
       await this.insertCells(client, p.cells, categoryIds);
 
-      await client.query('DELETE FROM kasa_entries WHERE client_id IS NOT NULL');
-      await this.insertKasaEntries(client, p.kasaEntries, kasaAccountIds, categoryIds);
-
       await client.query('DELETE FROM transfers WHERE client_id IS NOT NULL');
-      await this.insertTransfers(client, p.transfers, bankAccountIds, kasaAccountIds, categoryIds);
+      await this.insertTransfers(client, p.transfers, bankAccountIds, kasaResolver, categoryIds);
 
       // Fatura silme ödemeleri CASCADE süpürür; CRUD faturasına yanlışlıkla
       // bağlanmış projeksiyon ödemesi kalmasın diye ödemeler de ayrıca silinir.
@@ -126,12 +141,12 @@ export class PgFinanceProjectionRepository implements FinanceProjectionMirror {
         p.invoicePayments,
         invoiceIds,
         bankAccountIds,
-        kasaAccountIds,
+        kasaResolver,
       );
 
       // 3) PRUNE — çocuktan ebeveyne (detaylar zaten silindi/yeniden yazıldı).
+      // kasa_accounts MEZUN — prune edilmez.
       await this.prune(client, 'bank_accounts', p.bankAccounts);
-      await this.prune(client, 'kasa_accounts', p.kasaAccounts);
       await this.prune(client, 'categories', p.categories);
       await this.prune(client, 'banks', p.banks);
 
@@ -300,42 +315,42 @@ export class PgFinanceProjectionRepository implements FinanceProjectionMirror {
     return ids;
   }
 
-  private async upsertKasaAccounts(
+  /**
+   * MEZUN kasa_accounts çözücüsü (işe alım emsalindeki departman çözücü
+   * kalıbı): DB'deki geçerli kasa kümesi — client_id haritası (eski "ksa_..."
+   * referansları / önceki adopt) + geçerli sayısal sunucu id kümesi (FE
+   * önbelleği sunucu id taşır). Yalnız kasa referansı varsa yüklenir.
+   */
+  private async loadKasaResolver(
     client: FinanceProjectionPoolClient,
-    accounts: readonly FinanceKasaAccountProjection[],
-  ): Promise<IdMap> {
-    const ids: IdMap = new Map();
-    for (const acc of accounts) {
-      const values = [
-        acc.companyId,
-        acc.name,
-        acc.currency,
-        acc.openingBalance,
-        acc.active,
-        acc.clientId,
-      ];
-      const updated = await client.query(
-        `UPDATE kasa_accounts
-            SET company_id = $1, name = $2, currency = $3::currency_code,
-                opening_balance = $4, active = $5, updated_at = NOW()
-          WHERE client_id = $6
-          RETURNING id`,
-        values,
-      );
-      let id = (updated.rowCount ?? 0) > 0 ? firstIdOf(updated) : null;
-      if (id === null) {
-        const inserted = await client.query(
-          `INSERT INTO kasa_accounts
-             (company_id, name, currency, opening_balance, active, client_id)
-           VALUES ($1, $2, $3::currency_code, $4, $5, $6)
-           RETURNING id`,
-          values,
-        );
-        id = firstIdOf(inserted);
+    p: FinanceProjection,
+  ): Promise<KasaAccountResolver> {
+    const needed =
+      p.transfers.some((t) => t.fromType === 'kasa' || t.toType === 'kasa') ||
+      p.invoicePayments.some((pay) => pay.kasaAccountClientId !== null);
+    const byClient = new Map<string, number>();
+    const validIds = new Set<number>();
+    if (needed) {
+      const res = await client.query('SELECT id, client_id FROM kasa_accounts');
+      for (const raw of res.rows ?? []) {
+        const row = raw as { id: number; client_id: string | null };
+        const id = Number(row.id);
+        if (!Number.isFinite(id)) continue;
+        validIds.add(id);
+        if (row.client_id !== null && row.client_id !== undefined) {
+          byClient.set(row.client_id, id);
+        }
       }
-      if (id !== null) ids.set(acc.clientId, id);
     }
-    return ids;
+    return (ref: string): number | undefined => {
+      const hit = byClient.get(ref);
+      if (hit !== undefined) return hit;
+      if (NUMERIC_ID_RE.test(ref)) {
+        const n = Number(ref);
+        if (validIds.has(n)) return n; // FE önbelleği sunucu id'si
+      }
+      return undefined;
+    };
   }
 
   // --- Detay insert'leri -------------------------------------------------------
@@ -367,56 +382,15 @@ export class PgFinanceProjectionRepository implements FinanceProjectionMirror {
     }
   }
 
-  private async insertKasaEntries(
-    client: FinanceProjectionPoolClient,
-    entries: readonly FinanceKasaEntryProjection[],
-    kasaAccountIds: ReadonlyMap<string, number>,
-    categoryIds: ReadonlyMap<string, number>,
-  ): Promise<void> {
-    let unresolved = 0;
-    for (const entry of entries) {
-      const kasaAccountId = kasaAccountIds.get(entry.kasaAccountClientId);
-      if (kasaAccountId === undefined) {
-        unresolved += 1;
-        continue;
-      }
-      const cashflowCatId =
-        entry.cashflowCatClientId !== null
-          ? (categoryIds.get(entry.cashflowCatClientId) ?? null)
-          : null;
-      await client.query(
-        `INSERT INTO kasa_entries
-           (kasa_account_id, date, type, amount, description, category,
-            cashflow_cat_id, client_id)
-         VALUES ($1, $2, $3::flow_direction, $4, $5, $6, $7, $8)`,
-        [
-          kasaAccountId,
-          entry.date,
-          entry.type,
-          entry.amount,
-          entry.description,
-          entry.category,
-          cashflowCatId,
-          entry.clientId,
-        ],
-      );
-    }
-    if (unresolved > 0) {
-      console.error(
-        `[appstate:finance] ${unresolved} kasa hareketi düşürüldü (kasa hesabı çözülemedi)`,
-      );
-    }
-  }
-
   private async insertTransfers(
     client: FinanceProjectionPoolClient,
     transfers: readonly FinanceTransferProjection[],
     bankAccountIds: ReadonlyMap<string, number>,
-    kasaAccountIds: ReadonlyMap<string, number>,
+    resolveKasa: KasaAccountResolver,
     categoryIds: ReadonlyMap<string, number>,
   ): Promise<void> {
     const endpointId = (type: 'bank' | 'kasa', clientId: string): number | undefined =>
-      type === 'bank' ? bankAccountIds.get(clientId) : kasaAccountIds.get(clientId);
+      type === 'bank' ? bankAccountIds.get(clientId) : resolveKasa(clientId);
 
     let unresolved = 0;
     for (const tr of transfers) {
@@ -508,7 +482,7 @@ export class PgFinanceProjectionRepository implements FinanceProjectionMirror {
     payments: readonly FinanceInvoicePaymentProjection[],
     invoiceIds: ReadonlyMap<string, number>,
     bankAccountIds: ReadonlyMap<string, number>,
-    kasaAccountIds: ReadonlyMap<string, number>,
+    resolveKasa: KasaAccountResolver,
   ): Promise<void> {
     let unresolved = 0;
     for (const pay of payments) {
@@ -522,9 +496,11 @@ export class PgFinanceProjectionRepository implements FinanceProjectionMirror {
           ? (bankAccountIds.get(pay.bankAccountClientId) ?? null)
           : null;
       // CHECK: bank XOR kasa (ya da ikisi de NULL) — bank çözüldüyse kasa verilmez.
+      // kasa MEZUN — DB kümesinden çözülür (client_id + sayısal id fallback);
+      // çözülemezse NULL (kolon nullable).
       const kasaAccountId =
         bankAccountId === null && pay.kasaAccountClientId !== null
-          ? (kasaAccountIds.get(pay.kasaAccountClientId) ?? null)
+          ? (resolveKasa(pay.kasaAccountClientId) ?? null)
           : null;
       await client.query(
         `INSERT INTO invoice_payments

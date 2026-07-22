@@ -408,6 +408,9 @@ describe('SetAppStateUseCase — finans projeksiyon fan-out', () => {
           '2': {
             bankAccounts: [{ id: 'acc_1', bankId: 'bnk_1', name: 'Vadesiz', currency: 'TRY' }],
             kasaAccounts: [{ id: 'ksa_1', name: 'Merkez Kasa' }],
+            kasaEntries: [
+              { id: 'kse_1', kasaAccountId: 'ksa_1', date: '2026-01-01', type: 'in', amount: 5 },
+            ],
             inflows: [{ id: 'in_1', name: 'Satış' }],
           },
         },
@@ -419,7 +422,10 @@ describe('SetAppStateUseCase — finans projeksiyon fan-out', () => {
     assert.equal(calls[0]!.banks[0]!.clientId, 'bnk_1');
     assert.equal(calls[0]!.bankAccounts[0]!.companyId, 2);
     assert.equal(calls[0]!.bankAccounts[0]!.bankClientId, 'bnk_1');
-    assert.equal(calls[0]!.kasaAccounts[0]!.clientId, 'ksa_1');
+    // kasaAccounts/kasaEntries MEZUN (GRADUATED_COLLECTIONS) — blob dolu olsa
+    // da yansıtılmaz (kasa yazma-cutover'ı: POST /v1/finance/kasa/adopt-blob).
+    assert.deepEqual(calls[0]!.kasaAccounts, []);
+    assert.deepEqual(calls[0]!.kasaEntries, []);
     assert.equal(calls[0]!.categories[0]!.section, 'inflows');
   });
 

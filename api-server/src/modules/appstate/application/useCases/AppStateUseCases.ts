@@ -28,11 +28,14 @@
  * hata yutulur.
  *
  * FİNANS FAN-OUT: dördüncü projeksiyon — blob finans çekirdeği (banks [kök
- * alan] + companyData[cid].bankAccounts/kasaAccounts/kasaEntries/transfers/
+ * alan] + companyData[cid].bankAccounts/transfers/
  * invoices/inflows/outflows/nonPnlOutflows/kasaCategories/cells) MEVCUT
  * normalize finance tablolarına yansıtılır (FinanceProjection →
- * FinanceProjectionMirror). Aynı kurallar: yalnız 'promet:data' + 'global'
- * scope; fire-and-forget, hata yutulur.
+ * FinanceProjectionMirror). kasaAccounts/kasaEntries (kasa yazma-cutover'ı)
+ * MEZUNDUR (FinanceProjection.GRADUATED_COLLECTIONS) — sunucu-otoriter
+ * kasa_accounts/kasa_entries tablolarına yansıtılmaz (devralma:
+ * POST /v1/finance/kasa/adopt-blob). Aynı kurallar: yalnız 'promet:data' +
+ * 'global' scope; fire-and-forget, hata yutulur.
  */
 import { projectAccess } from '../../domain/AccessProjection.js';
 import { projectBlobWithGroups } from '../../domain/BlobProjector.js';
