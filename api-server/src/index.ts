@@ -18,6 +18,7 @@ import { registerAccessModule } from './modules/access/index.js';
 import { registerAiModule } from './modules/ai/index.js';
 import { registerAppStateModule } from './modules/appstate/index.js';
 import { PgUserRepository, registerAuthModule } from './modules/auth/index.js';
+import { registerBeyannameModule } from './modules/beyanname/index.js';
 import { registerExpenseModule } from './modules/expense/index.js';
 import { registerEdefterModule } from './modules/finance/edefter/index.js';
 import { registerEInvoiceModule } from './modules/finance/einvoice/index.js';
@@ -181,6 +182,12 @@ const performanceModule = registerPerformanceModule(pool);
 const fixedAssetsModule = registerFixedAssetsModule(pool);
 
 // ============================================================================
+// Beyanname modülü — KDV1 beyanname hazırlama + GİB e-Beyan REST entegrasyonu,
+// modüler /v1/beyanname (entegrasyon kimliği AES-256-GCM şifreli saklanır)
+// ============================================================================
+const beyannameModule = registerBeyannameModule(pool);
+
+// ============================================================================
 // Push modülü — Web Push (VAPID) cihaz kaydı + gönderim, modüler /v1/push
 // (VAPID env yoksa NoopPushSender: kayıt çalışır, gönderim loglanıp atlanır)
 // ============================================================================
@@ -252,6 +259,7 @@ v1.route('/expense', expenseModule);
 v1.route('/app-state', appStateModule);
 v1.route('/performance', performanceModule);
 v1.route('/fixed-assets', fixedAssetsModule);
+v1.route('/beyanname', beyannameModule);
 
 // Companies + cells + invoices
 v1.route('/companies', companiesRoutes);

@@ -8,7 +8,7 @@
  * için backend mirror'a TAŞINMAMIŞTIR (bkz. PermissionResolver sapma notu).
  */
 
-export const ACTIONS = ['view', 'create', 'update', 'delete', 'export'] as const;
+export const ACTIONS = ['view', 'create', 'update', 'delete', 'export', 'approve'] as const;
 
 export type Action = (typeof ACTIONS)[number];
 
@@ -238,6 +238,23 @@ export const RESOURCES: Readonly<Record<string, ResourceDef>> = {
     module: 'Sabit Kıymet',
     label: 'Sabit Kıymet Raporları',
     actions: ['view', 'export'],
+  },
+
+  // Beyanname (KDV1 + GİB e-Beyan)
+  'beyanname.beyannameler': {
+    module: 'Beyanname',
+    label: 'Beyannameler',
+    actions: ['view', 'create', 'update', 'delete', 'export'],
+  },
+  'beyanname.gonderim': {
+    module: 'Beyanname',
+    label: 'e-Beyan Gönderim',
+    actions: ['view', 'approve'],
+  },
+  'beyanname.ayarlar': {
+    module: 'Beyanname',
+    label: 'e-Beyan Ayarları',
+    actions: ['view', 'update'],
   },
 };
 
