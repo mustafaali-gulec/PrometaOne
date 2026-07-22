@@ -1,13 +1,20 @@
 /**
  * HrProjection birim testleri — blob→hr tablo eşlemesi, enum haritaları, şema
  * uyum kırpmaları, düşürme sayaçları ve MEZUNİYET (hrOrgUnits/hrDepartments
- * yazma-cutover sonrası yansıtılmaz; departman referansları olduğu gibi taşınır,
- * çözüm repository'dedir).
+ * [org cutover'ı] + hrPositions/hrCandidates/hrApplications [işe alım
+ * cutover'ı] yazma-cutover sonrası yansıtılmaz; departman referansları olduğu
+ * gibi taşınır, çözüm repository'dedir).
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { APPLICATION_STAGE_MAP, GRADUATED_COLLECTIONS, projectHr } from '../domain/HrProjection.js';
+import {
+  APPLICATION_STAGE_MAP,
+  CANDIDATE_SOURCE_MAP,
+  GRADUATED_COLLECTIONS,
+  POSITION_STATUS_MAP,
+  projectHr,
+} from '../domain/HrProjection.js';
 
 /** companyData['2'] altına HR alanları koyan yardımcı. */
 function blob(fields: Record<string, unknown>, cid = '2'): unknown {
@@ -46,47 +53,22 @@ describe('projectHr — genel & şirket çözümü', () => {
   it('şirket anahtarı: sayısal cid → o, sayısal olmayan → 1 (öndeğer)', () => {
     const p = projectHr({
       companyData: {
-        '7': { hrPositions: [{ id: 'pos_a', title: 'A' }] },
-        comp_promet: { hrPositions: [{ id: 'pos_b', title: 'B' }] },
+        '7': { hrAssets: [{ id: 'as_a', assetType: 'laptop' }] },
+        comp_promet: { hrAssets: [{ id: 'as_b', assetType: 'phone' }] },
       },
     });
-    assert.equal(p.positions.find((o) => o.clientId === 'pos_a')?.companyId, 7);
-    assert.equal(p.positions.find((o) => o.clientId === 'pos_b')?.companyId, 1);
+    assert.equal(p.assets.find((o) => o.clientId === 'as_a')?.companyId, 7);
+    assert.equal(p.assets.find((o) => o.clientId === 'as_b')?.companyId, 1);
   });
 
-  it('happy: pozisyon + çalışan client_id bağları; departman referansı olduğu gibi taşınır', () => {
+  it('happy: çalışan client_id bağı; departman referansı olduğu gibi taşınır', () => {
     const p = projectHr(
       blob({
         hrOrgUnits: [{ id: 'ou_1', name: 'Genel Müdürlük', code: 'GM-001', parentId: null }],
         hrDepartments: [dept('dept_1', { code: 'YZL', managerEmployeeId: 'emp_1' })],
-        hrPositions: [
-          {
-            id: 'pos_1',
-            title: 'Backend Dev',
-            departmentId: 'dept_1',
-            status: 'open',
-            headcount: 2,
-            brutMinSalary: 100,
-            brutMaxSalary: 200,
-            jobDescription: 'Hono',
-          },
-        ],
         hrEmployees: [emp('emp_1', { sicilNo: 'S-1', email: 'a@b.c', tcNo: '12345678901' })],
       }),
     );
-
-    assert.equal(p.positions.length, 1);
-    assert.deepEqual(p.positions[0], {
-      companyId: 2,
-      clientId: 'pos_1',
-      departmentClientId: 'dept_1',
-      title: 'Backend Dev',
-      description: 'Hono',
-      status: 'open',
-      headcountTarget: 2,
-      minSalary: 100,
-      maxSalary: 200,
-    });
 
     assert.equal(p.employees.length, 1);
     assert.deepEqual(p.employees[0], {
@@ -108,12 +90,15 @@ describe('projectHr — genel & şirket çözümü', () => {
   });
 });
 
-describe('projectHr — MEZUNİYET (hrOrgUnits/hrDepartments yazma-cutover)', () => {
-  it('GRADUATED_COLLECTIONS tam olarak hrOrgUnits + hrDepartments içerir', () => {
-    assert.deepEqual([...GRADUATED_COLLECTIONS], ['hrOrgUnits', 'hrDepartments']);
+describe('projectHr — MEZUNİYET (org + işe alım yazma-cutover)', () => {
+  it('GRADUATED_COLLECTIONS tam olarak org (2) + işe alım (3) koleksiyonlarını içerir', () => {
+    assert.deepEqual(
+      [...GRADUATED_COLLECTIONS],
+      ['hrOrgUnits', 'hrDepartments', 'hrPositions', 'hrCandidates', 'hrApplications'],
+    );
   });
 
-  it('mezun koleksiyonlar blob dolu olsa da SATIR ÜRETMEZ (önbellek yankısı yok), sayaç yok', () => {
+  it('mezun org koleksiyonları blob dolu olsa da SATIR ÜRETMEZ (önbellek yankısı yok), sayaç yok', () => {
     const p = projectHr(
       blob({
         hrOrgUnits: [
@@ -130,6 +115,27 @@ describe('projectHr — MEZUNİYET (hrOrgUnits/hrDepartments yazma-cutover)', ()
     assert.deepEqual(p.dropped, {}); // mezun koleksiyon sayaç da üretmez
   });
 
+  it('mezun işe alım koleksiyonları (hrPositions/hrCandidates/hrApplications) SATIR ÜRETMEZ, sayaç yok', () => {
+    const p = projectHr(
+      blob({
+        hrPositions: [
+          { id: 'pos_1', title: 'Backend Dev', departmentId: 'dept_1', status: 'open' },
+          // Önbellek yankısı: sunucu id'li satır — asla client_id='12' üretmemeli.
+          { id: '12', title: 'Sunucu Önbelleği' },
+        ],
+        hrCandidates: [{ id: 'cand_1', firstName: 'Ayşe', lastName: 'Kaya' }],
+        hrApplications: [
+          { id: 'app_1', candidateId: 'cand_1', positionId: 'pos_1', stage: 'offer' },
+          { id: 'app_inbox' }, // eskiden applications.fk sayacına düşerdi — artık o da yok
+        ],
+      }),
+    );
+    assert.deepEqual(p.positions, []);
+    assert.deepEqual(p.candidates, []);
+    assert.deepEqual(p.applications, []);
+    assert.deepEqual(p.dropped, {}); // mezun koleksiyon sayaç da üretmez
+  });
+
   it("çalışan departman referansı SAYISAL sunucu id'si olabilir — olduğu gibi taşınır (repo doğrular)", () => {
     const p = projectHr(
       blob({
@@ -143,20 +149,6 @@ describe('projectHr — MEZUNİYET (hrOrgUnits/hrDepartments yazma-cutover)', ()
     assert.equal(byId.get('e_num')!.departmentClientId, '12');
     assert.equal(byId.get('e_cli')!.departmentClientId, 'dept_1');
     assert.deepEqual(p.dropped, {});
-  });
-
-  it("pozisyon departman referansı da olduğu gibi taşınır (üyelik denetimi repo'da)", () => {
-    const p = projectHr(
-      blob({
-        hrPositions: [
-          { id: 'p_num', title: 'A', departmentId: '34' },
-          { id: 'p_cli', title: 'B', departmentId: 'dept_x' },
-        ],
-      }),
-    );
-    const byId = new Map(p.positions.map((x) => [x.clientId, x]));
-    assert.equal(byId.get('p_num')!.departmentClientId, '34');
-    assert.equal(byId.get('p_cli')!.departmentClientId, 'dept_x');
   });
 });
 
@@ -259,48 +251,24 @@ describe('projectHr — çalışanlar', () => {
   });
 });
 
-describe('projectHr — pozisyon / aday / başvuru', () => {
-  it('pozisyon status haritası (open→open, on_hold→draft, filled→closed, ?→draft) + min>max takası', () => {
-    const p = projectHr(
-      blob({
-        hrPositions: [
-          { id: 'p1', title: 'A', status: 'open' },
-          { id: 'p2', title: 'B', status: 'on_hold' },
-          { id: 'p3', title: 'C', status: 'filled' },
-          { id: 'p4', title: 'D', status: 'garip', brutMinSalary: 300, brutMaxSalary: 100 },
-        ],
-      }),
-    );
-    const statusOf = (id: string): string | undefined =>
-      p.positions.find((x) => x.clientId === id)?.status;
-    assert.equal(statusOf('p1'), 'open');
-    assert.equal(statusOf('p2'), 'draft');
-    assert.equal(statusOf('p3'), 'closed');
-    assert.equal(statusOf('p4'), 'draft');
-    const p4 = p.positions.find((x) => x.clientId === 'p4')!;
-    assert.equal(p4.minSalary, 100); // CHECK positions_salary_order
-    assert.equal(p4.maxSalary, 300);
-    // departmentId alanı hiç yoksa referans NULL kalır.
-    assert.equal(p.positions[0]!.departmentClientId, null);
+describe('projectHr — işe alım enum haritaları (MEZUN — adopt için TEK KAYNAK)', () => {
+  // hrPositions/hrCandidates/hrApplications artık yansıtılmaz; haritalar
+  // yalnız AdoptBlobHrRecruitingUseCase (POST /v1/hr/recruiting/adopt-blob)
+  // tarafından kullanılır ve burada dışa açık kalmaya devam eder.
+  it('pozisyon status haritası: open→open, on_hold→draft, filled→closed', () => {
+    assert.equal(POSITION_STATUS_MAP['open'], 'open');
+    assert.equal(POSITION_STATUS_MAP['on_hold'], 'draft');
+    assert.equal(POSITION_STATUS_MAP['filled'], 'closed');
+    assert.equal(POSITION_STATUS_MAP['closed'], 'closed');
   });
 
-  it('aday source haritası: kariyer_net→jobboard, university→other, yok→direct', () => {
-    const p = projectHr(
-      blob({
-        hrCandidates: [
-          { id: 'c1', firstName: 'A', lastName: 'B', source: 'kariyer_net' },
-          { id: 'c2', firstName: 'C', lastName: 'D', source: 'university' },
-          { id: 'c3', firstName: 'E', lastName: 'F' },
-          { id: 'c4', firstName: '', lastName: 'Adsız' }, // düşer (NOT NULL + CHECK)
-        ],
-      }),
-    );
-    const srcOf = (id: string): string | undefined =>
-      p.candidates.find((c) => c.clientId === id)?.source;
-    assert.equal(srcOf('c1'), 'jobboard');
-    assert.equal(srcOf('c2'), 'other');
-    assert.equal(srcOf('c3'), 'direct');
-    assert.equal(p.candidates.length, 3);
+  it('aday source haritası: kariyer_net/secretcv/yenibiris→jobboard, university/social→other', () => {
+    assert.equal(CANDIDATE_SOURCE_MAP['kariyer_net'], 'jobboard');
+    assert.equal(CANDIDATE_SOURCE_MAP['secretcv'], 'jobboard');
+    assert.equal(CANDIDATE_SOURCE_MAP['yenibiris'], 'jobboard');
+    assert.equal(CANDIDATE_SOURCE_MAP['university'], 'other');
+    assert.equal(CANDIDATE_SOURCE_MAP['social'], 'other');
+    assert.equal(CANDIDATE_SOURCE_MAP['linkedin'], 'linkedin');
   });
 
   it('başvuru stage eşleme tablosu: blob RECRUITMENT_STAGES → DB recruitment_stage', () => {
@@ -314,51 +282,6 @@ describe('projectHr — pozisyon / aday / başvuru', () => {
     assert.equal(APPLICATION_STAGE_MAP['hired'], 'hired');
     assert.equal(APPLICATION_STAGE_MAP['rejected'], 'rejected');
     assert.equal(APPLICATION_STAGE_MAP['withdrawn'], 'withdrawn');
-
-    const p = projectHr(
-      blob({
-        hrPositions: [
-          { id: 'pos_1', title: 'Dev' },
-          { id: 'pos_2', title: 'Ops' }, // ayrı çift — aktif dedup tetiklenmesin
-        ],
-        hrCandidates: [{ id: 'cand_1', firstName: 'A', lastName: 'B' }],
-        hrApplications: [
-          {
-            id: 'app_1',
-            candidateId: 'cand_1',
-            positionId: 'pos_1',
-            stage: 'hr_interview',
-            createdAt: '2026-01-01T00:00:00Z',
-          },
-          { id: 'app_bilinmez', candidateId: 'cand_1', positionId: 'pos_2', stage: 'tuhaf' },
-        ],
-      }),
-    );
-    const a1 = p.applications.find((a) => a.clientId === 'app_1')!;
-    assert.equal(a1.stage, 'interview');
-    assert.equal(a1.stageChangedAt, '2026-01-01T00:00:00Z');
-    assert.equal(p.applications.find((a) => a.clientId === 'app_bilinmez')!.stage, 'new');
-  });
-
-  it('başvuru FK: candidate/position çözülemeyen düşer; aynı (aday, pozisyon) aktif çiftinde SON kazanır (partial unique)', () => {
-    const p = projectHr(
-      blob({
-        hrPositions: [{ id: 'pos_1', title: 'Dev' }],
-        hrCandidates: [{ id: 'cand_1', firstName: 'A', lastName: 'B' }],
-        hrApplications: [
-          { id: 'app_yetim', candidateId: 'cand_yok', positionId: 'pos_1', stage: 'cv_review' },
-          { id: 'app_inbox' }, // ilan-inbox başvurusu: candidateId/positionId yok
-          { id: 'app_eski', candidateId: 'cand_1', positionId: 'pos_1', stage: 'cv_review' },
-          { id: 'app_terminal', candidateId: 'cand_1', positionId: 'pos_1', stage: 'rejected' },
-          { id: 'app_yeni', candidateId: 'cand_1', positionId: 'pos_1', stage: 'offer' },
-        ],
-      }),
-    );
-    const ids = p.applications.map((a) => a.clientId).sort();
-    // Terminal (rejected) satır partial index'e girmez → kalır; aktiflerden SON kazanır.
-    assert.deepEqual(ids, ['app_terminal', 'app_yeni']);
-    assert.equal(p.dropped['applications.fk'], 2);
-    assert.equal(p.dropped['applications.duplicateActive'], 1);
   });
 });
 

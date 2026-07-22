@@ -279,3 +279,13 @@ export class HrOrgAdoptConflictError extends Error {
     this.name = 'HrOrgAdoptConflictError';
   }
 }
+
+// ============================================================================
+// İşe alım adopt (blob yazma-cutover devralması)
+// ============================================================================
+export class HrRecruitingAdoptConflictError extends Error {
+  constructor(detail: string) {
+    super(`İşe alım devralma benzersizlik çakışması: ${detail}`);
+    this.name = 'HrRecruitingAdoptConflictError';
+  }
+}

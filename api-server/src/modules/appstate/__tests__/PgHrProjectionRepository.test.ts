@@ -2,8 +2,9 @@
  * PgHrProjectionRepository birim testleri — SQL üretimi mock Pool/Client ile
  * doğrulanır (üst entite upsert + prune, detay delete-then-insert, FK serial
  * çözümü, FK-siz şirket düşürme, rollback) + MEZUNİYET: org_units/departments
- * tablolarına ASLA yazılmaz/prune edilmez; çalışan/pozisyon departman bağları
- * DB'deki geçerli kümeden (client_id haritası + sayısal id doğrulaması) çözülür.
+ * (org cutover'ı) ve positions/candidates/applications (işe alım cutover'ı)
+ * tablolarına ASLA yazılmaz/prune edilmez; çalışan departman bağları DB'deki
+ * geçerli kümeden (client_id haritası + sayısal id doğrulaması) çözülür.
  */
 import assert from 'node:assert/strict';
 import { describe, it, mock } from 'node:test';
@@ -107,49 +108,13 @@ const employee = (
   ...over,
 });
 
-/** Tam FK zincirli örnek projeksiyon (pos/emp → detaylar; org/dept MEZUN → boş). */
+/**
+ * Tam FK zincirli örnek projeksiyon (emp → detaylar; org/dept + işe alım
+ * [positions/candidates/applications] MEZUN → boş).
+ */
 const fullProjection = (): HrProjection =>
   emptyProjection({
-    positions: [
-      {
-        companyId: 2,
-        clientId: 'pos_1',
-        departmentClientId: 'dept_1', // DB client_id haritasından çözülür
-        title: 'Dev',
-        description: null,
-        status: 'open',
-        headcountTarget: 1,
-        minSalary: null,
-        maxSalary: null,
-      },
-    ],
     employees: [employee('emp_1', 'dept_1', { employeeNo: 'S-1' })],
-    candidates: [
-      {
-        companyId: 2,
-        clientId: 'cand_1',
-        firstName: 'Ayşe',
-        lastName: 'Kaya',
-        email: null,
-        phone: null,
-        source: 'direct',
-        cvUrl: null,
-        notes: null,
-      },
-    ],
-    applications: [
-      {
-        companyId: 2,
-        clientId: 'app_1',
-        candidateClientId: 'cand_1',
-        positionClientId: 'pos_1',
-        stage: 'interview',
-        stageChangedAt: null,
-        rejectionReason: null,
-        salaryExpectation: null,
-        notes: null,
-      },
-    ],
     leaveRequests: [
       {
         companyId: 2,
@@ -229,29 +194,17 @@ describe('PgHrProjectionRepository', () => {
     assert.equal(calls[calls.length - 1]!.sql, 'COMMIT');
     assert.ok(released());
 
-    // positions (100): department_id MEZUN tablodan client_id haritasıyla = 12.
-    const posInsert = calls.find((c) => c.sql.includes('INSERT INTO positions'));
-    assert.ok(posInsert);
-    assert.equal(posInsert.values![1], 12);
-
-    // employees (101): department_id = 12, doğal anahtar devralma arbiter'ı.
+    // employees (100): department_id = 12, doğal anahtar devralma arbiter'ı.
     const empInsert = calls.find((c) => c.sql.includes('INSERT INTO employees'));
     assert.ok(empInsert);
     assert.ok(empInsert.sql.includes('ON CONFLICT (company_id, employee_no)'));
     assert.equal(empInsert.values![1], 12);
     assert.equal(empInsert.values![12], 'emp_1');
 
-    // applications: candidate_id (102) + position_id (100).
-    const appInsert = calls.find((c) => c.sql.includes('INSERT INTO applications'));
-    assert.ok(appInsert);
-    assert.equal(appInsert.values![1], 102);
-    assert.equal(appInsert.values![2], 100);
-    assert.equal(appInsert.values![3], 'interview');
-
-    // leave: employee_id = 101.
+    // leave: employee_id = 100.
     const leaveInsert = calls.find((c) => c.sql.includes('INSERT INTO hr_leave_requests'));
     assert.ok(leaveInsert);
-    assert.equal(leaveInsert.values![1], 101);
+    assert.equal(leaveInsert.values![1], 100);
     assert.equal(leaveInsert.values![2], 'annual');
 
     // payroll run devralma arbiter'ı + item run/employee çözümü.
@@ -260,48 +213,45 @@ describe('PgHrProjectionRepository', () => {
     assert.ok(runInsert.sql.includes('ON CONFLICT (company_id, period_year, period_month)'));
     const itemInsert = calls.find((c) => c.sql.includes('INSERT INTO hr_payroll_items'));
     assert.ok(itemInsert);
-    assert.equal(itemInsert.values![1], 103); // run serial
-    assert.equal(itemInsert.values![2], 101); // employee serial
+    assert.equal(itemInsert.values![1], 101); // run serial
+    assert.equal(itemInsert.values![2], 100); // employee serial
     assert.ok(itemInsert.sql.includes('ON CONFLICT (run_id, employee_id)'));
 
-    // asset: assigned_employee_id = 101; atama asset (104) + employee (101).
+    // asset: assigned_employee_id = 100; atama asset (102) + employee (100).
     const assetInsert = calls.find((c) => c.sql.includes('INSERT INTO hr_assets'));
     assert.ok(assetInsert);
-    assert.equal(assetInsert.values![7], 101);
+    assert.equal(assetInsert.values![7], 100);
     const asgInsert = calls.find((c) => c.sql.includes('INSERT INTO hr_asset_assignments'));
     assert.ok(asgInsert);
-    assert.equal(asgInsert.values![1], 104);
-    assert.equal(asgInsert.values![2], 101);
+    assert.equal(asgInsert.values![1], 102);
+    assert.equal(asgInsert.values![2], 100);
   });
 
-  it('MEZUNİYET: org_units tablosuna HİÇ dokunulmaz; departments yalnız SALT-OKUNUR çözücü SELECT görür', async () => {
+  it('MEZUNİYET: org_units/positions/candidates/applications tablolarına HİÇ dokunulmaz; departments yalnız SALT-OKUNUR çözücü SELECT görür', async () => {
     const { pool, calls } = makeFakePool({ departments: deptRows });
     const repo = new PgHrProjectionRepository(pool);
 
     await repo.replaceAll(fullProjection());
 
-    assert.equal(
-      calls.some((c) => c.sql.includes('org_units')),
-      false,
-      'org_units SQL üretilmemeli',
-    );
+    for (const table of ['org_units', 'positions', 'candidates', 'applications']) {
+      assert.equal(
+        calls.some((c) => c.sql.includes(table)),
+        false,
+        `${table} SQL üretilmemeli (MEZUN — işe alım/org cutover)`,
+      );
+    }
     const deptCalls = calls.filter((c) => c.sql.includes('departments'));
     assert.equal(deptCalls.length, 1, 'departments yalnız 1 kez (çözücü SELECT) görülmeli');
     assert.ok(deptCalls[0]!.sql.includes('SELECT id, company_id, client_id FROM departments'));
   });
 
-  it('detaylar delete-then-insert: 4 detay tablosu client_id IS NOT NULL guard ile silinir; prune çocuktan ebeveyne, org/dept prune YOK', async () => {
+  it('detaylar delete-then-insert: 3 detay tablosu client_id IS NOT NULL guard ile silinir; prune çocuktan ebeveyne, MEZUN tablolarda prune YOK', async () => {
     const { pool, calls } = makeFakePool({ departments: deptRows });
     const repo = new PgHrProjectionRepository(pool);
 
     await repo.replaceAll(fullProjection());
 
-    for (const table of [
-      'hr_asset_assignments',
-      'hr_payroll_items',
-      'applications',
-      'hr_leave_requests',
-    ]) {
+    for (const table of ['hr_asset_assignments', 'hr_payroll_items', 'hr_leave_requests']) {
       assert.ok(
         calls.some((c) => c.sql.includes(`DELETE FROM ${table} WHERE client_id IS NOT NULL`)),
         `${table} delete-then-insert guard`,
@@ -314,14 +264,20 @@ describe('PgHrProjectionRepository', () => {
         (c) => c.sql.includes(`DELETE FROM ${table}`) && c.sql.includes('NOT (client_id'),
       );
     const empPrune = pruneIndex('employees');
-    const posPrune = pruneIndex('positions');
-    assert.ok(empPrune >= 0 && posPrune >= 0);
-    assert.ok(empPrune < posPrune, 'çocuktan ebeveyne prune sırası');
+    const assetPrune = pruneIndex('hr_assets');
+    assert.ok(empPrune >= 0 && assetPrune >= 0);
+    assert.ok(empPrune < assetPrune, 'çocuktan ebeveyne prune sırası');
     assert.deepEqual(calls[empPrune]!.values, [['emp_1']]);
 
     // MEZUN tablolar prune edilmez (adopt edilen satırlar silinmesin!).
     assert.equal(pruneIndex('departments'), -1);
     assert.equal(pruneIndex('org_units'), -1);
+    assert.equal(pruneIndex('positions'), -1);
+    assert.equal(pruneIndex('candidates'), -1);
+    assert.equal(
+      calls.some((c) => c.sql.includes('DELETE FROM applications')),
+      false,
+    );
   });
 
   it('çalışan departman referansı SAYISAL sunucu id: şirketin geçerli kümesindeyse doğrudan kullanılır', async () => {
@@ -363,92 +319,34 @@ describe('PgHrProjectionRepository', () => {
     }
   });
 
-  it('pozisyon departman referansı çözülemezse NULL yazılır (nullable FK); geçerli sayısal id ise kullanılır', async () => {
-    const { pool, calls } = makeFakePool({
-      departments: [{ id: 34, company_id: 2, client_id: null }],
-    });
-    const repo = new PgHrProjectionRepository(pool);
-
-    await repo.replaceAll(
-      emptyProjection({
-        positions: [
-          {
-            companyId: 2,
-            clientId: 'pos_num',
-            departmentClientId: '34',
-            title: 'A',
-            description: null,
-            status: 'open',
-            headcountTarget: 1,
-            minSalary: null,
-            maxSalary: null,
-          },
-          {
-            companyId: 2,
-            clientId: 'pos_kayip',
-            departmentClientId: 'dept_bilinmez',
-            title: 'B',
-            description: null,
-            status: 'draft',
-            headcountTarget: 1,
-            minSalary: null,
-            maxSalary: null,
-          },
-        ],
-      }),
-    );
-
-    const inserts = calls.filter((c) => c.sql.includes('INSERT INTO positions'));
-    assert.equal(inserts.length, 2);
-    const byClient = new Map(inserts.map((c) => [c.values![8], c.values![1]]));
-    assert.equal(byClient.get('pos_num'), 34);
-    assert.equal(byClient.get('pos_kayip'), null);
-  });
-
   it('mevcut satır UPDATE ile güncellenir (serial id kararlı); INSERT atılmaz', async () => {
     const { pool, calls } = makeFakePool({
       departments: deptRows,
-      existingClientIds: ['pos_1'],
+      existingClientIds: ['emp_1'],
     });
     const repo = new PgHrProjectionRepository(pool);
 
-    await repo.replaceAll(
-      emptyProjection({
-        positions: [
-          {
-            companyId: 2,
-            clientId: 'pos_1',
-            departmentClientId: 'dept_1',
-            title: 'Dev',
-            description: null,
-            status: 'open',
-            headcountTarget: 1,
-            minSalary: null,
-            maxSalary: null,
-          },
-        ],
-      }),
-    );
+    await repo.replaceAll(emptyProjection({ employees: [employee('emp_1', 'dept_1')] }));
 
     const update = calls.find(
-      (c) => c.sql.trimStart().startsWith('UPDATE positions') && c.sql.includes('WHERE client_id'),
+      (c) => c.sql.trimStart().startsWith('UPDATE employees') && c.sql.includes('WHERE client_id'),
     );
     assert.ok(update);
     assert.equal(update.values![1], 12); // department_id çözüldü
-    assert.equal(update.values![8], 'pos_1');
+    assert.equal(update.values![12], 'emp_1');
     assert.equal(
-      calls.some((c) => c.sql.includes('INSERT INTO positions')),
+      calls.some((c) => c.sql.includes('INSERT INTO employees')),
       false,
     );
   });
 
-  it('boş projeksiyon → projeksiyon-sahipli satırlar budanır (org/dept HARİÇ), hiç INSERT üretilmez', async () => {
+  it('boş projeksiyon → projeksiyon-sahipli satırlar budanır (MEZUN tablolar HARİÇ), hiç INSERT üretilmez', async () => {
     const { pool, calls } = makeFakePool();
     const repo = new PgHrProjectionRepository(pool);
 
     await repo.replaceAll(emptyProjection());
 
-    for (const table of ['employees', 'candidates', 'positions', 'hr_assets', 'hr_payroll_runs']) {
+    for (const table of ['employees', 'hr_assets', 'hr_payroll_runs']) {
       const prune = calls.find(
         (c) => c.sql.includes(`DELETE FROM ${table}`) && c.sql.includes('client_id IS NOT NULL'),
       );
@@ -456,12 +354,15 @@ describe('PgHrProjectionRepository', () => {
       assert.deepEqual(prune.values, [[]]);
     }
     // MEZUN tablolar boş kümede bile prune edilmez.
+    for (const table of ['org_units', 'positions', 'candidates', 'applications']) {
+      assert.equal(
+        calls.some((c) => c.sql.includes(table)),
+        false,
+        `${table} SQL üretilmemeli`,
+      );
+    }
     assert.equal(
       calls.some((c) => c.sql.includes('DELETE FROM departments')),
-      false,
-    );
-    assert.equal(
-      calls.some((c) => c.sql.includes('org_units')),
       false,
     );
     assert.equal(
@@ -478,22 +379,23 @@ describe('PgHrProjectionRepository', () => {
       const repo = new PgHrProjectionRepository(pool);
 
       const p = fullProjection(); // hepsi companyId 2 → hepsi düşer
-      p.candidates.push({
+      p.assets.push({
         companyId: 1,
-        clientId: 'cand_ok',
-        firstName: 'Var',
-        lastName: 'Olan',
-        email: null,
-        phone: null,
-        source: 'direct',
-        cvUrl: null,
+        clientId: 'as_ok',
+        assetType: 'laptop',
+        name: 'Var Olan',
+        brand: null,
+        model: null,
+        serialNo: null,
+        status: 'in_stock',
+        assignedEmployeeClientId: null,
         notes: null,
       });
       await repo.replaceAll(p);
 
       const inserts = calls.filter((c) => c.sql.includes('INSERT INTO'));
-      assert.equal(inserts.length, 1); // yalnız cand_ok
-      assert.equal(inserts[0]!.values![8], 'cand_ok');
+      assert.equal(inserts.length, 1); // yalnız as_ok
+      assert.equal(inserts[0]!.values![9], 'as_ok');
       // Prune kümeleri düşürülen satırları içermez → eski projeksiyonları silinir.
       const empPrune = calls.find(
         (c) => c.sql.includes('DELETE FROM employees') && c.sql.includes('NOT (client_id'),
@@ -529,7 +431,7 @@ describe('PgHrProjectionRepository', () => {
   it('hata → ROLLBACK + release; hata çağırana fırlar (use-case yutar)', async () => {
     const { pool, calls, released } = makeFakePool({
       departments: deptRows,
-      failOn: (sql) => sql.includes('INSERT INTO positions'),
+      failOn: (sql) => sql.includes('INSERT INTO employees'),
     });
     const repo = new PgHrProjectionRepository(pool);
 

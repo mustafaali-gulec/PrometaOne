@@ -15,6 +15,7 @@ import { z } from 'zod';
 
 import { authMiddleware, companyScopeGuard, requireRole } from '../../../middleware/auth.js';
 import type { AdoptBlobHrOrgUseCase } from '../application/useCases/AdoptBlobHrOrgUseCase.js';
+import type { AdoptBlobHrRecruitingUseCase } from '../application/useCases/AdoptBlobHrRecruitingUseCase.js';
 import type { ApproveLeaveRequestUseCase } from '../application/useCases/ApproveLeaveRequestUseCase.js';
 import type { ArchiveDepartmentUseCase } from '../application/useCases/ArchiveDepartmentUseCase.js';
 import type { ArchiveOrgUnitUseCase } from '../application/useCases/ArchiveOrgUnitUseCase.js';
@@ -71,6 +72,8 @@ import { mapHrError } from './errorMapping.js';
 export interface HrRouterDeps {
   // Org adopt (blob yazma-cutover devralması — 1)
   adoptBlobHrOrg: AdoptBlobHrOrgUseCase;
+  // İşe alım adopt (blob yazma-cutover devralması — 1)
+  adoptBlobHrRecruiting: AdoptBlobHrRecruitingUseCase;
   // OrgUnit (5)
   createOrgUnit: CreateOrgUnitUseCase;
   updateOrgUnit: UpdateOrgUnitUseCase;
@@ -242,6 +245,36 @@ export function createHrRouter(deps: HrRouterDeps): Hono {
       const b = c.req.valid('json');
       try {
         const dto = await deps.adoptBlobHrOrg.execute(b);
+        return c.json(dto);
+      } catch (err) {
+        mapHrError(err);
+      }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // İŞE ALIM BLOB DEVRALMA (tek seferlik, idempotent — yazma-cutover)
+  // -------------------------------------------------------------------------
+  // Blob (promet:data) hrPositions/hrCandidates/hrApplications koleksiyonlarını
+  // client_id (047) anahtarıyla devralır; ikinci çağrı dupe üretmez. Gövde blob
+  // alan adlarıyla GEVŞEK gelir; normalizasyon use-case'te. Emsal:
+  // POST /v1/hr/org/adopt-blob.
+  app.post(
+    '/recruiting/adopt-blob',
+    requireHrWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.coerce.number().int().positive(),
+        positions: z.array(z.record(z.unknown())).optional(),
+        candidates: z.array(z.record(z.unknown())).optional(),
+        applications: z.array(z.record(z.unknown())).optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.adoptBlobHrRecruiting.execute(b);
         return c.json(dto);
       } catch (err) {
         mapHrError(err);

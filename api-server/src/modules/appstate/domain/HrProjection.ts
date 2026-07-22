@@ -12,19 +12,13 @@
  *   hrJobTitles[]    = { id:"jt_...", title, departmentId, headcount?,
  *                        standardBrutSalary? }  → TABLO KARŞILIĞI YOK, ATLANIR;
  *                        yalnız çalışan→departman zinciri için okunur.
- *   hrPositions[]    = { id:"pos_...", title, departmentId, status
- *                        (open|on_hold|filled|closed), headcount, brutMinSalary,
- *                        brutMaxSalary, jobDescription, requirements, location }
+ *   hrPositions[]    = MEZUN (bkz. GRADUATED_COLLECTIONS) — yansıtılmaz.
  *   hrEmployees[]    = { id:"emp_...", firstName, lastName, email?, phone?,
  *                        tcNo?, sgkNo?, sicilNo?, brutSalary?, status
  *                        (EMPLOYEE_STATUS), jobTitleId, departmentId?,
  *                        startDate?, endDate?, employmentType?, createdAt }
- *   hrCandidates[]   = { id:"cand_...", firstName, lastName, email?, phone?,
- *                        source? (CANDIDATE_SOURCES), notes?, cvUrl?, ... }
- *   hrApplications[] = { id:"app_...", candidateId, positionId, stage
- *                        (RECRUITMENT_STAGES), notes?, salaryExpectation?,
- *                        createdAt, updatedAt }  — candidateId/positionId
- *                        OLMAYAN elemanlar (ilan-inbox başvuruları) düşürülür.
+ *   hrCandidates[]   = MEZUN (bkz. GRADUATED_COLLECTIONS) — yansıtılmaz.
+ *   hrApplications[] = MEZUN (bkz. GRADUATED_COLLECTIONS) — yansıtılmaz.
  *   hrLeaveRequests[]= { id:"lr_...", employeeId, leaveType (LEAVE_TYPES,
  *                        bazen "leave_" önekli), startDate, endDate, totalDays,
  *                        reason?, status (pending|approved|rejected|cancelled),
@@ -42,7 +36,10 @@
  * pozitif tamsayıysa o, değilse DEFAULT (1). companies'te olmayan company_id
  * repository'de düşürülür (projeksiyon saf kalır).
  *
- * ENUM EŞLEME TABLOLARI (blob → DB; birebir olmayanlar en yakın anlamlıya):
+ * ENUM EŞLEME TABLOLARI (blob → DB; birebir olmayanlar en yakın anlamlıya).
+ * position_status/candidate_source/recruitment_stage haritaları artık yalnız
+ * işe alım yazma-cutover devralması (AdoptBlobHrRecruitingUseCase) tarafından
+ * kullanılır — TEK KAYNAK burada kalır:
  *   employee_status : active→active, probation→probation, on_leave→on_leave,
  *                     maternity→on_leave, military→on_leave,
  *                     suspended→on_leave, terminated→terminated; ?→active
@@ -79,9 +76,6 @@
  *     şirket içi çift sicilNo'da sonraki clientId'ye düşer.
  *   - employees.tc_kimlik: tam 11 karakter değilse NULL; şirket içi çiftte
  *     SON kazanır, öncekiler NULL'lanır (partial unique).
- *   - applications: aktif (hired/rejected/withdrawn dışı) stage'de aynı
- *     (candidate, position) çiftinde SON kazanır (partial unique), öncekiler
- *     düşer (sayaç applications.duplicateActive).
  *   - hr_payroll_runs UNIQUE (company, year, month): SON kazanır.
  *   - Şemada kolonu olmayan blob alanları atlanır: employees.brutSalary
  *     (employees tablosunda maaş kolonu YOK — v_hr_employees view'u zaten
@@ -101,12 +95,23 @@ export const DEFAULT_HR_COMPANY_ID = 1;
  * alanlarını sunucudan doldurulan SALT-OKUNUR önbellek olarak taşır ve önbellek
  * satırlarının id'si SUNUCU id'sidir (ör. "12").
  *
+ * positions + candidates + applications da SUNUCU-OTORİTERDİR (işe alım
+ * yazma-cutover'ı): tek seferlik devralma POST /v1/hr/recruiting/adopt-blob
+ * ile yapılır; FE blob'daki hrPositions/hrCandidates/hrApplications alanları
+ * aynı salt-okunur önbellek kalıbına geçer.
+ *
  * Bu koleksiyonlar yansıtılmaya devam etseydi önbellek yankısı client_id='12'
  * gibi ÇİFT satırlar üretir ve prune, hr CRUD/adopt yazımlarını silerdi.
  * Bu yüzden projectHr bu koleksiyonlar için satır ÜRETMEZ ve
  * PgHrProjectionRepository bu tabloları upsert/prune ETMEZ.
  */
-export const GRADUATED_COLLECTIONS = ['hrOrgUnits', 'hrDepartments'] as const;
+export const GRADUATED_COLLECTIONS = [
+  'hrOrgUnits',
+  'hrDepartments',
+  'hrPositions',
+  'hrCandidates',
+  'hrApplications',
+] as const;
 
 // --- DB enum'ları ------------------------------------------------------------
 export type DbEmployeeStatus = 'probation' | 'active' | 'on_leave' | 'terminated';
@@ -245,13 +250,6 @@ const ASSET_STATUSES: readonly DbAssetStatus[] = [
   'lost',
 ];
 
-/** Terminal stage'ler — uq_applications_active_unique partial index dışı. */
-const TERMINAL_STAGES: ReadonlySet<DbRecruitmentStage> = new Set([
-  'hired',
-  'rejected',
-  'withdrawn',
-]);
-
 // --- Projeksiyon satır tipleri -----------------------------------------------
 /** MEZUN — projectHr artık org unit satırı üretmez; tip geriye uyum için durur. */
 export interface HrOrgUnitProjection {
@@ -272,15 +270,10 @@ export interface HrDepartmentProjection {
   managerEmployeeClientId: string | null;
 }
 
+/** MEZUN — projectHr artık pozisyon satırı üretmez; tip geriye uyum için durur. */
 export interface HrPositionProjection {
   companyId: number;
   clientId: string;
-  /**
-   * Departman referansı OLDUĞU GİBİ taşınır (hrDepartments MEZUN): eski
-   * "dept_..." client-id'si VEYA önbellekten gelen sayısal sunucu id'si
-   * ("12"). Repository DB'deki geçerli departman kümesiyle çözer/doğrular;
-   * çözülemezse NULL yazar (nullable FK).
-   */
   departmentClientId: string | null;
   title: string;
   description: string | null;
@@ -312,6 +305,7 @@ export interface HrEmployeeProjection {
   employmentType: DbEmploymentType;
 }
 
+/** MEZUN — projectHr artık aday satırı üretmez; tip geriye uyum için durur. */
 export interface HrCandidateProjection {
   companyId: number;
   clientId: string;
@@ -324,6 +318,7 @@ export interface HrCandidateProjection {
   notes: string | null;
 }
 
+/** MEZUN — projectHr artık başvuru satırı üretmez; tip geriye uyum için durur. */
 export interface HrApplicationProjection {
   companyId: number;
   clientId: string;
@@ -401,9 +396,12 @@ export interface HrProjection {
   orgUnits: HrOrgUnitProjection[];
   /** MEZUN — her zaman boş (bkz. GRADUATED_COLLECTIONS). */
   departments: HrDepartmentProjection[];
+  /** MEZUN — her zaman boş (bkz. GRADUATED_COLLECTIONS). */
   positions: HrPositionProjection[];
   employees: HrEmployeeProjection[];
+  /** MEZUN — her zaman boş (bkz. GRADUATED_COLLECTIONS). */
   candidates: HrCandidateProjection[];
+  /** MEZUN — her zaman boş (bkz. GRADUATED_COLLECTIONS). */
   applications: HrApplicationProjection[];
   leaveRequests: HrLeaveRequestProjection[];
   payrollRuns: HrPayrollRunProjection[];
@@ -519,11 +517,9 @@ export function projectHr(blobValue: unknown, opts?: ProjectHrOptions): HrProjec
   }
 
   // clientId → projeksiyon satırı (SON kazanır; şirketler arası birleşim).
-  // NOT: hrOrgUnits/hrDepartments MEZUN (GRADUATED_COLLECTIONS) — satır üretilmez.
-  const positions = new Map<string, HrPositionProjection>();
+  // NOT: hrOrgUnits/hrDepartments/hrPositions/hrCandidates/hrApplications
+  // MEZUN (GRADUATED_COLLECTIONS) — satır üretilmez.
   const employees = new Map<string, HrEmployeeProjection>();
-  const candidates = new Map<string, HrCandidateProjection>();
-  const applications = new Map<string, HrApplicationProjection>();
   const leaveRequests = new Map<string, HrLeaveRequestProjection>();
   const payrollRuns = new Map<string, HrPayrollRunProjection>();
   const payrollItems = new Map<string, HrPayrollItemProjection>();
@@ -533,7 +529,6 @@ export function projectHr(blobValue: unknown, opts?: ProjectHrOptions): HrProjec
   /** Ham blob elemanları (2. faz çözümlemeler için). */
   const rawEmployees = new Map<string, { companyId: number; item: Record<string, unknown> }>();
   const rawLeaves = new Map<string, { companyId: number; item: Record<string, unknown> }>();
-  const rawApplications = new Map<string, { companyId: number; item: Record<string, unknown> }>();
   const rawRuns = new Map<string, { companyId: number; item: Record<string, unknown> }>();
   const rawAssets = new Map<string, { companyId: number; item: Record<string, unknown> }>();
 
@@ -541,50 +536,11 @@ export function projectHr(blobValue: unknown, opts?: ProjectHrOptions): HrProjec
     for (const [clientId, item] of collectItems(fields['hrJobTitles'])) {
       jobTitleDept.set(clientId, idString(item['departmentId']));
     }
-    // hrOrgUnits + hrDepartments: MEZUN — okunmaz, satır üretilmez
-    // (bkz. GRADUATED_COLLECTIONS; sunucu-otoriter, önbellek yankısı yasak).
-    for (const [clientId, item] of collectItems(fields['hrPositions'])) {
-      const title = textOrNull(item['title'], 200);
-      if (title === null) continue;
-      let minSalary = finiteOrNull(item['brutMinSalary']);
-      let maxSalary = finiteOrNull(item['brutMaxSalary']);
-      if (minSalary !== null && maxSalary !== null && minSalary > maxSalary) {
-        [minSalary, maxSalary] = [maxSalary, minSalary]; // CHECK positions_salary_order
-      }
-      const headcountRaw = finiteOrNull(item['headcount']);
-      positions.set(clientId, {
-        companyId,
-        clientId,
-        departmentClientId: idString(item['departmentId']),
-        title,
-        description: textOrNull(item['jobDescription']) ?? textOrNull(item['description']),
-        status: mapEnum(POSITION_STATUS_MAP, item['status'], 'draft'),
-        headcountTarget: headcountRaw !== null ? Math.max(0, Math.floor(headcountRaw)) : 1,
-        minSalary,
-        maxSalary,
-      });
-    }
+    // hrOrgUnits + hrDepartments + hrPositions + hrCandidates + hrApplications:
+    // MEZUN — okunmaz, satır üretilmez (bkz. GRADUATED_COLLECTIONS;
+    // sunucu-otoriter, önbellek yankısı yasak).
     for (const [clientId, item] of collectItems(fields['hrEmployees'])) {
       rawEmployees.set(clientId, { companyId, item });
-    }
-    for (const [clientId, item] of collectItems(fields['hrCandidates'])) {
-      const firstName = textOrNull(item['firstName'], 100);
-      const lastName = textOrNull(item['lastName'], 100);
-      if (firstName === null || lastName === null) continue;
-      candidates.set(clientId, {
-        companyId,
-        clientId,
-        firstName,
-        lastName,
-        email: textOrNull(item['email']),
-        phone: textOrNull(item['phone'], 32),
-        source: mapEnum(CANDIDATE_SOURCE_MAP, item['source'], 'direct'),
-        cvUrl: textOrNull(item['cvUrl']),
-        notes: textOrNull(item['notes']),
-      });
-    }
-    for (const [clientId, item] of collectItems(fields['hrApplications'])) {
-      rawApplications.set(clientId, { companyId, item });
     }
     for (const [clientId, item] of collectItems(fields['hrLeaveRequests'])) {
       rawLeaves.set(clientId, { companyId, item });
@@ -670,43 +626,6 @@ export function projectHr(blobValue: unknown, opts?: ProjectHrOptions): HrProjec
     };
     if (tcKimlik !== null) tcOwner.set(`${companyId} ${tcKimlik}`, emp);
     employees.set(clientId, emp);
-  }
-
-  // --- Başvurular --------------------------------------------------------------
-  const activeAppByPair = new Map<string, string>(); // "cand pos" → clientId (SON)
-  for (const [clientId, { companyId, item }] of rawApplications) {
-    const candidateClientId = idString(item['candidateId']);
-    const positionClientId = idString(item['positionId']);
-    if (
-      candidateClientId === null ||
-      positionClientId === null ||
-      !candidates.has(candidateClientId) ||
-      !positions.has(positionClientId)
-    ) {
-      dropped.add('applications.fk'); // candidate_id/position_id NOT NULL — düşür
-      continue;
-    }
-    const stage = mapEnum(APPLICATION_STAGE_MAP, item['stage'], 'new');
-    applications.set(clientId, {
-      companyId,
-      clientId,
-      candidateClientId,
-      positionClientId,
-      stage,
-      stageChangedAt: timestampOrNull(item['updatedAt']) ?? timestampOrNull(item['createdAt']),
-      rejectionReason: textOrNull(item['rejectionReason']),
-      salaryExpectation: finiteOrNull(item['salaryExpectation']),
-      notes: textOrNull(item['notes']),
-    });
-    if (!TERMINAL_STAGES.has(stage)) {
-      const pairKey = `${candidateClientId} ${positionClientId}`;
-      const prevActive = activeAppByPair.get(pairKey);
-      if (prevActive !== undefined && prevActive !== clientId) {
-        applications.delete(prevActive); // partial unique: aktif çiftte SON kazanır
-        dropped.add('applications.duplicateActive');
-      }
-      activeAppByPair.set(pairKey, clientId);
-    }
   }
 
   // --- İzin talepleri -----------------------------------------------------------
@@ -889,10 +808,10 @@ export function projectHr(blobValue: unknown, opts?: ProjectHrOptions): HrProjec
   return {
     orgUnits: [], // MEZUN (GRADUATED_COLLECTIONS)
     departments: [], // MEZUN (GRADUATED_COLLECTIONS)
-    positions: [...positions.values()],
+    positions: [], // MEZUN (GRADUATED_COLLECTIONS)
     employees: [...employees.values()],
-    candidates: [...candidates.values()],
-    applications: [...applications.values()],
+    candidates: [], // MEZUN (GRADUATED_COLLECTIONS)
+    applications: [], // MEZUN (GRADUATED_COLLECTIONS)
     leaveRequests: [...leaveRequests.values()],
     payrollRuns: [...payrollRuns.values()],
     payrollItems: [...payrollItems.values()],

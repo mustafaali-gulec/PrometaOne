@@ -32,6 +32,7 @@ import {
   EmployeeNotFoundError,
   EmployeeNumberAlreadyExistsError,
   HrOrgAdoptConflictError,
+  HrRecruitingAdoptConflictError,
   LeaveRequestCompanyMismatchError,
   LeaveRequestNotFoundError,
   PayrollRunCompanyMismatchError,
@@ -108,7 +109,8 @@ export function mapHrError(err: unknown): never {
     err instanceof PositionNotOpenError ||
     err instanceof ApplicationAlreadyTerminalError ||
     err instanceof PayrollRunPeriodAlreadyExistsError ||
-    err instanceof HrOrgAdoptConflictError
+    err instanceof HrOrgAdoptConflictError ||
+    err instanceof HrRecruitingAdoptConflictError
   ) {
     throw new HTTPException(409, { message: err.message });
   }
