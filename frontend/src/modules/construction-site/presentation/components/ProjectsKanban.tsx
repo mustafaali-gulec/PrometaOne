@@ -62,7 +62,10 @@ export function ProjectsKanban({ projects, onSetStatus }: ProjectsKanbanProps): 
           <div
             key={col.key}
             onDragOver={(e) => e.preventDefault()}
-            onDrop={() => handleDrop(col.key)}
+            onDrop={(e) => {
+              e.preventDefault();
+              handleDrop(col.key);
+            }}
             style={{
               background: col.bg,
               borderRadius: 'var(--radius-md, 8px)',
@@ -139,7 +142,17 @@ export function ProjectsKanban({ projects, onSetStatus }: ProjectsKanbanProps): 
                   <div
                     key={String(p.id)}
                     draggable
-                    onDragStart={() => setDragId(p.id)}
+                    onDragStart={(e) => {
+                      // Firefox, dragstart'ta dataTransfer'e veri konmazsa sürüklemeyi hiç başlatmaz
+                      e.dataTransfer.effectAllowed = 'move';
+                      try {
+                        e.dataTransfer.setData('text/plain', String(p.id));
+                      } catch {
+                        /* eski tarayıcı */
+                      }
+                      setDragId(p.id);
+                    }}
+                    onDragEnd={() => setDragId(null)}
                     className="card"
                     style={{
                       padding: 9,

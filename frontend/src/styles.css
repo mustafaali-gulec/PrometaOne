@@ -802,10 +802,10 @@ td.cell-edit input:focus {
   }
   /* Grid breakpoint düzeltmeleri */
   .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .md\\:grid-cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-  .md\\:grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-  .md\\:grid-cols-5 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-  .md\\:grid-cols-6 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .md\:grid-cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .md\:grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .md\:grid-cols-5 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .md\:grid-cols-6 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
 
   /* Modal full-screen mobilde */
   .max-w-md, .max-w-lg, .max-w-xl, .max-w-2xl, .max-w-3xl, .max-w-4xl, .max-w-5xl {
@@ -958,43 +958,55 @@ button, a {
   color: var(--ink);
 }
 
-/* Dark mode'da bazı chip arka planları (light bg'leri) düzelt */
+/* Dark mode'da bazı chip arka planları (light bg'leri) düzelt.
+   NOT: tarayıcı, React'in atadığı inline hex renkleri style ATTRIBUTE'unda
+   rgb(r, g, b) biçiminde serileştirir — hex seçiciler tek başına eşleşmez,
+   rgb() varyantları asıl çalışan seçicilerdir. */
 [data-theme="dark"] [style*="background: #fef3c7"],
-[data-theme="dark"] [style*="background:#fef3c7"] {
+[data-theme="dark"] [style*="background:#fef3c7"],
+[data-theme="dark"] [style*="background: rgb(254, 243, 199)"] {
   background: rgba(202, 138, 4, 0.15) !important;
 }
 [data-theme="dark"] [style*="background: #dcfce7"],
-[data-theme="dark"] [style*="background:#dcfce7"] {
+[data-theme="dark"] [style*="background:#dcfce7"],
+[data-theme="dark"] [style*="background: rgb(220, 252, 231)"] {
   background: rgba(21, 128, 61, 0.15) !important;
 }
 [data-theme="dark"] [style*="background: #fee2e2"],
-[data-theme="dark"] [style*="background:#fee2e2"] {
+[data-theme="dark"] [style*="background:#fee2e2"],
+[data-theme="dark"] [style*="background: rgb(254, 226, 226)"] {
   background: rgba(185, 28, 28, 0.15) !important;
 }
 [data-theme="dark"] [style*="background: #dbeafe"],
-[data-theme="dark"] [style*="background:#dbeafe"] {
+[data-theme="dark"] [style*="background:#dbeafe"],
+[data-theme="dark"] [style*="background: rgb(219, 234, 254)"] {
   background: rgba(29, 78, 216, 0.15) !important;
 }
 [data-theme="dark"] [style*="background: #cffafe"],
-[data-theme="dark"] [style*="background:#cffafe"] {
+[data-theme="dark"] [style*="background:#cffafe"],
+[data-theme="dark"] [style*="background: rgb(207, 250, 254)"] {
   background: rgba(8, 145, 178, 0.15) !important;
 }
 [data-theme="dark"] [style*="background: #ede9fe"],
-[data-theme="dark"] [style*="background:#ede9fe"] {
+[data-theme="dark"] [style*="background:#ede9fe"],
+[data-theme="dark"] [style*="background: rgb(237, 233, 254)"] {
   background: rgba(124, 58, 237, 0.15) !important;
 }
 [data-theme="dark"] [style*="background: #fed7aa"],
-[data-theme="dark"] [style*="background:#fed7aa"] {
+[data-theme="dark"] [style*="background:#fed7aa"],
+[data-theme="dark"] [style*="background: rgb(254, 215, 170)"] {
   background: rgba(234, 88, 12, 0.15) !important;
 }
 [data-theme="dark"] [style*="background: #f5f5f4"],
-[data-theme="dark"] [style*="background:#f5f5f4"] {
+[data-theme="dark"] [style*="background:#f5f5f4"],
+[data-theme="dark"] [style*="background: rgb(245, 245, 244)"] {
   background: var(--bg-alt) !important;
 }
 [data-theme="dark"] [style*="background: #fff"],
 [data-theme="dark"] [style*="background:#fff"],
 [data-theme="dark"] [style*="background: #ffffff"],
-[data-theme="dark"] [style*="background:#ffffff"] {
+[data-theme="dark"] [style*="background:#ffffff"],
+[data-theme="dark"] [style*="background: rgb(255, 255, 255)"] {
   background: var(--paper) !important;
 }
 
@@ -1045,41 +1057,50 @@ button, a {
 }
 
 [data-theme="midnight"] [style*="background: #fef3c7"],
-[data-theme="midnight"] [style*="background:#fef3c7"] {
+[data-theme="midnight"] [style*="background:#fef3c7"],
+[data-theme="midnight"] [style*="background: rgb(254, 243, 199)"] {
   background: rgba(202, 138, 4, 0.2) !important;
 }
 [data-theme="midnight"] [style*="background: #dcfce7"],
-[data-theme="midnight"] [style*="background:#dcfce7"] {
+[data-theme="midnight"] [style*="background:#dcfce7"],
+[data-theme="midnight"] [style*="background: rgb(220, 252, 231)"] {
   background: rgba(21, 128, 61, 0.2) !important;
 }
 [data-theme="midnight"] [style*="background: #fee2e2"],
-[data-theme="midnight"] [style*="background:#fee2e2"] {
+[data-theme="midnight"] [style*="background:#fee2e2"],
+[data-theme="midnight"] [style*="background: rgb(254, 226, 226)"] {
   background: rgba(185, 28, 28, 0.2) !important;
 }
 [data-theme="midnight"] [style*="background: #dbeafe"],
-[data-theme="midnight"] [style*="background:#dbeafe"] {
+[data-theme="midnight"] [style*="background:#dbeafe"],
+[data-theme="midnight"] [style*="background: rgb(219, 234, 254)"] {
   background: rgba(29, 78, 216, 0.2) !important;
 }
 [data-theme="midnight"] [style*="background: #cffafe"],
-[data-theme="midnight"] [style*="background:#cffafe"] {
+[data-theme="midnight"] [style*="background:#cffafe"],
+[data-theme="midnight"] [style*="background: rgb(207, 250, 254)"] {
   background: rgba(8, 145, 178, 0.2) !important;
 }
 [data-theme="midnight"] [style*="background: #ede9fe"],
-[data-theme="midnight"] [style*="background:#ede9fe"] {
+[data-theme="midnight"] [style*="background:#ede9fe"],
+[data-theme="midnight"] [style*="background: rgb(237, 233, 254)"] {
   background: rgba(124, 58, 237, 0.2) !important;
 }
 [data-theme="midnight"] [style*="background: #fed7aa"],
-[data-theme="midnight"] [style*="background:#fed7aa"] {
+[data-theme="midnight"] [style*="background:#fed7aa"],
+[data-theme="midnight"] [style*="background: rgb(254, 215, 170)"] {
   background: rgba(234, 88, 12, 0.2) !important;
 }
 [data-theme="midnight"] [style*="background: #f5f5f4"],
-[data-theme="midnight"] [style*="background:#f5f5f4"] {
+[data-theme="midnight"] [style*="background:#f5f5f4"],
+[data-theme="midnight"] [style*="background: rgb(245, 245, 244)"] {
   background: var(--bg-alt) !important;
 }
 [data-theme="midnight"] [style*="background: #fff"],
 [data-theme="midnight"] [style*="background:#fff"],
 [data-theme="midnight"] [style*="background: #ffffff"],
-[data-theme="midnight"] [style*="background:#ffffff"] {
+[data-theme="midnight"] [style*="background:#ffffff"],
+[data-theme="midnight"] [style*="background: rgb(255, 255, 255)"] {
   background: var(--paper) !important;
 }
 

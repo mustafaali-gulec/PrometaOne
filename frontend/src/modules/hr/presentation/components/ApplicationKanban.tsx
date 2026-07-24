@@ -160,6 +160,12 @@ export function ApplicationKanban({
                     onDragStart={(ev) => {
                       setDraggedId(a.id);
                       ev.dataTransfer.effectAllowed = 'move';
+                      // Firefox, dragstart'ta dataTransfer'e veri konmazsa sürüklemeyi hiç başlatmaz
+                      try {
+                        ev.dataTransfer.setData('text/plain', String(a.id));
+                      } catch {
+                        /* eski tarayıcı */
+                      }
                     }}
                     onDragEnd={() => {
                       setDraggedId(null);
