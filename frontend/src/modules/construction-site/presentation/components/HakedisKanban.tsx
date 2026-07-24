@@ -95,7 +95,10 @@ export function HakedisKanban({
               }
             }}
             onDragLeave={() => setOverCol((c) => (c === st ? null : c))}
-            onDrop={() => handleDrop(st)}
+            onDrop={(e) => {
+              e.preventDefault();
+              handleDrop(st);
+            }}
             style={{
               background: `${color}14`,
               borderRadius: 'var(--radius-md, 8px)',
@@ -176,7 +179,16 @@ export function HakedisKanban({
                     role="button"
                     tabIndex={0}
                     draggable
-                    onDragStart={() => setDrag({ id: p.id, from: p.status })}
+                    onDragStart={(e) => {
+                      // Firefox, dragstart'ta dataTransfer'e veri konmazsa sürüklemeyi hiç başlatmaz
+                      e.dataTransfer.effectAllowed = 'move';
+                      try {
+                        e.dataTransfer.setData('text/plain', String(p.id));
+                      } catch {
+                        /* eski tarayıcı */
+                      }
+                      setDrag({ id: p.id, from: p.status });
+                    }}
                     onDragEnd={() => {
                       setDrag(null);
                       setOverCol(null);
