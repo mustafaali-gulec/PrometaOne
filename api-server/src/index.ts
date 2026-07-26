@@ -33,6 +33,7 @@ import { registerProductionModule } from './modules/production/index.js';
 import { registerPurchasingModule } from './modules/purchasing/index.js';
 import { registerPushModule } from './modules/push/index.js';
 import { registerReportingModule } from './modules/reporting/index.js';
+import { registerTaskAttachmentsModule } from './modules/taskAttachments/index.js';
 import { registerWarehouseModule } from './modules/warehouse/index.js';
 import cellsRoutes from './routes/cells.js';
 import companiesRoutes from './routes/companies.js';
@@ -186,6 +187,7 @@ const fixedAssetsModule = registerFixedAssetsModule(pool);
 // modüler /v1/beyanname (entegrasyon kimliği AES-256-GCM şifreli saklanır)
 // ============================================================================
 const beyannameModule = registerBeyannameModule(pool);
+const taskAttachmentsModule = registerTaskAttachmentsModule(pool);
 
 // ============================================================================
 // Push modülü — Web Push (VAPID) cihaz kaydı + gönderim, modüler /v1/push
@@ -260,6 +262,7 @@ v1.route('/app-state', appStateModule);
 v1.route('/performance', performanceModule);
 v1.route('/fixed-assets', fixedAssetsModule);
 v1.route('/beyanname', beyannameModule);
+v1.route('/task-attachments', taskAttachmentsModule.router);
 
 // Companies + cells + invoices
 v1.route('/companies', companiesRoutes);
