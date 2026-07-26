@@ -233,7 +233,7 @@ export function ToastViewport(): ReactElement | null {
         top: 16,
         right: rtl ? 'auto' : 16,
         left: rtl ? 16 : 'auto',
-        zIndex: 1100,
+        zIndex: 2000100,
         display: 'flex',
         flexDirection: 'column',
         gap: 8,

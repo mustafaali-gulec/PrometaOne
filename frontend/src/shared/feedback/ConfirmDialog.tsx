@@ -2,7 +2,9 @@
    shared/feedback — ConfirmDialog
    ---------------------------------------------------------------------
    Native confirm() yerine tema-uyumlu, erişilebilir onay diyaloğu.
-   Aynı anda tek diyalog. z-index uygulama modallarının (z-50) üstünde.
+   Aynı anda tek diyalog. z-index TÜM pencere-yöneticili modalların üstünde:
+   windowManager zCounter 1000'den artıyor (bring-to-front ile yükselir), bu
+   yüzden diyalog 2.000.000'da sabit → prompt/confirm daima en önde açılır.
 ===================================================================== */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
@@ -74,7 +76,7 @@ export function ConfirmDialog(): ReactElement | null {
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 1000,
+        zIndex: 2000000,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
