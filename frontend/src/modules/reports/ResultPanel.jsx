@@ -21,7 +21,7 @@ const CHART_TYPES = [
   ['kpi', { tr: 'KPI Kart', en: 'KPI', de: 'KPI-Karte', ar: 'بطاقة KPI' }],
 ];
 
-export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' }) {
+export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr', money }) {
   const [designOpen, setDesignOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
 
@@ -108,6 +108,17 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
                   ? ` · ⚠ أول ${result.rowCount} صف`
                   : ` · ⚠ ilk ${result.rowCount} satır`
             : ''}
+          {/* Döviz göstergesi — para kolonlarının hangi cinsten ve hangi kurla
+              gösterildiğini belirtir (üst bardaki seçici belirler). */}
+          {money && money.currency && money.currency !== 'TRY' && (
+            <span
+              className="chip"
+              style={{ marginLeft: 6, fontSize: 10, background: 'var(--accent)', color: '#fff' }}
+              title={`1 ${money.currency} = ${Number(money.rate || 0).toLocaleString('tr-TR', { maximumFractionDigits: 4 })} TRY`}
+            >
+              {money.currency}
+            </span>
+          )}
         </div>
         <div className="flex gap-1">
           <button
@@ -324,6 +335,7 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
           layout={layout}
           onLayout={onLayout}
           lang={lang}
+          money={money}
         />
       )}
 
@@ -358,7 +370,7 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
                       className={isRight(cfg.format, c.type) ? 'mono text-right' : ''}
                       style={{ whiteSpace: 'nowrap' }}
                     >
-                      {formatValue(val, cfg.format, c.type)}
+                      {formatValue(val, cfg.format, c.type, money)}
                     </td>
                   );
                 })}
@@ -389,7 +401,7 @@ export function ResultPanel({ result, viz, onViz, layout, onLayout, lang = 'tr' 
                       className={isRight(cfg.format, c.type) ? 'mono text-right' : ''}
                     >
                       {totals[c.key] !== undefined
-                        ? formatValue(totals[c.key], cfg.format, c.type)
+                        ? formatValue(totals[c.key], cfg.format, c.type, money)
                         : ''}
                     </td>
                   );

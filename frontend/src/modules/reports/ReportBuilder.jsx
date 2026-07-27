@@ -53,7 +53,7 @@ const defaultLayout = {
   groupBy: '',
 };
 
-export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
+export function ReportBuilder({ companyId, canAct, lang = 'tr', notify, money }) {
   const api = useMemo(() => makeReportsApi(companyId), [companyId]);
   const canSql = canAct ? !!canAct('reports.sql.view') : true;
 
@@ -555,6 +555,7 @@ export function ReportBuilder({ companyId, canAct, lang = 'tr', notify }) {
           layout={layout}
           onLayout={setLayout}
           lang={lang}
+          money={money}
         />
       )}
 
