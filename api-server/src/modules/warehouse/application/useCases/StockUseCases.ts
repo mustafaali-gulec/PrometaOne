@@ -10,6 +10,7 @@
  *  GetMovementsUseCase    — filtreli hareket listesi
  *  GetMaterialLedgerUseCase — yürüyen bakiye (running balance)
  */
+import { FxInfo } from '../../../../shared/fx/FxInfo.js';
 import { StockMovement, type MovementLot } from '../../domain/entities/StockMovement.js';
 import {
   InsufficientStockError,
@@ -52,6 +53,14 @@ export interface RecordMovementInput {
   docNo?: string | null;
   note?: string | null;
   actorUserId?: number | null;
+  /**
+   * DÖVİZ (051): birim fiyat/tutar dövizle girildiyse. Kur verilmezse
+   * "bilinmiyor" kabul edilir ve TRY karşılığı türetilmez.
+   */
+  currency?: string | null;
+  fxRate?: number | null;
+  fxRateSource?: string | null;
+  fxRateDate?: string | null;
 }
 
 export class RecordMovementUseCase {
@@ -114,6 +123,19 @@ export class RecordMovementUseCase {
     const unitPrice = input.unitPrice ?? null;
     const total = unitPrice !== null ? round2(unitPrice * input.qty) : null;
 
+    // DÖVİZ (051): birim fiyat dövizle girildiyse kur kayda DONDURULUR.
+    // unitCostBase (değerleme) DAİMA TL bazlıdır — dövizli girişte kurdan türetilir.
+    const fx = FxInfo.fromInput({
+      currency: input.currency,
+      fxRate: input.fxRate,
+      fxRateSource: input.fxRateSource,
+      fxRateDate: input.fxRateDate ?? input.date,
+    });
+    const totalTRY = total !== null ? fx.toTRY(total) : null;
+    const unitCostBase =
+      input.unitCostBase ??
+      (fx.isForeign && fx.hasRate && unitPrice !== null ? round2(unitPrice * fx.rate!) : null);
+
     const movement = StockMovement.create({
       id: null,
       companyId: input.companyId,
@@ -131,8 +153,10 @@ export class RecordMovementUseCase {
       baseUnit: material.baseUnit,
       baseQty,
       unitPrice,
-      unitCostBase: input.unitCostBase ?? null,
+      unitCostBase,
       total,
+      fx,
+      totalTRY,
       lots: input.lots ?? [],
       locationId: input.locationId ?? null,
       partyId: input.partyId ?? null,

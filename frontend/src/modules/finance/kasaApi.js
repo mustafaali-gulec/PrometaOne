@@ -44,6 +44,22 @@ const token = () => {
 
 const isIdKey = (k) => k === 'id' || /Id$/.test(k);
 
+/**
+ * DÖVİZ gövde parçası — yalnız TANIMLI alanları gönderir (PATCH'te
+ * "verilmeyen alan değişmez" sözleşmesi bozulmasın). currency TRY ise
+ * kur alanları anlamsızdır, sunucu zaten yok sayar.
+ */
+function fxBody({ currency, fxRate, fxRateSource, fxRateDate } = {}) {
+  const out = {};
+  if (currency !== undefined && currency !== null) out.currency = currency;
+  if (fxRate !== undefined) out.fxRate = fxRate === null ? null : Number(fxRate) || null;
+  if (fxRateSource !== undefined) out.fxRateSource = fxRateSource || null;
+  if (fxRateDate !== undefined) {
+    out.fxRateDate = fxRateDate ? String(fxRateDate).slice(0, 10) : null;
+  }
+  return out;
+}
+
 // OKUMA: id/*Id alanlarını String'e çevir (derin)
 function toClient(v) {
   if (Array.isArray(v)) return v.map(toClient);
@@ -167,7 +183,21 @@ export function makeKasaApi(companyId) {
       call('GET', '/kasa-entries', { query: q() }).then((r) =>
         (Array.isArray(r) ? r : r?.entries || []).map(entryToClient),
       ),
-    createEntry: ({ kasaAccountId, date, type, amount, description, category } = {}) =>
+    // DÖVİZ (051): currency/fxRate/fxRateSource/fxRateDate gönderilirse sunucu
+    // kuru kayda DONDURUR ve amount_try'ı türetir. Gönderilmezse hareket kasa
+    // hesabının para birimindedir (eski davranış).
+    createEntry: ({
+      kasaAccountId,
+      date,
+      type,
+      amount,
+      description,
+      category,
+      currency,
+      fxRate,
+      fxRateSource,
+      fxRateDate,
+    } = {}) =>
       call('POST', '/kasa-entries', {
         rawBody: {
           companyId: cid,
@@ -177,10 +207,25 @@ export function makeKasaApi(companyId) {
           amount: Number(amount) || 0,
           description: strOrNull(description),
           category: strOrNull(category),
+          ...fxBody({ currency, fxRate, fxRateSource, fxRateDate }),
         },
       }).then(entryToClient),
     // BE ekliyor — uç henüz yoksa 404/405 fırlar.
-    updateEntry: (id, { kasaAccountId, date, type, amount, description, category } = {}) =>
+    updateEntry: (
+      id,
+      {
+        kasaAccountId,
+        date,
+        type,
+        amount,
+        description,
+        category,
+        currency,
+        fxRate,
+        fxRateSource,
+        fxRateDate,
+      } = {},
+    ) =>
       call('PATCH', `/kasa-entries/${id}`, {
         rawBody: {
           companyId: cid,
@@ -190,6 +235,7 @@ export function makeKasaApi(companyId) {
           ...(amount !== undefined ? { amount: Number(amount) || 0 } : {}),
           ...(description !== undefined ? { description: strOrNull(description) } : {}),
           ...(category !== undefined ? { category: strOrNull(category) } : {}),
+          ...fxBody({ currency, fxRate, fxRateSource, fxRateDate }),
         },
       }).then(entryToClient),
     // BE ekliyor — uç henüz yoksa 404/405 fırlar.

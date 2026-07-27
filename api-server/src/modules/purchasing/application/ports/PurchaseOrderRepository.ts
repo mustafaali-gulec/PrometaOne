@@ -17,6 +17,10 @@ export interface NewPurchaseOrderInput {
   orderedAt: Date | null;
   createdBy: number | null;
   lines: ReadonlyArray<PurchaseOrderLine>;
+  /** DÖVİZ (051): kayda dondurulacak kur. Verilmezse kur bilinmiyor kabul edilir. */
+  fxRate?: number | null;
+  fxRateSource?: string | null;
+  fxRateDate?: string | null;
 }
 
 export interface ListPurchaseOrdersOptions {

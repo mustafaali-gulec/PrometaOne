@@ -7,6 +7,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 
+import type { RateBook } from '../../../shared/fx';
 import type {
   ContractDto,
   ContractParty,
@@ -76,6 +77,8 @@ export interface ConstructionPageProps {
   companyId?: number;
   initialTab?: ConstructionTab;
   views?: ConstructionTab[];
+  /** DÖVİZ: üst uygulamanın kur defteri (app-state exchangeRates + rateHistory). */
+  rateBook?: RateBook;
 }
 
 export function ConstructionPage({
@@ -84,6 +87,7 @@ export function ConstructionPage({
   companyId = 1,
   initialTab,
   views,
+  rateBook,
 }: ConstructionPageProps): JSX.Element {
   const scoped = Array.isArray(views) && views.length > 0;
   const visibleTabs: ConstructionTab[] = scoped ? views : ALL_TABS;
@@ -139,7 +143,13 @@ export function ConstructionPage({
         {tab === 'boq' ? <BoqTab api={api} companyId={companyId} /> : null}
         {tab === 'progress' ? <HakedisManager api={api} companyId={companyId} /> : null}
         {tab === 'measurements' ? <MetrajManager api={api} companyId={companyId} /> : null}
-        {tab === 'finance' ? <FinansManager api={api} companyId={companyId} /> : null}
+        {tab === 'finance' ? (
+          <FinansManager
+            api={api}
+            companyId={companyId}
+            {...(rateBook !== undefined ? { rateBook } : {})}
+          />
+        ) : null}
         {tab === 'depot' ? <DepoManager api={api} companyId={companyId} /> : null}
         {tab === 'labor' ? <IsgucuManager api={api} companyId={companyId} /> : null}
         {tab === 'reports' ? <RaporManager api={api} companyId={companyId} /> : null}

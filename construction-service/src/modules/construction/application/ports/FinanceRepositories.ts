@@ -20,6 +20,10 @@ export interface NewExpenseInput {
   currency: CurrencyCode;
   spentAt: string;
   createdBy: number | null;
+  /** DÖVİZ (004): kayda dondurulacak kur. Verilmezse kur bilinmiyor kabul edilir. */
+  fxRate?: number | null;
+  fxRateSource?: string | null;
+  fxRateDate?: string | null;
 }
 
 export interface CategoryTotal {

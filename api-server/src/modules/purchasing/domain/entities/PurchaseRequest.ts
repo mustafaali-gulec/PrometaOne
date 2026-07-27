@@ -7,6 +7,7 @@
  *
  * Immutable — değişiklikler yeni instance döner.
  */
+import { FxInfo } from '../../../../shared/fx/FxInfo.js';
 import {
   InvalidStatusTransitionError,
   PurchasingValidationError,
@@ -39,10 +40,17 @@ export interface PurchaseRequestProps {
   createdAt: Date;
   updatedAt: Date;
   items: ReadonlyArray<PurchaseRequestItem>;
+  /** DÖVİZ (051): dövizli talepte kayıt anında DONDURULAN kur. */
+  fx?: FxInfo;
+  /** total_amount'ın TRY karşılığı; kur bilinmiyorsa null. */
+  totalAmountTRY?: number | null;
 }
 
+/** fx alanları çözülmüş iç gösterim. */
+type ResolvedPrProps = PurchaseRequestProps & { fx: FxInfo; totalAmountTRY: number | null };
+
 export class PurchaseRequest {
-  private constructor(private readonly props: Readonly<PurchaseRequestProps>) {}
+  private constructor(private readonly props: Readonly<ResolvedPrProps>) {}
 
   static create(props: PurchaseRequestProps): PurchaseRequest {
     if (props.id <= 0) throw new Error('PurchaseRequest.id pozitif olmalı');
@@ -59,7 +67,12 @@ export class PurchaseRequest {
         throw new PurchasingValidationError('Miktar ve birim fiyat negatif olamaz');
       }
     }
-    return new PurchaseRequest(props);
+    // fx verilmezse: TRY ise dövizsiz, değilse "kur bilinmiyor" (rate=null).
+    const fx = props.fx ?? FxInfo.fromInput({ currency: props.currency });
+    const total = round2(props.items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0));
+    const totalAmountTRY =
+      props.totalAmountTRY !== undefined ? props.totalAmountTRY : fx.toTRY(total);
+    return new PurchaseRequest({ ...props, fx, totalAmountTRY });
   }
 
   get id(): number {
@@ -112,6 +125,16 @@ export class PurchaseRequest {
     return round2(this.props.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0));
   }
 
+  /** DÖVİZ (051): kayda dondurulmuş kur bilgisi. */
+  get fx(): FxInfo {
+    return this.props.fx;
+  }
+
+  /** total_amount'ın TRY karşılığı; kur bilinmiyorsa null. */
+  get totalAmountTRY(): number | null {
+    return this.props.totalAmountTRY;
+  }
+
   changeStatus(next: PrStatus, now: Date): PurchaseRequest {
     if (!canTransitionPr(this.props.status, next)) {
       throw new InvalidStatusTransitionError(this.props.status, next);
@@ -120,7 +143,21 @@ export class PurchaseRequest {
     return new PurchaseRequest({ ...this.props, status: next, updatedAt: now });
   }
 
-  toJSON(): Readonly<PurchaseRequestProps> {
-    return { ...this.props };
+  toJSON(): Readonly<PurchaseRequestProps> & {
+    totalAmount: number;
+    fxRate: number | null;
+    fxRateSource: string | null;
+    fxRateDate: string | null;
+    totalAmountTRY: number | null;
+  } {
+    const fx = this.props.fx.toJSON();
+    return {
+      ...this.props,
+      totalAmount: this.totalAmount,
+      fxRate: fx.fxRate,
+      fxRateSource: fx.fxRateSource,
+      fxRateDate: fx.fxRateDate,
+      totalAmountTRY: this.props.totalAmountTRY,
+    };
   }
 }

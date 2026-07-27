@@ -6,6 +6,7 @@
  */
 import type { Pool, PoolClient } from 'pg';
 
+import { FxInfo } from '../../../../shared/fx/FxInfo.js';
 import type {
   ListPurchaseOrdersOptions,
   NewPurchaseOrderInput,
@@ -29,6 +30,10 @@ interface PoRow {
   created_by: number | null;
   created_at: Date;
   updated_at: Date;
+  fx_rate: string | null;
+  fx_rate_source: string | null;
+  fx_rate_date: Date | null;
+  total_amount_try: string | null;
 }
 
 interface LineRow {
@@ -41,21 +46,31 @@ interface LineRow {
 }
 
 const HCOLS =
-  'id, company_id, po_no, vendor_id, pr_id, status, currency, note, ordered_at, delivered_at, created_by, created_at, updated_at';
+  'id, company_id, po_no, vendor_id, pr_id, status, currency, note, ordered_at, delivered_at, created_by, created_at, updated_at, ' +
+  // DÖVİZ (051): kayda dondurulmuş kur + TRY karşılığı.
+  'fx_rate, fx_rate_source, fx_rate_date, total_amount_try';
 
 export class PgPurchaseOrderRepository implements PurchaseOrderRepository {
   constructor(private readonly pool: Pool) {}
 
   async insert(input: NewPurchaseOrderInput): Promise<PurchaseOrder> {
     const total = round2(input.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
+    // DÖVİZ (051): girdideki kur kayda dondurulur; TRY karşılığı türetilir.
+    const fx = FxInfo.fromInput({
+      currency: input.currency,
+      fxRate: input.fxRate,
+      fxRateSource: input.fxRateSource,
+      fxRateDate: input.fxRateDate,
+    });
+    const fxRow = fx.toRow();
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
       const r = await client.query<PoRow>(
         `INSERT INTO purchase_orders
            (company_id, po_no, vendor_id, pr_id, status, currency, total_amount, note,
-            ordered_at, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+            ordered_at, created_by, fx_rate, fx_rate_source, fx_rate_date, total_amount_try)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
          RETURNING ${HCOLS}`,
         [
           input.companyId,
@@ -68,6 +83,10 @@ export class PgPurchaseOrderRepository implements PurchaseOrderRepository {
           input.note,
           input.orderedAt,
           input.createdBy,
+          fxRow.fx_rate,
+          fxRow.fx_rate_source,
+          fxRow.fx_rate_date,
+          fx.toTRY(total),
         ],
       );
       const header = r.rows[0]!;
@@ -90,8 +109,9 @@ export class PgPurchaseOrderRepository implements PurchaseOrderRepository {
       await client.query(
         `UPDATE purchase_orders
            SET status = $1, currency = $2, total_amount = $3, note = $4,
-               ordered_at = $5, delivered_at = $6, updated_at = NOW()
-         WHERE id = $7 AND company_id = $8`,
+               ordered_at = $5, delivered_at = $6, updated_at = NOW(),
+               fx_rate = $7, fx_rate_source = $8, fx_rate_date = $9, total_amount_try = $10
+         WHERE id = $11 AND company_id = $12`,
         [
           j.status,
           j.currency,
@@ -99,6 +119,10 @@ export class PgPurchaseOrderRepository implements PurchaseOrderRepository {
           j.note,
           j.orderedAt,
           j.deliveredAt,
+          po.fx.toRow().fx_rate,
+          po.fx.toRow().fx_rate_source,
+          po.fx.toRow().fx_rate_date,
+          po.totalAmountTRY,
           j.id,
           j.companyId,
         ],
@@ -218,5 +242,7 @@ function rowsToPo(h: PoRow, lines: ReadonlyArray<PurchaseOrderLine>): PurchaseOr
     createdAt: h.created_at,
     updatedAt: h.updated_at,
     lines: [...lines],
+    fx: FxInfo.fromRow(h),
+    ...(h.total_amount_try !== null ? { totalAmountTRY: Number(h.total_amount_try) } : {}),
   });
 }

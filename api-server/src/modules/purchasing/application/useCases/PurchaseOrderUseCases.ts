@@ -6,6 +6,7 @@
  * gelirse PR kalemlerinden satırlar kopyalanır. ChangePoStatus statü geçiş
  * kurallarını (PoStatus) uygular.
  */
+import { FxInfo } from '../../../../shared/fx/FxInfo.js';
 import { PurchaseOrder, type PurchaseOrderLine } from '../../domain/entities/PurchaseOrder.js';
 import {
   PurchaseOrderNotFoundError,
@@ -50,6 +51,10 @@ export interface CreatePurchaseOrderInput {
   lines?: PoLineInput[] | undefined;
   /** true → doğrudan sipariş ver (ordered) */
   markOrdered?: boolean | undefined;
+  /** DÖVİZ (051): kayda dondurulacak kur — manuel ya da TCMB. */
+  fxRate?: number | null | undefined;
+  fxRateSource?: string | null | undefined;
+  fxRateDate?: string | null | undefined;
 }
 
 export class CreatePurchaseOrderUseCase {
@@ -93,6 +98,9 @@ export class CreatePurchaseOrderUseCase {
       orderedAt: input.markOrdered ? now : null,
       createdBy: input.createdBy ?? null,
       lines: toLines(lines),
+      fxRate: input.fxRate ?? null,
+      fxRateSource: input.fxRateSource ?? null,
+      fxRateDate: input.fxRateDate ?? null,
     });
     return toPurchaseOrderDto(created);
   }
@@ -122,6 +130,10 @@ export interface UpdatePurchaseOrderInput {
   currency?: CurrencyCode | undefined;
   note?: string | null | undefined;
   lines?: PoLineInput[] | undefined;
+  /** DÖVİZ (051): kayda dondurulacak kur — manuel ya da TCMB. */
+  fxRate?: number | null | undefined;
+  fxRateSource?: string | null | undefined;
+  fxRateDate?: string | null | undefined;
 }
 
 export class UpdatePurchaseOrderUseCase {
@@ -134,9 +146,19 @@ export class UpdatePurchaseOrderUseCase {
     const po = await this.pos.findById(input.poId, input.companyId);
     if (!po) throw new PurchaseOrderNotFoundError(input.poId);
     const j = po.toJSON();
-    const updated = PurchaseOrder.create({
-      ...j,
+    // DÖVİZ: kur alanı gelmediyse kaydın DONDURULMUŞ kuru korunur;
+    // totalAmountTRY yeniden türetilir (tutar/kur değişmiş olabilir).
+    const fx = FxInfo.fromInput({
       currency: input.currency ?? j.currency,
+      fxRate: input.fxRate !== undefined ? input.fxRate : po.fx.rate,
+      fxRateSource: input.fxRateSource !== undefined ? input.fxRateSource : po.fx.source,
+      fxRateDate: input.fxRateDate !== undefined ? input.fxRateDate : po.fx.rateDate,
+    });
+    const { totalAmountTRY: _prevTRY, ...jRest } = j;
+    const updated = PurchaseOrder.create({
+      ...jRest,
+      currency: input.currency ?? j.currency,
+      fx,
       note: input.note !== undefined ? input.note?.trim() || null : j.note,
       lines: input.lines !== undefined ? toLines(input.lines) : j.lines,
       updatedAt: this.clock.now(),

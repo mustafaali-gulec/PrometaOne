@@ -6,6 +6,7 @@
  */
 import type { Pool, PoolClient } from 'pg';
 
+import { FxInfo } from '../../../../shared/fx/FxInfo.js';
 import type {
   ListPurchaseRequestsOptions,
   NewPurchaseRequestInput,
@@ -33,6 +34,10 @@ interface PrRow {
   requested_at: Date;
   created_at: Date;
   updated_at: Date;
+  fx_rate: string | null;
+  fx_rate_source: string | null;
+  fx_rate_date: Date | null;
+  total_amount_try: string | null;
 }
 
 interface ItemRow {
@@ -45,21 +50,32 @@ interface ItemRow {
 }
 
 const HCOLS =
-  'id, company_id, pr_no, requester_user_id, department_id, category, priority, status, currency, justification, required_by, requested_at, created_at, updated_at';
+  'id, company_id, pr_no, requester_user_id, department_id, category, priority, status, currency, justification, required_by, requested_at, created_at, updated_at, ' +
+  // DÖVİZ (051): kayda dondurulmuş kur + TRY karşılığı.
+  'fx_rate, fx_rate_source, fx_rate_date, total_amount_try';
 
 export class PgPurchaseRequestRepository implements PurchaseRequestRepository {
   constructor(private readonly pool: Pool) {}
 
   async insert(input: NewPurchaseRequestInput): Promise<PurchaseRequest> {
     const total = round2(input.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0));
+    // DÖVİZ (051): girdideki kur kayda dondurulur; TRY karşılığı türetilir.
+    const fx = FxInfo.fromInput({
+      currency: input.currency,
+      fxRate: input.fxRate,
+      fxRateSource: input.fxRateSource,
+      fxRateDate: input.fxRateDate,
+    });
+    const fxRow = fx.toRow();
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
       const r = await client.query<PrRow>(
         `INSERT INTO purchase_requests
            (company_id, pr_no, requester_user_id, department_id, category, priority,
-            status, currency, total_amount, justification, required_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+            status, currency, total_amount, justification, required_by,
+            fx_rate, fx_rate_source, fx_rate_date, total_amount_try)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
          RETURNING ${HCOLS}`,
         [
           input.companyId,
@@ -73,6 +89,10 @@ export class PgPurchaseRequestRepository implements PurchaseRequestRepository {
           total,
           input.justification,
           input.requiredBy,
+          fxRow.fx_rate,
+          fxRow.fx_rate_source,
+          fxRow.fx_rate_date,
+          fx.toTRY(total),
         ],
       );
       const header = r.rows[0]!;
@@ -95,8 +115,9 @@ export class PgPurchaseRequestRepository implements PurchaseRequestRepository {
       await client.query(
         `UPDATE purchase_requests
            SET category = $1, priority = $2, status = $3, currency = $4,
-               total_amount = $5, justification = $6, required_by = $7, updated_at = NOW()
-         WHERE id = $8 AND company_id = $9`,
+               total_amount = $5, justification = $6, required_by = $7, updated_at = NOW(),
+               fx_rate = $8, fx_rate_source = $9, fx_rate_date = $10, total_amount_try = $11
+         WHERE id = $12 AND company_id = $13`,
         [
           j.category,
           j.priority,
@@ -105,6 +126,10 @@ export class PgPurchaseRequestRepository implements PurchaseRequestRepository {
           pr.totalAmount,
           j.justification,
           j.requiredBy,
+          pr.fx.toRow().fx_rate,
+          pr.fx.toRow().fx_rate_source,
+          pr.fx.toRow().fx_rate_date,
+          pr.totalAmountTRY,
           j.id,
           j.companyId,
         ],
@@ -232,5 +257,7 @@ function rowsToPr(h: PrRow, items: ReadonlyArray<PurchaseRequestItem>): Purchase
     createdAt: h.created_at,
     updatedAt: h.updated_at,
     items: [...items],
+    fx: FxInfo.fromRow(h),
+    ...(h.total_amount_try !== null ? { totalAmountTRY: Number(h.total_amount_try) } : {}),
   });
 }

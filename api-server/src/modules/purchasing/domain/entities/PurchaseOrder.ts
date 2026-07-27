@@ -8,6 +8,7 @@
  *
  * Immutable — değişiklikler yeni instance döner.
  */
+import { FxInfo } from '../../../../shared/fx/FxInfo.js';
 import {
   InvalidStatusTransitionError,
   PurchasingValidationError,
@@ -39,10 +40,21 @@ export interface PurchaseOrderProps {
   createdAt: Date;
   updatedAt: Date;
   lines: ReadonlyArray<PurchaseOrderLine>;
+  /**
+   * DÖVİZ (051): dövizli siparişte kayıt anında DONDURULAN kur. Verilmezse
+   * `currency` para biriminde kur bilinmiyor kabul edilir (fx.rate = null) ve
+   * TRY karşılığı tarihli TCMB kurundan türetilir.
+   */
+  fx?: FxInfo;
+  /** total_amount'ın TRY karşılığı; kur bilinmiyorsa null. */
+  totalAmountTRY?: number | null;
 }
 
+/** fx alanları çözülmüş iç gösterim. */
+type ResolvedPoProps = PurchaseOrderProps & { fx: FxInfo; totalAmountTRY: number | null };
+
 export class PurchaseOrder {
-  private constructor(private readonly props: Readonly<PurchaseOrderProps>) {}
+  private constructor(private readonly props: Readonly<ResolvedPoProps>) {}
 
   static create(props: PurchaseOrderProps): PurchaseOrder {
     if (props.id <= 0) throw new Error('PurchaseOrder.id pozitif olmalı');
@@ -62,7 +74,12 @@ export class PurchaseOrder {
         throw new PurchasingValidationError('Miktar/fiyat negatif olamaz');
       }
     }
-    return new PurchaseOrder(props);
+    // fx verilmezse: TRY ise dövizsiz, değilse "kur bilinmiyor" (rate=null).
+    const fx = props.fx ?? FxInfo.fromInput({ currency: props.currency });
+    const total = round2(props.lines.reduce((sum, l) => sum + l.quantity * l.unitPrice, 0));
+    const totalAmountTRY =
+      props.totalAmountTRY !== undefined ? props.totalAmountTRY : fx.toTRY(total);
+    return new PurchaseOrder({ ...props, fx, totalAmountTRY });
   }
 
   get id(): number {
@@ -112,6 +129,16 @@ export class PurchaseOrder {
     return round2(this.props.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
   }
 
+  /** DÖVİZ (051): kayda dondurulmuş kur bilgisi. */
+  get fx(): FxInfo {
+    return this.props.fx;
+  }
+
+  /** total_amount'ın TRY karşılığı; kur bilinmiyorsa null. */
+  get totalAmountTRY(): number | null {
+    return this.props.totalAmountTRY;
+  }
+
   changeStatus(next: PoStatus, now: Date): PurchaseOrder {
     if (!canTransitionPo(this.props.status, next)) {
       throw new InvalidStatusTransitionError(this.props.status, next);
@@ -130,7 +157,21 @@ export class PurchaseOrder {
     });
   }
 
-  toJSON(): Readonly<PurchaseOrderProps> {
-    return { ...this.props };
+  toJSON(): Readonly<PurchaseOrderProps> & {
+    totalAmount: number;
+    fxRate: number | null;
+    fxRateSource: string | null;
+    fxRateDate: string | null;
+    totalAmountTRY: number | null;
+  } {
+    const fx = this.props.fx.toJSON();
+    return {
+      ...this.props,
+      totalAmount: this.totalAmount,
+      fxRate: fx.fxRate,
+      fxRateSource: fx.fxRateSource,
+      fxRateDate: fx.fxRateDate,
+      totalAmountTRY: this.props.totalAmountTRY,
+    };
   }
 }

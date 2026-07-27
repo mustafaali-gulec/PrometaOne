@@ -5,6 +5,7 @@
  * ise talep doğrudan onaya gönderilir (pending_approval). ChangePrStatus statü
  * geçiş kurallarını (PrStatus) uygular.
  */
+import { FxInfo } from '../../../../shared/fx/FxInfo.js';
 import {
   PurchaseRequest,
   type PurchaseRequestItem,
@@ -53,6 +54,10 @@ export interface CreatePurchaseRequestInput {
   items: PrItemInput[];
   /** true → doğrudan onaya gönder (pending_approval) */
   submit?: boolean | undefined;
+  /** DÖVİZ (051): kayda dondurulacak kur — manuel ya da TCMB. */
+  fxRate?: number | null | undefined;
+  fxRateSource?: string | null | undefined;
+  fxRateDate?: string | null | undefined;
 }
 
 export class CreatePurchaseRequestUseCase {
@@ -79,6 +84,9 @@ export class CreatePurchaseRequestUseCase {
       justification: input.justification?.trim() || null,
       requiredBy: parseDateOnly(input.requiredBy),
       items: toItems(input.items),
+      fxRate: input.fxRate ?? null,
+      fxRateSource: input.fxRateSource ?? null,
+      fxRateDate: input.fxRateDate ?? null,
     });
     return toPurchaseRequestDto(created);
   }
@@ -111,6 +119,10 @@ export interface UpdatePurchaseRequestInput {
   justification?: string | null | undefined;
   requiredBy?: string | null | undefined;
   items?: PrItemInput[] | undefined;
+  /** DÖVİZ (051): kayda dondurulacak kur — manuel ya da TCMB. */
+  fxRate?: number | null | undefined;
+  fxRateSource?: string | null | undefined;
+  fxRateDate?: string | null | undefined;
 }
 
 export class UpdatePurchaseRequestUseCase {
@@ -123,11 +135,21 @@ export class UpdatePurchaseRequestUseCase {
     const pr = await this.prs.findById(input.prId, input.companyId);
     if (!pr) throw new PurchaseRequestNotFoundError(input.prId);
     const j = pr.toJSON();
+    // DÖVİZ: kur alanı gelmediyse kaydın DONDURULMUŞ kuru korunur.
+    const fx = FxInfo.fromInput({
+      currency: input.currency ?? j.currency,
+      fxRate: input.fxRate !== undefined ? input.fxRate : pr.fx.rate,
+      fxRateSource: input.fxRateSource !== undefined ? input.fxRateSource : pr.fx.source,
+      fxRateDate: input.fxRateDate !== undefined ? input.fxRateDate : pr.fx.rateDate,
+    });
+    // totalAmountTRY yeniden türetilsin (tutar/kur değişmiş olabilir).
+    const { totalAmountTRY: _prevTRY, ...jRest } = j;
     const updated = PurchaseRequest.create({
-      ...j,
+      ...jRest,
       category: input.category ?? j.category,
       priority: input.priority ?? j.priority,
       currency: input.currency ?? j.currency,
+      fx,
       justification:
         input.justification !== undefined ? input.justification?.trim() || null : j.justification,
       requiredBy: input.requiredBy !== undefined ? parseDateOnly(input.requiredBy) : j.requiredBy,

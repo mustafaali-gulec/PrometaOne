@@ -5,6 +5,7 @@
  * yön `type` (FlowDirection) ile belirlenir. `committedToCells` — bu hareketin
  * bütçe hücresine yansıtılıp yansıtılmadığı (PR 5 commit-to-cells).
  */
+import { FxInfo } from '../../../../shared/fx/FxInfo.js';
 import type { FlowDirection } from '../valueObjects/FlowDirection.js';
 import type { Money } from '../valueObjects/Money.js';
 
@@ -22,10 +23,21 @@ export interface KasaEntryProps {
   createdBy: number | null;
   createdAt: Date;
   updatedAt: Date;
+  /**
+   * DÖVİZ (051): hareketin kendi para birimi + kayıt anında DONDURULAN kur.
+   * `amount` orijinal para birimindedir; `amountTRY` kurdan türetilir ve
+   * raporların topladığı otoriter TRY tutarıdır. TRY hareketlerde fx = none().
+   */
+  fx?: FxInfo;
+  /** TRY karşılığı; kur bilinmiyorsa null (tarihli TCMB kuruna düşülür). */
+  amountTRY?: number | null;
 }
 
+/** fx alanları çözülmüş iç gösterim (create() varsayılanları uygular). */
+type ResolvedProps = KasaEntryProps & { fx: FxInfo; amountTRY: number | null };
+
 export class KasaEntry {
-  private constructor(private readonly props: Readonly<KasaEntryProps>) {}
+  private constructor(private readonly props: Readonly<ResolvedProps>) {}
 
   static create(props: KasaEntryProps): KasaEntry {
     if (props.id !== null && props.id <= 0) {
@@ -37,7 +49,11 @@ export class KasaEntry {
     if (!props.amount.isPositive()) {
       throw new Error('KasaEntry.amount pozitif olmalı (yön type ile belirlenir)');
     }
-    return new KasaEntry(props);
+    // fx verilmezse hareket dövizsizdir (TRY) — mevcut çağıranlar kırılmaz.
+    const fx = props.fx ?? FxInfo.none();
+    const amountTRY =
+      props.amountTRY !== undefined ? props.amountTRY : fx.toTRY(props.amount.toMajor());
+    return new KasaEntry({ ...props, fx, amountTRY });
   }
 
   get id(): number | null {
@@ -73,6 +89,13 @@ export class KasaEntry {
   get createdBy(): number | null {
     return this.props.createdBy;
   }
+  get fx(): FxInfo {
+    return this.props.fx;
+  }
+  /** Hareketin TRY karşılığı; kur bilinmiyorsa null. */
+  get amountTRY(): number | null {
+    return this.props.amountTRY;
+  }
 
   /**
    * Bakiye etkisi: in → +amount, out → −amount (hesabın currency'sinde).
@@ -106,6 +129,11 @@ export class KasaEntry {
     category: string | null;
     cashflowCatId: number | null;
     committedToCells: boolean;
+    currency: string;
+    fxRate: number | null;
+    fxRateSource: string | null;
+    fxRateDate: string | null;
+    amountTRY: number | null;
   } {
     return {
       id: this.props.id,
@@ -117,6 +145,8 @@ export class KasaEntry {
       category: this.props.category,
       cashflowCatId: this.props.cashflowCatId,
       committedToCells: this.props.committedToCells,
+      ...this.props.fx.toJSON(),
+      amountTRY: this.props.amountTRY,
     };
   }
 }

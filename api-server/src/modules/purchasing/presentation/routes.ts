@@ -53,6 +53,8 @@ export interface PurchasingRouterDeps {
 
 // --- Schema fragmanları ---------------------------------------------------
 const currency = z.enum(['TRY', 'USD', 'EUR']);
+// DÖVİZ (051): kur kaynağı — manuel giriş ya da TCMB'den çekilen kur.
+const fxSource = z.enum(['manual', 'tcmb']);
 const personType = z.enum(['real', 'legal']);
 const cariClass = z.enum(['satici', 'alici']);
 const prStatus = z.enum([
@@ -240,6 +242,10 @@ export function createPurchasingRouter(deps: PurchasingRouterDeps): Hono {
         requiredBy: dateStr.nullable().optional(),
         items: z.array(prItem).min(1),
         submit: z.boolean().optional(),
+        /** DÖVİZ (051): dövizli kayıt — kullanılan kur kayda dondurulur. */
+        fxRate: z.number().positive().nullable().optional(),
+        fxRateSource: fxSource.nullable().optional(),
+        fxRateDate: dateStr.nullable().optional(),
       }),
     ),
     async (c) => {
@@ -270,6 +276,10 @@ export function createPurchasingRouter(deps: PurchasingRouterDeps): Hono {
         justification: z.string().max(4000).nullable().optional(),
         requiredBy: dateStr.nullable().optional(),
         items: z.array(prItem).min(1).optional(),
+        /** DÖVİZ (051): dövizli kayıt — kullanılan kur kayda dondurulur. */
+        fxRate: z.number().positive().nullable().optional(),
+        fxRateSource: fxSource.nullable().optional(),
+        fxRateDate: dateStr.nullable().optional(),
       }),
     ),
     async (c) => {
@@ -361,6 +371,10 @@ export function createPurchasingRouter(deps: PurchasingRouterDeps): Hono {
         note: z.string().max(4000).nullable().optional(),
         lines: z.array(poLine).optional(),
         markOrdered: z.boolean().optional(),
+        /** DÖVİZ (051): dövizli kayıt — kullanılan kur kayda dondurulur. */
+        fxRate: z.number().positive().nullable().optional(),
+        fxRateSource: fxSource.nullable().optional(),
+        fxRateDate: dateStr.nullable().optional(),
       }),
     ),
     async (c) => {
@@ -385,6 +399,10 @@ export function createPurchasingRouter(deps: PurchasingRouterDeps): Hono {
         currency: currency.optional(),
         note: z.string().max(4000).nullable().optional(),
         lines: z.array(poLine).min(1).optional(),
+        /** DÖVİZ (051): dövizli kayıt — kullanılan kur kayda dondurulur. */
+        fxRate: z.number().positive().nullable().optional(),
+        fxRateSource: fxSource.nullable().optional(),
+        fxRateDate: dateStr.nullable().optional(),
       }),
     ),
     async (c) => {

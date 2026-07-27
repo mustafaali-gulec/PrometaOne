@@ -43,6 +43,10 @@ export interface CreateExpenseInput {
   currency?: CurrencyCode | undefined;
   spentAt: string;
   createdBy?: number | null | undefined;
+  /** DÖVİZ (004): kayda dondurulacak kur — manuel ya da TCMB. */
+  fxRate?: number | null | undefined;
+  fxRateSource?: string | null | undefined;
+  fxRateDate?: string | null | undefined;
 }
 
 export class CreateExpenseUseCase {
@@ -66,6 +70,9 @@ export class CreateExpenseUseCase {
       currency: input.currency ?? project.currency,
       spentAt: input.spentAt,
       createdBy: input.createdBy ?? null,
+      fxRate: input.fxRate ?? null,
+      fxRateSource: input.fxRateSource ?? null,
+      fxRateDate: input.fxRateDate ?? null,
     });
     return toExpenseDto(created);
   }
