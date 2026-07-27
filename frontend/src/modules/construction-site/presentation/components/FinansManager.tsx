@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 
+import { FxCurrencyFields, type FxDraft, type RateBook } from '../../../../shared/fx';
 import { MoneyInput } from '../../../../shared/ui/MoneyInput';
 import type {
   AdvanceDto,
@@ -30,9 +31,11 @@ const SUB_LABELS: Record<Sub, string> = {
 export interface FinansManagerProps {
   api: ConstructionApi;
   companyId: number;
+  /** DÖVİZ: üst uygulamanın kur defteri (app-state exchangeRates + rateHistory). */
+  rateBook?: RateBook;
 }
 
-export function FinansManager({ api, companyId }: FinansManagerProps): JSX.Element {
+export function FinansManager({ api, companyId, rateBook }: FinansManagerProps): JSX.Element {
   const { projects } = useProjects(api, companyId);
   const [projectId, setProjectId] = useState<number>(0);
   const [sub, setSub] = useState<Sub>('payments');
@@ -164,6 +167,7 @@ export function FinansManager({ api, companyId }: FinansManagerProps): JSX.Eleme
               api={api}
               companyId={companyId}
               projectId={projectId}
+              {...(rateBook !== undefined ? { rateBook } : {})}
               onChanged={refresh}
               onError={setError}
             />
@@ -189,12 +193,15 @@ function ExpensesSection({
   api,
   companyId,
   projectId,
+  rateBook,
   onChanged,
   onError,
 }: {
   api: ConstructionApi;
   companyId: number;
   projectId: number;
+  /** Üst uygulamadan gelen kur defteri (app-state exchangeRates + rateHistory). */
+  rateBook?: RateBook;
   onChanged: () => void;
   onError: (m: string | null) => void;
 }): JSX.Element {
@@ -204,6 +211,8 @@ function ExpensesSection({
   const [amount, setAmount] = useState('');
   const [spentAt, setSpentAt] = useState('');
   const [busy, setBusy] = useState(false);
+  /** DÖVİZ (004): dövizli gider bloğu — tik + para birimi + kur kaynağı. */
+  const [fx, setFx] = useState<FxDraft>({ isFx: false, currency: 'TRY' });
 
   const load = (): void => {
     api
@@ -228,9 +237,16 @@ function ExpensesSection({
         description: desc.trim() === '' ? null : desc.trim(),
         amount: Number(amount),
         spentAt,
+        // Kullanılan kur kayda DONDURULUR; sunucu amount_try'ı türetir.
+        currency: (fx.isFx === true ? fx.currency : 'TRY') as 'TRY' | 'USD' | 'EUR',
+        fxRate: fx.isFx === true ? Number(fx.fxRate) || null : null,
+        fxRateSource:
+          fx.isFx === true ? ((fx.fxRateSource ?? null) as 'manual' | 'tcmb' | null) : null,
+        fxRateDate: fx.isFx === true ? (fx.fxRateDate ?? spentAt) : null,
       });
       setDesc('');
       setAmount('');
+      setFx({ isFx: false, currency: 'TRY' });
       load();
       onChanged();
     } catch (e) {
@@ -277,6 +293,20 @@ function ExpensesSection({
           + Gider
         </button>
       </div>
+      {/* DÖVİZLİ GİDER — tik + para birimi + kur kaynağı (TCMB / manuel) + TL karşılığı */}
+      <FxCurrencyFields
+        value={fx}
+        amount={amount}
+        date={spentAt}
+        {...(rateBook !== undefined ? { rateBook } : {})}
+        className="p-3 rounded"
+        style={{
+          background: 'var(--bg-alt)',
+          border: '1px solid var(--line-soft)',
+          marginBottom: 10,
+        }}
+        onChange={(patch) => setFx((prev) => ({ ...prev, ...patch }))}
+      />
       <Table
         head={['Tarih', 'Kategori', 'Açıklama', 'Tutar', '']}
         rows={rows.map((e) => [

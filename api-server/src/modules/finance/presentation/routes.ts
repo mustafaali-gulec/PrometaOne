@@ -111,6 +111,10 @@ const endpoint = z.enum(['bank', 'kasa']);
 const companyIdQ = z.object({ companyId: z.coerce.number().int().positive() });
 const idParam = z.object({ id: z.coerce.number().int().positive() });
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+// DÖVİZ (051): dövizli kayıt alanları — `currency` ile aynı küme, ayrı ad
+// (mevcut `currency` fragmanı hesap/transfer şemalarında kullanılıyor).
+const fxCurrency = currency;
+const fxSource = z.enum(['manual', 'tcmb']);
 
 export function createFinanceRouter(deps: FinanceRouterDeps): Hono {
   const app = new Hono();
@@ -428,6 +432,11 @@ export function createFinanceRouter(deps: FinanceRouterDeps): Hono {
         description: z.string().nullable().optional(),
         category: z.string().nullable().optional(),
         cashflowCatId: z.number().int().positive().nullable().optional(),
+        /** DÖVİZ (051): dövizli hareket — kullanılan kur kayda dondurulur. */
+        currency: fxCurrency.optional(),
+        fxRate: z.number().positive().nullable().optional(),
+        fxRateSource: fxSource.nullable().optional(),
+        fxRateDate: dateStr.nullable().optional(),
       }),
     ),
     async (c) => {
@@ -481,6 +490,11 @@ export function createFinanceRouter(deps: FinanceRouterDeps): Hono {
         description: z.string().nullable().optional(),
         category: z.string().nullable().optional(),
         cashflowCatId: z.number().int().positive().nullable().optional(),
+        /** DÖVİZ (051): dövizli hareket — kullanılan kur kayda dondurulur. */
+        currency: fxCurrency.optional(),
+        fxRate: z.number().positive().nullable().optional(),
+        fxRateSource: fxSource.nullable().optional(),
+        fxRateDate: dateStr.nullable().optional(),
       }),
     ),
     async (c) => {

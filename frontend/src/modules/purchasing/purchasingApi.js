@@ -138,6 +138,24 @@ const numId = (v) => {
 };
 
 /** PR frontend taslağı → backend create/update gövdesi. */
+/**
+ * DÖVİZ (051) gövde parçası — kayda dondurulacak kur alanları.
+ * Yalnız TANIMLI alanlar gönderilir; PATCH'te "verilmeyen alan değişmez".
+ */
+function fxToServer(p) {
+  const out = {};
+  if (p.fxRate !== undefined) {
+    const n = Number(p.fxRate);
+    out.fxRate = Number.isFinite(n) && n > 0 ? n : null;
+  }
+  if (p.fxRateSource !== undefined) {
+    out.fxRateSource =
+      p.fxRateSource === 'manual' || p.fxRateSource === 'tcmb' ? p.fxRateSource : null;
+  }
+  if (p.fxRateDate !== undefined) out.fxRateDate = dateOrNull(p.fxRateDate);
+  return out;
+}
+
 function prToServer(p) {
   const out = {
     category: p.category || 'other',
@@ -159,6 +177,7 @@ function prToServer(p) {
       .filter((i) => i.description);
   }
   if (p.submit === true) out.submit = true;
+  Object.assign(out, fxToServer(p));
   return out;
 }
 
@@ -187,6 +206,7 @@ function poToServer(p, { create = false } = {}) {
       .filter((l) => l.description);
     if (lines.length) out.lines = lines; // PATCH lines min(1) ister — boş dizi gönderme
   }
+  Object.assign(out, fxToServer(p));
   return out;
 }
 

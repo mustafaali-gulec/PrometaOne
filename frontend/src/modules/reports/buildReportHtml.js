@@ -15,7 +15,7 @@ const esc = (s) =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c],
   );
 
-export function buildReportHtml({ result, viz = {}, layout = {}, lang = 'tr' }) {
+export function buildReportHtml({ result, viz = {}, layout = {}, lang = 'tr', money }) {
   const T4 = (trS, en, de, ar) =>
     lang === 'en' ? en : lang === 'de' ? de : lang === 'ar' ? ar : trS;
   const colCfg = viz.columns || {};
@@ -42,7 +42,7 @@ export function buildReportHtml({ result, viz = {}, layout = {}, lang = 'tr' }) 
     .map((c) => `<th${cls(c)}>${esc(cfgOf(c.key).label || c.key)}</th>`)
     .join('');
   const renderRow = (o) =>
-    `<tr>${visibleCols.map((c) => `<td${cls(c)}>${esc(formatValue(o[c.key], cfgOf(c.key).format, c.type))}</td>`).join('')}</tr>`;
+    `<tr>${visibleCols.map((c) => `<td${cls(c)}>${esc(formatValue(o[c.key], cfgOf(c.key).format, c.type, money))}</td>`).join('')}</tr>`;
 
   const sumRow = (subset, label) => {
     const sums = {};
@@ -53,7 +53,7 @@ export function buildReportHtml({ result, viz = {}, layout = {}, lang = 'tr' }) 
       .map((c, idx) => {
         if (idx === 0 && !(c.key in sums)) return `<td>${esc(label)}</td>`;
         const col = result.columns[colIndex[c.key]];
-        return `<td${cls(c)}>${c.key in sums ? esc(formatValue(sums[c.key], cfgOf(c.key).format, col.type)) : ''}</td>`;
+        return `<td${cls(c)}>${c.key in sums ? esc(formatValue(sums[c.key], cfgOf(c.key).format, col.type, money)) : ''}</td>`;
       })
       .join('');
     return `<tr class="sub">${cells}</tr>`;

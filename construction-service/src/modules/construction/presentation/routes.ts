@@ -813,6 +813,10 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
         amount: z.number().nonnegative(),
         currency: currency.optional(),
         spentAt: dateStr,
+        // DÖVİZ (004): dövizli gider — kullanılan kur kayda dondurulur.
+        fxRate: z.number().positive().nullable().optional(),
+        fxRateSource: z.enum(['manual', 'tcmb']).nullable().optional(),
+        fxRateDate: dateStr.nullable().optional(),
       }),
     ),
     async (c) => {

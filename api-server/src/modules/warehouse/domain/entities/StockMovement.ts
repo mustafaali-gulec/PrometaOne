@@ -9,6 +9,7 @@
  *
  * baseQty = qty * factor (alt-birimi base'e indirger). StockLedger toplar.
  */
+import { FxInfo } from '../../../../shared/fx/FxInfo.js';
 import { InvalidMovementError, InvalidQuantityError } from '../errors/WarehouseErrors.js';
 import type { MovementKind } from '../valueObjects/MovementKind.js';
 
@@ -49,10 +50,21 @@ export interface StockMovementProps {
   note: string | null;
   createdBy: number | null;
   createdAt: Date;
+  /**
+   * DÖVİZ (051): dövizli alım/tedarikte `unitPrice`/`total` ORİJİNAL para
+   * biriminde girilir; kayıt anında DONDURULAN kurla TRY karşılığı türetilir.
+   * `unitCostBase` (değerleme) DAİMA TL bazlıdır.
+   */
+  fx?: FxInfo;
+  /** total'ın TRY karşılığı; kur bilinmiyorsa null. */
+  totalTRY?: number | null;
 }
 
+/** fx alanları çözülmüş iç gösterim. */
+type ResolvedMovementProps = StockMovementProps & { fx: FxInfo; totalTRY: number | null };
+
 export class StockMovement {
-  private constructor(private readonly props: Readonly<StockMovementProps>) {}
+  private constructor(private readonly props: Readonly<ResolvedMovementProps>) {}
 
   static create(props: StockMovementProps): StockMovement {
     if (props.companyId <= 0) {
@@ -79,7 +91,15 @@ export class StockMovement {
         throw new InvalidMovementError(`${props.kind} hareketi için warehouseId zorunlu`);
       }
     }
-    return new StockMovement(props);
+    // fx verilmezse: TRY (dövizsiz). totalTRY verilmezse kurdan türetilir.
+    const fx = props.fx ?? FxInfo.none();
+    const totalTRY =
+      props.totalTRY !== undefined
+        ? props.totalTRY
+        : props.total !== null
+          ? fx.toTRY(props.total)
+          : null;
+    return new StockMovement({ ...props, fx, totalTRY });
   }
 
   get id(): number | null {
@@ -192,8 +212,25 @@ export class StockMovement {
     }
   }
 
-  toJSON(): Omit<StockMovementProps, 'createdAt'> & { createdAt: string } {
-    const { createdAt, ...rest } = this.props;
-    return { ...rest, createdAt: createdAt.toISOString() };
+  /** DÖVİZ (051): kayda dondurulmuş kur bilgisi. */
+  get fx(): FxInfo {
+    return this.props.fx;
+  }
+
+  /** total'ın TRY karşılığı; kur bilinmiyorsa null. */
+  get totalTRY(): number | null {
+    return this.props.totalTRY;
+  }
+
+  toJSON(): Omit<StockMovementProps, 'createdAt' | 'fx'> & {
+    createdAt: string;
+    currency: string;
+    fxRate: number | null;
+    fxRateSource: string | null;
+    fxRateDate: string | null;
+    totalTRY: number | null;
+  } {
+    const { createdAt, fx, ...rest } = this.props;
+    return { ...rest, createdAt: createdAt.toISOString(), ...fx.toJSON() };
   }
 }

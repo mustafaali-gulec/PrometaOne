@@ -3,6 +3,7 @@
  * Tablolar: cs_expenses, cs_advances, cs_cash_movements (026_cs_finance.sql).
  * BIGINT id/FK alanları satır eşleyicide Number()'a çevrilir (JSON'da sayısal id).
  */
+import { FxInfo } from '../../../../shared/fx/FxInfo.js';
 import type {
   ManualPaymentDto,
   PaymentListItemDto,
@@ -43,21 +44,35 @@ interface ExpenseRow {
   created_by: number | null;
   created_at: Date;
   updated_at: Date;
+  fx_rate: string | null;
+  fx_rate_source: string | null;
+  fx_rate_date: Date | null;
+  amount_try: string | null;
 }
 
 const E_COLS =
   'id, company_id, project_id, boq_line_id, vendor_id, invoice_id, category, description, ' +
-  'amount, currency, spent_at::text AS spent_at, created_by, created_at, updated_at';
+  'amount, currency, spent_at::text AS spent_at, created_by, created_at, updated_at, ' +
+  // DÖVİZ (004): kayda dondurulmuş kur + TRY karşılığı.
+  'fx_rate, fx_rate_source, fx_rate_date, amount_try';
 
 export class PgExpenseRepository implements ExpenseRepository {
   constructor(private readonly db: Queryable) {}
 
   async insert(input: NewExpenseInput): Promise<Expense> {
+    // DÖVİZ (004): girdideki kur kayda dondurulur; TRY karşılığı türetilir.
+    const insertFx = FxInfo.fromInput({
+      currency: input.currency,
+      fxRate: input.fxRate,
+      fxRateSource: input.fxRateSource,
+      fxRateDate: input.fxRateDate ?? input.spentAt,
+    });
     const r = await this.db.query<ExpenseRow>(
       `INSERT INTO cs_expenses
          (company_id, project_id, boq_line_id, vendor_id, invoice_id, category, description,
-          amount, currency, spent_at, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+          amount, currency, spent_at, created_by,
+          fx_rate, fx_rate_source, fx_rate_date, amount_try)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        RETURNING ${E_COLS}`,
       [
         input.companyId,
@@ -71,6 +86,10 @@ export class PgExpenseRepository implements ExpenseRepository {
         input.currency,
         input.spentAt,
         input.createdBy,
+        insertFx.toRow().fx_rate,
+        insertFx.toRow().fx_rate_source,
+        insertFx.toRow().fx_rate_date,
+        insertFx.toTRY(input.amount),
       ],
     );
     return rowToExpense(r.rows[0]!);
@@ -80,8 +99,9 @@ export class PgExpenseRepository implements ExpenseRepository {
     await this.db.query(
       `UPDATE cs_expenses
          SET boq_line_id = $1, vendor_id = $2, invoice_id = $3, category = $4, description = $5,
-             amount = $6, currency = $7, spent_at = $8, updated_at = NOW()
-       WHERE id = $9 AND company_id = $10`,
+             amount = $6, currency = $7, spent_at = $8, updated_at = NOW(),
+             fx_rate = $9, fx_rate_source = $10, fx_rate_date = $11, amount_try = $12
+       WHERE id = $13 AND company_id = $14`,
       [
         e.boqLineId,
         e.vendorId,
@@ -91,6 +111,10 @@ export class PgExpenseRepository implements ExpenseRepository {
         e.amount,
         e.currency,
         e.spentAt,
+        e.fx.toRow().fx_rate,
+        e.fx.toRow().fx_rate_source,
+        e.fx.toRow().fx_rate_date,
+        e.amountTRY,
         e.id,
         e.companyId,
       ],
@@ -151,6 +175,10 @@ function rowToExpense(row: ExpenseRow): Expense {
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    fx: FxInfo.fromRow(row),
+    ...(row.amount_try !== null && row.amount_try !== undefined
+      ? { amountTRY: Number(row.amount_try) }
+      : {}),
   });
 }
 

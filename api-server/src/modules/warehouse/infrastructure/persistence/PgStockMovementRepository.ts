@@ -8,6 +8,7 @@
  */
 import type { Pool } from 'pg';
 
+import { FxInfo } from '../../../../shared/fx/FxInfo.js';
 import type {
   MovementFilter,
   StockMovementRepository,
@@ -42,13 +43,20 @@ interface MovementRow {
   note: string | null;
   created_by: number | null;
   created_at: Date;
+  currency: string | null;
+  fx_rate: string | null;
+  fx_rate_source: string | null;
+  fx_rate_date: Date | null;
+  total_try: string | null;
 }
 
 const MOVEMENT_COLS =
   'id, company_id, no, kind, sub_type, date, warehouse_id, from_warehouse_id, ' +
   'to_warehouse_id, material_id, qty, unit, factor, base_unit, base_qty, ' +
   'unit_price, unit_cost_base, total, lots, location_id, party_id, person, ' +
-  'doc_no, note, created_by, created_at';
+  'doc_no, note, created_by, created_at, ' +
+  // DÖVİZ (051): kayda dondurulmuş kur + TRY karşılığı.
+  'currency, fx_rate, fx_rate_source, fx_rate_date, total_try';
 
 export class PgStockMovementRepository implements StockMovementRepository {
   constructor(private readonly pool: Pool) {}
@@ -59,11 +67,13 @@ export class PgStockMovementRepository implements StockMovementRepository {
          (company_id, no, kind, sub_type, date, warehouse_id, from_warehouse_id,
           to_warehouse_id, material_id, qty, unit, factor, base_unit, base_qty,
           unit_price, unit_cost_base, total, lots, location_id, party_id, person,
-          doc_no, note, created_by, created_at)
+          doc_no, note, created_by, created_at,
+          currency, fx_rate, fx_rate_source, fx_rate_date, total_try)
        VALUES ($1, $2, $3, $4, $5, $6, $7,
                $8, $9, $10, $11, $12, $13, $14,
                $15, $16, $17, $18::jsonb, $19, $20, $21,
-               $22, $23, $24, $25)
+               $22, $23, $24, $25,
+               $26, $27, $28, $29, $30)
        RETURNING ${MOVEMENT_COLS}`,
       [
         movement.companyId,
@@ -91,6 +101,11 @@ export class PgStockMovementRepository implements StockMovementRepository {
         movement.note,
         movement.createdBy,
         movement.createdAt,
+        movement.fx.toRow().currency,
+        movement.fx.toRow().fx_rate,
+        movement.fx.toRow().fx_rate_source,
+        movement.fx.toRow().fx_rate_date,
+        movement.totalTRY,
       ],
     );
     return rowToMovement(r.rows[0]!);
@@ -232,5 +247,9 @@ function rowToMovement(row: MovementRow): StockMovement {
     note: row.note,
     createdBy: row.created_by,
     createdAt: row.created_at,
+    fx: FxInfo.fromRow(row),
+    ...(row.total_try !== null && row.total_try !== undefined
+      ? { totalTRY: Number(row.total_try) }
+      : {}),
   });
 }

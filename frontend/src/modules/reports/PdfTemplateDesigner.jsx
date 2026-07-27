@@ -9,7 +9,7 @@ import React, { useMemo } from 'react';
 
 import { buildReportHtml } from './buildReportHtml.js';
 
-export function PdfTemplateDesigner({ result, viz, layout, onLayout, lang = 'tr' }) {
+export function PdfTemplateDesigner({ result, viz, layout, onLayout, lang = 'tr', money }) {
   const L = layout || {};
   const m = L.margins || { top: 18, right: 18, bottom: 18, left: 18 };
   const set = (patch) => onLayout({ ...L, ...patch });
@@ -20,8 +20,8 @@ export function PdfTemplateDesigner({ result, viz, layout, onLayout, lang = 'tr'
 
   const allKeys = result.columns.map((c) => c.key);
   const html = useMemo(
-    () => buildReportHtml({ result, viz, layout: L, lang }),
-    [result, viz, L, lang],
+    () => buildReportHtml({ result, viz, layout: L, lang, money }),
+    [result, viz, L, lang, money],
   );
 
   const printIt = () => {

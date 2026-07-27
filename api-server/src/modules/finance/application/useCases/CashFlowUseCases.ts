@@ -4,6 +4,7 @@
  * + kasa yazma-cutover'ı için ListKasaEntries / UpdateKasaEntry /
  *   DeleteKasaEntry (FE düzenleme/silme akışı).
  */
+import { FxInfo } from '../../../../shared/fx/FxInfo.js';
 import { KasaEntry } from '../../domain/entities/KasaEntry.js';
 import { Transfer } from '../../domain/entities/Transfer.js';
 import {
@@ -43,6 +44,14 @@ export interface RecordKasaEntryInput {
   category?: string | null;
   cashflowCatId?: number | null;
   actorUserId: number | null;
+  /**
+   * DÖVİZ (051): hareket dövizli girildiyse kur bilgisi. Verilmezse hareket
+   * kasa hesabının para birimindedir ve TRY karşılığı = tutarın kendisidir.
+   */
+  currency?: string | null;
+  fxRate?: number | null;
+  fxRateSource?: string | null;
+  fxRateDate?: string | null;
 }
 
 export class RecordKasaEntryUseCase {
@@ -58,12 +67,20 @@ export class RecordKasaEntryUseCase {
       throw new KasaAccountNotFoundError(input.kasaAccountId);
     }
     const now = this.clock.now();
+    // DÖVİZ: gövdede para birimi verilmezse kasa hesabınınki kullanılır.
+    // Kullanılan kur kayda DONDURULUR; amountTRY raporların otoriter TRY tutarı.
+    const fx = FxInfo.fromInput({
+      currency: input.currency ?? account.currency,
+      fxRate: input.fxRate,
+      fxRateSource: input.fxRateSource,
+      fxRateDate: input.fxRateDate ?? input.date,
+    });
     const entry = KasaEntry.create({
       id: null,
       kasaAccountId: input.kasaAccountId,
       date: input.date,
       type: input.type,
-      amount: Money.fromMajor(input.amount, account.currency),
+      amount: Money.fromMajor(input.amount, fx.currency),
       description: input.description ?? null,
       category: input.category ?? null,
       cashflowCatId: input.cashflowCatId ?? null,
@@ -72,6 +89,8 @@ export class RecordKasaEntryUseCase {
       createdBy: input.actorUserId,
       createdAt: now,
       updatedAt: now,
+      fx,
+      amountTRY: fx.toTRY(input.amount),
     });
     const persisted = await this.entries.insert(entry);
     return toKasaEntryDto(persisted);
@@ -115,6 +134,11 @@ export interface UpdateKasaEntryInput {
   description?: string | null;
   category?: string | null;
   cashflowCatId?: number | null;
+  /** DÖVİZ (051): verilirse kaydın kuru güncellenir; verilmezse donmuş kur korunur. */
+  currency?: string | null;
+  fxRate?: number | null;
+  fxRateSource?: string | null;
+  fxRateDate?: string | null;
 }
 
 export class UpdateKasaEntryUseCase {
@@ -146,13 +170,30 @@ export class UpdateKasaEntryUseCase {
     }
 
     const amountMajor = input.amount !== undefined ? input.amount : entry.amount.toMajor();
+    // DÖVİZ: gövdede kur alanı gelmediyse hareketin DONDURULMUŞ kuru korunur;
+    // kasa hesabı değiştiyse ve hareket dövizli değilse hedef kasanın birimi geçerlidir.
+    const fxTouched =
+      input.currency !== undefined ||
+      input.fxRate !== undefined ||
+      input.fxRateSource !== undefined ||
+      input.fxRateDate !== undefined;
+    const fx = fxTouched
+      ? FxInfo.fromInput({
+          currency: input.currency ?? entry.fx.currency,
+          fxRate: input.fxRate ?? entry.fx.rate,
+          fxRateSource: input.fxRateSource ?? entry.fx.source,
+          fxRateDate: input.fxRateDate ?? entry.fx.rateDate ?? input.date ?? entry.date,
+        })
+      : entry.fx.isForeign
+        ? entry.fx
+        : FxInfo.fromInput({ currency: account.currency });
     const updated = KasaEntry.create({
       id: entry.id,
       kasaAccountId: account.id,
       date: input.date ?? entry.date,
       type: input.type ?? entry.type,
-      // Tutar hedef kasanın para biriminde (kasa değişince birim de değişir).
-      amount: Money.fromMajor(amountMajor, account.currency),
+      // Tutar hareketin kendi para biriminde (dövizsizse hedef kasanınki).
+      amount: Money.fromMajor(amountMajor, fx.currency),
       description: input.description !== undefined ? input.description : entry.description,
       category: input.category !== undefined ? input.category : entry.category,
       cashflowCatId: input.cashflowCatId !== undefined ? input.cashflowCatId : entry.cashflowCatId,
@@ -161,6 +202,8 @@ export class UpdateKasaEntryUseCase {
       createdBy: entry.createdBy,
       createdAt: this.clock.now(),
       updatedAt: this.clock.now(),
+      fx,
+      amountTRY: fx.toTRY(amountMajor),
     });
     await this.entries.update(updated);
     return toKasaEntryDto(updated);

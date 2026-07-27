@@ -291,6 +291,11 @@ const recordMovementSchema = z.object({
   person: z.string().max(200).nullable().optional(),
   docNo: z.string().max(120).nullable().optional(),
   note: z.string().nullable().optional(),
+  // DÖVİZ (051): dövizli alım — kullanılan kur kayda dondurulur.
+  currency: z.enum(['TRY', 'USD', 'EUR']).optional(),
+  fxRate: z.number().positive().nullable().optional(),
+  fxRateSource: z.enum(['manual', 'tcmb']).nullable().optional(),
+  fxRateDate: dateStr.nullable().optional(),
 });
 
 // --- Aux statuses ---------------------------------------------------------

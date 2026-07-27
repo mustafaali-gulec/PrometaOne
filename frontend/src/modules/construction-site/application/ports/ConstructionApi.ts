@@ -211,6 +211,10 @@ export interface CreateExpenseBody {
   amount: number;
   currency?: CurrencyCode;
   spentAt: string;
+  /** DÖVİZ (004): kayda dondurulacak kur — manuel ya da TCMB. */
+  fxRate?: number | null;
+  fxRateSource?: 'manual' | 'tcmb' | null;
+  fxRateDate?: string | null;
 }
 export interface UpdateExpenseBody {
   companyId: number;

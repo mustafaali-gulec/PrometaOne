@@ -21,6 +21,10 @@ export interface NewPurchaseRequestInput {
   justification: string | null;
   requiredBy: Date | null;
   items: ReadonlyArray<PurchaseRequestItem>;
+  /** DÖVİZ (051): kayda dondurulacak kur. Verilmezse kur bilinmiyor kabul edilir. */
+  fxRate?: number | null;
+  fxRateSource?: string | null;
+  fxRateDate?: string | null;
 }
 
 export interface ListPurchaseRequestsOptions {
