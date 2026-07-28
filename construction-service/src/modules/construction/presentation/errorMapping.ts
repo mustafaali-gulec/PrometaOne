@@ -13,6 +13,9 @@ import {
   CashMovementNotFoundError,
   ContractNotFoundError,
   ConstructionValidationError,
+  DailyLogEntryNotFoundError,
+  DailyLogLockedError,
+  DailyLogNotFoundError,
   DuplicateContractNoError,
   DuplicateLocationCodeError,
   DuplicateMachineCodeError,
@@ -68,7 +71,9 @@ export function mapConstructionError(err: unknown): never {
     err instanceof LocationNotFoundError ||
     err instanceof ProgressTemplateNotFoundError ||
     err instanceof TrackingNotFoundError ||
-    err instanceof TrackingItemNotFoundError
+    err instanceof TrackingItemNotFoundError ||
+    err instanceof DailyLogNotFoundError ||
+    err instanceof DailyLogEntryNotFoundError
   ) {
     throw new HTTPException(404, { message: err.message });
   }
@@ -89,7 +94,7 @@ export function mapConstructionError(err: unknown): never {
 
   // Bağlı kayıt yüzünden silinemeyen lokasyon bir çatışmadır (409), geçersiz
   // istek değil: istemci önce bağlı kayıtları taşımalı/temizlemeli.
-  if (err instanceof LocationInUseError) {
+  if (err instanceof LocationInUseError || err instanceof DailyLogLockedError) {
     throw new HTTPException(409, { message: err.message });
   }
 

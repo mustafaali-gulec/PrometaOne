@@ -19,6 +19,21 @@ import {
   UpdateContractUseCase,
 } from './application/useCases/ContractUseCases.js';
 import {
+  AddDailyLogCommentUseCase,
+  AddDailyLogFileUseCase,
+  ChangeDailyLogStatusUseCase,
+  DeleteDailyLogEntryUseCase,
+  DeleteDailyLogFileUseCase,
+  GetDailyLogDayUseCase,
+  GetDailyLogMonthUseCase,
+  GetManpowerReportUseCase,
+  GetMaterialConsumptionUseCase,
+  GetProductionActualsUseCase,
+  GetSafetySummaryUseCase,
+  SaveDailyLogEntryUseCase,
+  UpdateDailyLogUseCase,
+} from './application/useCases/DailyLogUseCases.js';
+import {
   CreateAdvanceUseCase,
   CreateCashMovementUseCase,
   CreateExpenseUseCase,
@@ -135,6 +150,7 @@ import {
 } from './application/useCases/TrackingUseCases.js';
 import { PgBoqRepository } from './infrastructure/persistence/PgBoqRepository.js';
 import { PgContractRepository } from './infrastructure/persistence/PgContractRepository.js';
+import { PgDailyLogRepository } from './infrastructure/persistence/PgDailyLogRepository.js';
 import {
   PgAdvanceRepository,
   PgCashMovementRepository,
@@ -197,6 +213,7 @@ export function registerConstructionModule(
   const locations = new PgLocationRepository(pool);
   const progressTemplates = new PgProgressTemplateRepository(pool);
   const trackings = new PgTrackingRepository(pool);
+  const dailyLogs = new PgDailyLogRepository(pool);
 
   const deps: ConstructionRouterDeps = {
     createProject: new CreateProjectUseCase(projects),
@@ -310,6 +327,22 @@ export function registerConstructionModule(
     removeTrackingLocation: new RemoveTrackingLocationUseCase(trackings),
     syncTrackingWithTemplate: new SyncTrackingWithTemplateUseCase(trackings),
     getProjectPhysicalProgress: new GetProjectPhysicalProgressUseCase(trackings, projects, clock),
+
+    // FAZ 3 — Şantiye günlüğü. saveDailyLogEntry puantaj/makine köprülerini
+    // kurduğu için timesheets ve machineLogs repo'larını da alır.
+    getDailyLogMonth: new GetDailyLogMonthUseCase(dailyLogs),
+    getDailyLogDay: new GetDailyLogDayUseCase(dailyLogs, projects),
+    updateDailyLog: new UpdateDailyLogUseCase(dailyLogs, clock),
+    changeDailyLogStatus: new ChangeDailyLogStatusUseCase(dailyLogs, clock),
+    saveDailyLogEntry: new SaveDailyLogEntryUseCase(dailyLogs, timesheets, machineLogs),
+    deleteDailyLogEntry: new DeleteDailyLogEntryUseCase(dailyLogs),
+    addDailyLogFile: new AddDailyLogFileUseCase(dailyLogs),
+    deleteDailyLogFile: new DeleteDailyLogFileUseCase(dailyLogs),
+    addDailyLogComment: new AddDailyLogCommentUseCase(dailyLogs),
+    getManpowerReport: new GetManpowerReportUseCase(dailyLogs),
+    getSafetySummary: new GetSafetySummaryUseCase(dailyLogs),
+    getProductionActuals: new GetProductionActualsUseCase(dailyLogs),
+    getMaterialConsumption: new GetMaterialConsumptionUseCase(dailyLogs),
   };
 
   return createConstructionRouter(deps);

@@ -228,6 +228,26 @@ export class InvalidTrackingScopeError extends ConstructionError {
   }
 }
 
+// ---- FAZ 3: Şantiye günlüğü ------------------------------------------------
+
+export class DailyLogNotFoundError extends ConstructionError {
+  constructor(idOrDate: number | string) {
+    super(`Şantiye günlüğü bulunamadı: ${idOrDate}`);
+  }
+}
+
+export class DailyLogLockedError extends ConstructionError {
+  constructor(logDate: string) {
+    super(`Bu günün raporu kilitli (${logDate}) — değişiklik için önce kilidi açın`);
+  }
+}
+
+export class DailyLogEntryNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Günlük rapor kaydı bulunamadı: ${id}`);
+  }
+}
+
 export class InvalidStatusTransitionError extends ConstructionError {
   constructor(from: string, to: string) {
     super(`Geçersiz statü geçişi: '${from}' → '${to}'`);

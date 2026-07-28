@@ -10,12 +10,28 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 
 import { authMiddleware, companyScopeGuard, requireRole } from '../../../middleware/auth.js';
+import { kindSpecDto } from '../application/dto/DailyLogDtos.js';
 import type { GetBoqUseCase, SaveBoqLinesUseCase } from '../application/useCases/BoqUseCases.js';
 import type {
   CreateContractUseCase,
   ListContractsUseCase,
   UpdateContractUseCase,
 } from '../application/useCases/ContractUseCases.js';
+import type {
+  AddDailyLogCommentUseCase,
+  AddDailyLogFileUseCase,
+  ChangeDailyLogStatusUseCase,
+  DeleteDailyLogEntryUseCase,
+  DeleteDailyLogFileUseCase,
+  GetDailyLogDayUseCase,
+  GetDailyLogMonthUseCase,
+  GetManpowerReportUseCase,
+  GetMaterialConsumptionUseCase,
+  GetProductionActualsUseCase,
+  GetSafetySummaryUseCase,
+  SaveDailyLogEntryUseCase,
+  UpdateDailyLogUseCase,
+} from '../application/useCases/DailyLogUseCases.js';
 import type {
   CreateAdvanceUseCase,
   CreateCashMovementUseCase,
@@ -131,6 +147,7 @@ import type {
   UpdateProgressTemplateUseCase,
   UpdateTrackingUseCase,
 } from '../application/useCases/TrackingUseCases.js';
+import { LOG_ENTRY_KINDS } from '../domain/valueObjects/DailyLogKind.js';
 
 import { mapConstructionError } from './errorMapping.js';
 
@@ -238,6 +255,20 @@ export interface ConstructionRouterDeps {
   removeTrackingLocation: RemoveTrackingLocationUseCase;
   syncTrackingWithTemplate: SyncTrackingWithTemplateUseCase;
   getProjectPhysicalProgress: GetProjectPhysicalProgressUseCase;
+  // FAZ 3 — Şantiye günlüğü
+  getDailyLogMonth: GetDailyLogMonthUseCase;
+  getDailyLogDay: GetDailyLogDayUseCase;
+  updateDailyLog: UpdateDailyLogUseCase;
+  changeDailyLogStatus: ChangeDailyLogStatusUseCase;
+  saveDailyLogEntry: SaveDailyLogEntryUseCase;
+  deleteDailyLogEntry: DeleteDailyLogEntryUseCase;
+  addDailyLogFile: AddDailyLogFileUseCase;
+  deleteDailyLogFile: DeleteDailyLogFileUseCase;
+  addDailyLogComment: AddDailyLogCommentUseCase;
+  getManpowerReport: GetManpowerReportUseCase;
+  getSafetySummary: GetSafetySummaryUseCase;
+  getProductionActuals: GetProductionActualsUseCase;
+  getMaterialConsumption: GetMaterialConsumptionUseCase;
 }
 
 // --- Schema fragmanları ---------------------------------------------------
@@ -269,6 +300,22 @@ const locationKind = z.enum(['site', 'block', 'floor', 'unit', 'zone']);
 const trackScope = z.enum(['general', 'block', 'floor', 'unit']);
 const trackingStatus = z.enum(['draft', 'active', 'completed', 'cancelled']);
 const itemState = z.enum(['not_started', 'in_progress', 'has_defects', 'completed']);
+// FAZ 3 fragmanları
+const workState = z.enum(['working', 'not_working', 'partial']);
+const logEntryKind = z.enum([
+  'subcontractor',
+  'personnel',
+  'equipment',
+  'note',
+  'delivery',
+  'accident',
+  'material_used',
+  'production',
+  'fuel',
+  'maintenance',
+  'visitor',
+]);
+const accidentSeverity = z.enum(['near_miss', 'first_aid', 'medical', 'lost_time', 'fatal']);
 const pct = z.number().min(0).max(100);
 const templateBodySchema = z.object({
   groups: z.array(
@@ -2706,6 +2753,383 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
             ...(q.asOf !== undefined ? { asOf: q.asOf } : {}),
           }),
         );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 3 — DAILY LOG (Şantiye Günlüğü) ===============================
+
+  /** Ay takvimi: her günün toplamları (takvim hücresi göstergeleri). */
+  app.get(
+    '/projects/:id/daily-logs',
+    zValidator('param', idParam),
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        year: z.coerce.number().int().min(2000).max(2200),
+        month: z.coerce.number().int().min(1).max(12),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getDailyLogMonth.execute({
+            companyId: q.companyId,
+            projectId: id,
+            year: q.year,
+            month: q.month,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * Bir günün tam görünümü. create=true ise gün başlığı yoksa açılır — takvimde
+   * bir güne tıklamak zaten kayıt girme niyetidir. Gün yoksa ve create=false ise
+   * 204 döner (404 değil: "o gün henüz doldurulmadı" bir hata değil).
+   */
+  app.get(
+    '/projects/:id/daily-logs/:logDate',
+    zValidator('param', z.object({ id: z.coerce.number().int().positive(), logDate: dateStr })),
+    zValidator('query', companyIdQ.extend({ create: z.coerce.boolean().optional() })),
+    async (c) => {
+      const p = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const day = await deps.getDailyLogDay.execute({
+          companyId: q.companyId,
+          projectId: p.id,
+          logDate: p.logDate,
+          ...(q.create !== undefined ? { create: q.create } : {}),
+          createdBy: actorId(c),
+        });
+        if (day === null) return c.body(null, 204);
+        return c.json(day);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/daily-logs/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        workState: workState.optional(),
+        tempC: z.number().nullable().optional(),
+        weatherNote: z.string().max(200).nullable().optional(),
+        noWorkReason: z.string().max(200).nullable().optional(),
+        summary: z.string().max(8000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateDailyLog.execute({ logId: id, ...b }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * Gün kilidi. KİLİTLEME editor'a açık (raporu kapatan saha ekibidir), KİLİT
+   * AÇMA yönetici ister: kapanmış bir günü yeniden açmak raporun kanıt değerine
+   * dokunur, bunu şantiye şefi tek başına yapmamalı.
+   */
+  app.post(
+    '/daily-logs/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        status: z.enum(['open', 'locked']),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      if (b.status === 'open' && !canApprove(actorRole(c))) {
+        return c.json({ message: 'Kilit açmak için yönetici yetkisi gerekir' }, 403);
+      }
+      try {
+        return c.json(
+          await deps.changeDailyLogStatus.execute({
+            logId: id,
+            companyId: b.companyId,
+            status: b.status,
+            actorUserId: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Kayıt tipi tarifleri — arayüz form alanlarını buna göre kurar. */
+  app.get('/daily-log-kinds', (c) => {
+    return c.json({ kinds: LOG_ENTRY_KINDS.map((k) => kindSpecDto(k)) });
+  });
+
+  /** Satır ekle/güncelle (entryId varsa güncelleme). */
+  app.put(
+    '/daily-logs/:id/entries',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        entryId: z.number().int().positive().optional(),
+        kind: logEntryKind,
+        locationId: z.number().int().positive().nullable().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        personnelId: z.number().int().positive().nullable().optional(),
+        machineId: z.number().int().positive().nullable().optional(),
+        materialId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        trackingItemId: z.number().int().positive().nullable().optional(),
+        crewName: z.string().max(100).nullable().optional(),
+        personName: z.string().max(200).nullable().optional(),
+        description: z.string().max(1000).nullable().optional(),
+        headcount: z.number().int().nonnegative().nullable().optional(),
+        hours: z.number().nonnegative().nullable().optional(),
+        idleHours: z.number().nonnegative().nullable().optional(),
+        qty: z.number().nonnegative().nullable().optional(),
+        unit: z.string().max(20).nullable().optional(),
+        amount: z.number().nonnegative().nullable().optional(),
+        currency: currency.optional(),
+        waybillNo: z.string().max(60).nullable().optional(),
+        occurredAt: z
+          .string()
+          .regex(/^\d{2}:\d{2}(:\d{2})?$/)
+          .nullable()
+          .optional(),
+        severity: accidentSeverity.nullable().optional(),
+        lostDays: z.number().int().nonnegative().nullable().optional(),
+        sortOrder: z.number().int().nonnegative().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.saveDailyLogEntry.execute({
+          logId: id,
+          ...b,
+          createdBy: actorId(c),
+        });
+        return c.json(dto, b.entryId === undefined ? 201 : 200);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/daily-log-entries/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deleteDailyLogEntry.execute({ entryId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/daily-logs/:id/files',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z
+        .object({
+          companyId: z.number().int().positive(),
+          entryId: z.number().int().positive().nullable().optional(),
+          fileKind: z.enum(['photo', 'doc']).optional(),
+          title: z.string().max(300).nullable().optional(),
+          fileUrl: z.string().max(1000).nullable().optional(),
+          contentBase64: z.string().nullable().optional(),
+          mimeType: z.string().max(100).nullable().optional(),
+        })
+        // DB CHECK'i ile aynı kural, istemciye 400 olarak erken döner
+        .refine((v) => (v.fileUrl ?? null) !== null || (v.contentBase64 ?? null) !== null, {
+          message: 'fileUrl veya contentBase64 zorunlu',
+        }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.addDailyLogFile.execute({
+          companyId: b.companyId,
+          logId: id,
+          entryId: b.entryId ?? null,
+          fileKind: b.fileKind ?? 'photo',
+          title: b.title ?? null,
+          fileUrl: b.fileUrl ?? null,
+          contentBase64: b.contentBase64 ?? null,
+          mimeType: b.mimeType ?? null,
+          createdBy: actorId(c),
+        });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/daily-log-files/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deleteDailyLogFile.execute({ fileId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/daily-logs/:id/comments',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        entryId: z.number().int().positive().nullable().optional(),
+        body: z.string().min(1).max(2000),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.addDailyLogComment.execute({
+          companyId: b.companyId,
+          logId: id,
+          entryId: b.entryId ?? null,
+          body: b.body,
+          createdBy: actorId(c),
+        });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** İş gücü raporu — adam-gün eğrisi. */
+  app.get(
+    '/projects/:id/manpower',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ fromDate: dateStr, toDate: dateStr })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getManpowerReport.execute({
+            companyId: q.companyId,
+            projectId: id,
+            fromDate: q.fromDate,
+            toDate: q.toDate,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** İSG özeti — kaza sıklık ve ağırlık oranları. */
+  app.get(
+    '/projects/:id/safety-summary',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ fromDate: dateStr, toDate: dateStr })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getSafetySummary.execute({
+            companyId: q.companyId,
+            projectId: id,
+            fromDate: q.fromDate,
+            toDate: q.toDate,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Keşif satırı bazında günlükten gelen gerçekleşen imalat. */
+  app.get(
+    '/projects/:id/production-actuals',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const rows = await deps.getProductionActuals.execute({
+          companyId: q.companyId,
+          projectId: id,
+        });
+        return c.json({ rows });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Mekân × malzeme tüketimi (fire analizi girdisi). */
+  app.get(
+    '/projects/:id/material-consumption',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const rows = await deps.getMaterialConsumption.execute({
+          companyId: q.companyId,
+          projectId: id,
+        });
+        return c.json({ rows });
       } catch (err) {
         mapConstructionError(err);
       }
