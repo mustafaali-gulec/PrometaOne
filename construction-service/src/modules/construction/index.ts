@@ -105,6 +105,12 @@ import {
   UpdateMeasurementUseCase,
 } from './application/useCases/MeasurementUseCases.js';
 import {
+  GetContractPerformanceUseCase,
+  GetProjectManhourSummariesUseCase,
+  GetProjectPerformanceUseCase,
+  SetUnitManhoursUseCase,
+} from './application/useCases/PerformanceUseCases.js';
+import {
   CreatePozUseCase,
   DeactivatePozUseCase,
   ListPozUseCase,
@@ -175,6 +181,7 @@ import {
   PgAttachmentRepository,
   PgMeasurementBookRepository,
 } from './infrastructure/persistence/PgMeasurementRepositories.js';
+import { PgPerformanceRepository } from './infrastructure/persistence/PgPerformanceRepository.js';
 import { PgPozCatalogRepository } from './infrastructure/persistence/PgPozCatalogRepository.js';
 import { PgProgressPaymentRepository } from './infrastructure/persistence/PgProgressPaymentRepository.js';
 import { PgProjectRepository } from './infrastructure/persistence/PgProjectRepository.js';
@@ -214,6 +221,7 @@ export function registerConstructionModule(
   const progressTemplates = new PgProgressTemplateRepository(pool);
   const trackings = new PgTrackingRepository(pool);
   const dailyLogs = new PgDailyLogRepository(pool);
+  const performance = new PgPerformanceRepository(pool);
 
   const deps: ConstructionRouterDeps = {
     createProject: new CreateProjectUseCase(projects),
@@ -343,6 +351,12 @@ export function registerConstructionModule(
     getSafetySummary: new GetSafetySummaryUseCase(dailyLogs),
     getProductionActuals: new GetProductionActualsUseCase(dailyLogs),
     getMaterialConsumption: new GetMaterialConsumptionUseCase(dailyLogs),
+
+    // FAZ 4 — Adam×saat & verimlilik (poz bazlı işçilik performansı)
+    getContractPerformance: new GetContractPerformanceUseCase(performance, contracts),
+    getProjectPerformance: new GetProjectPerformanceUseCase(performance, projects),
+    getProjectManhourSummaries: new GetProjectManhourSummariesUseCase(performance, projects),
+    setUnitManhours: new SetUnitManhoursUseCase(performance, contracts),
   };
 
   return createConstructionRouter(deps);

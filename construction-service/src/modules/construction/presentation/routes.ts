@@ -104,6 +104,12 @@ import type {
   UpdateMeasurementUseCase,
 } from '../application/useCases/MeasurementUseCases.js';
 import type {
+  GetContractPerformanceUseCase,
+  GetProjectManhourSummariesUseCase,
+  GetProjectPerformanceUseCase,
+  SetUnitManhoursUseCase,
+} from '../application/useCases/PerformanceUseCases.js';
+import type {
   CreatePozUseCase,
   DeactivatePozUseCase,
   ListPozUseCase,
@@ -269,6 +275,11 @@ export interface ConstructionRouterDeps {
   getSafetySummary: GetSafetySummaryUseCase;
   getProductionActuals: GetProductionActualsUseCase;
   getMaterialConsumption: GetMaterialConsumptionUseCase;
+  // FAZ 4 — Adam×saat & verimlilik
+  getContractPerformance: GetContractPerformanceUseCase;
+  getProjectPerformance: GetProjectPerformanceUseCase;
+  getProjectManhourSummaries: GetProjectManhourSummariesUseCase;
+  setUnitManhours: SetUnitManhoursUseCase;
 }
 
 // --- Schema fragmanları ---------------------------------------------------
@@ -3130,6 +3141,101 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
           projectId: id,
         });
         return c.json({ rows });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 4 — PERFORMANCE (Adam×saat & verimlilik) ======================
+
+  /** Sözleşme bazlı poz performans tablosu + ağırlıklı özet. */
+  app.get(
+    '/contracts/:id/performance',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getContractPerformance.execute({ contractId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Proje geneli poz performansı (tüm sözleşmeler). */
+  app.get(
+    '/projects/:id/performance',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getProjectPerformance.execute({ projectId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Sözleşme bazlı adam×saat özetleri (proje panelinde kart listesi). */
+  app.get(
+    '/projects/:id/manhour-summaries',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const summaries = await deps.getProjectManhourSummaries.execute({
+          projectId: id,
+          companyId: q.companyId,
+        });
+        return c.json({ summaries });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Birim adam×saat toplu girişi. Keşifteki diğer alanlara dokunmaz. */
+  app.put(
+    '/contracts/:id/unit-manhours',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        updates: z
+          .array(
+            z.object({
+              boqLineId: z.number().int().positive(),
+              unitManhours: z.number().nonnegative(),
+            }),
+          )
+          .min(1)
+          .max(2000),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.setUnitManhours.execute({
+            contractId: id,
+            companyId: b.companyId,
+            updates: b.updates,
+          }),
+        );
       } catch (err) {
         mapConstructionError(err);
       }
