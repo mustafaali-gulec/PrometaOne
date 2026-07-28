@@ -187,7 +187,128 @@ export type CsLabelKey =
   | 'cs.pp.trackingCount'
   | 'cs.pp.breakdown'
   | 'cs.pp.contribution'
-  | 'cs.pp.noTrackings';
+  | 'cs.pp.noTrackings'
+  // Şantiye günlüğü (Faz 3)
+  | 'cs.dlog.title'
+  | 'cs.dlog.subtitle'
+  | 'cs.dlog.calendar'
+  | 'cs.dlog.prevMonth'
+  | 'cs.dlog.nextMonth'
+  | 'cs.dlog.today'
+  | 'cs.dlog.backToCalendar'
+  | 'cs.dlog.noDay'
+  | 'cs.dlog.createDay'
+  | 'cs.dlog.workState'
+  | 'cs.dlog.workState.working'
+  | 'cs.dlog.workState.notWorking'
+  | 'cs.dlog.workState.partial'
+  | 'cs.dlog.temp'
+  | 'cs.dlog.weatherNote'
+  | 'cs.dlog.noWorkReason'
+  | 'cs.dlog.noWorkReasonRequired'
+  | 'cs.dlog.summary'
+  | 'cs.dlog.lock'
+  | 'cs.dlog.unlock'
+  | 'cs.dlog.lockConfirm'
+  | 'cs.dlog.unlockConfirm'
+  | 'cs.dlog.lockedBanner'
+  | 'cs.dlog.lockedAt'
+  | 'cs.dlog.saveHeader'
+  | 'cs.dlog.addEntry'
+  | 'cs.dlog.deleteEntryConfirm'
+  | 'cs.dlog.reqFieldsHint'
+  | 'cs.dlog.files'
+  | 'cs.dlog.addFile'
+  | 'cs.dlog.fileUrl'
+  | 'cs.dlog.fileTitle'
+  | 'cs.dlog.noFiles'
+  | 'cs.dlog.comments'
+  | 'cs.dlog.addComment'
+  | 'cs.dlog.commentPlaceholder'
+  | 'cs.dlog.noComments'
+  | 'cs.dlog.commentOnLockedHint'
+  // Gün toplamları
+  | 'cs.dlog.tot.ownHeadcount'
+  | 'cs.dlog.tot.subHeadcount'
+  | 'cs.dlog.tot.hours'
+  | 'cs.dlog.tot.equipHours'
+  | 'cs.dlog.tot.accidents'
+  | 'cs.dlog.tot.production'
+  | 'cs.dlog.tot.delivery'
+  | 'cs.dlog.tot.entries'
+  // Kayıt tipleri
+  | 'cs.dlog.kind.subcontractor'
+  | 'cs.dlog.kind.personnel'
+  | 'cs.dlog.kind.equipment'
+  | 'cs.dlog.kind.note'
+  | 'cs.dlog.kind.delivery'
+  | 'cs.dlog.kind.accident'
+  | 'cs.dlog.kind.material_used'
+  | 'cs.dlog.kind.production'
+  | 'cs.dlog.kind.fuel'
+  | 'cs.dlog.kind.maintenance'
+  | 'cs.dlog.kind.visitor'
+  // Satır alanları
+  | 'cs.dlog.f.vendorId'
+  | 'cs.dlog.f.personnelId'
+  | 'cs.dlog.f.machineId'
+  | 'cs.dlog.f.materialId'
+  | 'cs.dlog.f.boqLineId'
+  | 'cs.dlog.f.trackingItemId'
+  | 'cs.dlog.f.locationId'
+  | 'cs.dlog.f.crewName'
+  | 'cs.dlog.f.personName'
+  | 'cs.dlog.f.description'
+  | 'cs.dlog.f.headcount'
+  | 'cs.dlog.f.hours'
+  | 'cs.dlog.f.idleHours'
+  | 'cs.dlog.f.qty'
+  | 'cs.dlog.f.unit'
+  | 'cs.dlog.f.amount'
+  | 'cs.dlog.f.waybillNo'
+  | 'cs.dlog.f.occurredAt'
+  | 'cs.dlog.f.severity'
+  | 'cs.dlog.f.lostDays'
+  // İSG şiddet
+  | 'cs.dlog.sev.near_miss'
+  | 'cs.dlog.sev.first_aid'
+  | 'cs.dlog.sev.medical'
+  | 'cs.dlog.sev.lost_time'
+  | 'cs.dlog.sev.fatal'
+  // Raporlar
+  | 'cs.dlog.rep.tab.calendar'
+  | 'cs.dlog.rep.tab.manpower'
+  | 'cs.dlog.rep.tab.safety'
+  | 'cs.dlog.rep.tab.production'
+  | 'cs.dlog.rep.range'
+  | 'cs.dlog.rep.from'
+  | 'cs.dlog.rep.to'
+  | 'cs.dlog.mp.title'
+  | 'cs.dlog.mp.ownHours'
+  | 'cs.dlog.mp.subHours'
+  | 'cs.dlog.mp.totalHours'
+  | 'cs.dlog.mp.workedDays'
+  | 'cs.dlog.mp.notWorkedDays'
+  | 'cs.dlog.mp.avgHeadcount'
+  | 'cs.dlog.mp.date'
+  | 'cs.dlog.sf.title'
+  | 'cs.dlog.sf.totalHours'
+  | 'cs.dlog.sf.accidents'
+  | 'cs.dlog.sf.recordable'
+  | 'cs.dlog.sf.nearMiss'
+  | 'cs.dlog.sf.lostDays'
+  | 'cs.dlog.sf.frequencyRate'
+  | 'cs.dlog.sf.severityRate'
+  | 'cs.dlog.sf.rateUndefined'
+  | 'cs.dlog.sf.frequencyHint'
+  | 'cs.dlog.sf.severityHint'
+  | 'cs.dlog.pr.title'
+  | 'cs.dlog.pr.boqLine'
+  | 'cs.dlog.pr.producedQty'
+  | 'cs.dlog.pr.entryCount'
+  | 'cs.dlog.pr.firstDate'
+  | 'cs.dlog.pr.lastDate'
+  | 'cs.dlog.pr.hint';
 
 const DICT: Record<CsLabelKey, Record<Lang, string>> = {
   // ===== ORTAK =============================================================
@@ -916,6 +1037,698 @@ const DICT: Record<CsLabelKey, Record<Lang, string>> = {
     de: 'Der physische Fortschritt wird nicht gemessen — für dieses Projekt ist keine Verfolgung definiert.',
     ar: 'لا يُقاس التقدم المادي — لا توجد متابعة مُعرَّفة لهذا المشروع.',
   },
+
+  // ===== ŞANTİYE GÜNLÜĞÜ (FAZ 3) ===========================================
+  'cs.dlog.title': {
+    tr: 'Şantiye Günlüğü',
+    en: 'Site Daily Log',
+    de: 'Bautagebuch',
+    ar: 'يومية الموقع',
+  },
+  'cs.dlog.subtitle': {
+    tr: 'Günlük rapor hukuki ve teknik bir kayıttır: hangi gün çalışıldı, kim kaç saat çalıştı, ne imal edildi, kaza oldu mu. Rapor kilitlendikten sonra satırlar değiştirilemez.',
+    en: 'The daily report is a legal and technical record: which days were worked, who worked how many hours, what was produced, whether an accident occurred. Once locked, entries cannot be changed.',
+    de: 'Der Tagesbericht ist ein rechtlicher und technischer Nachweis: an welchen Tagen gearbeitet wurde, wer wie viele Stunden arbeitete, was hergestellt wurde, ob ein Unfall geschah. Nach dem Sperren sind Einträge unveränderlich.',
+    ar: 'التقرير اليومي سجل قانوني وفني: في أي يوم تم العمل، ومن عمل كم ساعة، وما تم إنتاجه، وهل وقع حادث. بعد القفل لا يمكن تغيير السجلات.',
+  },
+  'cs.dlog.calendar': {
+    tr: 'Takvim',
+    en: 'Calendar',
+    de: 'Kalender',
+    ar: 'التقويم',
+  },
+  'cs.dlog.prevMonth': {
+    tr: 'Önceki ay',
+    en: 'Previous month',
+    de: 'Vorheriger Monat',
+    ar: 'الشهر السابق',
+  },
+  'cs.dlog.nextMonth': {
+    tr: 'Sonraki ay',
+    en: 'Next month',
+    de: 'Nächster Monat',
+    ar: 'الشهر التالي',
+  },
+  'cs.dlog.today': {
+    tr: 'Bugün',
+    en: 'Today',
+    de: 'Heute',
+    ar: 'اليوم',
+  },
+  'cs.dlog.backToCalendar': {
+    tr: '← Takvim',
+    en: '← Calendar',
+    de: '← Kalender',
+    ar: '← التقويم',
+  },
+  'cs.dlog.noDay': {
+    tr: 'Bu gün için henüz rapor açılmadı.',
+    en: 'No report has been opened for this day yet.',
+    de: 'Für diesen Tag wurde noch kein Bericht angelegt.',
+    ar: 'لم يُفتح تقرير لهذا اليوم بعد.',
+  },
+  'cs.dlog.createDay': {
+    tr: 'Bu günün raporunu aç',
+    en: 'Open this day’s report',
+    de: 'Bericht für diesen Tag anlegen',
+    ar: 'افتح تقرير هذا اليوم',
+  },
+  'cs.dlog.workState': {
+    tr: 'Çalışma durumu',
+    en: 'Work state',
+    de: 'Arbeitsstatus',
+    ar: 'حالة العمل',
+  },
+  'cs.dlog.workState.working': {
+    tr: 'Çalışıldı',
+    en: 'Worked',
+    de: 'Gearbeitet',
+    ar: 'تم العمل',
+  },
+  'cs.dlog.workState.notWorking': {
+    tr: 'Çalışılmadı',
+    en: 'Not worked',
+    de: 'Nicht gearbeitet',
+    ar: 'لم يتم العمل',
+  },
+  'cs.dlog.workState.partial': {
+    tr: 'Yarım gün',
+    en: 'Half day',
+    de: 'Halber Tag',
+    ar: 'نصف يوم',
+  },
+  'cs.dlog.temp': {
+    tr: 'Sıcaklık (°C)',
+    en: 'Temperature (°C)',
+    de: 'Temperatur (°C)',
+    ar: 'درجة الحرارة (°م)',
+  },
+  'cs.dlog.weatherNote': {
+    tr: 'Hava notu',
+    en: 'Weather note',
+    de: 'Wetternotiz',
+    ar: 'ملاحظة الطقس',
+  },
+  'cs.dlog.noWorkReason': {
+    tr: 'Çalışılmama gerekçesi',
+    en: 'Reason for no work',
+    de: 'Grund für Arbeitsausfall',
+    ar: 'سبب عدم العمل',
+  },
+  'cs.dlog.noWorkReasonRequired': {
+    tr: 'Çalışılmayan gün için gerekçe zorunludur — hakediş süre uzatımı taleplerinde delil olarak kullanılır.',
+    en: 'A reason is required for a non-working day — it is used as evidence in time-extension claims.',
+    de: 'Für einen Ausfalltag ist eine Begründung erforderlich — sie dient als Nachweis bei Bauzeitverlängerungen.',
+    ar: 'السبب مطلوب ليوم بلا عمل — يُستخدم دليلًا في مطالبات تمديد المدة.',
+  },
+  'cs.dlog.summary': {
+    tr: 'Gün özeti',
+    en: 'Day summary',
+    de: 'Tageszusammenfassung',
+    ar: 'ملخص اليوم',
+  },
+  'cs.dlog.lock': {
+    tr: 'Raporu kilitle',
+    en: 'Lock report',
+    de: 'Bericht sperren',
+    ar: 'قفل التقرير',
+  },
+  'cs.dlog.unlock': {
+    tr: 'Kilidi aç',
+    en: 'Unlock',
+    de: 'Entsperren',
+    ar: 'إلغاء القفل',
+  },
+  'cs.dlog.lockConfirm': {
+    tr: '{date} raporu kilitlenecek. Kilitlendikten sonra satır eklenemez ve değiştirilemez. Onaylıyor musunuz?',
+    en: 'The report for {date} will be locked. After locking, entries cannot be added or changed. Do you confirm?',
+    de: 'Der Bericht für {date} wird gesperrt. Danach können keine Einträge hinzugefügt oder geändert werden. Bestätigen Sie?',
+    ar: 'سيتم قفل تقرير {date}. بعد القفل لا يمكن إضافة أو تغيير السجلات. هل تؤكد؟',
+  },
+  'cs.dlog.unlockConfirm': {
+    tr: '{date} raporunun kilidi açılacak. Kapanmış bir raporu yeniden açmak kanıt değerine dokunur ve iz bırakır. Onaylıyor musunuz?',
+    en: 'The report for {date} will be unlocked. Reopening a closed report affects its evidentiary value and leaves an audit trail. Do you confirm?',
+    de: 'Der Bericht für {date} wird entsperrt. Das Wiederöffnen eines abgeschlossenen Berichts berührt seinen Beweiswert und hinterlässt eine Spur. Bestätigen Sie?',
+    ar: 'سيتم إلغاء قفل تقرير {date}. إعادة فتح تقرير مغلق تمسّ قيمته الإثباتية وتترك أثرًا. هل تؤكد؟',
+  },
+  'cs.dlog.lockedBanner': {
+    tr: 'Bu rapor kilitli — satır eklenemez ve değiştirilemez. Yorum yapmak serbesttir.',
+    en: 'This report is locked — entries cannot be added or changed. Commenting is still allowed.',
+    de: 'Dieser Bericht ist gesperrt — Einträge können nicht hinzugefügt oder geändert werden. Kommentieren ist weiterhin möglich.',
+    ar: 'هذا التقرير مقفل — لا يمكن إضافة أو تغيير السجلات. التعليق مسموح.',
+  },
+  'cs.dlog.lockedAt': {
+    tr: 'Kilitlenme',
+    en: 'Locked at',
+    de: 'Gesperrt am',
+    ar: 'وقت القفل',
+  },
+  'cs.dlog.saveHeader': {
+    tr: 'Gün bilgilerini kaydet',
+    en: 'Save day details',
+    de: 'Tagesangaben speichern',
+    ar: 'حفظ بيانات اليوم',
+  },
+  'cs.dlog.addEntry': {
+    tr: 'Kayıt ekle',
+    en: 'Add entry',
+    de: 'Eintrag hinzufügen',
+    ar: 'إضافة سجل',
+  },
+  'cs.dlog.deleteEntryConfirm': {
+    tr: 'Bu kayıt silinecek. Onaylıyor musunuz?',
+    en: 'This entry will be deleted. Do you confirm?',
+    de: 'Dieser Eintrag wird gelöscht. Bestätigen Sie?',
+    ar: 'سيتم حذف هذا السجل. هل تؤكد؟',
+  },
+  'cs.dlog.reqFieldsHint': {
+    tr: 'Yıldızlı alanlar bu kayıt tipi için zorunludur.',
+    en: 'Starred fields are required for this entry type.',
+    de: 'Mit Stern markierte Felder sind für diesen Eintragstyp erforderlich.',
+    ar: 'الحقول المعلَّمة بنجمة مطلوبة لهذا النوع.',
+  },
+  'cs.dlog.files': {
+    tr: 'Galeri / Ekler',
+    en: 'Gallery / Attachments',
+    de: 'Galerie / Anhänge',
+    ar: 'المعرض / المرفقات',
+  },
+  'cs.dlog.addFile': {
+    tr: 'Ek ekle',
+    en: 'Add attachment',
+    de: 'Anhang hinzufügen',
+    ar: 'إضافة مرفق',
+  },
+  'cs.dlog.fileUrl': {
+    tr: 'Dosya bağlantısı',
+    en: 'File link',
+    de: 'Dateilink',
+    ar: 'رابط الملف',
+  },
+  'cs.dlog.fileTitle': {
+    tr: 'Başlık',
+    en: 'Title',
+    de: 'Titel',
+    ar: 'العنوان',
+  },
+  'cs.dlog.noFiles': {
+    tr: 'Henüz ekli resim veya döküman yok.',
+    en: 'No images or documents attached yet.',
+    de: 'Noch keine Bilder oder Dokumente angehängt.',
+    ar: 'لا صور أو مستندات مرفقة بعد.',
+  },
+  'cs.dlog.comments': {
+    tr: 'Yorumlar',
+    en: 'Comments',
+    de: 'Kommentare',
+    ar: 'التعليقات',
+  },
+  'cs.dlog.addComment': {
+    tr: 'Yorum ekle',
+    en: 'Add comment',
+    de: 'Kommentar hinzufügen',
+    ar: 'إضافة تعليق',
+  },
+  'cs.dlog.commentPlaceholder': {
+    tr: 'Teknik ofis şerhi, saha notu…',
+    en: 'Technical office remark, field note…',
+    de: 'Anmerkung des technischen Büros, Feldnotiz…',
+    ar: 'ملاحظة المكتب الفني، ملاحظة ميدانية…',
+  },
+  'cs.dlog.noComments': {
+    tr: 'Henüz yorum yok.',
+    en: 'No comments yet.',
+    de: 'Noch keine Kommentare.',
+    ar: 'لا تعليقات بعد.',
+  },
+  'cs.dlog.commentOnLockedHint': {
+    tr: 'Kilit veriyi dondurur, yazışmayı değil.',
+    en: 'The lock freezes data, not correspondence.',
+    de: 'Die Sperre friert Daten ein, nicht die Korrespondenz.',
+    ar: 'القفل يجمّد البيانات لا المراسلات.',
+  },
+  'cs.dlog.tot.ownHeadcount': {
+    tr: 'Kendi personeli',
+    en: 'Own staff',
+    de: 'Eigenes Personal',
+    ar: 'الطاقم الذاتي',
+  },
+  'cs.dlog.tot.subHeadcount': {
+    tr: 'Taşeron',
+    en: 'Subcontractor',
+    de: 'Nachunternehmer',
+    ar: 'المقاول',
+  },
+  'cs.dlog.tot.hours': {
+    tr: 'Saat',
+    en: 'Hours',
+    de: 'Stunden',
+    ar: 'ساعات',
+  },
+  'cs.dlog.tot.equipHours': {
+    tr: 'Makine saati',
+    en: 'Machine hours',
+    de: 'Maschinenstunden',
+    ar: 'ساعات الآلات',
+  },
+  'cs.dlog.tot.accidents': {
+    tr: 'Kaza',
+    en: 'Accidents',
+    de: 'Unfälle',
+    ar: 'الحوادث',
+  },
+  'cs.dlog.tot.production': {
+    tr: 'İmalat',
+    en: 'Production',
+    de: 'Herstellung',
+    ar: 'الإنتاج',
+  },
+  'cs.dlog.tot.delivery': {
+    tr: 'Teslimat',
+    en: 'Deliveries',
+    de: 'Lieferungen',
+    ar: 'التسليمات',
+  },
+  'cs.dlog.tot.entries': {
+    tr: 'Kayıt',
+    en: 'Entries',
+    de: 'Einträge',
+    ar: 'السجلات',
+  },
+  'cs.dlog.kind.subcontractor': {
+    tr: 'Taşeron Kayıtları',
+    en: 'Subcontractor Records',
+    de: 'Nachunternehmer-Einträge',
+    ar: 'سجلات المقاولين',
+  },
+  'cs.dlog.kind.personnel': {
+    tr: 'Personel Kayıtları',
+    en: 'Personnel Records',
+    de: 'Personaleinträge',
+    ar: 'سجلات الطاقم',
+  },
+  'cs.dlog.kind.equipment': {
+    tr: 'Ekipman Kayıtları',
+    en: 'Equipment Records',
+    de: 'Geräteeinträge',
+    ar: 'سجلات المعدات',
+  },
+  'cs.dlog.kind.note': {
+    tr: 'Not Kayıtları',
+    en: 'Notes',
+    de: 'Notizen',
+    ar: 'الملاحظات',
+  },
+  'cs.dlog.kind.delivery': {
+    tr: 'Sipariş Teslimat Kayıtları',
+    en: 'Delivery Records',
+    de: 'Lieferungseinträge',
+    ar: 'سجلات التسليم',
+  },
+  'cs.dlog.kind.accident': {
+    tr: 'Kaza Kayıtları (İSG)',
+    en: 'Accident Records (H&S)',
+    de: 'Unfalleinträge (SGA)',
+    ar: 'سجلات الحوادث (السلامة)',
+  },
+  'cs.dlog.kind.material_used': {
+    tr: 'Kullanılan Malzeme',
+    en: 'Materials Used',
+    de: 'Verbrauchtes Material',
+    ar: 'المواد المستخدمة',
+  },
+  'cs.dlog.kind.production': {
+    tr: 'İmalat Kayıtları',
+    en: 'Production Records',
+    de: 'Herstellungseinträge',
+    ar: 'سجلات الإنتاج',
+  },
+  'cs.dlog.kind.fuel': {
+    tr: 'Yakıt ve Sarf Malzeme',
+    en: 'Fuel & Consumables',
+    de: 'Kraftstoff & Verbrauchsmaterial',
+    ar: 'الوقود والمستهلكات',
+  },
+  'cs.dlog.kind.maintenance': {
+    tr: 'Bakım / Servis',
+    en: 'Maintenance / Service',
+    de: 'Wartung / Service',
+    ar: 'الصيانة / الخدمة',
+  },
+  'cs.dlog.kind.visitor': {
+    tr: 'Ziyaretçi Kayıtları',
+    en: 'Visitor Records',
+    de: 'Besuchereinträge',
+    ar: 'سجلات الزوار',
+  },
+  'cs.dlog.f.vendorId': {
+    tr: 'Firma',
+    en: 'Company',
+    de: 'Firma',
+    ar: 'الشركة',
+  },
+  'cs.dlog.f.personnelId': {
+    tr: 'Personel',
+    en: 'Personnel',
+    de: 'Personal',
+    ar: 'الموظف',
+  },
+  'cs.dlog.f.machineId': {
+    tr: 'Makine',
+    en: 'Machine',
+    de: 'Maschine',
+    ar: 'الآلة',
+  },
+  'cs.dlog.f.materialId': {
+    tr: 'Malzeme',
+    en: 'Material',
+    de: 'Material',
+    ar: 'المادة',
+  },
+  'cs.dlog.f.boqLineId': {
+    tr: 'Keşif satırı',
+    en: 'BoQ line',
+    de: 'LV-Position',
+    ar: 'بند الكشف',
+  },
+  'cs.dlog.f.trackingItemId': {
+    tr: 'Takip iş kalemi',
+    en: 'Tracking work item',
+    de: 'Verfolgungsposition',
+    ar: 'بند المتابعة',
+  },
+  'cs.dlog.f.locationId': {
+    tr: 'Mekân',
+    en: 'Location',
+    de: 'Standort',
+    ar: 'الموقع',
+  },
+  'cs.dlog.f.crewName': {
+    tr: 'Ekip',
+    en: 'Crew',
+    de: 'Team',
+    ar: 'الفريق',
+  },
+  'cs.dlog.f.personName': {
+    tr: 'Kişi adı',
+    en: 'Person name',
+    de: 'Name der Person',
+    ar: 'اسم الشخص',
+  },
+  'cs.dlog.f.description': {
+    tr: 'Açıklama',
+    en: 'Description',
+    de: 'Beschreibung',
+    ar: 'الوصف',
+  },
+  'cs.dlog.f.headcount': {
+    tr: 'Kişi sayısı',
+    en: 'Headcount',
+    de: 'Personenanzahl',
+    ar: 'عدد الأفراد',
+  },
+  'cs.dlog.f.hours': {
+    tr: 'Çalışma saati',
+    en: 'Work hours',
+    de: 'Arbeitsstunden',
+    ar: 'ساعات العمل',
+  },
+  'cs.dlog.f.idleHours': {
+    tr: 'Rölanti saati',
+    en: 'Idle hours',
+    de: 'Leerlaufstunden',
+    ar: 'ساعات الخمول',
+  },
+  'cs.dlog.f.qty': {
+    tr: 'Miktar',
+    en: 'Quantity',
+    de: 'Menge',
+    ar: 'الكمية',
+  },
+  'cs.dlog.f.unit': {
+    tr: 'Birim',
+    en: 'Unit',
+    de: 'Einheit',
+    ar: 'الوحدة',
+  },
+  'cs.dlog.f.amount': {
+    tr: 'Tutar',
+    en: 'Amount',
+    de: 'Betrag',
+    ar: 'المبلغ',
+  },
+  'cs.dlog.f.waybillNo': {
+    tr: 'İrsaliye no',
+    en: 'Waybill no',
+    de: 'Lieferscheinnr.',
+    ar: 'رقم بوليصة',
+  },
+  'cs.dlog.f.occurredAt': {
+    tr: 'Saat',
+    en: 'Time',
+    de: 'Uhrzeit',
+    ar: 'الوقت',
+  },
+  'cs.dlog.f.severity': {
+    tr: 'Olay şiddeti',
+    en: 'Event severity',
+    de: 'Schweregrad',
+    ar: 'شدة الحادث',
+  },
+  'cs.dlog.f.lostDays': {
+    tr: 'Kayıp gün',
+    en: 'Lost days',
+    de: 'Ausfalltage',
+    ar: 'الأيام المفقودة',
+  },
+  'cs.dlog.sev.near_miss': {
+    tr: 'Ramak kala',
+    en: 'Near miss',
+    de: 'Beinaheunfall',
+    ar: 'حادث وشيك',
+  },
+  'cs.dlog.sev.first_aid': {
+    tr: 'İlk yardım',
+    en: 'First aid',
+    de: 'Erste Hilfe',
+    ar: 'إسعاف أولي',
+  },
+  'cs.dlog.sev.medical': {
+    tr: 'Tıbbi müdahale',
+    en: 'Medical treatment',
+    de: 'Medizinische Behandlung',
+    ar: 'علاج طبي',
+  },
+  'cs.dlog.sev.lost_time': {
+    tr: 'İş günü kaybı',
+    en: 'Lost time',
+    de: 'Ausfallzeit',
+    ar: 'فقدان وقت عمل',
+  },
+  'cs.dlog.sev.fatal': {
+    tr: 'Ölümlü',
+    en: 'Fatal',
+    de: 'Tödlich',
+    ar: 'مُميت',
+  },
+  'cs.dlog.rep.tab.calendar': {
+    tr: 'Takvim',
+    en: 'Calendar',
+    de: 'Kalender',
+    ar: 'التقويم',
+  },
+  'cs.dlog.rep.tab.manpower': {
+    tr: 'İş Gücü',
+    en: 'Manpower',
+    de: 'Arbeitskräfte',
+    ar: 'القوى العاملة',
+  },
+  'cs.dlog.rep.tab.safety': {
+    tr: 'İSG',
+    en: 'Health & Safety',
+    de: 'SGA',
+    ar: 'السلامة',
+  },
+  'cs.dlog.rep.tab.production': {
+    tr: 'İmalat',
+    en: 'Production',
+    de: 'Herstellung',
+    ar: 'الإنتاج',
+  },
+  'cs.dlog.rep.range': {
+    tr: 'Tarih aralığı',
+    en: 'Date range',
+    de: 'Zeitraum',
+    ar: 'النطاق الزمني',
+  },
+  'cs.dlog.rep.from': {
+    tr: 'Başlangıç',
+    en: 'From',
+    de: 'Von',
+    ar: 'من',
+  },
+  'cs.dlog.rep.to': {
+    tr: 'Bitiş',
+    en: 'To',
+    de: 'Bis',
+    ar: 'إلى',
+  },
+  'cs.dlog.mp.title': {
+    tr: 'İş Gücü Raporu',
+    en: 'Manpower Report',
+    de: 'Arbeitskräftebericht',
+    ar: 'تقرير القوى العاملة',
+  },
+  'cs.dlog.mp.ownHours': {
+    tr: 'Kendi personeli saati',
+    en: 'Own staff hours',
+    de: 'Stunden eigenes Personal',
+    ar: 'ساعات الطاقم الذاتي',
+  },
+  'cs.dlog.mp.subHours': {
+    tr: 'Taşeron saati',
+    en: 'Subcontractor hours',
+    de: 'Nachunternehmerstunden',
+    ar: 'ساعات المقاول',
+  },
+  'cs.dlog.mp.totalHours': {
+    tr: 'Toplam saat',
+    en: 'Total hours',
+    de: 'Gesamtstunden',
+    ar: 'إجمالي الساعات',
+  },
+  'cs.dlog.mp.workedDays': {
+    tr: 'Çalışılan gün',
+    en: 'Worked days',
+    de: 'Arbeitstage',
+    ar: 'أيام العمل',
+  },
+  'cs.dlog.mp.notWorkedDays': {
+    tr: 'Çalışılmayan gün',
+    en: 'Non-working days',
+    de: 'Ausfalltage',
+    ar: 'أيام بلا عمل',
+  },
+  'cs.dlog.mp.avgHeadcount': {
+    tr: 'Ortalama günlük mevcut',
+    en: 'Average daily headcount',
+    de: 'Durchschnittliche Tagesbelegschaft',
+    ar: 'المتوسط اليومي للأفراد',
+  },
+  'cs.dlog.mp.date': {
+    tr: 'Tarih',
+    en: 'Date',
+    de: 'Datum',
+    ar: 'التاريخ',
+  },
+  'cs.dlog.sf.title': {
+    tr: 'İSG Özeti',
+    en: 'Health & Safety Summary',
+    de: 'SGA-Zusammenfassung',
+    ar: 'ملخص السلامة',
+  },
+  'cs.dlog.sf.totalHours': {
+    tr: 'Toplam çalışma saati',
+    en: 'Total work hours',
+    de: 'Gesamtarbeitsstunden',
+    ar: 'إجمالي ساعات العمل',
+  },
+  'cs.dlog.sf.accidents': {
+    tr: 'Toplam olay',
+    en: 'Total events',
+    de: 'Ereignisse insgesamt',
+    ar: 'إجمالي الأحداث',
+  },
+  'cs.dlog.sf.recordable': {
+    tr: 'Kaydedilebilir kaza',
+    en: 'Recordable accidents',
+    de: 'Meldepflichtige Unfälle',
+    ar: 'الحوادث القابلة للتسجيل',
+  },
+  'cs.dlog.sf.nearMiss': {
+    tr: 'Ramak kala',
+    en: 'Near misses',
+    de: 'Beinaheunfälle',
+    ar: 'حوادث وشيكة',
+  },
+  'cs.dlog.sf.lostDays': {
+    tr: 'Kayıp gün',
+    en: 'Lost days',
+    de: 'Ausfalltage',
+    ar: 'الأيام المفقودة',
+  },
+  'cs.dlog.sf.frequencyRate': {
+    tr: 'Kaza sıklık oranı',
+    en: 'Accident frequency rate',
+    de: 'Unfallhäufigkeitsrate',
+    ar: 'معدل تكرار الحوادث',
+  },
+  'cs.dlog.sf.severityRate': {
+    tr: 'Kaza ağırlık oranı',
+    en: 'Accident severity rate',
+    de: 'Unfallschwererate',
+    ar: 'معدل شدة الحوادث',
+  },
+  'cs.dlog.sf.rateUndefined': {
+    tr: 'Çalışma saati girilmediği için oran hesaplanamaz.',
+    en: 'The rate cannot be computed because no work hours were recorded.',
+    de: 'Die Rate ist nicht berechenbar, da keine Arbeitsstunden erfasst wurden.',
+    ar: 'لا يمكن حساب المعدل لعدم تسجيل ساعات عمل.',
+  },
+  'cs.dlog.sf.frequencyHint': {
+    tr: 'Kaydedilebilir kaza × 1.000.000 / toplam çalışma saati. Ramak kala sayılmaz.',
+    en: 'Recordable accidents × 1,000,000 / total work hours. Near misses are excluded.',
+    de: 'Meldepflichtige Unfälle × 1.000.000 / Gesamtarbeitsstunden. Beinaheunfälle zählen nicht.',
+    ar: 'الحوادث القابلة للتسجيل × 1.000.000 / إجمالي ساعات العمل. لا تُحسب الحوادث الوشيكة.',
+  },
+  'cs.dlog.sf.severityHint': {
+    tr: 'Kayıp gün × 1.000 / toplam çalışma saati.',
+    en: 'Lost days × 1,000 / total work hours.',
+    de: 'Ausfalltage × 1.000 / Gesamtarbeitsstunden.',
+    ar: 'الأيام المفقودة × 1.000 / إجمالي ساعات العمل.',
+  },
+  'cs.dlog.pr.title': {
+    tr: 'Gerçekleşen İmalat',
+    en: 'Actual Production',
+    de: 'Tatsächliche Herstellung',
+    ar: 'الإنتاج الفعلي',
+  },
+  'cs.dlog.pr.boqLine': {
+    tr: 'Keşif satırı',
+    en: 'BoQ line',
+    de: 'LV-Position',
+    ar: 'بند الكشف',
+  },
+  'cs.dlog.pr.producedQty': {
+    tr: 'Üretilen miktar',
+    en: 'Produced quantity',
+    de: 'Hergestellte Menge',
+    ar: 'الكمية المنتجة',
+  },
+  'cs.dlog.pr.entryCount': {
+    tr: 'Kayıt sayısı',
+    en: 'Entry count',
+    de: 'Anzahl Einträge',
+    ar: 'عدد السجلات',
+  },
+  'cs.dlog.pr.firstDate': {
+    tr: 'İlk kayıt',
+    en: 'First entry',
+    de: 'Erster Eintrag',
+    ar: 'أول سجل',
+  },
+  'cs.dlog.pr.lastDate': {
+    tr: 'Son kayıt',
+    en: 'Last entry',
+    de: 'Letzter Eintrag',
+    ar: 'آخر سجل',
+  },
+  'cs.dlog.pr.hint': {
+    tr: 'Günlük imalat kayıtlarından toplanır; hakedişten bağımsız ölçümdür.',
+    en: 'Aggregated from daily production entries; measured independently of progress payments.',
+    de: 'Aus den täglichen Herstellungseinträgen aggregiert; unabhängig von Abschlagszahlungen gemessen.',
+    ar: 'يُجمَّع من سجلات الإنتاج اليومية؛ قياس مستقل عن المستخلصات.',
+  },
 };
 
 /** Şantiye etiketi getir; `vars` ile {placeholder} doldurulur. */
@@ -995,5 +1808,37 @@ export function trackScopeLabel(scope: string, lang: string | undefined): string
       return csT('cs.tpl.scope.unit', lang);
     default:
       return scope;
+  }
+}
+
+/** Günlük rapor kayıt tipi etiketi (bölüm başlığı). */
+export function logKindLabel(kind: string, lang: string | undefined): string {
+  const key = `cs.dlog.kind.${kind}` as CsLabelKey;
+  return csT(key, lang);
+}
+
+/** Satır alanı etiketi. */
+export function logFieldLabel(field: string, lang: string | undefined): string {
+  const key = `cs.dlog.f.${field}` as CsLabelKey;
+  return csT(key, lang);
+}
+
+/** İSG olay şiddeti etiketi. */
+export function accidentSeverityLabel(severity: string, lang: string | undefined): string {
+  const key = `cs.dlog.sev.${severity}` as CsLabelKey;
+  return csT(key, lang);
+}
+
+/** Günün çalışma durumu etiketi. */
+export function workStateLabel(state: string, lang: string | undefined): string {
+  switch (state) {
+    case 'working':
+      return csT('cs.dlog.workState.working', lang);
+    case 'not_working':
+      return csT('cs.dlog.workState.notWorking', lang);
+    case 'partial':
+      return csT('cs.dlog.workState.partial', lang);
+    default:
+      return state;
   }
 }

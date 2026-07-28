@@ -770,3 +770,207 @@ export interface ProjectPhysicalProgressDto {
   unmeasuredWeight: number;
   trackings: TrackingListRowDto[];
 }
+
+// ============================================================================
+// FAZ 3 — ŞANTİYE GÜNLÜĞÜ (cs_daily_logs)
+// ============================================================================
+
+export type DailyLogStatus = 'open' | 'locked';
+export type WorkState = 'working' | 'not_working' | 'partial';
+export type LogEntryKind =
+  | 'subcontractor'
+  | 'personnel'
+  | 'equipment'
+  | 'note'
+  | 'delivery'
+  | 'accident'
+  | 'material_used'
+  | 'production'
+  | 'fuel'
+  | 'maintenance'
+  | 'visitor';
+export type AccidentSeverity = 'near_miss' | 'first_aid' | 'medical' | 'lost_time' | 'fatal';
+
+export interface DailyLogDto {
+  id: number;
+  companyId: number;
+  projectId: number;
+  logDate: string;
+  status: DailyLogStatus;
+  workState: WorkState;
+  tempC: number | null;
+  weatherNote: string | null;
+  noWorkReason: string | null;
+  summary: string | null;
+  lockedBy: number | null;
+  lockedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** Satır eklenip değiştirilebilir mi? (status === 'open') */
+  editable: boolean;
+}
+
+export interface DailyLogEntryDto {
+  id: number;
+  logId: number;
+  kind: LogEntryKind;
+  locationId: number | null;
+  vendorId: number | null;
+  personnelId: number | null;
+  machineId: number | null;
+  materialId: number | null;
+  boqLineId: number | null;
+  trackingItemId: number | null;
+  crewName: string | null;
+  personName: string | null;
+  description: string | null;
+  headcount: number | null;
+  hours: number | null;
+  idleHours: number | null;
+  qty: number | null;
+  unit: string | null;
+  amount: number | null;
+  currency: CurrencyCode;
+  waybillNo: string | null;
+  occurredAt: string | null;
+  severity: AccidentSeverity | null;
+  lostDays: number | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DailyLogTotalsDto {
+  logId: number;
+  projectId: number;
+  logDate: string;
+  status: DailyLogStatus;
+  workState: WorkState;
+  subHeadcount: number;
+  subHours: number;
+  ownHeadcount: number;
+  ownHours: number;
+  equipHours: number;
+  equipIdleHours: number;
+  accidentCount: number;
+  /** 'near_miss' hariç gerçek kaza sayısı. */
+  realAccidentCount: number;
+  lostDays: number;
+  productionCount: number;
+  deliveryCount: number;
+  entryCount: number;
+  fileCount: number;
+}
+
+export interface DailyLogFileDto {
+  id: number;
+  logId: number;
+  entryId: number | null;
+  fileKind: string;
+  title: string | null;
+  fileUrl: string | null;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  createdBy: number | null;
+  createdAt: string;
+}
+
+export interface DailyLogCommentDto {
+  id: number;
+  logId: number;
+  entryId: number | null;
+  body: string;
+  createdBy: number | null;
+  createdAt: string;
+}
+
+/** Günün tam görünümü — bölümler TÜM kayıt tiplerini içerir (boş olanlar dahil). */
+export interface DailyLogDayDto {
+  log: DailyLogDto;
+  totals: DailyLogTotalsDto | null;
+  sections: { kind: LogEntryKind; entries: DailyLogEntryDto[] }[];
+  files: DailyLogFileDto[];
+  comments: DailyLogCommentDto[];
+}
+
+export interface DailyLogMonthDto {
+  projectId: number;
+  fromDate: string;
+  toDate: string;
+  days: DailyLogTotalsDto[];
+}
+
+/** Kayıt tipi tarifi — form alanları buna göre kurulur. */
+export interface KindSpecDto {
+  kind: LogEntryKind;
+  required: string[];
+  optional: string[];
+  bridge: 'timesheet' | 'machine_log' | null;
+}
+
+export interface KindSpecsResponse {
+  kinds: KindSpecDto[];
+}
+
+export interface ManpowerRowDto {
+  logDate: string;
+  workState: WorkState;
+  ownHeadcount: number;
+  ownHours: number;
+  subHeadcount: number;
+  subHours: number;
+  totalHeadcount: number;
+  totalHours: number;
+}
+
+export interface ManpowerReportDto {
+  projectId: number;
+  fromDate: string;
+  toDate: string;
+  rows: ManpowerRowDto[];
+  totalOwnHours: number;
+  totalSubHours: number;
+  totalHours: number;
+  workedDays: number;
+  notWorkedDays: number;
+  /** Çalışılan gün yoksa null (0 değil). */
+  avgHeadcountPerWorkedDay: number | null;
+}
+
+export interface SafetySummaryDto {
+  fromDate: string;
+  toDate: string;
+  totalHours: number;
+  accidentCount: number;
+  recordableAccidentCount: number;
+  nearMissCount: number;
+  lostDays: number;
+  /** Çalışma saati 0 ise null — 0 döndürmek "kaza yok" gibi okunur. */
+  frequencyRate: number | null;
+  severityRate: number | null;
+}
+
+export interface ProductionActualRowDto {
+  boqLineId: number;
+  unit: string | null;
+  producedQty: number;
+  firstDate: string;
+  lastDate: string;
+  entryCount: number;
+}
+
+export interface ProductionActualsResponse {
+  rows: ProductionActualRowDto[];
+}
+
+export interface MaterialConsumptionRowDto {
+  materialId: number;
+  locationId: number | null;
+  unit: string | null;
+  consumedQty: number;
+  entryCount: number;
+}
+
+export interface MaterialConsumptionResponse {
+  rows: MaterialConsumptionRowDto[];
+}

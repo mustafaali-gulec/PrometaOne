@@ -32,6 +32,7 @@ import { PozCatalogTable } from '../presentation/components/PozCatalogTable';
 import { ProjectsKanban } from '../presentation/components/ProjectsKanban';
 import { ProjectsTable } from '../presentation/components/ProjectsTable';
 import { RaporManager } from '../presentation/components/RaporManager';
+import { SantiyeGunluguManager } from '../presentation/components/SantiyeGunluguManager';
 import { TakipSablonManager } from '../presentation/components/TakipSablonManager';
 import { useContracts } from '../presentation/hooks/useContracts';
 import { usePozCatalog } from '../presentation/hooks/usePozCatalog';
@@ -50,7 +51,8 @@ export type ConstructionTab =
   | 'poz'
   | 'locations'
   | 'templates'
-  | 'trackings';
+  | 'trackings'
+  | 'dailylog';
 
 const ALL_TABS: ConstructionTab[] = [
   'projects',
@@ -66,6 +68,7 @@ const ALL_TABS: ConstructionTab[] = [
   'locations',
   'templates',
   'trackings',
+  'dailylog',
 ];
 const TAB_LABELS: Record<ConstructionTab, string> = {
   projects: 'Projeler',
@@ -81,6 +84,7 @@ const TAB_LABELS: Record<ConstructionTab, string> = {
   locations: 'Mekân Kırılımı',
   templates: 'Takip Şablonları',
   trackings: 'Güncel Durum',
+  dailylog: 'Şantiye Günlüğü',
 };
 
 export interface ConstructionPageProps {
@@ -93,6 +97,12 @@ export interface ConstructionPageProps {
   rateBook?: RateBook;
   /** Arayüz dili (tr/en/de/ar). Faz 1-2 ekranları modül-yerel sözlüğü kullanır. */
   lang?: string | undefined;
+  /**
+   * Şantiye günlüğünde gün kilidini AÇMA yetkisi. Kapanmış bir raporu yeniden
+   * açmak raporun kanıt değerine dokunduğu için yalnız yöneticiye verilir;
+   * backend de ayrıca denetler (403).
+   */
+  canUnlockDailyLog?: boolean | undefined;
 }
 
 export function ConstructionPage({
@@ -103,6 +113,7 @@ export function ConstructionPage({
   views,
   rateBook,
   lang,
+  canUnlockDailyLog,
 }: ConstructionPageProps): JSX.Element {
   const scoped = Array.isArray(views) && views.length > 0;
   const visibleTabs: ConstructionTab[] = scoped ? views : ALL_TABS;
@@ -177,6 +188,14 @@ export function ConstructionPage({
         ) : null}
         {tab === 'trackings' ? (
           <GuncelDurumManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'dailylog' ? (
+          <SantiyeGunluguManager
+            api={api}
+            companyId={companyId}
+            lang={lang}
+            canUnlock={canUnlockDailyLog}
+          />
         ) : null}
       </main>
     </div>

@@ -76,6 +76,21 @@ import type {
   TrackingLocationsResponse,
   TrackingStatus,
   TrackingsResponse,
+  AccidentSeverity,
+  DailyLogCommentDto,
+  DailyLogDayDto,
+  DailyLogDto,
+  DailyLogEntryDto,
+  DailyLogFileDto,
+  DailyLogMonthDto,
+  DailyLogStatus,
+  KindSpecsResponse,
+  LogEntryKind,
+  ManpowerReportDto,
+  MaterialConsumptionResponse,
+  ProductionActualsResponse,
+  SafetySummaryDto,
+  WorkState,
 } from '../dto/ConstructionDtos';
 
 export interface CreateProjectBody {
@@ -593,6 +608,105 @@ export interface ConstructionApi {
     companyId: number,
     asOf?: string,
   ): Promise<ProjectPhysicalProgressDto>;
+
+  // FAZ 3 — Şantiye günlüğü
+  getDailyLogMonth(
+    projectId: number,
+    companyId: number,
+    year: number,
+    month: number,
+  ): Promise<DailyLogMonthDto>;
+  /** Gün yoksa ve create=false ise null döner (404 değil: o gün henüz doldurulmadı). */
+  getDailyLogDay(
+    projectId: number,
+    companyId: number,
+    logDate: string,
+    create?: boolean,
+  ): Promise<DailyLogDayDto | null>;
+  updateDailyLog(logId: number, body: UpdateDailyLogBody): Promise<DailyLogDto>;
+  changeDailyLogStatus(
+    logId: number,
+    body: { companyId: number; status: DailyLogStatus },
+  ): Promise<DailyLogDto>;
+  listDailyLogKinds(): Promise<KindSpecsResponse>;
+  saveDailyLogEntry(logId: number, body: SaveDailyLogEntryBody): Promise<DailyLogEntryDto>;
+  deleteDailyLogEntry(entryId: number, companyId: number): Promise<{ deleted: boolean }>;
+  addDailyLogFile(logId: number, body: AddDailyLogFileBody): Promise<DailyLogFileDto>;
+  deleteDailyLogFile(fileId: number, companyId: number): Promise<{ deleted: boolean }>;
+  addDailyLogComment(logId: number, body: AddDailyLogCommentBody): Promise<DailyLogCommentDto>;
+  getManpowerReport(
+    projectId: number,
+    companyId: number,
+    fromDate: string,
+    toDate: string,
+  ): Promise<ManpowerReportDto>;
+  getSafetySummary(
+    projectId: number,
+    companyId: number,
+    fromDate: string,
+    toDate: string,
+  ): Promise<SafetySummaryDto>;
+  getProductionActuals(projectId: number, companyId: number): Promise<ProductionActualsResponse>;
+  getMaterialConsumption(
+    projectId: number,
+    companyId: number,
+  ): Promise<MaterialConsumptionResponse>;
+}
+
+// ===== FAZ 3 — Şantiye günlüğü istek gövdeleri ==============================
+
+export interface UpdateDailyLogBody {
+  companyId: number;
+  workState?: WorkState;
+  tempC?: number | null;
+  weatherNote?: string | null;
+  noWorkReason?: string | null;
+  summary?: string | null;
+}
+
+export interface SaveDailyLogEntryBody {
+  companyId: number;
+  /** Doluysa güncelleme, boşsa ekleme. */
+  entryId?: number;
+  kind: LogEntryKind;
+  locationId?: number | null;
+  vendorId?: number | null;
+  personnelId?: number | null;
+  machineId?: number | null;
+  materialId?: number | null;
+  boqLineId?: number | null;
+  trackingItemId?: number | null;
+  crewName?: string | null;
+  personName?: string | null;
+  description?: string | null;
+  headcount?: number | null;
+  hours?: number | null;
+  idleHours?: number | null;
+  qty?: number | null;
+  unit?: string | null;
+  amount?: number | null;
+  currency?: CurrencyCode;
+  waybillNo?: string | null;
+  occurredAt?: string | null;
+  severity?: AccidentSeverity | null;
+  lostDays?: number | null;
+  sortOrder?: number;
+}
+
+export interface AddDailyLogFileBody {
+  companyId: number;
+  entryId?: number | null;
+  fileKind?: 'photo' | 'doc';
+  title?: string | null;
+  fileUrl?: string | null;
+  contentBase64?: string | null;
+  mimeType?: string | null;
+}
+
+export interface AddDailyLogCommentBody {
+  companyId: number;
+  entryId?: number | null;
+  body: string;
 }
 
 // ===== FAZ 1 — Mekân kırılımı istek gövdeleri ===============================

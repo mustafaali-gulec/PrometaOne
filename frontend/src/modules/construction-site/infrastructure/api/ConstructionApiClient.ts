@@ -70,6 +70,18 @@ import type {
   TrackingLocationsResponse,
   TrackingStatus,
   TrackingsResponse,
+  DailyLogCommentDto,
+  DailyLogDayDto,
+  DailyLogDto,
+  DailyLogEntryDto,
+  DailyLogFileDto,
+  DailyLogMonthDto,
+  DailyLogStatus,
+  KindSpecsResponse,
+  ManpowerReportDto,
+  MaterialConsumptionResponse,
+  ProductionActualsResponse,
+  SafetySummaryDto,
 } from '../../application/dto/ConstructionDtos';
 import type { AuthTokenProvider } from '../../application/ports/AuthTokenProvider';
 import type {
@@ -117,6 +129,10 @@ import type {
   UpdateLocationBody,
   UpdateProgressTemplateBody,
   UpdateTrackingBody,
+  AddDailyLogCommentBody,
+  AddDailyLogFileBody,
+  SaveDailyLogEntryBody,
+  UpdateDailyLogBody,
 } from '../../application/ports/ConstructionApi';
 
 export class ConstructionApiClient implements ConstructionApi {
@@ -769,6 +785,136 @@ export class ConstructionApiClient implements ConstructionApi {
     if (asOf !== undefined) q.set('asOf', asOf);
     return this.request<ProjectPhysicalProgressDto>(
       `/v1/construction/projects/${String(projectId)}/physical-progress?${q.toString()}`,
+    );
+  }
+
+  // ===== FAZ 3 — DAILY LOG (Şantiye günlüğü) ===============================
+  getDailyLogMonth(
+    projectId: number,
+    companyId: number,
+    year: number,
+    month: number,
+  ): Promise<DailyLogMonthDto> {
+    const q = new URLSearchParams({
+      companyId: String(companyId),
+      year: String(year),
+      month: String(month),
+    });
+    return this.request<DailyLogMonthDto>(
+      `/v1/construction/projects/${String(projectId)}/daily-logs?${q.toString()}`,
+    );
+  }
+
+  /**
+   * 204 gövdesiz döner (gün henüz doldurulmadı) — request() bunu undefined'a
+   * çevirdiği için null'a normalize ediyoruz ki cagiran taraf tek tip kontrol yapsin.
+   */
+  async getDailyLogDay(
+    projectId: number,
+    companyId: number,
+    logDate: string,
+    create?: boolean,
+  ): Promise<DailyLogDayDto | null> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (create !== undefined) q.set('create', String(create));
+    const res = await this.request<DailyLogDayDto | undefined>(
+      `/v1/construction/projects/${String(projectId)}/daily-logs/${logDate}?${q.toString()}`,
+    );
+    return res ?? null;
+  }
+
+  updateDailyLog(logId: number, body: UpdateDailyLogBody): Promise<DailyLogDto> {
+    return this.request<DailyLogDto>(`/v1/construction/daily-logs/${String(logId)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  changeDailyLogStatus(
+    logId: number,
+    body: { companyId: number; status: DailyLogStatus },
+  ): Promise<DailyLogDto> {
+    return this.request<DailyLogDto>(`/v1/construction/daily-logs/${String(logId)}/status`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  listDailyLogKinds(): Promise<KindSpecsResponse> {
+    return this.request<KindSpecsResponse>(`/v1/construction/daily-log-kinds`);
+  }
+
+  saveDailyLogEntry(logId: number, body: SaveDailyLogEntryBody): Promise<DailyLogEntryDto> {
+    return this.request<DailyLogEntryDto>(`/v1/construction/daily-logs/${String(logId)}/entries`, {
+      method: 'PUT',
+      body,
+    });
+  }
+
+  deleteDailyLogEntry(entryId: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/daily-log-entries/${String(entryId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  addDailyLogFile(logId: number, body: AddDailyLogFileBody): Promise<DailyLogFileDto> {
+    return this.request<DailyLogFileDto>(`/v1/construction/daily-logs/${String(logId)}/files`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  deleteDailyLogFile(fileId: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/daily-log-files/${String(fileId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  addDailyLogComment(logId: number, body: AddDailyLogCommentBody): Promise<DailyLogCommentDto> {
+    return this.request<DailyLogCommentDto>(
+      `/v1/construction/daily-logs/${String(logId)}/comments`,
+      { method: 'POST', body },
+    );
+  }
+
+  getManpowerReport(
+    projectId: number,
+    companyId: number,
+    fromDate: string,
+    toDate: string,
+  ): Promise<ManpowerReportDto> {
+    const q = new URLSearchParams({ companyId: String(companyId), fromDate, toDate });
+    return this.request<ManpowerReportDto>(
+      `/v1/construction/projects/${String(projectId)}/manpower?${q.toString()}`,
+    );
+  }
+
+  getSafetySummary(
+    projectId: number,
+    companyId: number,
+    fromDate: string,
+    toDate: string,
+  ): Promise<SafetySummaryDto> {
+    const q = new URLSearchParams({ companyId: String(companyId), fromDate, toDate });
+    return this.request<SafetySummaryDto>(
+      `/v1/construction/projects/${String(projectId)}/safety-summary?${q.toString()}`,
+    );
+  }
+
+  getProductionActuals(projectId: number, companyId: number): Promise<ProductionActualsResponse> {
+    return this.request<ProductionActualsResponse>(
+      `/v1/construction/projects/${String(projectId)}/production-actuals?companyId=${String(companyId)}`,
+    );
+  }
+
+  getMaterialConsumption(
+    projectId: number,
+    companyId: number,
+  ): Promise<MaterialConsumptionResponse> {
+    return this.request<MaterialConsumptionResponse>(
+      `/v1/construction/projects/${String(projectId)}/material-consumption?companyId=${String(companyId)}`,
     );
   }
 
