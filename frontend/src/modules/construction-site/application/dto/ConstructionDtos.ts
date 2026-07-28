@@ -516,3 +516,257 @@ export interface ProgressCurveDto {
   currency: string;
   points: ProgressCurvePointDto[];
 }
+
+// ============================================================================
+// FAZ 1 — MEKÂN KIRILIMI (cs_locations)
+// ============================================================================
+
+export type LocationKind = 'site' | 'block' | 'floor' | 'unit' | 'zone';
+
+export interface LocationDto {
+  id: number;
+  companyId: number;
+  projectId: number;
+  parentId: number | null;
+  kind: LocationKind;
+  code: string;
+  name: string;
+  sortOrder: number;
+  /** Backend trigger'ı türetir: "A Blok > 2 > Daire 18" */
+  path: string;
+  depth: number;
+  unitType: string | null;
+  grossArea: number | null;
+  netArea: number | null;
+  landShare: number | null;
+  facade: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  /** Bu düğümün altına eklenebilecek tipler — "Ekle" menüsü buna göre kurulur. */
+  allowedChildKinds: LocationKind[];
+}
+
+export interface LocationTreeNodeDto extends LocationDto {
+  children: LocationTreeNodeDto[];
+  unitCount: number;
+  netAreaTotal: number | null;
+}
+
+export interface LocationTreeResponse {
+  tree: LocationTreeNodeDto[];
+}
+
+export interface LocationListResponse {
+  locations: LocationDto[];
+}
+
+export interface LocationUsageDto {
+  usage: {
+    boqLines: number;
+    expenses: number;
+    timesheets: number;
+    machineLogs: number;
+    stockMovements: number;
+    measurements: number;
+    materialRequests: number;
+    attachments: number;
+    trackingLocations: number;
+    children: number;
+  };
+  canHardDelete: boolean;
+  blockers: string[];
+}
+
+export interface DeleteLocationResultDto {
+  deleted: boolean;
+  location: LocationDto;
+}
+
+export interface BulkGenerateResultDto {
+  created: LocationDto[];
+  createdCount: number;
+}
+
+// ============================================================================
+// FAZ 2 — FİZİKSEL İLERLEME TAKİBİ
+// ============================================================================
+
+export type TrackScope = 'general' | 'block' | 'floor' | 'unit';
+export type TrackingStatus = 'draft' | 'active' | 'completed' | 'cancelled';
+export type ItemState = 'not_started' | 'in_progress' | 'has_defects' | 'completed';
+
+export interface TemplateItemDto {
+  id: number;
+  code: string;
+  name: string;
+  weightPct: number;
+  sortOrder: number;
+  pozId: number | null;
+}
+
+export interface TemplateGroupDto {
+  id: number;
+  code: string;
+  name: string;
+  weightPct: number;
+  sortOrder: number;
+  items: TemplateItemDto[];
+}
+
+export interface WeightIssueDto {
+  level: 'template' | 'group';
+  groupId?: number;
+  groupName?: string;
+  sum: number;
+}
+
+export interface ProgressTemplateDto {
+  id: number;
+  companyId: number;
+  code: string;
+  name: string;
+  scope: TrackScope;
+  description: string | null;
+  pctInProgress: number;
+  pctHasDefects: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  groups: TemplateGroupDto[];
+  itemCount: number;
+  /** Boş değilse ağırlıklar %100'e tümlenmiyor. */
+  weightIssues: WeightIssueDto[];
+  scopeLocationKinds: string[];
+}
+
+export interface ProgressTemplatesResponse {
+  templates: ProgressTemplateDto[];
+}
+
+export interface SaveTemplateBodyResultDto {
+  template: ProgressTemplateDto;
+  affectedTrackings: number;
+}
+
+export interface TrackingDto {
+  id: number;
+  companyId: number;
+  projectId: number;
+  templateId: number;
+  code: string;
+  name: string;
+  projectWeightPct: number;
+  plannedStart: string | null;
+  plannedEnd: string | null;
+  status: TrackingStatus;
+  assignedUserId: number | null;
+  visibleAll: boolean;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TrackingListRowDto extends TrackingDto {
+  progressPct: number;
+  locationCount: number;
+  /** Plan tarihi yoksa null — 0 varsayılmaz. */
+  plannedPct: number | null;
+  deviationPct: number | null;
+}
+
+export interface TrackingsResponse {
+  trackings: TrackingListRowDto[];
+}
+
+export interface TrackingBoardItemDto {
+  trackingItemId: number;
+  templateItemId: number;
+  itemName: string;
+  itemWeight: number;
+  state: ItemState;
+  overridePct: number | null;
+  effectivePct: number;
+  inspectedBy: number | null;
+  inspectedAt: string | null;
+  note: string | null;
+  pozId: number | null;
+}
+
+export interface TrackingBoardGroupDto {
+  groupId: number;
+  groupName: string;
+  groupWeight: number;
+  /** Grup İÇİ ağırlıklara göre normalize edilmiş ilerleme (0-100). */
+  progressPct: number;
+  items: TrackingBoardItemDto[];
+}
+
+export interface TrackingLocationBoardDto {
+  trackingLocationId: number;
+  locationId: number;
+  locationName: string;
+  locationPath: string;
+  weightPct: number;
+  progressPct: number;
+  itemCount: number;
+  completedCount: number;
+  defectCount: number;
+  inProgressCount: number;
+  groups: TrackingBoardGroupDto[];
+}
+
+export interface TrackingBoardDto {
+  tracking: TrackingDto;
+  templateName: string;
+  pctInProgress: number;
+  pctHasDefects: number;
+  progressPct: number;
+  plannedPct: number | null;
+  deviationPct: number | null;
+  locations: TrackingLocationBoardDto[];
+}
+
+/** Saha durumu yazma yanıtı — güncel lokasyon ilerlemeleri (grup/iş ağacı YOK). */
+export interface TrackingLocationProgressDto {
+  trackingLocationId: number;
+  locationId: number;
+  locationPath: string;
+  locationName: string;
+  weightPct: number;
+  progressPct: number;
+  itemCount: number;
+  completedCount: number;
+  defectCount: number;
+  inProgressCount: number;
+}
+
+export interface TrackingLocationsResponse {
+  locations: TrackingLocationProgressDto[];
+}
+
+export interface TrackingItemHistoryRowDto {
+  id: number;
+  trackingItemId: number;
+  fromState: ItemState | null;
+  toState: ItemState;
+  fromPct: number | null;
+  toPct: number;
+  changedBy: number | null;
+  changedAt: string;
+  note: string | null;
+}
+
+export interface TrackingItemHistoryResponse {
+  history: TrackingItemHistoryRowDto[];
+}
+
+export interface ProjectPhysicalProgressDto {
+  projectId: number;
+  progressPct: number;
+  /** Takip ağırlıklarının toplamı; <100 ise ölçülmeyen iş payı var. */
+  weightSum: number;
+  trackingCount: number;
+  unmeasuredWeight: number;
+  trackings: TrackingListRowDto[];
+}

@@ -23,13 +23,16 @@ import { BoqEditor, emptyRow, type BoqEditRow } from '../presentation/components
 import { ContractsTable } from '../presentation/components/ContractsTable';
 import { DepoManager } from '../presentation/components/DepoManager';
 import { FinansManager } from '../presentation/components/FinansManager';
+import { GuncelDurumManager } from '../presentation/components/GuncelDurumManager';
 import { HakedisManager } from '../presentation/components/HakedisManager';
 import { IsgucuManager } from '../presentation/components/IsgucuManager';
+import { MekanAgaciManager } from '../presentation/components/MekanAgaciManager';
 import { MetrajManager } from '../presentation/components/MetrajManager';
 import { PozCatalogTable } from '../presentation/components/PozCatalogTable';
 import { ProjectsKanban } from '../presentation/components/ProjectsKanban';
 import { ProjectsTable } from '../presentation/components/ProjectsTable';
 import { RaporManager } from '../presentation/components/RaporManager';
+import { TakipSablonManager } from '../presentation/components/TakipSablonManager';
 import { useContracts } from '../presentation/hooks/useContracts';
 import { usePozCatalog } from '../presentation/hooks/usePozCatalog';
 import { useProjects } from '../presentation/hooks/useProjects';
@@ -44,7 +47,10 @@ export type ConstructionTab =
   | 'depot'
   | 'labor'
   | 'reports'
-  | 'poz';
+  | 'poz'
+  | 'locations'
+  | 'templates'
+  | 'trackings';
 
 const ALL_TABS: ConstructionTab[] = [
   'projects',
@@ -57,6 +63,9 @@ const ALL_TABS: ConstructionTab[] = [
   'labor',
   'reports',
   'poz',
+  'locations',
+  'templates',
+  'trackings',
 ];
 const TAB_LABELS: Record<ConstructionTab, string> = {
   projects: 'Projeler',
@@ -69,6 +78,9 @@ const TAB_LABELS: Record<ConstructionTab, string> = {
   labor: 'İş Gücü & Makine',
   reports: 'Raporlar',
   poz: 'Poz Katalog',
+  locations: 'Mekân Kırılımı',
+  templates: 'Takip Şablonları',
+  trackings: 'Güncel Durum',
 };
 
 export interface ConstructionPageProps {
@@ -79,6 +91,8 @@ export interface ConstructionPageProps {
   views?: ConstructionTab[];
   /** DÖVİZ: üst uygulamanın kur defteri (app-state exchangeRates + rateHistory). */
   rateBook?: RateBook;
+  /** Arayüz dili (tr/en/de/ar). Faz 1-2 ekranları modül-yerel sözlüğü kullanır. */
+  lang?: string | undefined;
 }
 
 export function ConstructionPage({
@@ -88,6 +102,7 @@ export function ConstructionPage({
   initialTab,
   views,
   rateBook,
+  lang,
 }: ConstructionPageProps): JSX.Element {
   const scoped = Array.isArray(views) && views.length > 0;
   const visibleTabs: ConstructionTab[] = scoped ? views : ALL_TABS;
@@ -154,6 +169,15 @@ export function ConstructionPage({
         {tab === 'labor' ? <IsgucuManager api={api} companyId={companyId} /> : null}
         {tab === 'reports' ? <RaporManager api={api} companyId={companyId} /> : null}
         {tab === 'poz' ? <PozTab api={api} companyId={companyId} /> : null}
+        {tab === 'locations' ? (
+          <MekanAgaciManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'templates' ? (
+          <TakipSablonManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'trackings' ? (
+          <GuncelDurumManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
       </main>
     </div>
   );

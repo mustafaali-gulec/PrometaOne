@@ -57,6 +57,25 @@ import type {
   ProjectDashboardDto,
   TimesheetDto,
   TimesheetsResponse,
+  BulkGenerateResultDto,
+  DeleteLocationResultDto,
+  ItemState,
+  LocationDto,
+  LocationKind,
+  LocationListResponse,
+  LocationTreeResponse,
+  LocationUsageDto,
+  ProgressTemplateDto,
+  ProgressTemplatesResponse,
+  ProjectPhysicalProgressDto,
+  SaveTemplateBodyResultDto,
+  TrackScope,
+  TrackingBoardDto,
+  TrackingDto,
+  TrackingItemHistoryResponse,
+  TrackingLocationsResponse,
+  TrackingStatus,
+  TrackingsResponse,
 } from '../dto/ConstructionDtos';
 
 export interface CreateProjectBody {
@@ -499,4 +518,221 @@ export interface ConstructionApi {
   // Raporlar
   getProjectDashboard(projectId: number, companyId: number): Promise<ProjectDashboardDto>;
   getProgressCurve(contractId: number, companyId: number): Promise<ProgressCurveDto>;
+
+  // FAZ 1 — Mekân kırılımı
+  getLocationTree(
+    projectId: number,
+    companyId: number,
+    options?: LocationQueryOptions,
+  ): Promise<LocationTreeResponse>;
+  listLocations(
+    projectId: number,
+    companyId: number,
+    options?: LocationQueryOptions,
+  ): Promise<LocationListResponse>;
+  createLocation(body: CreateLocationBody): Promise<LocationDto>;
+  updateLocation(id: number, body: UpdateLocationBody): Promise<LocationDto>;
+  moveLocation(id: number, body: MoveLocationBody): Promise<LocationDto>;
+  getLocationUsage(id: number, companyId: number): Promise<LocationUsageDto>;
+  deleteLocation(
+    id: number,
+    companyId: number,
+    deactivateOnly?: boolean,
+  ): Promise<DeleteLocationResultDto>;
+  bulkGenerateLocations(body: BulkGenerateLocationsBody): Promise<BulkGenerateResultDto>;
+
+  // FAZ 2 — Fiziksel ilerleme takibi: şablonlar
+  listProgressTemplates(
+    companyId: number,
+    options?: { includeInactive?: boolean; scope?: TrackScope; search?: string },
+  ): Promise<ProgressTemplatesResponse>;
+  getProgressTemplate(id: number, companyId: number): Promise<ProgressTemplateDto>;
+  createProgressTemplate(body: CreateProgressTemplateBody): Promise<ProgressTemplateDto>;
+  updateProgressTemplate(
+    id: number,
+    body: UpdateProgressTemplateBody,
+  ): Promise<ProgressTemplateDto>;
+  saveTemplateBody(id: number, body: SaveTemplateBodyBody): Promise<SaveTemplateBodyResultDto>;
+  deactivateProgressTemplate(id: number, companyId: number): Promise<ProgressTemplateDto>;
+
+  // FAZ 2 — Takipler
+  listTrackings(
+    companyId: number,
+    options?: {
+      projectId?: number;
+      status?: TrackingStatus;
+      includeCancelled?: boolean;
+      search?: string;
+      asOf?: string;
+    },
+  ): Promise<TrackingsResponse>;
+  getTrackingBoard(id: number, companyId: number, asOf?: string): Promise<TrackingBoardDto>;
+  createTracking(body: CreateTrackingBody): Promise<TrackingDto>;
+  updateTracking(id: number, body: UpdateTrackingBody): Promise<TrackingDto>;
+  changeTrackingStatus(
+    id: number,
+    body: { companyId: number; status: TrackingStatus },
+  ): Promise<TrackingDto>;
+  setTrackingItemStates(id: number, body: SetTrackingItemsBody): Promise<TrackingLocationsResponse>;
+  getTrackingItemHistory(
+    trackingItemId: number,
+    companyId: number,
+  ): Promise<TrackingItemHistoryResponse>;
+  addTrackingLocations(
+    id: number,
+    body: AddTrackingLocationsBody,
+  ): Promise<TrackingLocationsResponse>;
+  removeTrackingLocation(
+    id: number,
+    trackingLocationId: number,
+    companyId: number,
+  ): Promise<TrackingLocationsResponse>;
+  syncTrackingWithTemplate(id: number, companyId: number): Promise<{ addedItems: number }>;
+  getProjectPhysicalProgress(
+    projectId: number,
+    companyId: number,
+    asOf?: string,
+  ): Promise<ProjectPhysicalProgressDto>;
+}
+
+// ===== FAZ 1 — Mekân kırılımı istek gövdeleri ===============================
+
+export interface LocationQueryOptions {
+  includeInactive?: boolean;
+  kind?: LocationKind;
+  subtreeOf?: number;
+  search?: string;
+}
+
+export interface CreateLocationBody {
+  companyId: number;
+  projectId: number;
+  parentId?: number | null;
+  kind: LocationKind;
+  code: string;
+  name?: string;
+  sortOrder?: number;
+  unitType?: string | null;
+  grossArea?: number | null;
+  netArea?: number | null;
+  landShare?: number | null;
+  facade?: string | null;
+}
+
+export interface UpdateLocationBody {
+  companyId: number;
+  code?: string;
+  name?: string;
+  sortOrder?: number;
+  unitType?: string | null;
+  grossArea?: number | null;
+  netArea?: number | null;
+  landShare?: number | null;
+  facade?: string | null;
+}
+
+export interface MoveLocationBody {
+  companyId: number;
+  newParentId: number | null;
+}
+
+export interface BulkGenerateLocationsBody {
+  companyId: number;
+  projectId: number;
+  parentId?: number | null;
+  blocks: string[];
+  floors?: string[];
+  unitsPerFloor?: number;
+  unitNumbering?: 'sequential' | 'per_floor';
+  defaultUnitType?: string | null;
+  blockNameTemplate?: string;
+  floorNameTemplate?: string;
+  unitNameTemplate?: string;
+}
+
+// ===== FAZ 2 — Takip istek gövdeleri =======================================
+
+export interface TemplateBodyPayload {
+  groups: {
+    code: string;
+    name: string;
+    weightPct: number;
+    sortOrder?: number;
+    items: {
+      code: string;
+      name: string;
+      weightPct: number;
+      sortOrder?: number;
+      pozId?: number | null;
+    }[];
+  }[];
+}
+
+export interface CreateProgressTemplateBody {
+  companyId: number;
+  name: string;
+  code?: string;
+  scope?: TrackScope;
+  description?: string | null;
+  pctInProgress?: number;
+  pctHasDefects?: number;
+  body?: TemplateBodyPayload;
+}
+
+export interface UpdateProgressTemplateBody {
+  companyId: number;
+  name?: string;
+  scope?: TrackScope;
+  description?: string | null;
+  pctInProgress?: number;
+  pctHasDefects?: number;
+}
+
+export interface SaveTemplateBodyBody extends TemplateBodyPayload {
+  companyId: number;
+}
+
+export interface CreateTrackingBody {
+  companyId: number;
+  projectId: number;
+  templateId: number;
+  name: string;
+  code?: string;
+  projectWeightPct?: number;
+  plannedStart?: string | null;
+  plannedEnd?: string | null;
+  assignedUserId?: number | null;
+  visibleAll?: boolean;
+  note?: string | null;
+  locationIds: number[];
+  locationWeights?: Record<string, number>;
+}
+
+export interface UpdateTrackingBody {
+  companyId: number;
+  name?: string;
+  projectWeightPct?: number;
+  plannedStart?: string | null;
+  plannedEnd?: string | null;
+  assignedUserId?: number | null;
+  visibleAll?: boolean;
+  note?: string | null;
+}
+
+export interface SetTrackingItemsBody {
+  companyId: number;
+  updates: {
+    trackingItemId: number;
+    state: ItemState;
+    overridePct?: number | null;
+    inspectedBy?: number | null;
+    inspectedAt?: string | null;
+    note?: string | null;
+  }[];
+}
+
+export interface AddTrackingLocationsBody {
+  companyId: number;
+  locationIds: number[];
+  locationWeights?: Record<string, number>;
 }

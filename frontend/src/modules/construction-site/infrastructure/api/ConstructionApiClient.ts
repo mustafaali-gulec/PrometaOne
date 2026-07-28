@@ -53,6 +53,23 @@ import type {
   ProjectDashboardDto,
   TimesheetDto,
   TimesheetsResponse,
+  BulkGenerateResultDto,
+  DeleteLocationResultDto,
+  LocationDto,
+  LocationListResponse,
+  LocationTreeResponse,
+  LocationUsageDto,
+  ProgressTemplateDto,
+  ProgressTemplatesResponse,
+  ProjectPhysicalProgressDto,
+  SaveTemplateBodyResultDto,
+  TrackScope,
+  TrackingBoardDto,
+  TrackingDto,
+  TrackingItemHistoryResponse,
+  TrackingLocationsResponse,
+  TrackingStatus,
+  TrackingsResponse,
 } from '../../application/dto/ConstructionDtos';
 import type { AuthTokenProvider } from '../../application/ports/AuthTokenProvider';
 import type {
@@ -88,6 +105,18 @@ import type {
   UpdatePaymentBody,
   UpdatePozBody,
   UpdateProjectBody,
+  AddTrackingLocationsBody,
+  BulkGenerateLocationsBody,
+  CreateLocationBody,
+  CreateProgressTemplateBody,
+  CreateTrackingBody,
+  LocationQueryOptions,
+  MoveLocationBody,
+  SaveTemplateBodyBody,
+  SetTrackingItemsBody,
+  UpdateLocationBody,
+  UpdateProgressTemplateBody,
+  UpdateTrackingBody,
 } from '../../application/ports/ConstructionApi';
 
 export class ConstructionApiClient implements ConstructionApi {
@@ -499,6 +528,247 @@ export class ConstructionApiClient implements ConstructionApi {
   getProgressCurve(contractId: number, companyId: number): Promise<ProgressCurveDto> {
     return this.request<ProgressCurveDto>(
       `/v1/construction/contracts/${String(contractId)}/progress-curve?companyId=${String(companyId)}`,
+    );
+  }
+
+  // ===== FAZ 1 — LOCATIONS (Mekân kırılımı) ================================
+  /** Ortak sorgu parametreleri; shape ağaç/düz seçimini çağıran metot ekler. */
+  private locationQuery(companyId: number, options?: LocationQueryOptions): URLSearchParams {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (options?.includeInactive !== undefined)
+      q.set('includeInactive', String(options.includeInactive));
+    if (options?.kind !== undefined) q.set('kind', options.kind);
+    if (options?.subtreeOf !== undefined) q.set('subtreeOf', String(options.subtreeOf));
+    if (options?.search !== undefined) q.set('search', options.search);
+    return q;
+  }
+
+  getLocationTree(
+    projectId: number,
+    companyId: number,
+    options?: LocationQueryOptions,
+  ): Promise<LocationTreeResponse> {
+    const q = this.locationQuery(companyId, options);
+    q.set('shape', 'tree');
+    return this.request<LocationTreeResponse>(
+      `/v1/construction/projects/${String(projectId)}/locations?${q.toString()}`,
+    );
+  }
+
+  listLocations(
+    projectId: number,
+    companyId: number,
+    options?: LocationQueryOptions,
+  ): Promise<LocationListResponse> {
+    const q = this.locationQuery(companyId, options);
+    q.set('shape', 'flat');
+    return this.request<LocationListResponse>(
+      `/v1/construction/projects/${String(projectId)}/locations?${q.toString()}`,
+    );
+  }
+
+  createLocation(body: CreateLocationBody): Promise<LocationDto> {
+    return this.request<LocationDto>(`/v1/construction/locations`, { method: 'POST', body });
+  }
+
+  updateLocation(id: number, body: UpdateLocationBody): Promise<LocationDto> {
+    return this.request<LocationDto>(`/v1/construction/locations/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  moveLocation(id: number, body: MoveLocationBody): Promise<LocationDto> {
+    return this.request<LocationDto>(`/v1/construction/locations/${String(id)}/move`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  getLocationUsage(id: number, companyId: number): Promise<LocationUsageDto> {
+    return this.request<LocationUsageDto>(
+      `/v1/construction/locations/${String(id)}/usage?companyId=${String(companyId)}`,
+    );
+  }
+
+  deleteLocation(
+    id: number,
+    companyId: number,
+    deactivateOnly?: boolean,
+  ): Promise<DeleteLocationResultDto> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (deactivateOnly !== undefined) q.set('deactivateOnly', String(deactivateOnly));
+    return this.request<DeleteLocationResultDto>(
+      `/v1/construction/locations/${String(id)}?${q.toString()}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  bulkGenerateLocations(body: BulkGenerateLocationsBody): Promise<BulkGenerateResultDto> {
+    return this.request<BulkGenerateResultDto>(`/v1/construction/locations/bulk-generate`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  // ===== FAZ 2 — PROGRESS TEMPLATES (Takip şablonları) =====================
+  listProgressTemplates(
+    companyId: number,
+    options?: { includeInactive?: boolean; scope?: TrackScope; search?: string },
+  ): Promise<ProgressTemplatesResponse> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (options?.includeInactive !== undefined)
+      q.set('includeInactive', String(options.includeInactive));
+    if (options?.scope !== undefined) q.set('scope', options.scope);
+    if (options?.search !== undefined) q.set('search', options.search);
+    return this.request<ProgressTemplatesResponse>(
+      `/v1/construction/progress-templates?${q.toString()}`,
+    );
+  }
+
+  getProgressTemplate(id: number, companyId: number): Promise<ProgressTemplateDto> {
+    return this.request<ProgressTemplateDto>(
+      `/v1/construction/progress-templates/${String(id)}?companyId=${String(companyId)}`,
+    );
+  }
+
+  createProgressTemplate(body: CreateProgressTemplateBody): Promise<ProgressTemplateDto> {
+    return this.request<ProgressTemplateDto>(`/v1/construction/progress-templates`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  updateProgressTemplate(
+    id: number,
+    body: UpdateProgressTemplateBody,
+  ): Promise<ProgressTemplateDto> {
+    return this.request<ProgressTemplateDto>(`/v1/construction/progress-templates/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  saveTemplateBody(id: number, body: SaveTemplateBodyBody): Promise<SaveTemplateBodyResultDto> {
+    return this.request<SaveTemplateBodyResultDto>(
+      `/v1/construction/progress-templates/${String(id)}/body`,
+      { method: 'PUT', body },
+    );
+  }
+
+  deactivateProgressTemplate(id: number, companyId: number): Promise<ProgressTemplateDto> {
+    return this.request<ProgressTemplateDto>(
+      `/v1/construction/progress-templates/${String(id)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  // ===== FAZ 2 — TRACKINGS (Güncel durum takipleri) ========================
+  listTrackings(
+    companyId: number,
+    options?: {
+      projectId?: number;
+      status?: TrackingStatus;
+      includeCancelled?: boolean;
+      search?: string;
+      asOf?: string;
+    },
+  ): Promise<TrackingsResponse> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (options?.projectId !== undefined) q.set('projectId', String(options.projectId));
+    if (options?.status !== undefined) q.set('status', options.status);
+    if (options?.includeCancelled !== undefined)
+      q.set('includeCancelled', String(options.includeCancelled));
+    if (options?.search !== undefined) q.set('search', options.search);
+    if (options?.asOf !== undefined) q.set('asOf', options.asOf);
+    return this.request<TrackingsResponse>(`/v1/construction/trackings?${q.toString()}`);
+  }
+
+  getTrackingBoard(id: number, companyId: number, asOf?: string): Promise<TrackingBoardDto> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (asOf !== undefined) q.set('asOf', asOf);
+    return this.request<TrackingBoardDto>(
+      `/v1/construction/trackings/${String(id)}/board?${q.toString()}`,
+    );
+  }
+
+  createTracking(body: CreateTrackingBody): Promise<TrackingDto> {
+    return this.request<TrackingDto>(`/v1/construction/trackings`, { method: 'POST', body });
+  }
+
+  updateTracking(id: number, body: UpdateTrackingBody): Promise<TrackingDto> {
+    return this.request<TrackingDto>(`/v1/construction/trackings/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  changeTrackingStatus(
+    id: number,
+    body: { companyId: number; status: TrackingStatus },
+  ): Promise<TrackingDto> {
+    return this.request<TrackingDto>(`/v1/construction/trackings/${String(id)}/status`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  setTrackingItemStates(
+    id: number,
+    body: SetTrackingItemsBody,
+  ): Promise<TrackingLocationsResponse> {
+    return this.request<TrackingLocationsResponse>(
+      `/v1/construction/trackings/${String(id)}/items`,
+      { method: 'PUT', body },
+    );
+  }
+
+  getTrackingItemHistory(
+    trackingItemId: number,
+    companyId: number,
+  ): Promise<TrackingItemHistoryResponse> {
+    return this.request<TrackingItemHistoryResponse>(
+      `/v1/construction/tracking-items/${String(trackingItemId)}/history?companyId=${String(companyId)}`,
+    );
+  }
+
+  addTrackingLocations(
+    id: number,
+    body: AddTrackingLocationsBody,
+  ): Promise<TrackingLocationsResponse> {
+    return this.request<TrackingLocationsResponse>(
+      `/v1/construction/trackings/${String(id)}/locations`,
+      { method: 'POST', body },
+    );
+  }
+
+  removeTrackingLocation(
+    id: number,
+    trackingLocationId: number,
+    companyId: number,
+  ): Promise<TrackingLocationsResponse> {
+    return this.request<TrackingLocationsResponse>(
+      `/v1/construction/trackings/${String(id)}/locations/${String(trackingLocationId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  syncTrackingWithTemplate(id: number, companyId: number): Promise<{ addedItems: number }> {
+    return this.request<{ addedItems: number }>(
+      `/v1/construction/trackings/${String(id)}/sync-template`,
+      { method: 'POST', body: { companyId } },
+    );
+  }
+
+  getProjectPhysicalProgress(
+    projectId: number,
+    companyId: number,
+    asOf?: string,
+  ): Promise<ProjectPhysicalProgressDto> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (asOf !== undefined) q.set('asOf', asOf);
+    return this.request<ProjectPhysicalProgressDto>(
+      `/v1/construction/projects/${String(projectId)}/physical-progress?${q.toString()}`,
     );
   }
 
