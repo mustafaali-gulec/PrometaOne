@@ -36,7 +36,7 @@ import type { TrackScope, TrackingStatus } from '../../domain/valueObjects/Track
 // ===== ŞABLON ===============================================================
 
 interface TemplateRow {
-  id: number;
+  id: string;
   company_id: number;
   code: string;
   name: string;
@@ -51,9 +51,9 @@ interface TemplateRow {
 }
 
 interface GroupRow {
-  id: number;
+  id: string;
   company_id: number;
-  template_id: number;
+  template_id: string;
   code: string;
   name: string;
   weight_pct: string;
@@ -61,14 +61,14 @@ interface GroupRow {
 }
 
 interface ItemRow {
-  id: number;
+  id: string;
   company_id: number;
-  group_id: number;
+  group_id: string;
   code: string;
   name: string;
   weight_pct: string;
   sort_order: number;
-  poz_id: number | null;
+  poz_id: string | null;
 }
 
 const TPL_COLS =
@@ -135,13 +135,13 @@ export class PgProgressTemplateRepository implements ProgressTemplateRepository 
         [templateId, companyId],
       );
       for (const g of body.groups) {
-        const gr = await client.query<{ id: number }>(
+        const gr = await client.query<{ id: string }>(
           `INSERT INTO cs_progress_template_groups
              (company_id, template_id, code, name, weight_pct, sort_order)
            VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
           [companyId, templateId, g.code, g.name, g.weightPct, g.sortOrder],
         );
-        const groupId = gr.rows[0]!.id;
+        const groupId = Number(gr.rows[0]!.id);
         for (const i of g.items) {
           await client.query(
             `INSERT INTO cs_progress_template_items
@@ -194,7 +194,7 @@ export class PgProgressTemplateRepository implements ProgressTemplateRepository 
     if (t.rows.length === 0) return [];
 
     const groups = await this.loadGroups(
-      t.rows.map((r) => r.id),
+      t.rows.map((r) => Number(r.id)),
       companyId,
     );
     return t.rows.map((r) => this.hydrate(r, groups));
@@ -245,7 +245,9 @@ export class PgProgressTemplateRepository implements ProgressTemplateRepository 
       [g.rows.map((r) => r.id), companyId],
     );
 
-    const itemsByGroup = new Map<number, ItemRow[]>();
+    // Anahtar string: group_id satırda BIGINT olduğu için string gelir ve
+    // arama tarafı da (gr.id) aynı temsili kullanır — çevirme yapmadan eşleşir.
+    const itemsByGroup = new Map<string, ItemRow[]>();
     for (const it of i.rows) {
       const arr = itemsByGroup.get(it.group_id);
       if (arr) arr.push(it);
@@ -254,27 +256,27 @@ export class PgProgressTemplateRepository implements ProgressTemplateRepository 
 
     for (const gr of g.rows) {
       const props: TemplateGroupProps = {
-        id: gr.id,
-        companyId: gr.company_id,
-        templateId: gr.template_id,
+        id: Number(gr.id),
+        companyId: Number(gr.company_id),
+        templateId: Number(gr.template_id),
         code: gr.code,
         name: gr.name,
         weightPct: Number(gr.weight_pct),
         sortOrder: gr.sort_order,
         items: (itemsByGroup.get(gr.id) ?? []).map((it) => ({
-          id: it.id,
-          companyId: it.company_id,
-          groupId: it.group_id,
+          id: Number(it.id),
+          companyId: Number(it.company_id),
+          groupId: Number(it.group_id),
           code: it.code,
           name: it.name,
           weightPct: Number(it.weight_pct),
           sortOrder: it.sort_order,
-          pozId: it.poz_id,
+          pozId: it.poz_id === null ? null : Number(it.poz_id),
         })),
       };
-      const arr = out.get(gr.template_id);
+      const arr = out.get(Number(gr.template_id));
       if (arr) arr.push(props);
-      else out.set(gr.template_id, [props]);
+      else out.set(Number(gr.template_id), [props]);
     }
     return out;
   }
@@ -283,10 +285,10 @@ export class PgProgressTemplateRepository implements ProgressTemplateRepository 
     r: TemplateRow,
     groups: ReadonlyMap<number, TemplateGroupProps[]>,
   ): ProgressTemplate {
-    const g = groups.get(r.id) ?? [];
+    const g = groups.get(Number(r.id)) ?? [];
     return ProgressTemplate.create({
-      id: r.id,
-      companyId: r.company_id,
+      id: Number(r.id),
+      companyId: Number(r.company_id),
       code: r.code,
       name: r.name,
       scope: r.scope,
@@ -305,10 +307,10 @@ export class PgProgressTemplateRepository implements ProgressTemplateRepository 
 // ===== TAKİP ================================================================
 
 interface TrackingRow {
-  id: number;
+  id: string;
   company_id: number;
-  project_id: number;
-  template_id: number;
+  project_id: string;
+  template_id: string;
   code: string;
   name: string;
   project_weight_pct: string;
@@ -330,10 +332,10 @@ const TRK_COLS =
 
 function rowToTracking(r: TrackingRow): Tracking {
   return Tracking.create({
-    id: r.id,
-    companyId: r.company_id,
-    projectId: r.project_id,
-    templateId: r.template_id,
+    id: Number(r.id),
+    companyId: Number(r.company_id),
+    projectId: Number(r.project_id),
+    templateId: Number(r.template_id),
     code: r.code,
     name: r.name,
     projectWeightPct: Number(r.project_weight_pct),
@@ -350,13 +352,13 @@ function rowToTracking(r: TrackingRow): Tracking {
 }
 
 interface ItemQueryRow {
-  id: number;
-  tracking_id: number;
-  tracking_location_id: number;
-  location_id: number;
+  id: string;
+  tracking_id: string;
+  tracking_location_id: string;
+  location_id: string;
   location_path: string;
-  template_item_id: number;
-  group_id: number;
+  template_item_id: string;
+  group_id: string;
   group_name: string;
   group_weight: string;
   item_name: string;
@@ -367,7 +369,7 @@ interface ItemQueryRow {
   inspected_by: number | null;
   inspected_at: string | null;
   note: string | null;
-  poz_id: number | null;
+  poz_id: string | null;
 }
 
 /**
@@ -402,13 +404,13 @@ const ITEM_SELECT = `
 
 function toItemRow(r: ItemQueryRow): TrackingItemRow {
   return {
-    id: r.id,
-    trackingId: r.tracking_id,
-    trackingLocationId: r.tracking_location_id,
-    locationId: r.location_id,
+    id: Number(r.id),
+    trackingId: Number(r.tracking_id),
+    trackingLocationId: Number(r.tracking_location_id),
+    locationId: Number(r.location_id),
     locationPath: r.location_path,
-    templateItemId: r.template_item_id,
-    groupId: r.group_id,
+    templateItemId: Number(r.template_item_id),
+    groupId: Number(r.group_id),
     groupName: r.group_name,
     groupWeight: Number(r.group_weight),
     itemName: r.item_name,
@@ -419,7 +421,7 @@ function toItemRow(r: ItemQueryRow): TrackingItemRow {
     inspectedBy: r.inspected_by,
     inspectedAt: r.inspected_at,
     note: r.note,
-    pozId: r.poz_id,
+    pozId: r.poz_id === null ? null : Number(r.poz_id),
   };
 }
 
@@ -451,10 +453,10 @@ export class PgTrackingRepository implements TrackingRepository {
           input.createdBy,
         ],
       );
-      const trackingId = t.rows[0]!.id;
+      const trackingId = Number(t.rows[0]!.id);
 
       for (const loc of input.locations) {
-        const tl = await client.query<{ id: number }>(
+        const tl = await client.query<{ id: string }>(
           `INSERT INTO cs_tracking_locations
              (company_id, tracking_id, location_id, weight_pct, sort_order)
            VALUES ($1,$2,$3,$4,$5) RETURNING id`,
@@ -464,7 +466,7 @@ export class PgTrackingRepository implements TrackingRepository {
           client,
           input.companyId,
           trackingId,
-          tl.rows[0]!.id,
+          Number(tl.rows[0]!.id),
           input.templateId,
         );
       }
@@ -553,10 +555,10 @@ export class PgTrackingRepository implements TrackingRepository {
     companyId: number,
   ): Promise<ReadonlyArray<TrackingLocationProps>> {
     const r = await this.pool.query<{
-      id: number;
+      id: string;
       company_id: number;
-      tracking_id: number;
-      location_id: number;
+      tracking_id: string;
+      location_id: string;
       weight_pct: string;
       sort_order: number;
       location_path: string;
@@ -571,10 +573,10 @@ export class PgTrackingRepository implements TrackingRepository {
       [trackingId, companyId],
     );
     return r.rows.map((row) => ({
-      id: row.id,
-      companyId: row.company_id,
-      trackingId: row.tracking_id,
-      locationId: row.location_id,
+      id: Number(row.id),
+      companyId: Number(row.company_id),
+      trackingId: Number(row.tracking_id),
+      locationId: Number(row.location_id),
       weightPct: Number(row.weight_pct),
       sortOrder: row.sort_order,
       locationPath: row.location_path,
@@ -686,8 +688,8 @@ export class PgTrackingRepository implements TrackingRepository {
     companyId: number,
   ): Promise<ReadonlyArray<TrackingItemHistoryRow>> {
     const r = await this.pool.query<{
-      id: number;
-      tracking_item_id: number;
+      id: string;
+      tracking_item_id: string;
       from_state: ItemState | null;
       to_state: ItemState;
       from_pct: string | null;
@@ -704,8 +706,8 @@ export class PgTrackingRepository implements TrackingRepository {
       [trackingItemId, companyId],
     );
     return r.rows.map((row) => ({
-      id: row.id,
-      trackingItemId: row.tracking_item_id,
+      id: Number(row.id),
+      trackingItemId: Number(row.tracking_item_id),
       fromState: row.from_state,
       toState: row.to_state,
       fromPct: row.from_pct === null ? null : Number(row.from_pct),
@@ -723,8 +725,8 @@ export class PgTrackingRepository implements TrackingRepository {
     // LEFT JOIN: henüz durum satırı olmayan (şablonu boş) lokasyon da listede
     // görünmeli — yoksa kullanıcı eklediği bloğu ekranda bulamaz.
     const r = await this.pool.query<{
-      tracking_location_id: number;
-      location_id: number;
+      tracking_location_id: string;
+      location_id: string;
       location_path: string;
       location_name: string;
       weight_pct: string;
@@ -752,8 +754,8 @@ export class PgTrackingRepository implements TrackingRepository {
       [trackingId, companyId],
     );
     return r.rows.map((row) => ({
-      trackingLocationId: row.tracking_location_id,
-      locationId: row.location_id,
+      trackingLocationId: Number(row.tracking_location_id),
+      locationId: Number(row.location_id),
       locationPath: row.location_path,
       locationName: row.location_name,
       weightPct: Number(row.weight_pct),
@@ -767,8 +769,8 @@ export class PgTrackingRepository implements TrackingRepository {
 
   async trackingProgress(trackingId: number, companyId: number): Promise<TrackingProgress | null> {
     const r = await this.pool.query<{
-      tracking_id: number;
-      project_id: number;
+      tracking_id: string;
+      project_id: string;
       project_weight_pct: string;
       progress_pct: string;
       location_count: string;
@@ -780,8 +782,8 @@ export class PgTrackingRepository implements TrackingRepository {
     const row = r.rows[0];
     if (!row) return null;
     return {
-      trackingId: row.tracking_id,
-      projectId: row.project_id,
+      trackingId: Number(row.tracking_id),
+      projectId: Number(row.project_id),
       projectWeightPct: Number(row.project_weight_pct),
       progressPct: Number(row.progress_pct),
       locationCount: Number(row.location_count),
@@ -804,8 +806,8 @@ export class PgTrackingRepository implements TrackingRepository {
       where.push(`tracking_id = ANY($${params.length}::bigint[])`);
     }
     const r = await this.pool.query<{
-      tracking_id: number;
-      project_id: number;
+      tracking_id: string;
+      project_id: string;
       project_weight_pct: string;
       progress_pct: string;
       location_count: string;
@@ -815,8 +817,8 @@ export class PgTrackingRepository implements TrackingRepository {
       params,
     );
     return r.rows.map((row) => ({
-      trackingId: row.tracking_id,
-      projectId: row.project_id,
+      trackingId: Number(row.tracking_id),
+      projectId: Number(row.project_id),
       projectWeightPct: Number(row.project_weight_pct),
       progressPct: Number(row.progress_pct),
       locationCount: Number(row.location_count),
@@ -825,7 +827,7 @@ export class PgTrackingRepository implements TrackingRepository {
 
   async projectProgress(projectId: number, companyId: number): Promise<ProjectPhysicalProgress> {
     const r = await this.pool.query<{
-      project_id: number;
+      project_id: string;
       progress_pct: string;
       weight_sum: string;
       tracking_count: string;
@@ -839,7 +841,7 @@ export class PgTrackingRepository implements TrackingRepository {
       return { projectId, progressPct: 0, weightSum: 0, trackingCount: 0 };
     }
     return {
-      projectId: row.project_id,
+      projectId: Number(row.project_id),
       progressPct: Number(row.progress_pct),
       weightSum: Number(row.weight_sum),
       trackingCount: Number(row.tracking_count),
@@ -875,21 +877,22 @@ export class PgTrackingRepository implements TrackingRepository {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const t = await client.query<{ template_id: number }>(
+      const t = await client.query<{ template_id: string }>(
         `SELECT template_id FROM cs_trackings WHERE id = $1 AND company_id = $2`,
         [trackingId, companyId],
       );
-      const templateId = t.rows[0]?.template_id;
-      if (templateId === undefined) throw new Error(`cs_trackings bulunamadı: ${trackingId}`);
+      const rawTemplateId = t.rows[0]?.template_id;
+      if (rawTemplateId === undefined) throw new Error(`cs_trackings bulunamadı: ${trackingId}`);
+      const templateId = Number(rawTemplateId);
 
       for (const loc of locations) {
-        const tl = await client.query<{ id: number }>(
+        const tl = await client.query<{ id: string }>(
           `INSERT INTO cs_tracking_locations
              (company_id, tracking_id, location_id, weight_pct, sort_order)
            VALUES ($1,$2,$3,$4,$5) RETURNING id`,
           [companyId, trackingId, loc.locationId, loc.weightPct, loc.sortOrder],
         );
-        await materializeItems(client, companyId, trackingId, tl.rows[0]!.id, templateId);
+        await materializeItems(client, companyId, trackingId, Number(tl.rows[0]!.id), templateId);
       }
       await client.query('COMMIT');
     } catch (err) {

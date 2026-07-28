@@ -20,11 +20,22 @@ import type {
 import { Location } from '../../domain/entities/Location.js';
 import type { LocationKind } from '../../domain/valueObjects/LocationKind.js';
 
+/**
+ * DİKKAT — BIGINT ↔ string: node-pg, int8 (BIGINT) kolonlarını varsayılan olarak
+ * STRING döndürür (2^53 üstü değerlerde hassasiyet kaybını önlemek için). Bu
+ * yüzden id/parent_id/project_id satırda `string` olarak gelir ve mapper'da
+ * Number()'a çevrilmelidir.
+ *
+ * Çevirmemek sessiz bir hataya yol açar: entity tipleri `number` der, use-case
+ * `loc.projectId !== input.projectId` gibi katı karşılaştırma yapar ve `"9" !== 9`
+ * daima doğru olduğu için geçerli istek "bulunamadı" ile reddedilir. Tip sistemi
+ * bunu yakalayamaz çünkü yalan satır arayüzünde başlar.
+ */
 interface LocationRow {
-  id: number;
+  id: string;
   company_id: number;
-  project_id: number;
-  parent_id: number | null;
+  project_id: string;
+  parent_id: string | null;
   kind: LocationKind;
   code: string;
   name: string;
@@ -52,10 +63,10 @@ function num(v: string | null): number | null {
 
 function rowToLocation(r: LocationRow): Location {
   return Location.create({
-    id: r.id,
-    companyId: r.company_id,
-    projectId: r.project_id,
-    parentId: r.parent_id,
+    id: Number(r.id),
+    companyId: Number(r.company_id),
+    projectId: Number(r.project_id),
+    parentId: r.parent_id === null ? null : Number(r.parent_id),
     kind: r.kind,
     code: r.code,
     name: r.name,
@@ -270,13 +281,13 @@ export class PgLocationRepository implements LocationRepository {
         const parentClause = parentId === null ? 'parent_id IS NULL' : 'parent_id = $4';
         const findParams: unknown[] = [input.companyId, input.projectId, code];
         if (parentId !== null) findParams.push(parentId);
-        const found = await client.query<{ id: number }>(
+        const found = await client.query<{ id: string }>(
           `SELECT id FROM cs_locations
             WHERE company_id = $1 AND project_id = $2 AND code = $3 AND ${parentClause} LIMIT 1`,
           findParams,
         );
         const existing = found.rows[0];
-        if (existing) return existing.id;
+        if (existing) return Number(existing.id);
 
         const ins = await client.query<LocationRow>(
           `INSERT INTO cs_locations
@@ -297,7 +308,7 @@ export class PgLocationRepository implements LocationRepository {
         );
         const row = ins.rows[0]!;
         created.push(rowToLocation(row));
-        return row.id;
+        return Number(row.id);
       };
 
       let blockIdx = 0;
