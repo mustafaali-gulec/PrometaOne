@@ -14,17 +14,6 @@ import { SystemClock } from './application/ports/Clock.js';
 import type { EventPublisher } from './application/ports/EventPublisher.js';
 import { GetBoqUseCase, SaveBoqLinesUseCase } from './application/useCases/BoqUseCases.js';
 import {
-  CreateAttachmentUseCase,
-  CreateMeasurementUseCase,
-  DeleteAttachmentUseCase,
-  DeleteMeasurementUseCase,
-  GetMeasurementSummaryUseCase,
-  ListAttachmentsUseCase,
-  ListMeasurementsUseCase,
-  UpdateAttachmentUseCase,
-  UpdateMeasurementUseCase,
-} from './application/useCases/MeasurementUseCases.js';
-import {
   CreateContractUseCase,
   ListContractsUseCase,
   UpdateContractUseCase,
@@ -64,6 +53,16 @@ import {
   UpdatePersonnelUseCase,
 } from './application/useCases/LaborUseCases.js';
 import {
+  BulkGenerateLocationsUseCase,
+  CreateLocationUseCase,
+  DeleteLocationUseCase,
+  GetLocationTreeUseCase,
+  GetLocationUsageUseCase,
+  ListLocationsUseCase,
+  MoveLocationUseCase,
+  UpdateLocationUseCase,
+} from './application/useCases/LocationUseCases.js';
+import {
   ChangeMaterialRequestStatusUseCase,
   CreateMaterialRequestUseCase,
   CreateMaterialUseCase,
@@ -79,6 +78,17 @@ import {
   SaveMaterialRequestLinesUseCase,
   UpdateMaterialUseCase,
 } from './application/useCases/MaterialUseCases.js';
+import {
+  CreateAttachmentUseCase,
+  CreateMeasurementUseCase,
+  DeleteAttachmentUseCase,
+  DeleteMeasurementUseCase,
+  GetMeasurementSummaryUseCase,
+  ListAttachmentsUseCase,
+  ListMeasurementsUseCase,
+  UpdateAttachmentUseCase,
+  UpdateMeasurementUseCase,
+} from './application/useCases/MeasurementUseCases.js';
 import {
   CreatePozUseCase,
   DeactivatePozUseCase,
@@ -104,12 +114,27 @@ import {
   GetProgressCurveUseCase,
   GetProjectDashboardUseCase,
 } from './application/useCases/ReportUseCases.js';
+import {
+  AddTrackingLocationsUseCase,
+  ChangeTrackingStatusUseCase,
+  CreateProgressTemplateUseCase,
+  CreateTrackingUseCase,
+  DeactivateProgressTemplateUseCase,
+  GetProgressTemplateUseCase,
+  GetProjectPhysicalProgressUseCase,
+  GetTrackingBoardUseCase,
+  GetTrackingItemHistoryUseCase,
+  ListProgressTemplatesUseCase,
+  ListTrackingsUseCase,
+  RemoveTrackingLocationUseCase,
+  SaveTemplateBodyUseCase,
+  SetTrackingItemStateUseCase,
+  SyncTrackingWithTemplateUseCase,
+  UpdateProgressTemplateUseCase,
+  UpdateTrackingUseCase,
+} from './application/useCases/TrackingUseCases.js';
 import { PgBoqRepository } from './infrastructure/persistence/PgBoqRepository.js';
 import { PgContractRepository } from './infrastructure/persistence/PgContractRepository.js';
-import {
-  PgAttachmentRepository,
-  PgMeasurementBookRepository,
-} from './infrastructure/persistence/PgMeasurementRepositories.js';
 import {
   PgAdvanceRepository,
   PgCashMovementRepository,
@@ -123,15 +148,24 @@ import {
   PgPersonnelRepository,
   PgTimesheetRepository,
 } from './infrastructure/persistence/PgLaborRepositories.js';
+import { PgLocationRepository } from './infrastructure/persistence/PgLocationRepository.js';
 import {
   PgMaterialRepository,
   PgMaterialRequestRepository,
   PgStockRepository,
   PgWarehouseRepository,
 } from './infrastructure/persistence/PgMaterialRepositories.js';
+import {
+  PgAttachmentRepository,
+  PgMeasurementBookRepository,
+} from './infrastructure/persistence/PgMeasurementRepositories.js';
 import { PgPozCatalogRepository } from './infrastructure/persistence/PgPozCatalogRepository.js';
 import { PgProgressPaymentRepository } from './infrastructure/persistence/PgProgressPaymentRepository.js';
 import { PgProjectRepository } from './infrastructure/persistence/PgProjectRepository.js';
+import {
+  PgProgressTemplateRepository,
+  PgTrackingRepository,
+} from './infrastructure/persistence/PgTrackingRepositories.js';
 import { createConstructionRouter, type ConstructionRouterDeps } from './presentation/routes.js';
 
 export function registerConstructionModule(
@@ -160,6 +194,9 @@ export function registerConstructionModule(
   const laborCost = new PgLaborCostRepository(pool);
   const measurements = new PgMeasurementBookRepository(pool);
   const attachments = new PgAttachmentRepository(pool);
+  const locations = new PgLocationRepository(pool);
+  const progressTemplates = new PgProgressTemplateRepository(pool);
+  const trackings = new PgTrackingRepository(pool);
 
   const deps: ConstructionRouterDeps = {
     createProject: new CreateProjectUseCase(projects),
@@ -244,6 +281,35 @@ export function registerConstructionModule(
     listAttachments: new ListAttachmentsUseCase(attachments),
     updateAttachment: new UpdateAttachmentUseCase(attachments, measurements),
     deleteAttachment: new DeleteAttachmentUseCase(attachments, measurements),
+
+    // FAZ 1 — Mekân kırılımı (Proje > Blok > Kat > Bağımsız Bölüm)
+    createLocation: new CreateLocationUseCase(locations, projects),
+    updateLocation: new UpdateLocationUseCase(locations, clock),
+    moveLocation: new MoveLocationUseCase(locations),
+    listLocations: new ListLocationsUseCase(locations),
+    getLocationTree: new GetLocationTreeUseCase(locations),
+    getLocationUsage: new GetLocationUsageUseCase(locations),
+    deleteLocation: new DeleteLocationUseCase(locations, clock),
+    bulkGenerateLocations: new BulkGenerateLocationsUseCase(locations, projects),
+
+    // FAZ 2 — Fiziksel ilerleme takibi (Güncel Durum)
+    createProgressTemplate: new CreateProgressTemplateUseCase(progressTemplates),
+    updateProgressTemplate: new UpdateProgressTemplateUseCase(progressTemplates, clock),
+    saveTemplateBody: new SaveTemplateBodyUseCase(progressTemplates),
+    listProgressTemplates: new ListProgressTemplatesUseCase(progressTemplates),
+    getProgressTemplate: new GetProgressTemplateUseCase(progressTemplates),
+    deactivateProgressTemplate: new DeactivateProgressTemplateUseCase(progressTemplates, clock),
+    createTracking: new CreateTrackingUseCase(trackings, progressTemplates, projects, locations),
+    updateTracking: new UpdateTrackingUseCase(trackings, clock),
+    changeTrackingStatus: new ChangeTrackingStatusUseCase(trackings, clock),
+    listTrackings: new ListTrackingsUseCase(trackings, clock),
+    getTrackingBoard: new GetTrackingBoardUseCase(trackings, progressTemplates, clock),
+    setTrackingItemState: new SetTrackingItemStateUseCase(trackings),
+    getTrackingItemHistory: new GetTrackingItemHistoryUseCase(trackings),
+    addTrackingLocations: new AddTrackingLocationsUseCase(trackings, progressTemplates, locations),
+    removeTrackingLocation: new RemoveTrackingLocationUseCase(trackings),
+    syncTrackingWithTemplate: new SyncTrackingWithTemplateUseCase(trackings),
+    getProjectPhysicalProgress: new GetProjectPhysicalProgressUseCase(trackings, projects, clock),
   };
 
   return createConstructionRouter(deps);

@@ -14,13 +14,20 @@ import {
   ContractNotFoundError,
   ConstructionValidationError,
   DuplicateContractNoError,
+  DuplicateLocationCodeError,
   DuplicateMachineCodeError,
   DuplicateMaterialCodeError,
   DuplicatePozError,
+  DuplicateProgressTemplateCodeError,
   DuplicateProjectCodeError,
+  DuplicateTrackingCodeError,
   DuplicateWarehouseCodeError,
   ExpenseNotFoundError,
+  InvalidLocationNestingError,
   InvalidStatusTransitionError,
+  InvalidTrackingScopeError,
+  LocationInUseError,
+  LocationNotFoundError,
   MachineNotFoundError,
   MaterialNotFoundError,
   MaterialRequestNotEditableError,
@@ -31,8 +38,12 @@ import {
   PozNotFoundError,
   ProgressNotEditableError,
   ProgressNotFoundError,
+  ProgressTemplateNotFoundError,
   ProjectNotFoundError,
   TimesheetNotFoundError,
+  TrackingItemNotFoundError,
+  TrackingNotActiveError,
+  TrackingNotFoundError,
   WarehouseNotFoundError,
 } from '../domain/errors/ConstructionErrors.js';
 
@@ -53,7 +64,11 @@ export function mapConstructionError(err: unknown): never {
     err instanceof MachineNotFoundError ||
     err instanceof TimesheetNotFoundError ||
     err instanceof MeasurementNotFoundError ||
-    err instanceof AttachmentNotFoundError
+    err instanceof AttachmentNotFoundError ||
+    err instanceof LocationNotFoundError ||
+    err instanceof ProgressTemplateNotFoundError ||
+    err instanceof TrackingNotFoundError ||
+    err instanceof TrackingItemNotFoundError
   ) {
     throw new HTTPException(404, { message: err.message });
   }
@@ -64,8 +79,17 @@ export function mapConstructionError(err: unknown): never {
     err instanceof DuplicatePozError ||
     err instanceof DuplicateMaterialCodeError ||
     err instanceof DuplicateWarehouseCodeError ||
-    err instanceof DuplicateMachineCodeError
+    err instanceof DuplicateMachineCodeError ||
+    err instanceof DuplicateLocationCodeError ||
+    err instanceof DuplicateProgressTemplateCodeError ||
+    err instanceof DuplicateTrackingCodeError
   ) {
+    throw new HTTPException(409, { message: err.message });
+  }
+
+  // Bağlı kayıt yüzünden silinemeyen lokasyon bir çatışmadır (409), geçersiz
+  // istek değil: istemci önce bağlı kayıtları taşımalı/temizlemeli.
+  if (err instanceof LocationInUseError) {
     throw new HTTPException(409, { message: err.message });
   }
 
@@ -73,7 +97,10 @@ export function mapConstructionError(err: unknown): never {
     err instanceof InvalidStatusTransitionError ||
     err instanceof ConstructionValidationError ||
     err instanceof ProgressNotEditableError ||
-    err instanceof MaterialRequestNotEditableError
+    err instanceof MaterialRequestNotEditableError ||
+    err instanceof InvalidLocationNestingError ||
+    err instanceof InvalidTrackingScopeError ||
+    err instanceof TrackingNotActiveError
   ) {
     throw new HTTPException(400, { message: err.message });
   }

@@ -158,6 +158,76 @@ export class TimesheetNotFoundError extends ConstructionError {
   }
 }
 
+// ---- FAZ 1: Mekân kırılımı -------------------------------------------------
+
+export class LocationNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Lokasyon bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateLocationCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Aynı üst mekânda bu kodda lokasyon zaten var: ${code}`);
+  }
+}
+
+export class InvalidLocationNestingError extends ConstructionError {
+  constructor(parentLabel: string, childLabel: string) {
+    super(`'${parentLabel}' altına '${childLabel}' eklenemez`);
+  }
+}
+
+export class LocationInUseError extends ConstructionError {
+  constructor(id: number, usage: string) {
+    super(`Lokasyon silinemez (${id}) — bağlı kayıt var: ${usage}`);
+  }
+}
+
+// ---- FAZ 2: Fiziksel ilerleme takibi ---------------------------------------
+
+export class ProgressTemplateNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`İlerleme takip şablonu bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateProgressTemplateCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu kodda takip şablonu zaten var: ${code}`);
+  }
+}
+
+export class TrackingNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Güncel durum takibi bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateTrackingCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu kodda takip zaten var: ${code}`);
+  }
+}
+
+export class TrackingItemNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Takip iş kalemi bulunamadı: ${id}`);
+  }
+}
+
+export class TrackingNotActiveError extends ConstructionError {
+  constructor(status: string) {
+    super(`Saha durumu yalnız aktif takipte güncellenebilir (mevcut durum: '${status}')`);
+  }
+}
+
+export class InvalidTrackingScopeError extends ConstructionError {
+  constructor(scope: string, kindLabel: string) {
+    super(`'${scope}' kapsamlı şablona '${kindLabel}' tipinde lokasyon eklenemez`);
+  }
+}
+
 export class InvalidStatusTransitionError extends ConstructionError {
   constructor(from: string, to: string) {
     super(`Geçersiz statü geçişi: '${from}' → '${to}'`);

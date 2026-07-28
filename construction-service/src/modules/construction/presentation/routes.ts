@@ -12,17 +12,6 @@ import { z } from 'zod';
 import { authMiddleware, companyScopeGuard, requireRole } from '../../../middleware/auth.js';
 import type { GetBoqUseCase, SaveBoqLinesUseCase } from '../application/useCases/BoqUseCases.js';
 import type {
-  CreateAttachmentUseCase,
-  CreateMeasurementUseCase,
-  DeleteAttachmentUseCase,
-  DeleteMeasurementUseCase,
-  GetMeasurementSummaryUseCase,
-  ListAttachmentsUseCase,
-  ListMeasurementsUseCase,
-  UpdateAttachmentUseCase,
-  UpdateMeasurementUseCase,
-} from '../application/useCases/MeasurementUseCases.js';
-import type {
   CreateContractUseCase,
   ListContractsUseCase,
   UpdateContractUseCase,
@@ -62,6 +51,16 @@ import type {
   UpdatePersonnelUseCase,
 } from '../application/useCases/LaborUseCases.js';
 import type {
+  BulkGenerateLocationsUseCase,
+  CreateLocationUseCase,
+  DeleteLocationUseCase,
+  GetLocationTreeUseCase,
+  GetLocationUsageUseCase,
+  ListLocationsUseCase,
+  MoveLocationUseCase,
+  UpdateLocationUseCase,
+} from '../application/useCases/LocationUseCases.js';
+import type {
   ChangeMaterialRequestStatusUseCase,
   CreateMaterialRequestUseCase,
   CreateMaterialUseCase,
@@ -77,6 +76,17 @@ import type {
   SaveMaterialRequestLinesUseCase,
   UpdateMaterialUseCase,
 } from '../application/useCases/MaterialUseCases.js';
+import type {
+  CreateAttachmentUseCase,
+  CreateMeasurementUseCase,
+  DeleteAttachmentUseCase,
+  DeleteMeasurementUseCase,
+  GetMeasurementSummaryUseCase,
+  ListAttachmentsUseCase,
+  ListMeasurementsUseCase,
+  UpdateAttachmentUseCase,
+  UpdateMeasurementUseCase,
+} from '../application/useCases/MeasurementUseCases.js';
 import type {
   CreatePozUseCase,
   DeactivatePozUseCase,
@@ -102,6 +112,25 @@ import type {
   GetProgressCurveUseCase,
   GetProjectDashboardUseCase,
 } from '../application/useCases/ReportUseCases.js';
+import type {
+  AddTrackingLocationsUseCase,
+  ChangeTrackingStatusUseCase,
+  CreateProgressTemplateUseCase,
+  CreateTrackingUseCase,
+  DeactivateProgressTemplateUseCase,
+  GetProgressTemplateUseCase,
+  GetProjectPhysicalProgressUseCase,
+  GetTrackingBoardUseCase,
+  GetTrackingItemHistoryUseCase,
+  ListProgressTemplatesUseCase,
+  ListTrackingsUseCase,
+  RemoveTrackingLocationUseCase,
+  SaveTemplateBodyUseCase,
+  SetTrackingItemStateUseCase,
+  SyncTrackingWithTemplateUseCase,
+  UpdateProgressTemplateUseCase,
+  UpdateTrackingUseCase,
+} from '../application/useCases/TrackingUseCases.js';
 
 import { mapConstructionError } from './errorMapping.js';
 
@@ -182,6 +211,33 @@ export interface ConstructionRouterDeps {
   listAttachments: ListAttachmentsUseCase;
   updateAttachment: UpdateAttachmentUseCase;
   deleteAttachment: DeleteAttachmentUseCase;
+  // FAZ 1 — Mekân kırılımı
+  createLocation: CreateLocationUseCase;
+  updateLocation: UpdateLocationUseCase;
+  moveLocation: MoveLocationUseCase;
+  listLocations: ListLocationsUseCase;
+  getLocationTree: GetLocationTreeUseCase;
+  getLocationUsage: GetLocationUsageUseCase;
+  deleteLocation: DeleteLocationUseCase;
+  bulkGenerateLocations: BulkGenerateLocationsUseCase;
+  // FAZ 2 — Fiziksel ilerleme takibi
+  createProgressTemplate: CreateProgressTemplateUseCase;
+  updateProgressTemplate: UpdateProgressTemplateUseCase;
+  saveTemplateBody: SaveTemplateBodyUseCase;
+  listProgressTemplates: ListProgressTemplatesUseCase;
+  getProgressTemplate: GetProgressTemplateUseCase;
+  deactivateProgressTemplate: DeactivateProgressTemplateUseCase;
+  createTracking: CreateTrackingUseCase;
+  updateTracking: UpdateTrackingUseCase;
+  changeTrackingStatus: ChangeTrackingStatusUseCase;
+  listTrackings: ListTrackingsUseCase;
+  getTrackingBoard: GetTrackingBoardUseCase;
+  setTrackingItemState: SetTrackingItemStateUseCase;
+  getTrackingItemHistory: GetTrackingItemHistoryUseCase;
+  addTrackingLocations: AddTrackingLocationsUseCase;
+  removeTrackingLocation: RemoveTrackingLocationUseCase;
+  syncTrackingWithTemplate: SyncTrackingWithTemplateUseCase;
+  getProjectPhysicalProgress: GetProjectPhysicalProgressUseCase;
 }
 
 // --- Schema fragmanları ---------------------------------------------------
@@ -208,6 +264,64 @@ const mreqStatus = z.enum(['draft', 'submitted', 'approved', 'rejected', 'fulfil
 const companyIdQ = z.object({ companyId: z.coerce.number().int().positive() });
 const idParam = z.object({ id: z.coerce.number().int().positive() });
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+// FAZ 1/2 fragmanları
+const locationKind = z.enum(['site', 'block', 'floor', 'unit', 'zone']);
+const trackScope = z.enum(['general', 'block', 'floor', 'unit']);
+const trackingStatus = z.enum(['draft', 'active', 'completed', 'cancelled']);
+const itemState = z.enum(['not_started', 'in_progress', 'has_defects', 'completed']);
+const pct = z.number().min(0).max(100);
+const templateBodySchema = z.object({
+  groups: z.array(
+    z.object({
+      code: z.string().min(1).max(40),
+      name: z.string().min(1).max(300),
+      weightPct: z.number().nonnegative(),
+      sortOrder: z.number().int().nonnegative().optional(),
+      items: z.array(
+        z.object({
+          code: z.string().min(1).max(40),
+          name: z.string().min(1).max(300),
+          weightPct: z.number().nonnegative(),
+          sortOrder: z.number().int().nonnegative().optional(),
+          pozId: z.number().int().positive().nullable().optional(),
+        }),
+      ),
+    }),
+  ),
+});
+
+/** Şablon gövdesindeki isteğe bağlı sortOrder'ları dizi sırasına göre doldurur. */
+function normalizeTemplateBody(body: z.infer<typeof templateBodySchema>): {
+  groups: ReadonlyArray<{
+    code: string;
+    name: string;
+    weightPct: number;
+    sortOrder: number;
+    items: ReadonlyArray<{
+      code: string;
+      name: string;
+      weightPct: number;
+      sortOrder: number;
+      pozId: number | null;
+    }>;
+  }>;
+} {
+  return {
+    groups: body.groups.map((g, gi) => ({
+      code: g.code,
+      name: g.name,
+      weightPct: g.weightPct,
+      sortOrder: g.sortOrder ?? gi,
+      items: g.items.map((i, ii) => ({
+        code: i.code,
+        name: i.name,
+        weightPct: i.weightPct,
+        sortOrder: i.sortOrder ?? ii,
+        pozId: i.pozId ?? null,
+      })),
+    })),
+  };
+}
 
 const tenderSchema = z
   .object({
@@ -1952,6 +2066,646 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
       try {
         const dto = await deps.getProgressCurve.execute({ contractId: id, companyId: q.companyId });
         return c.json(dto);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 1 — LOCATIONS (Mekân kırılımı) ================================
+
+  app.get(
+    '/projects/:id/locations',
+    zValidator('param', idParam),
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        includeInactive: z.coerce.boolean().optional(),
+        kind: locationKind.optional(),
+        subtreeOf: z.coerce.number().int().positive().optional(),
+        search: z.string().optional(),
+        /** 'tree' → iç içe ağaç + alt toplamlar, 'flat' → düz liste */
+        shape: z.enum(['tree', 'flat']).optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      const opts = {
+        companyId: q.companyId,
+        projectId: id,
+        ...(q.includeInactive !== undefined ? { includeInactive: q.includeInactive } : {}),
+        ...(q.kind !== undefined ? { kind: q.kind } : {}),
+        ...(q.subtreeOf !== undefined ? { subtreeOf: q.subtreeOf } : {}),
+        ...(q.search !== undefined ? { search: q.search } : {}),
+      };
+      try {
+        if (q.shape === 'flat') {
+          return c.json({ locations: await deps.listLocations.execute(opts) });
+        }
+        return c.json({ tree: await deps.getLocationTree.execute(opts) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/locations',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        parentId: z.number().int().positive().nullable().optional(),
+        kind: locationKind,
+        code: z.string().min(1).max(40),
+        name: z.string().max(200).optional(),
+        sortOrder: z.number().int().optional(),
+        unitType: z.string().max(40).nullable().optional(),
+        grossArea: z.number().nonnegative().nullable().optional(),
+        netArea: z.number().nonnegative().nullable().optional(),
+        landShare: z.number().nonnegative().nullable().optional(),
+        facade: z.string().max(40).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.createLocation.execute({ ...b, createdBy: actorId(c) });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/locations/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        code: z.string().min(1).max(40).optional(),
+        name: z.string().min(1).max(200).optional(),
+        sortOrder: z.number().int().optional(),
+        unitType: z.string().max(40).nullable().optional(),
+        grossArea: z.number().nonnegative().nullable().optional(),
+        netArea: z.number().nonnegative().nullable().optional(),
+        landShare: z.number().nonnegative().nullable().optional(),
+        facade: z.string().max(40).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateLocation.execute({ locationId: id, ...b }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/locations/:id/move',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        newParentId: z.number().int().positive().nullable(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.moveLocation.execute({
+            locationId: id,
+            companyId: b.companyId,
+            newParentId: b.newParentId,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Silme öncesi "neye bağlı?" sorgusu — arayüz onay diyaloğunda gösterir. */
+  app.get(
+    '/locations/:id/usage',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getLocationUsage.execute({ locationId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/locations/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ deactivateOnly: z.coerce.boolean().optional() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deleteLocation.execute({
+            locationId: id,
+            companyId: q.companyId,
+            ...(q.deactivateOnly !== undefined ? { deactivateOnly: q.deactivateOnly } : {}),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Toplu mekân üretimi: N blok × M kat × K daire iskeleti. */
+  app.post(
+    '/locations/bulk-generate',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        parentId: z.number().int().positive().nullable().optional(),
+        blocks: z.array(z.string().min(1).max(40)).min(1).max(200),
+        floors: z.array(z.string().min(1).max(40)).max(200).optional(),
+        unitsPerFloor: z.number().int().min(0).max(200).optional(),
+        unitNumbering: z.enum(['sequential', 'per_floor']).optional(),
+        defaultUnitType: z.string().max(40).nullable().optional(),
+        blockNameTemplate: z.string().max(100).optional(),
+        floorNameTemplate: z.string().max(100).optional(),
+        unitNameTemplate: z.string().max(100).optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.bulkGenerateLocations.execute({ ...b, createdBy: actorId(c) });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 2 — PROGRESS TEMPLATES (Takip şablonları) ====================
+
+  app.get(
+    '/progress-templates',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        includeInactive: z.coerce.boolean().optional(),
+        scope: trackScope.optional(),
+        search: z.string().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const list = await deps.listProgressTemplates.execute({
+          companyId: q.companyId,
+          ...(q.includeInactive !== undefined ? { includeInactive: q.includeInactive } : {}),
+          ...(q.scope !== undefined ? { scope: q.scope } : {}),
+          ...(q.search !== undefined ? { search: q.search } : {}),
+        });
+        return c.json({ templates: list });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/progress-templates/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getProgressTemplate.execute({ templateId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/progress-templates',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        name: z.string().min(1).max(300),
+        code: z.string().max(40).optional(),
+        scope: trackScope.optional(),
+        description: z.string().max(4000).nullable().optional(),
+        pctInProgress: pct.optional(),
+        pctHasDefects: pct.optional(),
+        body: templateBodySchema.optional(),
+      }),
+    ),
+    async (c) => {
+      const { body, ...rest } = c.req.valid('json');
+      try {
+        const dto = await deps.createProgressTemplate.execute({
+          ...rest,
+          ...(body !== undefined ? { body: normalizeTemplateBody(body) } : {}),
+          createdBy: actorId(c),
+        });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/progress-templates/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        name: z.string().min(1).max(300).optional(),
+        scope: trackScope.optional(),
+        description: z.string().max(4000).nullable().optional(),
+        pctInProgress: pct.optional(),
+        pctHasDefects: pct.optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateProgressTemplate.execute({ templateId: id, ...b }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Gövde tam-değiştirme. Yanıtta kaç takibin etkilendiği döner. */
+  app.put(
+    '/progress-templates/:id/body',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({ companyId: z.number().int().positive() }).merge(templateBodySchema),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.saveTemplateBody.execute({
+            templateId: id,
+            companyId: b.companyId,
+            body: normalizeTemplateBody({ groups: b.groups }),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/progress-templates/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deactivateProgressTemplate.execute({
+            templateId: id,
+            companyId: q.companyId,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 2 — TRACKINGS (Güncel durum takipleri) =======================
+
+  app.get(
+    '/trackings',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        status: trackingStatus.optional(),
+        includeCancelled: z.coerce.boolean().optional(),
+        search: z.string().optional(),
+        asOf: dateStr.optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const list = await deps.listTrackings.execute({
+          companyId: q.companyId,
+          ...(q.projectId !== undefined ? { projectId: q.projectId } : {}),
+          ...(q.status !== undefined ? { status: q.status } : {}),
+          ...(q.includeCancelled !== undefined ? { includeCancelled: q.includeCancelled } : {}),
+          ...(q.search !== undefined ? { search: q.search } : {}),
+          ...(q.asOf !== undefined ? { asOf: q.asOf } : {}),
+        });
+        return c.json({ trackings: list });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Saha ekranı: lokasyon sekmeleri + grup/iş matrisi + ilerleme/sapma. */
+  app.get(
+    '/trackings/:id/board',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ asOf: dateStr.optional() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getTrackingBoard.execute({
+            trackingId: id,
+            companyId: q.companyId,
+            ...(q.asOf !== undefined ? { asOf: q.asOf } : {}),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/trackings',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        templateId: z.number().int().positive(),
+        name: z.string().min(1).max(300),
+        code: z.string().max(40).optional(),
+        projectWeightPct: pct.optional(),
+        plannedStart: dateStr.nullable().optional(),
+        plannedEnd: dateStr.nullable().optional(),
+        assignedUserId: z.number().int().positive().nullable().optional(),
+        visibleAll: z.boolean().optional(),
+        note: z.string().max(4000).nullable().optional(),
+        locationIds: z.array(z.number().int().positive()).min(1).max(500),
+        locationWeights: z.record(z.string(), z.number().nonnegative()).optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.createTracking.execute({ ...b, createdBy: actorId(c) });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/trackings/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        name: z.string().min(1).max(300).optional(),
+        projectWeightPct: pct.optional(),
+        plannedStart: dateStr.nullable().optional(),
+        plannedEnd: dateStr.nullable().optional(),
+        assignedUserId: z.number().int().positive().nullable().optional(),
+        visibleAll: z.boolean().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateTracking.execute({ trackingId: id, ...b }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/trackings/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({ companyId: z.number().int().positive(), status: trackingStatus }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.changeTrackingStatus.execute({
+            trackingId: id,
+            companyId: b.companyId,
+            status: b.status,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Saha durum girişi (toplu). Yalnız aktif takipte kabul edilir. */
+  app.put(
+    '/trackings/:id/items',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        updates: z
+          .array(
+            z.object({
+              trackingItemId: z.number().int().positive(),
+              state: itemState,
+              overridePct: pct.nullable().optional(),
+              inspectedBy: z.number().int().positive().nullable().optional(),
+              inspectedAt: dateStr.nullable().optional(),
+              note: z.string().max(1000).nullable().optional(),
+            }),
+          )
+          .min(1)
+          .max(1000),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const locations = await deps.setTrackingItemState.execute({
+          trackingId: id,
+          companyId: b.companyId,
+          updates: b.updates,
+          changedBy: actorId(c),
+        });
+        return c.json({ locations });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/tracking-items/:id/history',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const history = await deps.getTrackingItemHistory.execute({
+          trackingItemId: id,
+          companyId: q.companyId,
+        });
+        return c.json({ history });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/trackings/:id/locations',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        locationIds: z.array(z.number().int().positive()).min(1).max(500),
+        locationWeights: z.record(z.string(), z.number().nonnegative()).optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const locations = await deps.addTrackingLocations.execute({ trackingId: id, ...b });
+        return c.json({ locations }, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/trackings/:id/locations/:trackingLocationId',
+    requireWrite,
+    zValidator(
+      'param',
+      z.object({
+        id: z.coerce.number().int().positive(),
+        trackingLocationId: z.coerce.number().int().positive(),
+      }),
+    ),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const p = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const locations = await deps.removeTrackingLocation.execute({
+          trackingId: p.id,
+          companyId: q.companyId,
+          trackingLocationId: p.trackingLocationId,
+        });
+        return c.json({ locations });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Şablona sonradan eklenen işleri takibe yansıtır (mevcut tikler korunur). */
+  app.post(
+    '/trackings/:id/sync-template',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', z.object({ companyId: z.number().int().positive() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.syncTrackingWithTemplate.execute({
+            trackingId: id,
+            companyId: b.companyId,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Proje panelinin "Durum %" göstergesi + takip kırılımı. */
+  app.get(
+    '/projects/:id/physical-progress',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ asOf: dateStr.optional() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getProjectPhysicalProgress.execute({
+            projectId: id,
+            companyId: q.companyId,
+            ...(q.asOf !== undefined ? { asOf: q.asOf } : {}),
+          }),
+        );
       } catch (err) {
         mapConstructionError(err);
       }
