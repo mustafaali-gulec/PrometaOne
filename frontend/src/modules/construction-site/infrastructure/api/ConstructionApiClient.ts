@@ -82,6 +82,8 @@ import type {
   MaterialConsumptionResponse,
   ProductionActualsResponse,
   SafetySummaryDto,
+  ManhourSummariesResponse,
+  PerformanceReportDto,
 } from '../../application/dto/ConstructionDtos';
 import type { AuthTokenProvider } from '../../application/ports/AuthTokenProvider';
 import type {
@@ -133,6 +135,7 @@ import type {
   AddDailyLogFileBody,
   SaveDailyLogEntryBody,
   UpdateDailyLogBody,
+  SetUnitManhoursBody,
 } from '../../application/ports/ConstructionApi';
 
 export class ConstructionApiClient implements ConstructionApi {
@@ -915,6 +918,32 @@ export class ConstructionApiClient implements ConstructionApi {
   ): Promise<MaterialConsumptionResponse> {
     return this.request<MaterialConsumptionResponse>(
       `/v1/construction/projects/${String(projectId)}/material-consumption?companyId=${String(companyId)}`,
+    );
+  }
+
+  // ===== FAZ 4 — PERFORMANCE (Adam×saat & verimlilik) ======================
+  getContractPerformance(contractId: number, companyId: number): Promise<PerformanceReportDto> {
+    return this.request<PerformanceReportDto>(
+      `/v1/construction/contracts/${String(contractId)}/performance?companyId=${String(companyId)}`,
+    );
+  }
+
+  getProjectPerformance(projectId: number, companyId: number): Promise<PerformanceReportDto> {
+    return this.request<PerformanceReportDto>(
+      `/v1/construction/projects/${String(projectId)}/performance?companyId=${String(companyId)}`,
+    );
+  }
+
+  getManhourSummaries(projectId: number, companyId: number): Promise<ManhourSummariesResponse> {
+    return this.request<ManhourSummariesResponse>(
+      `/v1/construction/projects/${String(projectId)}/manhour-summaries?companyId=${String(companyId)}`,
+    );
+  }
+
+  setUnitManhours(contractId: number, body: SetUnitManhoursBody): Promise<{ updated: number }> {
+    return this.request<{ updated: number }>(
+      `/v1/construction/contracts/${String(contractId)}/unit-manhours`,
+      { method: 'PUT', body },
     );
   }
 

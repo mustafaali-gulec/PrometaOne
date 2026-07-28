@@ -308,7 +308,74 @@ export type CsLabelKey =
   | 'cs.dlog.pr.entryCount'
   | 'cs.dlog.pr.firstDate'
   | 'cs.dlog.pr.lastDate'
-  | 'cs.dlog.pr.hint';
+  | 'cs.dlog.pr.hint'
+  // Adam×saat & verimlilik (Faz 4)
+  | 'cs.perf.title'
+  | 'cs.perf.subtitle'
+  | 'cs.perf.contract'
+  | 'cs.perf.selectContract'
+  | 'cs.perf.allContracts'
+  | 'cs.perf.editManhours'
+  | 'cs.perf.saveManhours'
+  | 'cs.perf.manhoursSaved'
+  | 'cs.perf.noPlanWarn'
+  | 'cs.perf.noLines'
+  // Kolon grupları
+  | 'cs.perf.grp.planned'
+  | 'cs.perf.grp.qty'
+  | 'cs.perf.grp.manhours'
+  | 'cs.perf.grp.productivity'
+  | 'cs.perf.grp.amount'
+  // Kolonlar
+  | 'cs.perf.c.pozNo'
+  | 'cs.perf.c.description'
+  | 'cs.perf.c.unit'
+  | 'cs.perf.c.plannedQty'
+  | 'cs.perf.c.unitPrice'
+  | 'cs.perf.c.plannedAmount'
+  | 'cs.perf.c.pursantaj'
+  | 'cs.perf.c.unitManhours'
+  | 'cs.perf.c.plannedManhours'
+  | 'cs.perf.c.progressQty'
+  | 'cs.perf.c.producedQty'
+  | 'cs.perf.c.progressPct'
+  | 'cs.perf.c.producedPct'
+  | 'cs.perf.c.earnedPursantaj'
+  | 'cs.perf.c.productionVsProgress'
+  | 'cs.perf.c.ownManhours'
+  | 'cs.perf.c.subManhours'
+  | 'cs.perf.c.actualManhours'
+  | 'cs.perf.c.machineHours'
+  | 'cs.perf.c.manhourPct'
+  | 'cs.perf.c.progressGap'
+  | 'cs.perf.c.actualUnitManhours'
+  | 'cs.perf.c.expectedManhours'
+  | 'cs.perf.c.efficiency'
+  | 'cs.perf.c.manhourVariance'
+  | 'cs.perf.c.eacManhours'
+  | 'cs.perf.c.eacVariance'
+  | 'cs.perf.c.progressAmount'
+  | 'cs.perf.c.expenseAmount'
+  // İpuçları
+  | 'cs.perf.h.unitManhours'
+  | 'cs.perf.h.progressQty'
+  | 'cs.perf.h.producedQty'
+  | 'cs.perf.h.progressGap'
+  | 'cs.perf.h.efficiency'
+  | 'cs.perf.h.eac'
+  | 'cs.perf.h.productionVsProgress'
+  | 'cs.perf.h.machineHours'
+  // Verim bandı
+  | 'cs.perf.band.unknown'
+  | 'cs.perf.band.critical'
+  | 'cs.perf.band.behind'
+  | 'cs.perf.band.onTrack'
+  | 'cs.perf.band.ahead'
+  // Özet
+  | 'cs.perf.s.title'
+  | 'cs.perf.s.lineCount'
+  | 'cs.perf.s.linesWithoutPlan'
+  | 'cs.perf.s.weighted';
 
 const DICT: Record<CsLabelKey, Record<Lang, string>> = {
   // ===== ORTAK =============================================================
@@ -1729,6 +1796,374 @@ const DICT: Record<CsLabelKey, Record<Lang, string>> = {
     de: 'Aus den täglichen Herstellungseinträgen aggregiert; unabhängig von Abschlagszahlungen gemessen.',
     ar: 'يُجمَّع من سجلات الإنتاج اليومية؛ قياس مستقل عن المستخلصات.',
   },
+
+  // ===== ADAM×SAAT & VERİMLİLİK (FAZ 4) ====================================
+  'cs.perf.title': {
+    tr: 'Adam×Saat & Verimlilik',
+    en: 'Man-hours & Productivity',
+    de: 'Personenstunden & Produktivität',
+    ar: 'ساعات العمل والإنتاجية',
+  },
+  'cs.perf.subtitle': {
+    tr: 'Poz bazlı işçilik performansı. Şantiyede kâr çoğunlukla burada kaybolur: miktarın yarısını yapmışken adam-saatin çoğunu yakmışsan tutar tablosu hâlâ iyi görünürken iş fiilen batıyordur.',
+    en: 'Work-item level labour performance. Profit is usually lost here: if you have done half the quantity but burned most of the man-hours, the cost table still looks fine while the job is actually sinking.',
+    de: 'Arbeitsleistung auf Positionsebene. Hier geht der Gewinn meist verloren: Wenn die halbe Menge erbracht, aber der Großteil der Stunden verbraucht ist, sieht die Kostentabelle noch gut aus, während das Projekt kippt.',
+    ar: 'أداء العمالة على مستوى البند. هنا تُفقد الأرباح غالبًا: إذا أنجزت نصف الكمية واستهلكت معظم ساعات العمل، يبدو جدول التكلفة جيدًا بينما العمل يغرق فعليًا.',
+  },
+  'cs.perf.contract': {
+    tr: 'Sözleşme',
+    en: 'Contract',
+    de: 'Vertrag',
+    ar: 'العقد',
+  },
+  'cs.perf.selectContract': {
+    tr: 'Sözleşme seçin',
+    en: 'Select a contract',
+    de: 'Vertrag auswählen',
+    ar: 'اختر عقدًا',
+  },
+  'cs.perf.allContracts': {
+    tr: 'Tüm sözleşmeler (proje geneli)',
+    en: 'All contracts (whole project)',
+    de: 'Alle Verträge (gesamtes Projekt)',
+    ar: 'كل العقود (المشروع بأكمله)',
+  },
+  'cs.perf.editManhours': {
+    tr: 'Birim adam×saat gir',
+    en: 'Enter unit man-hours',
+    de: 'Personenstunden je Einheit erfassen',
+    ar: 'إدخال ساعات العمل للوحدة',
+  },
+  'cs.perf.saveManhours': {
+    tr: 'Adam×saatleri kaydet',
+    en: 'Save man-hours',
+    de: 'Stunden speichern',
+    ar: 'حفظ ساعات العمل',
+  },
+  'cs.perf.manhoursSaved': {
+    tr: '{n} satır güncellendi.',
+    en: '{n} row(s) updated.',
+    de: '{n} Zeile(n) aktualisiert.',
+    ar: 'تم تحديث {n} سطرًا.',
+  },
+  'cs.perf.noPlanWarn': {
+    tr: '{n} pozda planlanan adam×saat girilmemiş — bu pozlarda verim ölçülemiyor ve genel verim rakamı eksik veriye dayanıyor.',
+    en: 'Planned man-hours are missing on {n} work item(s) — productivity cannot be measured there and the overall figure rests on incomplete data.',
+    de: 'Bei {n} Position(en) fehlen geplante Stunden — dort ist die Produktivität nicht messbar und der Gesamtwert beruht auf unvollständigen Daten.',
+    ar: 'ساعات العمل المخططة غير مُدخلة في {n} بند — لا يمكن قياس الإنتاجية هناك والرقم العام يستند إلى بيانات ناقصة.',
+  },
+  'cs.perf.noLines': {
+    tr: 'Bu sözleşmede keşif satırı yok.',
+    en: 'This contract has no BoQ lines.',
+    de: 'Dieser Vertrag hat keine LV-Positionen.',
+    ar: 'لا توجد بنود كشف في هذا العقد.',
+  },
+  'cs.perf.grp.planned': {
+    tr: 'PLANLANAN',
+    en: 'PLANNED',
+    de: 'GEPLANT',
+    ar: 'المخطط',
+  },
+  'cs.perf.grp.qty': {
+    tr: 'MİKTAR',
+    en: 'QUANTITY',
+    de: 'MENGE',
+    ar: 'الكمية',
+  },
+  'cs.perf.grp.manhours': {
+    tr: 'ADAM×SAAT',
+    en: 'MAN-HOURS',
+    de: 'PERSONENSTUNDEN',
+    ar: 'ساعات العمل',
+  },
+  'cs.perf.grp.productivity': {
+    tr: 'VERİMLİLİK',
+    en: 'PRODUCTIVITY',
+    de: 'PRODUKTIVITÄT',
+    ar: 'الإنتاجية',
+  },
+  'cs.perf.grp.amount': {
+    tr: 'TUTAR',
+    en: 'AMOUNT',
+    de: 'BETRAG',
+    ar: 'المبلغ',
+  },
+  'cs.perf.c.pozNo': {
+    tr: 'Poz No',
+    en: 'Item no',
+    de: 'Pos.-Nr.',
+    ar: 'رقم البند',
+  },
+  'cs.perf.c.description': {
+    tr: 'Poz Açıklama',
+    en: 'Description',
+    de: 'Beschreibung',
+    ar: 'وصف البند',
+  },
+  'cs.perf.c.unit': {
+    tr: 'Birim',
+    en: 'Unit',
+    de: 'Einheit',
+    ar: 'الوحدة',
+  },
+  'cs.perf.c.plannedQty': {
+    tr: 'Planlanan Miktar',
+    en: 'Planned qty',
+    de: 'Geplante Menge',
+    ar: 'الكمية المخططة',
+  },
+  'cs.perf.c.unitPrice': {
+    tr: 'Birim Fiyat',
+    en: 'Unit price',
+    de: 'Einheitspreis',
+    ar: 'سعر الوحدة',
+  },
+  'cs.perf.c.plannedAmount': {
+    tr: 'Planlanan Tutar',
+    en: 'Planned amount',
+    de: 'Geplanter Betrag',
+    ar: 'المبلغ المخطط',
+  },
+  'cs.perf.c.pursantaj': {
+    tr: 'Pursantaj',
+    en: 'Weighting',
+    de: 'Gewichtung',
+    ar: 'النسبة',
+  },
+  'cs.perf.c.unitManhours': {
+    tr: 'Birim A×S',
+    en: 'Unit m-h',
+    de: 'Std./Einheit',
+    ar: 'ساعة/وحدة',
+  },
+  'cs.perf.c.plannedManhours': {
+    tr: 'Planlanan A×S',
+    en: 'Planned m-h',
+    de: 'Geplante Std.',
+    ar: 'الساعات المخططة',
+  },
+  'cs.perf.c.progressQty': {
+    tr: 'Hakediş Miktarı',
+    en: 'Progress qty',
+    de: 'Abgerechnete Menge',
+    ar: 'كمية المستخلص',
+  },
+  'cs.perf.c.producedQty': {
+    tr: 'İmal Edilen',
+    en: 'Produced',
+    de: 'Hergestellt',
+    ar: 'المنتَج',
+  },
+  'cs.perf.c.progressPct': {
+    tr: 'Hakediş %',
+    en: 'Progress %',
+    de: 'Abrechnung %',
+    ar: 'نسبة المستخلص',
+  },
+  'cs.perf.c.producedPct': {
+    tr: 'İmalat %',
+    en: 'Production %',
+    de: 'Herstellung %',
+    ar: 'نسبة الإنتاج',
+  },
+  'cs.perf.c.earnedPursantaj': {
+    tr: 'Kazanılan Pursantaj',
+    en: 'Earned weighting',
+    de: 'Erreichte Gewichtung',
+    ar: 'النسبة المكتسبة',
+  },
+  'cs.perf.c.productionVsProgress': {
+    tr: 'İmalat − Hakediş',
+    en: 'Production − progress',
+    de: 'Herstellung − Abrechnung',
+    ar: 'الإنتاج − المستخلص',
+  },
+  'cs.perf.c.ownManhours': {
+    tr: 'Kendi A×S',
+    en: 'Own m-h',
+    de: 'Eigene Std.',
+    ar: 'ساعات ذاتية',
+  },
+  'cs.perf.c.subManhours': {
+    tr: 'Taşeron A×S',
+    en: 'Sub m-h',
+    de: 'NU-Std.',
+    ar: 'ساعات المقاول',
+  },
+  'cs.perf.c.actualManhours': {
+    tr: 'Gerçekleşen A×S',
+    en: 'Actual m-h',
+    de: 'Ist-Std.',
+    ar: 'الساعات الفعلية',
+  },
+  'cs.perf.c.machineHours': {
+    tr: 'Makine Saati',
+    en: 'Machine hours',
+    de: 'Maschinenstd.',
+    ar: 'ساعات الآلة',
+  },
+  'cs.perf.c.manhourPct': {
+    tr: 'A×S %',
+    en: 'M-h %',
+    de: 'Std. %',
+    ar: 'نسبة الساعات',
+  },
+  'cs.perf.c.progressGap': {
+    tr: 'Makas',
+    en: 'Gap',
+    de: 'Schere',
+    ar: 'الفجوة',
+  },
+  'cs.perf.c.actualUnitManhours': {
+    tr: 'Gerçekleşen Birim A×S',
+    en: 'Actual unit m-h',
+    de: 'Ist-Std./Einheit',
+    ar: 'ساعة/وحدة فعلية',
+  },
+  'cs.perf.c.expectedManhours': {
+    tr: 'Beklenen A×S',
+    en: 'Expected m-h',
+    de: 'Erwartete Std.',
+    ar: 'الساعات المتوقعة',
+  },
+  'cs.perf.c.efficiency': {
+    tr: 'Verim',
+    en: 'Efficiency',
+    de: 'Effizienz',
+    ar: 'الكفاءة',
+  },
+  'cs.perf.c.manhourVariance': {
+    tr: 'A×S Sapması',
+    en: 'M-h variance',
+    de: 'Std.-Abweichung',
+    ar: 'انحراف الساعات',
+  },
+  'cs.perf.c.eacManhours': {
+    tr: 'Tahmini Bitiş A×S',
+    en: 'Estimate at completion',
+    de: 'Prognose bei Fertigstellung',
+    ar: 'التقدير عند الإنجاز',
+  },
+  'cs.perf.c.eacVariance': {
+    tr: 'Tahmini Sapma',
+    en: 'Estimated variance',
+    de: 'Prognostizierte Abweichung',
+    ar: 'الانحراف المتوقع',
+  },
+  'cs.perf.c.progressAmount': {
+    tr: 'Hakediş Tutarı',
+    en: 'Progress amount',
+    de: 'Abgerechneter Betrag',
+    ar: 'مبلغ المستخلص',
+  },
+  'cs.perf.c.expenseAmount': {
+    tr: 'Fiili Gider',
+    en: 'Actual cost',
+    de: 'Ist-Kosten',
+    ar: 'التكلفة الفعلية',
+  },
+  'cs.perf.h.unitManhours': {
+    tr: 'Bir birim imalat için planlanan işçilik (ör. 1 m³ kalıp = 2,5 adam×saat). Analiz/rayiç kitaplarından ya da firmanın geçmiş verisinden gelir.',
+    en: 'Planned labour per unit of work (e.g. 1 m³ formwork = 2.5 man-hours). Comes from rate books or the company’s own history.',
+    de: 'Geplante Arbeit je Leistungseinheit (z. B. 1 m³ Schalung = 2,5 Personenstunden). Aus Kalkulationsbüchern oder eigener Historie.',
+    ar: 'العمل المخطط لكل وحدة (مثال: 1 م³ قوالب = 2.5 ساعة عمل). يأتي من كتب التحليل أو من بيانات الشركة السابقة.',
+  },
+  'cs.perf.h.progressQty': {
+    tr: 'Hakedişten gelen kümülatif miktar (yalnız onaylanmış/ödenmiş) — MALİ gerçeklik.',
+    en: 'Cumulative quantity from progress payments (approved/paid only) — the FINANCIAL reality.',
+    de: 'Kumulierte Menge aus Abschlagszahlungen (nur genehmigt/bezahlt) — die FINANZIELLE Realität.',
+    ar: 'الكمية التراكمية من المستخلصات (المعتمدة/المدفوعة فقط) — الواقع المالي.',
+  },
+  'cs.perf.h.producedQty': {
+    tr: 'Şantiye günlüğü imalat kayıtlarından gelen miktar — FİZİKSEL gerçeklik.',
+    en: 'Quantity from daily-log production entries — the PHYSICAL reality.',
+    de: 'Menge aus den Herstellungseinträgen des Bautagebuchs — die PHYSISCHE Realität.',
+    ar: 'الكمية من سجلات الإنتاج في يومية الموقع — الواقع المادي.',
+  },
+  'cs.perf.h.progressGap': {
+    tr: 'İmalat yüzdesi eksi adam×saat yüzdesi. Negatif değer adam-saatin miktardan hızlı tükendiğini, yani kâr kaybının başladığını gösterir.',
+    en: 'Production percentage minus man-hour percentage. A negative value means man-hours are burning faster than quantity — profit erosion has begun.',
+    de: 'Herstellungsprozentsatz minus Stundenprozentsatz. Ein negativer Wert bedeutet: Stunden verbrauchen sich schneller als Menge — die Marge beginnt zu erodieren.',
+    ar: 'نسبة الإنتاج ناقص نسبة ساعات العمل. القيمة السالبة تعني أن الساعات تُستهلك أسرع من الكمية — أي بدء تآكل الربح.',
+  },
+  'cs.perf.h.efficiency': {
+    tr: 'Beklenen adam×saat / harcanan adam×saat. 1’in üstü planın önünde, altı gerisinde. %10 tolerans uygulanır.',
+    en: 'Expected man-hours / spent man-hours. Above 1 is ahead of plan, below is behind. A 10% tolerance applies.',
+    de: 'Erwartete / verbrauchte Personenstunden. Über 1 bedeutet vor Plan, darunter hinter Plan. Es gilt eine Toleranz von 10 %.',
+    ar: 'الساعات المتوقعة ÷ الساعات المستهلكة. أعلى من 1 متقدم على الخطة، وأقل متأخر. تُطبَّق سماحية 10%.',
+  },
+  'cs.perf.h.eac': {
+    tr: 'Mevcut verimle devam edilirse iş bitiminde harcanacak toplam adam×saat. Verim henüz ölçülemiyorsa plan değeri gösterilir.',
+    en: 'Total man-hours at completion if the current productivity continues. If productivity cannot be measured yet, the planned value is shown.',
+    de: 'Gesamtstunden bei Fertigstellung, wenn die aktuelle Produktivität anhält. Ist sie noch nicht messbar, wird der Planwert gezeigt.',
+    ar: 'إجمالي ساعات العمل عند الإنجاز إذا استمرت الإنتاجية الحالية. إذا لم تكن قابلة للقياس بعد، تُعرض القيمة المخططة.',
+  },
+  'cs.perf.h.productionVsProgress': {
+    tr: 'Pozitif: fiziksel üretim hakedişin önünde, hakediş kesilmemiş iş var (nakit riski). Negatif: hakediş üretimin önünde (denetim riski).',
+    en: 'Positive: physical production is ahead of billing, there is unbilled work (cash risk). Negative: billing is ahead of production (audit risk).',
+    de: 'Positiv: die physische Leistung liegt vor der Abrechnung, es gibt nicht abgerechnete Arbeit (Liquiditätsrisiko). Negativ: die Abrechnung liegt vor der Leistung (Prüfungsrisiko).',
+    ar: 'موجب: الإنتاج المادي متقدم على الفوترة، وهناك عمل غير مفوتر (مخاطر نقدية). سالب: الفوترة متقدمة على الإنتاج (مخاطر تدقيق).',
+  },
+  'cs.perf.h.machineHours': {
+    tr: 'Makine saati adam×saat değildir; verim hesabına girmez, ayrıca raporlanır.',
+    en: 'Machine hours are not man-hours; they are excluded from productivity and reported separately.',
+    de: 'Maschinenstunden sind keine Personenstunden; sie fließen nicht in die Produktivität ein und werden separat berichtet.',
+    ar: 'ساعات الآلة ليست ساعات عمل؛ لا تدخل في حساب الإنتاجية وتُعرض بشكل منفصل.',
+  },
+  'cs.perf.band.unknown': {
+    tr: 'Ölçülemiyor',
+    en: 'Not measurable',
+    de: 'Nicht messbar',
+    ar: 'غير قابل للقياس',
+  },
+  'cs.perf.band.critical': {
+    tr: 'Kritik',
+    en: 'Critical',
+    de: 'Kritisch',
+    ar: 'حرج',
+  },
+  'cs.perf.band.behind': {
+    tr: 'Geride',
+    en: 'Behind',
+    de: 'Hinter Plan',
+    ar: 'متأخر',
+  },
+  'cs.perf.band.onTrack': {
+    tr: 'Yolunda',
+    en: 'On track',
+    de: 'Im Plan',
+    ar: 'على المسار',
+  },
+  'cs.perf.band.ahead': {
+    tr: 'Önde',
+    en: 'Ahead',
+    de: 'Vor Plan',
+    ar: 'متقدم',
+  },
+  'cs.perf.s.title': {
+    tr: 'Performans Özeti',
+    en: 'Performance Summary',
+    de: 'Leistungsübersicht',
+    ar: 'ملخص الأداء',
+  },
+  'cs.perf.s.lineCount': {
+    tr: 'Poz sayısı',
+    en: 'Work items',
+    de: 'Positionen',
+    ar: 'عدد البنود',
+  },
+  'cs.perf.s.linesWithoutPlan': {
+    tr: 'Planı olmayan poz',
+    en: 'Items without plan',
+    de: 'Positionen ohne Plan',
+    ar: 'بنود بلا خطة',
+  },
+  'cs.perf.s.weighted': {
+    tr: 'ağırlıklı',
+    en: 'weighted',
+    de: 'gewichtet',
+    ar: 'مرجَّح',
+  },
 };
 
 /** Şantiye etiketi getir; `vars` ile {placeholder} doldurulur. */
@@ -1840,5 +2275,21 @@ export function workStateLabel(state: string, lang: string | undefined): string 
       return csT('cs.dlog.workState.partial', lang);
     default:
       return state;
+  }
+}
+
+/** Verim bandı etiketi (arayüz rengi ve yorumu tek yerden). */
+export function efficiencyBandLabel(band: string, lang: string | undefined): string {
+  switch (band) {
+    case 'critical':
+      return csT('cs.perf.band.critical', lang);
+    case 'behind':
+      return csT('cs.perf.band.behind', lang);
+    case 'onTrack':
+      return csT('cs.perf.band.onTrack', lang);
+    case 'ahead':
+      return csT('cs.perf.band.ahead', lang);
+    default:
+      return csT('cs.perf.band.unknown', lang);
   }
 }

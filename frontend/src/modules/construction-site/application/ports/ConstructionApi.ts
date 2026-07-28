@@ -91,6 +91,8 @@ import type {
   ProductionActualsResponse,
   SafetySummaryDto,
   WorkState,
+  ManhourSummariesResponse,
+  PerformanceReportDto,
 } from '../dto/ConstructionDtos';
 
 export interface CreateProjectBody {
@@ -651,6 +653,19 @@ export interface ConstructionApi {
     projectId: number,
     companyId: number,
   ): Promise<MaterialConsumptionResponse>;
+
+  // FAZ 4 — Adam×saat & verimlilik
+  getContractPerformance(contractId: number, companyId: number): Promise<PerformanceReportDto>;
+  getProjectPerformance(projectId: number, companyId: number): Promise<PerformanceReportDto>;
+  getManhourSummaries(projectId: number, companyId: number): Promise<ManhourSummariesResponse>;
+  setUnitManhours(contractId: number, body: SetUnitManhoursBody): Promise<{ updated: number }>;
+}
+
+// ===== FAZ 4 — istek gövdesi =================================================
+
+export interface SetUnitManhoursBody {
+  companyId: number;
+  updates: { boqLineId: number; unitManhours: number }[];
 }
 
 // ===== FAZ 3 — Şantiye günlüğü istek gövdeleri ==============================

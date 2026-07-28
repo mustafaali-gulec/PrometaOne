@@ -28,6 +28,7 @@ import { HakedisManager } from '../presentation/components/HakedisManager';
 import { IsgucuManager } from '../presentation/components/IsgucuManager';
 import { MekanAgaciManager } from '../presentation/components/MekanAgaciManager';
 import { MetrajManager } from '../presentation/components/MetrajManager';
+import { PerformansManager } from '../presentation/components/PerformansManager';
 import { PozCatalogTable } from '../presentation/components/PozCatalogTable';
 import { ProjectsKanban } from '../presentation/components/ProjectsKanban';
 import { ProjectsTable } from '../presentation/components/ProjectsTable';
@@ -52,7 +53,8 @@ export type ConstructionTab =
   | 'locations'
   | 'templates'
   | 'trackings'
-  | 'dailylog';
+  | 'dailylog'
+  | 'performance';
 
 const ALL_TABS: ConstructionTab[] = [
   'projects',
@@ -69,6 +71,7 @@ const ALL_TABS: ConstructionTab[] = [
   'templates',
   'trackings',
   'dailylog',
+  'performance',
 ];
 const TAB_LABELS: Record<ConstructionTab, string> = {
   projects: 'Projeler',
@@ -85,6 +88,7 @@ const TAB_LABELS: Record<ConstructionTab, string> = {
   templates: 'Takip Şablonları',
   trackings: 'Güncel Durum',
   dailylog: 'Şantiye Günlüğü',
+  performance: 'Adam×Saat & Verimlilik',
 };
 
 export interface ConstructionPageProps {
@@ -188,6 +192,9 @@ export function ConstructionPage({
         ) : null}
         {tab === 'trackings' ? (
           <GuncelDurumManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'performance' ? (
+          <PerformansManager api={api} companyId={companyId} lang={lang} />
         ) : null}
         {tab === 'dailylog' ? (
           <SantiyeGunluguManager

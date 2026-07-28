@@ -974,3 +974,112 @@ export interface MaterialConsumptionRowDto {
 export interface MaterialConsumptionResponse {
   rows: MaterialConsumptionRowDto[];
 }
+
+// ============================================================================
+// FAZ 4 — ADAM×SAAT & VERİMLİLİK (cs_v_boq_performance)
+// ============================================================================
+
+/** Verim yorumu bandı — arayüz rengi ve etiketi buradan gelir. */
+export type EfficiencyBand = 'unknown' | 'critical' | 'behind' | 'onTrack' | 'ahead';
+
+export interface PerformanceRowDto {
+  boqLineId: number;
+  contractId: number;
+  projectId: number;
+  lineNo: number;
+  pozNo: string | null;
+  description: string;
+  unit: string;
+  locationId: number | null;
+
+  plannedQty: number;
+  unitPrice: number;
+  plannedAmount: number;
+  pursantajPct: number;
+  plannedUnitManhours: number;
+  plannedManhours: number;
+
+  /** Hakedişten (onaylı/ödenmiş) — MALİ gerçeklik. */
+  progressQty: number;
+  progressAmount: number;
+  /** Günlük rapor imalat kayıtlarından — FİZİKSEL gerçeklik. */
+  producedQty: number;
+
+  ownManhours: number;
+  subManhours: number;
+  actualManhours: number;
+  /** Makine saati adam×saat DEĞİLDİR; verim hesabına girmez. */
+  machineHours: number;
+  expenseAmount: number;
+
+  /** Oranlar payda 0 iken null gelir — 0 değil. */
+  progressPct: number | null;
+  producedPct: number | null;
+  manhourPct: number | null;
+  earnedPursantaj: number | null;
+
+  actualUnitManhours: number | null;
+  expectedManhours: number;
+  efficiency: number | null;
+  manhourVariance: number;
+
+  /** İlerleme-işçilik makası: miktar% − a×s%. Negatif = kâr kaybı sinyali. */
+  progressGap: number | null;
+  eacManhours: number;
+  eacVariance: number;
+  band: EfficiencyBand;
+  /** İmalat − hakediş. Pozitif: kesilmemiş iş. Negatif: fazla hakediş. */
+  productionVsProgressQty: number;
+}
+
+export interface PerformanceSummaryDto {
+  lineCount: number;
+  plannedManhours: number;
+  actualManhours: number;
+  ownManhours: number;
+  subManhours: number;
+  machineHours: number;
+  expectedManhours: number;
+  manhourVariance: number;
+  manhourPct: number | null;
+  /** Ağırlıklı verim (Σbeklenen/Σharcanan), satır ortalaması değil. */
+  efficiency: number | null;
+  band: EfficiencyBand;
+  eacManhours: number;
+  eacVariance: number;
+  plannedAmount: number;
+  progressAmount: number;
+  expenseAmount: number;
+  earnedPursantaj: number;
+  /** Planlanan a×s girilmemiş satır sayısı — verim ölçülemeyen kısım. */
+  linesWithoutPlan: number;
+}
+
+export interface PerformanceReportDto {
+  rows: PerformanceRowDto[];
+  summary: PerformanceSummaryDto;
+}
+
+export interface ContractManhourSummaryDto {
+  contractId: number;
+  projectId: number;
+  lineCount: number;
+  plannedManhours: number;
+  actualManhours: number;
+  ownManhours: number;
+  subManhours: number;
+  machineHours: number;
+  expectedManhours: number;
+  manhourVariance: number;
+  plannedAmount: number;
+  progressAmount: number;
+  expenseAmount: number;
+  earnedPursantaj: number;
+  manhourPct: number | null;
+  efficiency: number | null;
+  band: EfficiencyBand;
+}
+
+export interface ManhourSummariesResponse {
+  summaries: ContractManhourSummaryDto[];
+}
