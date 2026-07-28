@@ -11,7 +11,7 @@
  * Köprü tek yönlüdür: günlük kaynak, puantaj/makine kaydı projeksiyon. Satır
  * silinince projeksiyon da temizlenir.
  */
-import { DailyLogEntry } from '../../domain/entities/DailyLog.js';
+import { assertValidEntry, DailyLogEntry } from '../../domain/entities/DailyLog.js';
 import type { DailyLogStatus } from '../../domain/entities/DailyLog.js';
 import {
   DailyLogEntryNotFoundError,
@@ -238,6 +238,11 @@ export class SaveDailyLogEntryUseCase {
       sortOrder: input.sortOrder ?? 0,
       createdBy: input.createdBy ?? null,
     };
+
+    // Doğrulama YAZMADAN ÖNCE: aksi halde geçersiz satır INSERT edilir, geri
+    // okunurken doğrulama patlar ve istemci 400 alsa bile satır DB'de kalır —
+    // kalan satır o günün tüm okumalarını kalıcı olarak 400'e düşürür.
+    assertValidEntry(payload);
 
     let saved: DailyLogEntry;
     if (input.entryId !== undefined) {

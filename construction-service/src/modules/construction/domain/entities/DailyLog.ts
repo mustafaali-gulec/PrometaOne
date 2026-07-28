@@ -220,7 +220,7 @@ export interface DailyLogEntryProps {
 }
 
 /** Alan → props anahtarı eşlemesi (doğrulamada kullanılır). */
-const FIELD_TO_PROP: Readonly<Record<KindField, keyof DailyLogEntryProps>> = {
+const FIELD_TO_PROP: Readonly<Record<KindField, keyof DailyLogEntryDraft>> = {
   locationId: 'locationId',
   vendorId: 'vendorId',
   personnelId: 'personnelId',
@@ -249,67 +249,88 @@ function isBlank(v: unknown): boolean {
   return false;
 }
 
+/**
+ * Henüz kaydedilmemiş satır — id ve zaman damgaları DB'den gelecek.
+ */
+export type DailyLogEntryDraft = Omit<DailyLogEntryProps, 'id' | 'createdAt' | 'updatedAt'>;
+
+/**
+ * Tip başına alan kurallarını doğrular. AYRI BİR FONKSİYON olması kasıtlı:
+ * use-case bunu INSERT'ten ÖNCE çağırabilsin.
+ *
+ * Önceden doğrulama yalnız `DailyLogEntry.create` içinde yapılıyordu ve create
+ * ancak DB'den okuma sırasında çağrıldığı için sıra şuydu: geçersiz satır
+ * INSERT edilir → geri okunurken doğrulama patlar → istemci 400 alır ama SATIR
+ * DB'DE KALIR. Kalan satır o günün tüm okumalarını kalıcı olarak 400'e düşürüyor,
+ * yani bir yazım hatası günü kullanılamaz hale getiriyordu. Canlı duman testinde
+ * bu şekilde yakalandı.
+ */
+export function assertValidEntry(props: DailyLogEntryDraft): void {
+  if (props.logId <= 0) {
+    throw new ConstructionValidationError('DailyLogEntry.logId pozitif olmalı');
+  }
+
+  const spec = kindSpec(props.kind);
+
+  // Zorunlu alanlar dolu mu?
+  for (const field of spec.required) {
+    if (isBlank(props[FIELD_TO_PROP[field]])) {
+      throw new ConstructionValidationError(
+        `${logEntryKindLabel(props.kind)} için ${fieldLabel(field)} zorunlu`,
+      );
+    }
+  }
+
+  // Tipe uygun olmayan alan doldurulmuş mu? Sessizce kabul etmek, raporda
+  // görünmeyen ama DB'de duran veri üretir; kullanıcı girdiğini sanır.
+  for (const [field, prop] of Object.entries(FIELD_TO_PROP) as [
+    KindField,
+    keyof DailyLogEntryDraft,
+  ][]) {
+    if (isBlank(props[prop])) continue;
+    if (!spec.required.includes(field) && !spec.optional.includes(field)) {
+      throw new ConstructionValidationError(
+        `${logEntryKindLabel(props.kind)} ${fieldLabel(field)} alanını taşımaz`,
+      );
+    }
+  }
+
+  // Sayısal sınırlar
+  for (const [key, labelKey] of [
+    ['headcount', 'headcount'],
+    ['hours', 'hours'],
+    ['idleHours', 'idleHours'],
+    ['qty', 'qty'],
+    ['amount', 'amount'],
+    ['lostDays', 'lostDays'],
+  ] as [keyof DailyLogEntryDraft, KindField][]) {
+    const v = props[key];
+    if (v === null || v === undefined) continue;
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
+      throw new ConstructionValidationError(`${fieldLabel(labelKey)} negatif olamaz`);
+    }
+  }
+
+  // Kayıp gün yalnız iş-günü kaybına yol açan olaylarda anlamlı
+  if (
+    props.lostDays !== null &&
+    props.lostDays > 0 &&
+    props.severity !== null &&
+    props.severity !== 'lost_time' &&
+    props.severity !== 'fatal'
+  ) {
+    throw new ConstructionValidationError(
+      "kayıp gün yalnız 'iş günü kaybı' veya 'ölümlü' olaylarda girilebilir",
+    );
+  }
+}
+
 export class DailyLogEntry {
   private constructor(private readonly props: Readonly<DailyLogEntryProps>) {}
 
   static create(props: DailyLogEntryProps): DailyLogEntry {
     if (props.id <= 0) throw new ConstructionValidationError('DailyLogEntry.id pozitif olmalı');
-    if (props.logId <= 0)
-      throw new ConstructionValidationError('DailyLogEntry.logId pozitif olmalı');
-
-    const spec = kindSpec(props.kind);
-
-    // Zorunlu alanlar dolu mu?
-    for (const field of spec.required) {
-      if (isBlank(props[FIELD_TO_PROP[field]])) {
-        throw new ConstructionValidationError(
-          `${logEntryKindLabel(props.kind)} için ${fieldLabel(field)} zorunlu`,
-        );
-      }
-    }
-
-    // Tipe uygun olmayan alan doldurulmuş mu? Sessizce kabul etmek, raporda
-    // görünmeyen ama DB'de duran veri üretir; kullanıcı girdiğini sanır.
-    for (const [field, prop] of Object.entries(FIELD_TO_PROP) as [
-      KindField,
-      keyof DailyLogEntryProps,
-    ][]) {
-      if (isBlank(props[prop])) continue;
-      if (!spec.required.includes(field) && !spec.optional.includes(field)) {
-        throw new ConstructionValidationError(
-          `${logEntryKindLabel(props.kind)} ${fieldLabel(field)} alanını taşımaz`,
-        );
-      }
-    }
-
-    // Sayısal sınırlar
-    for (const [key, labelKey] of [
-      ['headcount', 'headcount'],
-      ['hours', 'hours'],
-      ['idleHours', 'idleHours'],
-      ['qty', 'qty'],
-      ['amount', 'amount'],
-      ['lostDays', 'lostDays'],
-    ] as [keyof DailyLogEntryProps, KindField][]) {
-      const v = props[key];
-      if (v === null || v === undefined) continue;
-      if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
-        throw new ConstructionValidationError(`${fieldLabel(labelKey)} negatif olamaz`);
-      }
-    }
-
-    // Kayıp gün yalnız iş-günü kaybına yol açan olaylarda anlamlı
-    if (
-      props.lostDays !== null &&
-      props.lostDays > 0 &&
-      props.severity !== null &&
-      props.severity !== 'lost_time' &&
-      props.severity !== 'fatal'
-    ) {
-      throw new ConstructionValidationError(
-        "kayıp gün yalnız 'iş günü kaybı' veya 'ölümlü' olaylarda girilebilir",
-      );
-    }
+    assertValidEntry(props);
 
     return new DailyLogEntry({
       ...props,

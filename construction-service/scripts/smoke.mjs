@@ -1,0 +1,393 @@
+/**
+ * Faz 1→2→3→4 uçtan uca duman testi. Tek süreç, fetch tabanlı.
+ *
+ * Yerel dev sunucusuna (varsayılan :3003) karşı koşar; ürettiği tüm veriyi
+ * sonunda temizler. Geçici dosya — depoya girmez.
+ *
+ * Kullanım:  npm run smoke  (veya: node scripts/smoke.mjs http://localhost:3003)
+ */
+import jwt from 'jsonwebtoken';
+import { readFileSync } from 'node:fs';
+
+const BASE = process.argv[2] ?? 'http://localhost:3003';
+const B = `${BASE}/v1/construction`;
+
+const secret = /^JWT_SECRET=(.*)$/m
+  .exec(readFileSync(new URL('../.env', import.meta.url), 'utf8'))?.[1]
+  ?.trim();
+if (!secret) throw new Error('JWT_SECRET bulunamadı');
+const TOKEN = jwt.sign({ sub: 1, username: 'e2e', role: 'admin', companies: [1] }, secret, {
+  expiresIn: '30m',
+});
+
+let ok = 0;
+let fail = 0;
+const failures = [];
+
+function chk(name, expected, actual) {
+  const same =
+    expected === actual ||
+    (typeof expected === 'number' &&
+      typeof actual === 'number' &&
+      Math.abs(expected - actual) < 1e-9);
+  if (same) {
+    ok += 1;
+    console.log(`  OK   ${name.padEnd(56)} ${String(actual)}`);
+  } else {
+    fail += 1;
+    failures.push(name);
+    console.log(`  FAIL ${name.padEnd(56)} beklenen=${String(expected)} gerçek=${String(actual)}`);
+  }
+}
+
+async function call(method, path, body) {
+  const res = await fetch(`${B}/${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${TOKEN}`,
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  const text = await res.text();
+  let json;
+  try {
+    json = text === '' ? null : JSON.parse(text);
+  } catch {
+    json = null;
+  }
+  return { status: res.status, json, text };
+}
+const get = (p) => call('GET', p);
+const post = (p, b) => call('POST', p, b);
+const put = (p, b) => call('PUT', p, b);
+const del = (p) => call('DELETE', p);
+
+const r4 = (n) => (n === null || n === undefined ? n : Math.round(n * 10000) / 10000);
+
+async function main() {
+  console.log('=== FAZ 1: proje + mekân ağacı ===');
+  const prj = (await post('projects', { companyId: 1, name: 'E2E Faz1234' })).json;
+  chk('proje oluşturuldu', true, typeof prj?.id === 'number');
+  const PRJ = prj.id;
+
+  const gen = (
+    await post('locations/bulk-generate', {
+      companyId: 1,
+      projectId: PRJ,
+      blocks: ['A', 'B'],
+      floors: ['0', '1'],
+      unitsPerFloor: 2,
+      defaultUnitType: '2+1',
+    })
+  ).json;
+  chk('toplu üretim düğüm sayısı (2 blok + 4 kat + 8 daire)', 14, gen.createdCount);
+
+  const again = (
+    await post('locations/bulk-generate', {
+      companyId: 1,
+      projectId: PRJ,
+      blocks: ['A', 'B'],
+      floors: ['0', '1'],
+      unitsPerFloor: 2,
+    })
+  ).json;
+  chk('tekrar koşumda kopya üretmez (idempotent)', 0, again.createdCount);
+
+  const tree = (await get(`projects/${PRJ}/locations?companyId=1`)).json;
+  chk('ağaç kök sayısı', 2, tree.tree.length);
+  chk('A blok altındaki bağımsız bölüm sayısı (rollup)', 4, tree.tree[0].unitCount);
+  const ABLOK = tree.tree[0].id;
+  const BBLOK = tree.tree[1].id;
+
+  // Geçersiz iç içe geçme reddedilmeli
+  const badNest = await post('locations', {
+    companyId: 1,
+    projectId: PRJ,
+    parentId: ABLOK,
+    kind: 'block',
+    code: 'X',
+  });
+  chk('blok altına blok eklenemez', 400, badNest.status);
+
+  console.log('=== FAZ 2: şablon + takip + saha durumu ===');
+  const tpl = (
+    await post('progress-templates', {
+      companyId: 1,
+      name: 'E2E Blok Şablonu',
+      scope: 'block',
+      body: {
+        groups: [
+          {
+            code: 'TML',
+            name: 'Temel',
+            weightPct: 40,
+            items: [
+              { code: 'T1', name: 'Dolgu', weightPct: 4 },
+              { code: 'T2', name: 'Drenaj', weightPct: 1 },
+              { code: 'T3', name: 'Grobeton', weightPct: 72 },
+              { code: 'T4', name: 'Kazı', weightPct: 23 },
+            ],
+          },
+          {
+            code: 'KBA',
+            name: 'Kaba',
+            weightPct: 40,
+            items: [
+              { code: 'K1', name: 'Kalıp', weightPct: 20 },
+              { code: 'K2', name: 'Demir', weightPct: 20 },
+              { code: 'K3', name: 'Beton', weightPct: 20 },
+              { code: 'K4', name: 'Duvar', weightPct: 20 },
+              { code: 'K5', name: 'Sıva', weightPct: 20 },
+            ],
+          },
+          {
+            code: 'CTI',
+            name: 'Çatı',
+            weightPct: 20,
+            items: [
+              { code: 'C1', name: 'Karkas', weightPct: 50 },
+              { code: 'C2', name: 'Örtü', weightPct: 30 },
+              { code: 'C3', name: 'İzolasyon', weightPct: 20 },
+            ],
+          },
+        ],
+      },
+    })
+  ).json;
+  chk('şablon iş kalemi sayısı', 12, tpl.itemCount);
+  chk('ağırlık tutarlı (uyarı yok)', 0, tpl.weightIssues.length);
+  const TPL = tpl.id;
+
+  const trk = (
+    await post('trackings', {
+      companyId: 1,
+      projectId: PRJ,
+      templateId: TPL,
+      name: 'E2E Takip',
+      projectWeightPct: 45,
+      locationIds: [ABLOK, BBLOK],
+    })
+  ).json;
+  const TRK = trk.id;
+  chk('takip oluşturuldu (taslak)', 'draft', trk.status);
+
+  // Kapsam tipi denetimi: unit kapsamlı şablona blok verilemez
+  const unitTpl = (
+    await post('progress-templates', {
+      companyId: 1,
+      name: 'E2E Daire Şablonu',
+      scope: 'unit',
+      body: {
+        groups: [
+          {
+            code: 'G',
+            name: 'G',
+            weightPct: 100,
+            items: [{ code: 'I', name: 'I', weightPct: 100 }],
+          },
+        ],
+      },
+    })
+  ).json;
+  const badScope = await post('trackings', {
+    companyId: 1,
+    projectId: PRJ,
+    templateId: unitTpl.id,
+    name: 'Kapsam hatası',
+    locationIds: [ABLOK],
+  });
+  chk('daire kapsamlı şablona blok verilemez', 400, badScope.status);
+
+  const draftWrite = await put(`trackings/${TRK}/items`, {
+    companyId: 1,
+    updates: [{ trackingItemId: 1, state: 'completed' }],
+  });
+  chk('TASLAK takipte saha durumu reddedilir', 400, draftWrite.status);
+
+  await post(`trackings/${TRK}/status`, { companyId: 1, status: 'active' });
+  let board = (await get(`trackings/${TRK}/board?companyId=1`)).json;
+  chk('saha ekranı lokasyon sayısı', 2, board.locations.length);
+  chk('A blok iş kalemi sayısı (12 iş materyalize)', 12, board.locations[0].itemCount);
+
+  // Imperium demo senaryosu
+  const byName = {};
+  for (const g of board.locations[0].groups) {
+    for (const it of g.items) byName[it.itemName] = it.trackingItemId;
+  }
+  await put(`trackings/${TRK}/items`, {
+    companyId: 1,
+    updates: [
+      { trackingItemId: byName['Dolgu'], state: 'completed' },
+      { trackingItemId: byName['Drenaj'], state: 'completed' },
+      { trackingItemId: byName['Grobeton'], state: 'in_progress' },
+      { trackingItemId: byName['Kazı'], state: 'in_progress' },
+      { trackingItemId: byName['Kalıp'], state: 'completed' },
+      { trackingItemId: byName['Demir'], state: 'completed' },
+      { trackingItemId: byName['Beton'], state: 'completed' },
+      { trackingItemId: byName['Duvar'], state: 'has_defects' },
+      { trackingItemId: byName['Karkas'], state: 'in_progress', overridePct: 30 },
+    ],
+  });
+
+  board = (await get(`trackings/${TRK}/board?companyId=1`)).json;
+  chk('A blok ilerlemesi (52,5×0,4 + 75×0,4 + 15×0,2)', 54, r4(board.locations[0].progressPct));
+
+  const pp = (await get(`projects/${PRJ}/physical-progress?companyId=1`)).json;
+  chk('takip ilerlemesi (54+0)/2', 27, r4(pp.trackings[0].progressPct));
+  chk('proje fiziksel ilerlemesi 27×0,45', 12.15, r4(pp.progressPct));
+  chk('ölçülmeyen ağırlık payı', 55, r4(pp.unmeasuredWeight));
+
+  console.log('=== FAZ 3: şantiye günlüğü ===');
+  const ctr = (
+    await post('contracts', {
+      companyId: 1,
+      projectId: PRJ,
+      partyKind: 'subcontractor',
+      title: 'E2E Kaba',
+      amount: 1000000,
+    })
+  ).json;
+  const CTR = ctr.id;
+  const boq = (
+    await put(`contracts/${CTR}/boq`, {
+      companyId: 1,
+      lines: [
+        {
+          lineNo: 1,
+          pozNo: 'A-1',
+          description: 'Kalıp',
+          unit: 'm2',
+          quantity: 100,
+          unitPrice: 500,
+        },
+      ],
+    })
+  ).json;
+  chk('keşif satırı oluşturuldu', 1, boq.lines.length);
+  const BOQ = boq.lines[0].id;
+
+  const day = (await get(`projects/${PRJ}/daily-logs/2026-07-15?companyId=1&create=true`)).json;
+  const LOG = day.log.id;
+  chk('gün 11 bölümle açıldı', 11, day.sections.length);
+
+  const badAcc = await put(`daily-logs/${LOG}/entries`, {
+    companyId: 1,
+    kind: 'accident',
+    description: 'Kayma',
+  });
+  chk('kaza kaydı şiddet olmadan 400 (500 değil)', 400, badAcc.status);
+
+  const badNote = await put(`daily-logs/${LOG}/entries`, {
+    companyId: 1,
+    kind: 'note',
+    description: 'kirli',
+    headcount: 5,
+  });
+  chk('not kaydına kişi sayısı girilirse 400', 400, badNote.status);
+
+  await put(`daily-logs/${LOG}/entries`, {
+    companyId: 1,
+    kind: 'subcontractor',
+    vendorId: 77,
+    headcount: 5,
+    hours: 40,
+    description: 'Kalıp',
+    boqLineId: BOQ,
+  });
+  await put(`daily-logs/${LOG}/entries`, {
+    companyId: 1,
+    kind: 'production',
+    description: 'Kalıp imalatı',
+    qty: 50,
+    unit: 'm2',
+    boqLineId: BOQ,
+  });
+  await put(`daily-logs/${LOG}/entries`, {
+    companyId: 1,
+    kind: 'accident',
+    severity: 'lost_time',
+    lostDays: 5,
+    description: 'Kayma',
+  });
+  await put(`daily-logs/${LOG}/entries`, {
+    companyId: 1,
+    kind: 'accident',
+    severity: 'near_miss',
+    description: 'Ramak kala',
+  });
+
+  const day2 = (await get(`projects/${PRJ}/daily-logs/2026-07-15?companyId=1`)).json;
+  chk('gün reddedilen satırdan sonra okunabilir', 200, day2 === null ? 0 : 200);
+  chk('taşeron kişi sayısı', 5, day2.totals.subHeadcount);
+  chk('kaza sayısı (2 olay)', 2, day2.totals.accidentCount);
+  chk('gerçek kaza (ramak kala hariç)', 1, day2.totals.realAccidentCount);
+  chk('kayıt sayısı (geçersizler girmedi)', 4, day2.totals.entryCount);
+
+  const sf = (
+    await get(`projects/${PRJ}/safety-summary?companyId=1&fromDate=2026-07-01&toDate=2026-07-31`)
+  ).json;
+  chk('İSG sıklık oranı (1×1.000.000/40)', 25000, r4(sf.frequencyRate));
+  chk('İSG ağırlık oranı (5×1.000/40)', 125, r4(sf.severityRate));
+
+  const mp = (
+    await get(`projects/${PRJ}/manpower?companyId=1&fromDate=2026-07-01&toDate=2026-07-31`)
+  ).json;
+  chk('iş gücü toplam saat', 40, r4(mp.totalHours));
+
+  await post(`daily-logs/${LOG}/status`, { companyId: 1, status: 'locked' });
+  const lockedWrite = await put(`daily-logs/${LOG}/entries`, {
+    companyId: 1,
+    kind: 'note',
+    description: 'geç not',
+  });
+  chk('kilitli günde satır eklenemez', 409, lockedWrite.status);
+  const lockedComment = await post(`daily-logs/${LOG}/comments`, {
+    companyId: 1,
+    body: 'Teknik ofis şerhi',
+  });
+  chk('kilitli günde YORUM yapılabilir', 201, lockedComment.status);
+
+  console.log('=== FAZ 4: adam×saat & verimlilik ===');
+  await put(`contracts/${CTR}/unit-manhours`, {
+    companyId: 1,
+    updates: [{ boqLineId: BOQ, unitManhours: 2 }],
+  });
+  const badLine = await put(`contracts/${CTR}/unit-manhours`, {
+    companyId: 1,
+    updates: [{ boqLineId: 999999, unitManhours: 2 }],
+  });
+  chk('başka sözleşmenin satırına yazılamaz', 400, badLine.status);
+
+  const perf = (await get(`contracts/${CTR}/performance?companyId=1`)).json;
+  const row = perf.rows[0];
+  chk('planlanan adam×saat (100×2)', 200, r4(row.plannedManhours));
+  chk('gerçekleşen adam×saat (taşeron 40)', 40, r4(row.actualManhours));
+  chk('üretilen miktar (imalat kaydından)', 50, r4(row.producedQty));
+  chk('beklenen adam×saat (50×2)', 100, r4(row.expectedManhours));
+  chk('verim (100/40)', 2.5, r4(row.efficiency));
+  chk('adam×saat sapması (40−100)', -60, r4(row.manhourVariance));
+  chk('ilerleme-işçilik makası (50−20)', 30, r4(row.progressGap));
+  chk('EAC (100×0,8)', 80, r4(row.eacManhours));
+  chk('verim bandı', 'ahead', row.band);
+  chk('imalat−hakediş farkı (50−0)', 50, r4(row.productionVsProgressQty));
+  chk('planı olmayan satır sayısı', 0, perf.summary.linesWithoutPlan);
+  chk('ağırlıklı verim özeti', 2.5, r4(perf.summary.efficiency));
+
+  console.log('=== TEMİZLİK ===');
+  await del(`projects/${PRJ}?companyId=1`);
+  await del(`progress-templates/${TPL}?companyId=1`);
+  await del(`progress-templates/${unitTpl.id}?companyId=1`);
+  console.log('  proje pasife çekildi, şablonlar pasifleştirildi');
+
+  console.log(`\nSONUÇ: ${String(ok)} geçti, ${String(fail)} başarısız`);
+  if (fail > 0) {
+    console.log('Başarısızlar: ' + failures.join(' | '));
+    process.exitCode = 1;
+  }
+}
+
+main().catch((e) => {
+  console.error('E2E hatası:', e);
+  process.exitCode = 1;
+});

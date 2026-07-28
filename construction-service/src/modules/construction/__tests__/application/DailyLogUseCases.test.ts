@@ -349,6 +349,52 @@ describe('DailyLog use-case akışları', () => {
     );
   });
 
+  /**
+   * REGRESYON — canlı duman testinde yakalandı.
+   *
+   * Doğrulama yalnız DailyLogEntry.create içinde yapılıyordu ve create ancak
+   * DB'den okuma sırasında çağrıldığı için sıra şuydu: geçersiz satır INSERT
+   * edilir, geri okunurken doğrulama patlar, istemci 400 alır ama SATIR DB'DE
+   * KALIR. Kalan satır o günün TÜM okumalarını kalıcı olarak 400'e düşürüyordu —
+   * tek bir yazım hatası günü kullanılamaz hale getiriyordu.
+   *
+   * Bu test repo'ya HİÇ yazılmadığını doğrular (fake repo doğrulama yapmaz,
+   * yani hata geri gelirse burada yakalanır).
+   */
+  it('geçersiz satır repoya HİÇ yazılmaz (yazmadan önce doğrulanır)', async () => {
+    const inserts: unknown[] = [];
+    const spy = {
+      ...logs,
+      findById: logs.findById.bind(logs),
+      insertEntry: async (input: unknown) => {
+        inserts.push(input);
+        throw new Error('bu çağrı hiç olmamalıydı');
+      },
+    } as unknown as InMemoryDailyLogRepository;
+
+    const uc = new SaveDailyLogEntryUseCase(spy, timesheets, machineLogs);
+    await assert.rejects(
+      () =>
+        uc.execute({
+          companyId: 1,
+          logId,
+          kind: 'note',
+          description: 'not',
+          headcount: 5,
+        }),
+      ConstructionValidationError,
+    );
+    assert.equal(inserts.length, 0, 'geçersiz satır için insertEntry çağrılmamalı');
+
+    // Kaza kaydı şiddetsiz de yazma denemesi yapmamalı (DB CHECK'e düşüp 500
+    // üretmesin diye)
+    await assert.rejects(
+      () => uc.execute({ companyId: 1, logId, kind: 'accident', description: 'Kayma' }),
+      ConstructionValidationError,
+    );
+    assert.equal(inserts.length, 0);
+  });
+
   it('kilitli günde YORUM yapılabilir (kilit veriyi dondurur, yazışmayı değil)', async () => {
     await new ChangeDailyLogStatusUseCase(logs, clock).execute({
       companyId: 1,

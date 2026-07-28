@@ -110,5 +110,48 @@ export function mapConstructionError(err: unknown): never {
     throw new HTTPException(400, { message: err.message });
   }
 
+  mapPostgresError(err);
   throw err;
+}
+
+/**
+ * PostgreSQL kısıt hatalarını anlamlı HTTP koduna çevirir.
+ *
+ * Bunlar normalde use-case doğrulamasıyla önlenir; buradaki eşleme SAVUNMA
+ * KATMANIDIR. Olmadığında istemci 500 görür ve "sunucu bozuk" sanır — oysa
+ * gönderdiği veri geçersizdir. Canlı duman testinde kaza kaydının şiddetsiz
+ * gönderilmesi tam olarak böyle 500'e düşüyordu.
+ *
+ * Yarış durumlarında (aynı anda iki kullanıcı aynı kodu ekler) bu katman tek
+ * korumadır: ön-kontrol geçse bile UNIQUE ihlali burada 409'a döner.
+ */
+function mapPostgresError(err: unknown): void {
+  if (typeof err !== 'object' || err === null) return;
+  const code = (err as { code?: unknown }).code;
+  if (typeof code !== 'string') return;
+
+  const detail = (err as { detail?: unknown }).detail;
+  const constraint = (err as { constraint?: unknown }).constraint;
+  const hint = typeof constraint === 'string' ? ` (${constraint})` : '';
+
+  switch (code) {
+    case '23514': // check_violation
+      throw new HTTPException(400, {
+        message: `Geçersiz veri — kayıt kuralı ihlal edildi${hint}`,
+      });
+    case '23503': // foreign_key_violation
+      throw new HTTPException(400, {
+        message: `Başvurulan kayıt bulunamadı${hint}`,
+      });
+    case '23505': // unique_violation
+      throw new HTTPException(409, {
+        message: `Bu kayıt zaten var${hint}`,
+      });
+    case '23502': // not_null_violation
+      throw new HTTPException(400, {
+        message: `Zorunlu alan boş bırakılamaz${typeof detail === 'string' ? '' : hint}`,
+      });
+    default:
+      return;
+  }
 }

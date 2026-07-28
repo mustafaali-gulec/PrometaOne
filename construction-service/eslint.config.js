@@ -67,9 +67,9 @@ export default [
     },
   },
 
-  // scripts/ (plain Node JS, tsconfig dışı) — tip-aware kapalı + Node globals
+  // scripts/ (plain Node JS/ESM, tsconfig dışı) — tip-aware kapalı + Node globals
   {
-    files: ['scripts/**/*.js'],
+    files: ['scripts/**/*.js', 'scripts/**/*.mjs'],
     ...tseslint.configs.disableTypeChecked,
     languageOptions: {
       sourceType: 'module',
