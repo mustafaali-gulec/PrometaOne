@@ -11,6 +11,17 @@ import { z } from 'zod';
 
 import { authMiddleware, companyScopeGuard, requireRole } from '../../../middleware/auth.js';
 import { kindSpecDto } from '../application/dto/DailyLogDtos.js';
+import type {
+  CancelApprovalFlowUseCase,
+  DecideApprovalStepUseCase,
+  GetApprovalFlowUseCase,
+  GetApprovalHistoryUseCase,
+  GetApprovalSummariesForDocsUseCase,
+  GetDocApprovalUseCase,
+  GetMyApprovalsUseCase,
+  ListApprovalFlowsUseCase,
+  StartApprovalFlowUseCase,
+} from '../application/useCases/ApprovalUseCases.js';
 import type { GetBoqUseCase, SaveBoqLinesUseCase } from '../application/useCases/BoqUseCases.js';
 import type {
   CreateContractUseCase,
@@ -280,6 +291,16 @@ export interface ConstructionRouterDeps {
   getProjectPerformance: GetProjectPerformanceUseCase;
   getProjectManhourSummaries: GetProjectManhourSummariesUseCase;
   setUnitManhours: SetUnitManhoursUseCase;
+  // FAZ 5 — Jenerik onay akışı
+  startApprovalFlow: StartApprovalFlowUseCase;
+  decideApprovalStep: DecideApprovalStepUseCase;
+  cancelApprovalFlow: CancelApprovalFlowUseCase;
+  getApprovalFlow: GetApprovalFlowUseCase;
+  getDocApproval: GetDocApprovalUseCase;
+  listApprovalFlows: ListApprovalFlowsUseCase;
+  getApprovalSummariesForDocs: GetApprovalSummariesForDocsUseCase;
+  getMyApprovals: GetMyApprovalsUseCase;
+  getApprovalHistory: GetApprovalHistoryUseCase;
 }
 
 // --- Schema fragmanları ---------------------------------------------------
@@ -327,6 +348,20 @@ const logEntryKind = z.enum([
   'visitor',
 ]);
 const accidentSeverity = z.enum(['near_miss', 'first_aid', 'medical', 'lost_time', 'fatal']);
+// FAZ 5 fragmanları
+const approvalDocKind = z.enum([
+  'contract',
+  'progress',
+  'material_request',
+  'expense',
+  'advance',
+  'daily_log',
+  'tracking',
+  'boq',
+  'measurement',
+  'payment',
+]);
+const approvalStatus = z.enum(['pending', 'approved', 'rejected', 'cancelled']);
 const pct = z.number().min(0).max(100);
 const templateBodySchema = z.object({
   groups: z.array(
@@ -3234,6 +3269,257 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
             contractId: id,
             companyId: b.companyId,
             updates: b.updates,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 5 — APPROVAL FLOW (Jenerik onay akışı) ========================
+
+  /**
+   * "Bana atanan onaylar" kutusu. Kullanıcı token'dan gelir — başkasının
+   * onay kutusunu görmek anlamsız ve sızıntı olur.
+   */
+  app.get('/approvals/mine', zValidator('query', companyIdQ), async (c) => {
+    const q = c.req.valid('query');
+    const userId = actorId(c);
+    if (userId === null) {
+      return c.json({ message: 'Kullanıcı belirlenemedi' }, 401);
+    }
+    try {
+      return c.json(await deps.getMyApprovals.execute({ companyId: q.companyId, userId }));
+    } catch (err) {
+      mapConstructionError(err);
+    }
+  });
+
+  app.get(
+    '/approvals',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        docKind: approvalDocKind.optional(),
+        docId: z.coerce.number().int().positive().optional(),
+        projectId: z.coerce.number().int().positive().optional(),
+        status: approvalStatus.optional(),
+        overdueOnly: z.coerce.boolean().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const flows = await deps.listApprovalFlows.execute({
+          companyId: q.companyId,
+          ...(q.docKind !== undefined ? { docKind: q.docKind } : {}),
+          ...(q.docId !== undefined ? { docId: q.docId } : {}),
+          ...(q.projectId !== undefined ? { projectId: q.projectId } : {}),
+          ...(q.status !== undefined ? { status: q.status } : {}),
+          ...(q.overdueOnly !== undefined ? { overdueOnly: q.overdueOnly } : {}),
+        });
+        return c.json({ flows });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Liste ekranları için toplu "N/M" özeti — belge başına ayrı istek atmasın. */
+  app.post(
+    '/approvals/summaries',
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        docKind: approvalDocKind,
+        docIds: z.array(z.number().int().positive()).max(500),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const summaries = await deps.getApprovalSummariesForDocs.execute(b);
+        return c.json({ summaries });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Belgenin AKTİF akışı; yoksa 204 (çoğu belgede akış yoktur, hata değil). */
+  app.get(
+    '/approvals/doc/:docKind/:docId',
+    zValidator(
+      'param',
+      z.object({ docKind: approvalDocKind, docId: z.coerce.number().int().positive() }),
+    ),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const p = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const flow = await deps.getDocApproval.execute({
+          companyId: q.companyId,
+          docKind: p.docKind,
+          docId: p.docId,
+        });
+        if (flow === null) return c.body(null, 204);
+        return c.json(flow);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/approvals/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.getApprovalFlow.execute({ companyId: q.companyId, flowId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/approvals/:id/history',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const history = await deps.getApprovalHistory.execute({
+          companyId: q.companyId,
+          flowId: id,
+        });
+        return c.json({ history });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/approvals',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        docKind: approvalDocKind,
+        docId: z.number().int().positive(),
+        projectId: z.number().int().positive().nullable().optional(),
+        mode: z.enum(['ordered', 'unordered']).optional(),
+        minApprovals: z.number().int().positive().nullable().optional(),
+        title: z.string().max(300).nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+        approvers: z
+          .array(
+            z.object({
+              approverUserId: z.number().int().positive(),
+              dueDate: dateStr.nullable().optional(),
+            }),
+          )
+          .min(1)
+          .max(50),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.startApprovalFlow.execute({ ...b, createdBy: actorId(c) });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * Adım kararı. Onaycı KENDİ adımına karar verebilir; başkasının adımına karar
+   * vermek (vekâleten onay) yönetici yetkisi ister ve izde 'delegated' olarak
+   * görünür — kimin bastığı gizlenmez.
+   */
+  app.post(
+    '/approvals/:id/steps/:stepId/decide',
+    requireWrite,
+    zValidator(
+      'param',
+      z.object({
+        id: z.coerce.number().int().positive(),
+        stepId: z.coerce.number().int().positive(),
+      }),
+    ),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        approve: z.boolean(),
+        comment: z.string().max(1000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const p = c.req.valid('param');
+      const b = c.req.valid('json');
+      const userId = actorId(c);
+      if (userId === null) {
+        return c.json({ message: 'Kullanıcı belirlenemedi' }, 401);
+      }
+      try {
+        // Vekâleten onay denetimi: adım başkasınınsa yönetici olmalı.
+        const flow = await deps.getApprovalFlow.execute({
+          companyId: b.companyId,
+          flowId: p.id,
+        });
+        const step = flow.steps.find((s) => s.id === p.stepId);
+        if (step !== undefined && step.approverUserId !== userId && !canApprove(actorRole(c))) {
+          return c.json(
+            { message: 'Başkasının onay adımına karar vermek için yönetici yetkisi gerekir' },
+            403,
+          );
+        }
+        return c.json(
+          await deps.decideApprovalStep.execute({
+            companyId: b.companyId,
+            flowId: p.id,
+            stepId: p.stepId,
+            approve: b.approve,
+            actorUserId: userId,
+            ...(b.comment !== undefined ? { comment: b.comment } : {}),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Akışı iptal et — yönetici yetkisi ister (başlatılmış onayı geri almak). */
+  app.post(
+    '/approvals/:id/cancel',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', z.object({ companyId: z.number().int().positive() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      if (!canApprove(actorRole(c))) {
+        return c.json({ message: 'Onay akışını iptal etmek için yönetici yetkisi gerekir' }, 403);
+      }
+      try {
+        return c.json(
+          await deps.cancelApprovalFlow.execute({
+            companyId: b.companyId,
+            flowId: id,
+            actorUserId: actorId(c),
           }),
         );
       } catch (err) {

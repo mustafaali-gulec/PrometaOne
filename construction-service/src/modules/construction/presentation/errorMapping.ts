@@ -9,6 +9,9 @@ import { HTTPException } from 'hono/http-exception';
 
 import {
   AdvanceNotFoundError,
+  ApprovalFlowNotFoundError,
+  ApprovalNotActionableError,
+  ApprovalStepNotFoundError,
   AttachmentNotFoundError,
   CashMovementNotFoundError,
   ContractNotFoundError,
@@ -16,6 +19,7 @@ import {
   DailyLogEntryNotFoundError,
   DailyLogLockedError,
   DailyLogNotFoundError,
+  DuplicateApprovalFlowError,
   DuplicateContractNoError,
   DuplicateLocationCodeError,
   DuplicateMachineCodeError,
@@ -73,7 +77,9 @@ export function mapConstructionError(err: unknown): never {
     err instanceof TrackingNotFoundError ||
     err instanceof TrackingItemNotFoundError ||
     err instanceof DailyLogNotFoundError ||
-    err instanceof DailyLogEntryNotFoundError
+    err instanceof DailyLogEntryNotFoundError ||
+    err instanceof ApprovalFlowNotFoundError ||
+    err instanceof ApprovalStepNotFoundError
   ) {
     throw new HTTPException(404, { message: err.message });
   }
@@ -87,7 +93,8 @@ export function mapConstructionError(err: unknown): never {
     err instanceof DuplicateMachineCodeError ||
     err instanceof DuplicateLocationCodeError ||
     err instanceof DuplicateProgressTemplateCodeError ||
-    err instanceof DuplicateTrackingCodeError
+    err instanceof DuplicateTrackingCodeError ||
+    err instanceof DuplicateApprovalFlowError
   ) {
     throw new HTTPException(409, { message: err.message });
   }
@@ -105,7 +112,8 @@ export function mapConstructionError(err: unknown): never {
     err instanceof MaterialRequestNotEditableError ||
     err instanceof InvalidLocationNestingError ||
     err instanceof InvalidTrackingScopeError ||
-    err instanceof TrackingNotActiveError
+    err instanceof TrackingNotActiveError ||
+    err instanceof ApprovalNotActionableError
   ) {
     throw new HTTPException(400, { message: err.message });
   }

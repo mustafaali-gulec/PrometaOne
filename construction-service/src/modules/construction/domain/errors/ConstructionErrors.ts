@@ -248,6 +248,32 @@ export class DailyLogEntryNotFoundError extends ConstructionError {
   }
 }
 
+// ---- FAZ 5: Jenerik onay akışı ---------------------------------------------
+
+export class ApprovalFlowNotFoundError extends ConstructionError {
+  constructor(idOrDoc: number | string) {
+    super(`Onay akışı bulunamadı: ${idOrDoc}`);
+  }
+}
+
+export class ApprovalStepNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Onay adımı bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateApprovalFlowError extends ConstructionError {
+  constructor(docKind: string, docId: number) {
+    super(`Bu belgede zaten bekleyen bir onay akışı var: ${docKind}#${String(docId)}`);
+  }
+}
+
+export class ApprovalNotActionableError extends ConstructionError {
+  constructor(reason: string) {
+    super(`Onay işlemi yapılamaz: ${reason}`);
+  }
+}
+
 export class InvalidStatusTransitionError extends ConstructionError {
   constructor(from: string, to: string) {
     super(`Geçersiz statü geçişi: '${from}' → '${to}'`);

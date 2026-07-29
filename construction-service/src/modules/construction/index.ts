@@ -12,6 +12,17 @@ import type { Pool } from 'pg';
 
 import { SystemClock } from './application/ports/Clock.js';
 import type { EventPublisher } from './application/ports/EventPublisher.js';
+import {
+  CancelApprovalFlowUseCase,
+  DecideApprovalStepUseCase,
+  GetApprovalFlowUseCase,
+  GetApprovalHistoryUseCase,
+  GetApprovalSummariesForDocsUseCase,
+  GetDocApprovalUseCase,
+  GetMyApprovalsUseCase,
+  ListApprovalFlowsUseCase,
+  StartApprovalFlowUseCase,
+} from './application/useCases/ApprovalUseCases.js';
 import { GetBoqUseCase, SaveBoqLinesUseCase } from './application/useCases/BoqUseCases.js';
 import {
   CreateContractUseCase,
@@ -154,6 +165,7 @@ import {
   UpdateProgressTemplateUseCase,
   UpdateTrackingUseCase,
 } from './application/useCases/TrackingUseCases.js';
+import { PgApprovalRepository } from './infrastructure/persistence/PgApprovalRepository.js';
 import { PgBoqRepository } from './infrastructure/persistence/PgBoqRepository.js';
 import { PgContractRepository } from './infrastructure/persistence/PgContractRepository.js';
 import { PgDailyLogRepository } from './infrastructure/persistence/PgDailyLogRepository.js';
@@ -222,6 +234,7 @@ export function registerConstructionModule(
   const trackings = new PgTrackingRepository(pool);
   const dailyLogs = new PgDailyLogRepository(pool);
   const performance = new PgPerformanceRepository(pool);
+  const approvals = new PgApprovalRepository(pool);
 
   const deps: ConstructionRouterDeps = {
     createProject: new CreateProjectUseCase(projects),
@@ -357,6 +370,19 @@ export function registerConstructionModule(
     getProjectPerformance: new GetProjectPerformanceUseCase(performance, projects),
     getProjectManhourSummaries: new GetProjectManhourSummariesUseCase(performance, projects),
     setUnitManhours: new SetUnitManhoursUseCase(performance, contracts),
+
+    // FAZ 5 — Jenerik onay akışı. Akış kapandığında belgeyi ilerletme
+    // sorumluluğu bu modülde DEĞİL: 'approval' konusuna olay yayınlanır,
+    // belgenin kendi durum makinesi dinler (hakediş→muhasebe ile aynı seam).
+    startApprovalFlow: new StartApprovalFlowUseCase(approvals),
+    decideApprovalStep: new DecideApprovalStepUseCase(approvals, clock, events),
+    cancelApprovalFlow: new CancelApprovalFlowUseCase(approvals, clock, events),
+    getApprovalFlow: new GetApprovalFlowUseCase(approvals),
+    getDocApproval: new GetDocApprovalUseCase(approvals),
+    listApprovalFlows: new ListApprovalFlowsUseCase(approvals),
+    getApprovalSummariesForDocs: new GetApprovalSummariesForDocsUseCase(approvals),
+    getMyApprovals: new GetMyApprovalsUseCase(approvals),
+    getApprovalHistory: new GetApprovalHistoryUseCase(approvals),
   };
 
   return createConstructionRouter(deps);

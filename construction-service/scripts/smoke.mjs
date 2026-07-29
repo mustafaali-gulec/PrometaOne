@@ -374,10 +374,151 @@ async function main() {
   chk('planı olmayan satır sayısı', 0, perf.summary.linesWithoutPlan);
   chk('ağırlıklı verim özeti', 2.5, r4(perf.summary.efficiency));
 
+  console.log('=== FAZ 5: jenerik onay akışı ===');
+  const noApproval = await get(`approvals/doc/progress/${String(BOQ)}?companyId=1`);
+  chk('akışı olmayan belge 204 döner (404 değil)', 204, noApproval.status);
+
+  const af = (
+    await post('approvals', {
+      companyId: 1,
+      docKind: 'progress',
+      docId: 4242,
+      projectId: PRJ,
+      mode: 'ordered',
+      title: 'E2E hakediş onayı',
+      approvers: [
+        { approverUserId: 1, dueDate: '2026-07-20' },
+        { approverUserId: 2 },
+        { approverUserId: 3 },
+      ],
+    })
+  ).json;
+  chk('akış 3 adımla kuruldu', 3, af.steps.length);
+  chk('gereken onay sayısı (minApprovals yok → hepsi)', 3, af.requiredCount);
+  chk('sıradaki onaycı ilk adım', 1, af.currentApproverUserId);
+  chk('yalnız ilk adım eyleme geçebilir', true, af.steps[0].actionable);
+  chk('ikinci adım henüz eyleme geçemez', false, af.steps[1].actionable);
+  chk('gecikmiş adım gün sayısı taşıyor', true, (af.steps[0].daysOverdue ?? 0) > 0);
+
+  const dupFlow = await post('approvals', {
+    companyId: 1,
+    docKind: 'progress',
+    docId: 4242,
+    approvers: [{ approverUserId: 1 }],
+  });
+  chk('aynı belgede ikinci aktif akış 409', 409, dupFlow.status);
+
+  // Sırası gelmemiş adıma karar → 400
+  const outOfOrder = await post(
+    `approvals/${String(af.id)}/steps/${String(af.steps[1].id)}/decide`,
+    {
+      companyId: 1,
+      approve: true,
+    },
+  );
+  chk('sırası gelmemiş adıma karar 400', 400, outOfOrder.status);
+
+  const d1 = (
+    await post(`approvals/${String(af.id)}/steps/${String(af.steps[0].id)}/decide`, {
+      companyId: 1,
+      approve: true,
+      comment: 'Metraj kontrol edildi',
+    })
+  ).json;
+  chk('ilk onaydan sonra akış açık kalır', false, d1.completed);
+  chk('sıra ikinci onaycıya geçti', 2, d1.flow.currentApproverUserId);
+  chk('onay sayısı 1', 1, d1.flow.approvedCount);
+
+  const mine = (await get('approvals/mine?companyId=1')).json;
+  chk('bana atanan onaylar kutusu çalışıyor', true, Array.isArray(mine.actionable));
+
+  // Kalan iki adım admin token'ıyla vekâleten onaylanır → 'delegated'
+  const d2 = (
+    await post(`approvals/${String(af.id)}/steps/${String(af.steps[1].id)}/decide`, {
+      companyId: 1,
+      approve: true,
+    })
+  ).json;
+  chk('vekâleten onay delegated olarak işaretlendi', 'delegated', d2.flow.steps[1].decision);
+
+  const d3 = (
+    await post(`approvals/${String(af.id)}/steps/${String(af.steps[2].id)}/decide`, {
+      companyId: 1,
+      approve: true,
+    })
+  ).json;
+  chk('son onay akışı tamamladı', true, d3.completed);
+  chk('akış onaylandı', 'approved', d3.flow.status);
+
+  const hist = (await get(`approvals/${String(af.id)}/history?companyId=1`)).json;
+  chk('geçmiş: created + 3 karar', 4, hist.history.length);
+
+  // Red terminal: sırasız modda min 2 onay, biri onaylar biri reddeder
+  const af2 = (
+    await post('approvals', {
+      companyId: 1,
+      docKind: 'expense',
+      docId: 4243,
+      projectId: PRJ,
+      mode: 'unordered',
+      minApprovals: 2,
+      approvers: [{ approverUserId: 1 }, { approverUserId: 2 }, { approverUserId: 3 }],
+    })
+  ).json;
+  chk('sırasız modda sıradaki onaycı null', null, af2.currentApproverUserId);
+  chk('sırasız modda son adım da eyleme geçebilir', true, af2.steps[2].actionable);
+
+  await post(`approvals/${String(af2.id)}/steps/${String(af2.steps[2].id)}/decide`, {
+    companyId: 1,
+    approve: true,
+  });
+  const rej = (
+    await post(`approvals/${String(af2.id)}/steps/${String(af2.steps[0].id)}/decide`, {
+      companyId: 1,
+      approve: false,
+      comment: 'Belge eksik',
+    })
+  ).json;
+  chk('red akışı reddetti (çoğunluk onaylamış olsa bile)', 'rejected', rej.flow.status);
+  chk('kalan adım skipped', 'skipped', rej.flow.steps[1].decision);
+
+  const afterClose = await post(
+    `approvals/${String(af2.id)}/steps/${String(af2.steps[1].id)}/decide`,
+    { companyId: 1, approve: true },
+  );
+  chk('kapanmış akışta karar 400', 400, afterClose.status);
+
+  // min_approvals ile kısmi onay: 3 onaycıdan 2'si yeter
+  const af3 = (
+    await post('approvals', {
+      companyId: 1,
+      docKind: 'material_request',
+      docId: 4244,
+      mode: 'unordered',
+      minApprovals: 2,
+      approvers: [{ approverUserId: 1 }, { approverUserId: 2 }, { approverUserId: 3 }],
+    })
+  ).json;
+  await post(`approvals/${String(af3.id)}/steps/${String(af3.steps[0].id)}/decide`, {
+    companyId: 1,
+    approve: true,
+  });
+  const done = (
+    await post(`approvals/${String(af3.id)}/steps/${String(af3.steps[1].id)}/decide`, {
+      companyId: 1,
+      approve: true,
+    })
+  ).json;
+  chk('2/3 onayla akış onaylandı', 'approved', done.flow.status);
+  chk('sorulmayan adım skipped', 'skipped', done.flow.steps[2].decision);
+
   console.log('=== TEMİZLİK ===');
   await del(`projects/${PRJ}?companyId=1`);
   await del(`progress-templates/${TPL}?companyId=1`);
   await del(`progress-templates/${unitTpl.id}?companyId=1`);
+  for (const f of [af, af2, af3]) {
+    await post(`approvals/${String(f.id)}/cancel`, { companyId: 1 });
+  }
   console.log('  proje pasife çekildi, şablonlar pasifleştirildi');
 
   console.log(`\nSONUÇ: ${String(ok)} geçti, ${String(fail)} başarısız`);
