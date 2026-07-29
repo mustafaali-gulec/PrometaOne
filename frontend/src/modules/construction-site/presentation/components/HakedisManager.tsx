@@ -6,7 +6,7 @@
  * Onay/ödeme butonları sunucuda yönetici (cfo/admin) yetkisi ister; yetki yoksa
  * 403 mesajı gösterilir.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { MoneyInput } from '../../../../shared/ui/MoneyInput';
 import type {
@@ -18,8 +18,10 @@ import type {
   ProgressSummaryDto,
 } from '../../application/dto/ConstructionDtos';
 import type { ConstructionApi, DeductionBody } from '../../application/ports/ConstructionApi';
+import { useApprovalSummaries } from '../hooks/useApprovalSummaries';
 
 import { HakedisKanban } from './HakedisKanban';
+import { OnayDurumuBadge } from './OnayDurumuBadge';
 
 const STATUS_LABELS: Record<ProgressStatus, string> = {
   draft: 'Taslak',
@@ -74,9 +76,11 @@ function nextStatusActions(
 export interface HakedisManagerProps {
   api: ConstructionApi;
   companyId: number;
+  /** Onay rozetinin dili (FAZ 5); ekranın kalanı henüz TR sabitli. */
+  lang?: string | undefined;
 }
 
-export function HakedisManager({ api, companyId }: HakedisManagerProps): JSX.Element {
+export function HakedisManager({ api, companyId, lang }: HakedisManagerProps): JSX.Element {
   const [contracts, setContracts] = useState<ReadonlyArray<ContractDto>>([]);
   const [contractId, setContractId] = useState<number>(0);
   const [list, setList] = useState<ReadonlyArray<ProgressSummaryDto>>([]);
@@ -84,6 +88,13 @@ export function HakedisManager({ api, companyId }: HakedisManagerProps): JSX.Ele
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<'table' | 'kanban'>('table');
+
+  /**
+   * FAZ 5 — onay N/M rozetleri. Listedeki bütün hakedişlerin özeti TEK istekle
+   * gelir; hakediş başına ayrı çağrı 50 satırda 50 istek demekti.
+   */
+  const progressIds = useMemo(() => list.map((p) => p.id), [list]);
+  const { byDocId: approvals } = useApprovalSummaries(api, companyId, 'progress', progressIds);
 
   useEffect(() => {
     let cancelled = false;
@@ -240,7 +251,8 @@ export function HakedisManager({ api, companyId }: HakedisManagerProps): JSX.Ele
                     <span style={{ color: 'var(--ink-muted, #888)' }}>
                       ({p.kind === 'employer' ? 'işv.' : 'taş.'} #{p.seqNo})
                     </span>{' '}
-                    <span style={badge(STATUS_COLORS[p.status])}>{STATUS_LABELS[p.status]}</span>
+                    <span style={badge(STATUS_COLORS[p.status])}>{STATUS_LABELS[p.status]}</span>{' '}
+                    <OnayDurumuBadge summary={approvals.get(p.id) ?? null} lang={lang} />
                     <div style={{ fontSize: 11, color: 'var(--ink-muted, #888)' }}>
                       Net: {p.netPayable.toLocaleString('tr-TR')} {p.currency}
                     </div>

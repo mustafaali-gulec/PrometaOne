@@ -470,14 +470,19 @@ describe('ApprovalUseCases', () => {
       ...over,
     });
 
+    const today = NOW.toISOString().slice(0, 10);
+
     it('actionable / waiting ayrımı ve gecikme kovaları', async () => {
       repo.pending = [
-        row({ stepId: 1, actionable: true, daysOverdue: 0 }),
+        row({ stepId: 1, actionable: true, dueDate: today, daysOverdue: 0 }),
         row({ stepId: 2, actionable: false, daysOverdue: 3 }),
         row({ stepId: 3, actionable: true, daysOverdue: 12 }),
         row({ stepId: 4, actionable: true, dueDate: null, daysOverdue: null }),
       ];
-      const res = await new GetMyApprovalsUseCase(repo).execute({ companyId: 1, userId: 11 });
+      const res = await new GetMyApprovalsUseCase(repo, clock).execute({
+        companyId: 1,
+        userId: 11,
+      });
       assert.equal(res.actionable.length, 3);
       assert.equal(res.waiting.length, 1);
       assert.equal(res.overdue.length, 2);
@@ -485,13 +490,36 @@ describe('ApprovalUseCases', () => {
         dueToday: 1,
         overdue1to7: 1,
         overdueOver7: 1,
+        upcoming: 0,
         noDueDate: 1,
       });
     });
 
+    /**
+     * Görünüm ileri tarihte de daysOverdue=0 döndürür (gecikme yok demek).
+     * Bunu "bugün teslim" saymak paneli yalan söyletirdi.
+     */
+    it('ileri tarihli adım "bugün teslim" değil "ileri tarihli" sayılır', async () => {
+      repo.pending = [
+        row({ stepId: 1, dueDate: today, daysOverdue: 0 }),
+        row({ stepId: 2, dueDate: '2026-08-15', daysOverdue: 0 }),
+        row({ stepId: 3, dueDate: '2026-12-31', daysOverdue: 0 }),
+      ];
+      const res = await new GetMyApprovalsUseCase(repo, clock).execute({
+        companyId: 1,
+        userId: 11,
+      });
+      assert.equal(res.buckets.dueToday, 1);
+      assert.equal(res.buckets.upcoming, 2);
+      assert.equal(res.overdue.length, 0);
+    });
+
     it('başka kullanıcının onayları görünmez', async () => {
       repo.pending = [row({ approverUserId: 22 })];
-      const res = await new GetMyApprovalsUseCase(repo).execute({ companyId: 1, userId: 11 });
+      const res = await new GetMyApprovalsUseCase(repo, clock).execute({
+        companyId: 1,
+        userId: 11,
+      });
       assert.equal(res.actionable.length, 0);
       assert.equal(res.waiting.length, 0);
     });

@@ -1083,3 +1083,157 @@ export interface ContractManhourSummaryDto {
 export interface ManhourSummariesResponse {
   summaries: ContractManhourSummaryDto[];
 }
+
+// ============================================================================
+// FAZ 5 — JENERİK ONAY AKIŞI (cs_approval_flows)
+// ============================================================================
+
+/**
+ * Onay akışının bağlanabileceği belge tipleri. Backend enum'unun aynısı —
+ * ayrışırsa arayüz var olmayan bir tip gönderip 400 alır.
+ */
+export type ApprovalDocKind =
+  | 'contract'
+  | 'progress'
+  | 'material_request'
+  | 'expense'
+  | 'advance'
+  | 'daily_log'
+  | 'tracking'
+  | 'boq'
+  | 'measurement'
+  | 'payment';
+
+/** `ordered`: yalnız sırası gelen karar verir · `unordered`: bekleyen herkes. */
+export type ApprovalMode = 'ordered' | 'unordered';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+export type ApprovalDecision = 'pending' | 'approved' | 'rejected' | 'skipped' | 'delegated';
+
+export interface ApprovalStepDto {
+  id: number;
+  seqNo: number;
+  approverUserId: number;
+  dueDate: string | null;
+  decision: ApprovalDecision;
+  decidedAt: string | null;
+  /** Vekâleten karar verildiyse gerçek karar veren — kimin bastığı gizlenmez. */
+  decidedBy: number | null;
+  comment: string | null;
+  /** Bu adım ŞU AN karar verebilir mi (sıralı akışta sıra bunda mı). */
+  actionable: boolean;
+  /** Bitiş tarihi geçmiş bekleyen adımda gecikme günü; yoksa null. */
+  daysOverdue: number | null;
+}
+
+export interface ApprovalFlowDto {
+  id: number;
+  companyId: number;
+  docKind: ApprovalDocKind;
+  docId: number;
+  projectId: number | null;
+  mode: ApprovalMode;
+  status: ApprovalStatus;
+  /** null = herkes onaylamalı; sayı = "3 onaycıdan 2'si". */
+  minApprovals: number | null;
+  title: string | null;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+  steps: ApprovalStepDto[];
+  /** "Onay Sırası N/M" göstergesinin payı. */
+  approvedCount: number;
+  requiredCount: number;
+  /** Sıralı modda sıradaki onaycı; sırasızda null. */
+  currentApproverUserId: number | null;
+  open: boolean;
+}
+
+/** Belge satırındaki N/M göstergesi — akışın tamamını çekmeden. */
+export interface ApprovalFlowSummaryDto {
+  flowId: number;
+  docKind: ApprovalDocKind;
+  docId: number;
+  projectId: number | null;
+  mode: ApprovalMode;
+  status: ApprovalStatus;
+  minApprovals: number | null;
+  title: string | null;
+  createdAt: string;
+  completedAt: string | null;
+  stepCount: number;
+  approvedCount: number;
+  rejectedCount: number;
+  pendingCount: number;
+  requiredCount: number;
+  currentApproverUserId: number | null;
+  nextDueDate: string | null;
+  /** Kapanmış akışta null — tamamlanmış işi geç göstermek yanıltır. */
+  daysOverdue: number | null;
+}
+
+export interface ApprovalFlowsResponse {
+  flows: ApprovalFlowSummaryDto[];
+}
+
+export interface ApprovalSummariesResponse {
+  summaries: ApprovalFlowSummaryDto[];
+}
+
+/** "Bana atanan onaylar" kutusundaki bir satır. */
+export interface PendingApprovalRowDto {
+  stepId: number;
+  approverUserId: number;
+  seqNo: number;
+  dueDate: string | null;
+  flowId: number;
+  docKind: ApprovalDocKind;
+  docId: number;
+  projectId: number | null;
+  mode: ApprovalMode;
+  title: string | null;
+  flowCreatedAt: string;
+  /** false ise sıralı akışta sıra henüz bu kişide değil. */
+  actionable: boolean;
+  daysOverdue: number | null;
+}
+
+export interface MyApprovalsDto {
+  userId: number;
+  /** Şimdi karar verebileceği adımlar. */
+  actionable: PendingApprovalRowDto[];
+  /** Sıralı akışta sırası henüz gelmemiş adımlar. */
+  waiting: PendingApprovalRowDto[];
+  overdue: PendingApprovalRowDto[];
+  /**
+   * Imperium panelindeki gecikme kovaları. `upcoming` AYRI: bitiş tarihi ileride
+   * olan adımı "bugün teslim" saymak paneli yalan söyletir.
+   */
+  buckets: {
+    dueToday: number;
+    overdue1to7: number;
+    overdueOver7: number;
+    upcoming: number;
+    noDueDate: number;
+  };
+}
+
+export interface ApprovalHistoryRowDto {
+  id: number;
+  flowId: number;
+  stepId: number | null;
+  action: string;
+  actor: number | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface ApprovalHistoryResponse {
+  history: ApprovalHistoryRowDto[];
+}
+
+export interface DecideApprovalResultDto {
+  flow: ApprovalFlowDto;
+  /** Akış bu kararla kapandı mı — arayüz "belge onaylandı" mesajını buna göre basar. */
+  completed: boolean;
+}

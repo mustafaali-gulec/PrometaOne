@@ -84,6 +84,14 @@ import type {
   SafetySummaryDto,
   ManhourSummariesResponse,
   PerformanceReportDto,
+  ApprovalDocKind,
+  ApprovalFlowDto,
+  ApprovalFlowsResponse,
+  ApprovalHistoryResponse,
+  ApprovalStatus,
+  ApprovalSummariesResponse,
+  DecideApprovalResultDto,
+  MyApprovalsDto,
 } from '../../application/dto/ConstructionDtos';
 import type { AuthTokenProvider } from '../../application/ports/AuthTokenProvider';
 import type {
@@ -136,6 +144,8 @@ import type {
   SaveDailyLogEntryBody,
   UpdateDailyLogBody,
   SetUnitManhoursBody,
+  DecideApprovalBody,
+  StartApprovalFlowBody,
 } from '../../application/ports/ConstructionApi';
 
 export class ConstructionApiClient implements ConstructionApi {
@@ -945,6 +955,90 @@ export class ConstructionApiClient implements ConstructionApi {
       `/v1/construction/contracts/${String(contractId)}/unit-manhours`,
       { method: 'PUT', body },
     );
+  }
+
+  // ===== FAZ 5 — APPROVAL FLOW (Jenerik onay akışı) ========================
+  getMyApprovals(companyId: number): Promise<MyApprovalsDto> {
+    return this.request<MyApprovalsDto>(
+      `/v1/construction/approvals/mine?companyId=${String(companyId)}`,
+    );
+  }
+
+  listApprovalFlows(
+    companyId: number,
+    options?: {
+      docKind?: ApprovalDocKind;
+      docId?: number;
+      projectId?: number;
+      status?: ApprovalStatus;
+      overdueOnly?: boolean;
+    },
+  ): Promise<ApprovalFlowsResponse> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (options?.docKind !== undefined) q.set('docKind', options.docKind);
+    if (options?.docId !== undefined) q.set('docId', String(options.docId));
+    if (options?.projectId !== undefined) q.set('projectId', String(options.projectId));
+    if (options?.status !== undefined) q.set('status', options.status);
+    // Yalnız true iken gönderilir: z.coerce.boolean() "false" metnini de true sayar.
+    if (options?.overdueOnly === true) q.set('overdueOnly', 'true');
+    return this.request<ApprovalFlowsResponse>(`/v1/construction/approvals?${q.toString()}`);
+  }
+
+  getApprovalSummaries(
+    companyId: number,
+    docKind: ApprovalDocKind,
+    docIds: ReadonlyArray<number>,
+  ): Promise<ApprovalSummariesResponse> {
+    return this.request<ApprovalSummariesResponse>(`/v1/construction/approvals/summaries`, {
+      method: 'POST',
+      body: { companyId, docKind, docIds: [...docIds] },
+    });
+  }
+
+  /** 204 → null. request() 204'te undefined döndürdüğü için null'a çevrilir. */
+  async getDocApproval(
+    companyId: number,
+    docKind: ApprovalDocKind,
+    docId: number,
+  ): Promise<ApprovalFlowDto | null> {
+    const res = await this.request<ApprovalFlowDto | undefined>(
+      `/v1/construction/approvals/doc/${docKind}/${String(docId)}?companyId=${String(companyId)}`,
+    );
+    return res ?? null;
+  }
+
+  getApprovalFlow(flowId: number, companyId: number): Promise<ApprovalFlowDto> {
+    return this.request<ApprovalFlowDto>(
+      `/v1/construction/approvals/${String(flowId)}?companyId=${String(companyId)}`,
+    );
+  }
+
+  getApprovalHistory(flowId: number, companyId: number): Promise<ApprovalHistoryResponse> {
+    return this.request<ApprovalHistoryResponse>(
+      `/v1/construction/approvals/${String(flowId)}/history?companyId=${String(companyId)}`,
+    );
+  }
+
+  startApprovalFlow(body: StartApprovalFlowBody): Promise<ApprovalFlowDto> {
+    return this.request<ApprovalFlowDto>(`/v1/construction/approvals`, { method: 'POST', body });
+  }
+
+  decideApprovalStep(
+    flowId: number,
+    stepId: number,
+    body: DecideApprovalBody,
+  ): Promise<DecideApprovalResultDto> {
+    return this.request<DecideApprovalResultDto>(
+      `/v1/construction/approvals/${String(flowId)}/steps/${String(stepId)}/decide`,
+      { method: 'POST', body },
+    );
+  }
+
+  cancelApprovalFlow(flowId: number, companyId: number): Promise<ApprovalFlowDto> {
+    return this.request<ApprovalFlowDto>(`/v1/construction/approvals/${String(flowId)}/cancel`, {
+      method: 'POST',
+      body: { companyId },
+    });
   }
 
   // ===== Generic request helper ===========================================

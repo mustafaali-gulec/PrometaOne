@@ -238,10 +238,21 @@ export interface MyApprovalsDto {
   /** Bitiş tarihi geçmiş bekleyen adımlar (actionable ∪ waiting içinden). */
   overdue: ReadonlyArray<PendingApprovalRow>;
   /**
-   * Imperium'un panelindeki gecikme kovaları: bugün/1-7 gün/7 günden fazla.
-   * Sayılar yalnız bitiş tarihi OLAN adımları kapsar; tarihsiz adım geciktirilemez.
+   * Imperium'un panelindeki gecikme kovaları: bugün / 1-7 gün / 7 günden fazla /
+   * ileri tarihli / tarihsiz.
+   *
+   * `upcoming` AYRI DURUR: bitiş tarihi 3 gün sonra olan bir adımı "bugün
+   * teslim" kovasında saymak paneli yalan söyletir. Görünümdeki `daysOverdue`
+   * ileri tarihte de 0 döner (gecikme yok demek), o yüzden kova ayrımı gün
+   * karşılaştırmasıyla yapılır, oranla değil.
    */
-  buckets: { dueToday: number; overdue1to7: number; overdueOver7: number; noDueDate: number };
+  buckets: {
+    dueToday: number;
+    overdue1to7: number;
+    overdueOver7: number;
+    upcoming: number;
+    noDueDate: number;
+  };
 }
 
 /**
@@ -251,7 +262,10 @@ export interface MyApprovalsDto {
  * gizler.
  */
 export class GetMyApprovalsUseCase {
-  constructor(private readonly approvals: ApprovalRepository) {}
+  constructor(
+    private readonly approvals: ApprovalRepository,
+    private readonly clock: Clock,
+  ) {}
 
   async execute(input: { companyId: number; userId: number }): Promise<MyApprovalsDto> {
     const rows = await this.approvals.listPendingForUser(input.companyId, input.userId);
@@ -259,12 +273,16 @@ export class GetMyApprovalsUseCase {
     const waiting = rows.filter((r) => !r.actionable);
     const overdue = rows.filter((r) => (r.daysOverdue ?? 0) > 0);
 
-    const buckets = { dueToday: 0, overdue1to7: 0, overdueOver7: 0, noDueDate: 0 };
+    const today = this.clock.now().toISOString().slice(0, 10);
+    const buckets = { dueToday: 0, overdue1to7: 0, overdueOver7: 0, upcoming: 0, noDueDate: 0 };
     for (const r of rows) {
+      const late = r.daysOverdue ?? 0;
       if (r.dueDate === null) buckets.noDueDate += 1;
-      else if ((r.daysOverdue ?? 0) === 0) buckets.dueToday += 1;
-      else if ((r.daysOverdue ?? 0) <= 7) buckets.overdue1to7 += 1;
-      else buckets.overdueOver7 += 1;
+      else if (late > 7) buckets.overdueOver7 += 1;
+      else if (late > 0) buckets.overdue1to7 += 1;
+      // Buradan sonrası gecikmemiş: bugün mü, ileride mi?
+      else if (r.dueDate === today) buckets.dueToday += 1;
+      else buckets.upcoming += 1;
     }
 
     return { userId: input.userId, actionable, waiting, overdue, buckets };

@@ -47,6 +47,7 @@ const TABS: ConstructionTab[] = [
   'trackings',
   'dailylog',
   'performance',
+  'approvals',
 ];
 
 const tabParam = params.get('tab');
@@ -67,5 +68,9 @@ createRoot(container).render(
     // Kilit açma düğmesi demo sayfasında görünsün ki akış tam denenebilsin;
     // gerçek uygulamada canAct("construction.daily_log.approve") karar verir.
     canUnlockDailyLog
+    // Onay akışında yönetici yetkileri de demo sayfasında açık; gerçek
+    // uygulamada canAct("construction.approvals.*") karar verir.
+    canApproveFlows
+    canCreateFlows
   />,
 );

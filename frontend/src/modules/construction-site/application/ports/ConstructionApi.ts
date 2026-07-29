@@ -93,6 +93,15 @@ import type {
   WorkState,
   ManhourSummariesResponse,
   PerformanceReportDto,
+  ApprovalDocKind,
+  ApprovalFlowDto,
+  ApprovalFlowsResponse,
+  ApprovalHistoryResponse,
+  ApprovalMode,
+  ApprovalStatus,
+  ApprovalSummariesResponse,
+  DecideApprovalResultDto,
+  MyApprovalsDto,
 } from '../dto/ConstructionDtos';
 
 export interface CreateProjectBody {
@@ -659,6 +668,42 @@ export interface ConstructionApi {
   getProjectPerformance(projectId: number, companyId: number): Promise<PerformanceReportDto>;
   getManhourSummaries(projectId: number, companyId: number): Promise<ManhourSummariesResponse>;
   setUnitManhours(contractId: number, body: SetUnitManhoursBody): Promise<{ updated: number }>;
+
+  // FAZ 5 — Jenerik onay akışı
+  /** "Bana atanan onaylar" — kullanıcı token'dan gelir, parametre alınmaz. */
+  getMyApprovals(companyId: number): Promise<MyApprovalsDto>;
+  listApprovalFlows(
+    companyId: number,
+    options?: {
+      docKind?: ApprovalDocKind;
+      docId?: number;
+      projectId?: number;
+      status?: ApprovalStatus;
+      overdueOnly?: boolean;
+    },
+  ): Promise<ApprovalFlowsResponse>;
+  /** Liste ekranlarındaki N/M göstergeleri — belge başına ayrı istek atmamak için. */
+  getApprovalSummaries(
+    companyId: number,
+    docKind: ApprovalDocKind,
+    docIds: ReadonlyArray<number>,
+  ): Promise<ApprovalSummariesResponse>;
+  /** Belgenin aktif akışı; yoksa null (backend 204 döner — hata değil). */
+  getDocApproval(
+    companyId: number,
+    docKind: ApprovalDocKind,
+    docId: number,
+  ): Promise<ApprovalFlowDto | null>;
+  getApprovalFlow(flowId: number, companyId: number): Promise<ApprovalFlowDto>;
+  getApprovalHistory(flowId: number, companyId: number): Promise<ApprovalHistoryResponse>;
+  startApprovalFlow(body: StartApprovalFlowBody): Promise<ApprovalFlowDto>;
+  decideApprovalStep(
+    flowId: number,
+    stepId: number,
+    body: DecideApprovalBody,
+  ): Promise<DecideApprovalResultDto>;
+  /** Yönetici yetkisi ister (backend 403). */
+  cancelApprovalFlow(flowId: number, companyId: number): Promise<ApprovalFlowDto>;
 }
 
 // ===== FAZ 4 — istek gövdesi =================================================
@@ -666,6 +711,27 @@ export interface ConstructionApi {
 export interface SetUnitManhoursBody {
   companyId: number;
   updates: { boqLineId: number; unitManhours: number }[];
+}
+
+// ===== FAZ 5 — istek gövdeleri ==============================================
+
+export interface StartApprovalFlowBody {
+  companyId: number;
+  docKind: ApprovalDocKind;
+  docId: number;
+  projectId?: number | null;
+  mode?: ApprovalMode;
+  /** null/boş = herkes onaylamalı. */
+  minApprovals?: number | null;
+  title?: string | null;
+  note?: string | null;
+  approvers: { approverUserId: number; dueDate?: string | null }[];
+}
+
+export interface DecideApprovalBody {
+  companyId: number;
+  approve: boolean;
+  comment?: string | null;
 }
 
 // ===== FAZ 3 — Şantiye günlüğü istek gövdeleri ==============================

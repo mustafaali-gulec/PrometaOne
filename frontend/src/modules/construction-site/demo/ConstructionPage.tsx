@@ -28,6 +28,7 @@ import { HakedisManager } from '../presentation/components/HakedisManager';
 import { IsgucuManager } from '../presentation/components/IsgucuManager';
 import { MekanAgaciManager } from '../presentation/components/MekanAgaciManager';
 import { MetrajManager } from '../presentation/components/MetrajManager';
+import { OnayAkisiManager } from '../presentation/components/OnayAkisiManager';
 import { PerformansManager } from '../presentation/components/PerformansManager';
 import { PozCatalogTable } from '../presentation/components/PozCatalogTable';
 import { ProjectsKanban } from '../presentation/components/ProjectsKanban';
@@ -54,7 +55,8 @@ export type ConstructionTab =
   | 'templates'
   | 'trackings'
   | 'dailylog'
-  | 'performance';
+  | 'performance'
+  | 'approvals';
 
 const ALL_TABS: ConstructionTab[] = [
   'projects',
@@ -72,6 +74,7 @@ const ALL_TABS: ConstructionTab[] = [
   'trackings',
   'dailylog',
   'performance',
+  'approvals',
 ];
 const TAB_LABELS: Record<ConstructionTab, string> = {
   projects: 'Projeler',
@@ -89,6 +92,7 @@ const TAB_LABELS: Record<ConstructionTab, string> = {
   trackings: 'Güncel Durum',
   dailylog: 'Şantiye Günlüğü',
   performance: 'Adam×Saat & Verimlilik',
+  approvals: 'Onay Akışları',
 };
 
 export interface ConstructionPageProps {
@@ -107,6 +111,13 @@ export interface ConstructionPageProps {
    * backend de ayrıca denetler (403).
    */
   canUnlockDailyLog?: boolean | undefined;
+  /**
+   * Onay akışında yönetici yetkisi: akışı iptal etmek ve BAŞKASININ adımına
+   * vekâleten karar vermek. Backend ayrıca denetler (403).
+   */
+  canApproveFlows?: boolean | undefined;
+  /** Yeni onay akışı başlatma yetkisi. */
+  canCreateFlows?: boolean | undefined;
 }
 
 export function ConstructionPage({
@@ -118,6 +129,8 @@ export function ConstructionPage({
   rateBook,
   lang,
   canUnlockDailyLog,
+  canApproveFlows,
+  canCreateFlows,
 }: ConstructionPageProps): JSX.Element {
   const scoped = Array.isArray(views) && views.length > 0;
   const visibleTabs: ConstructionTab[] = scoped ? views : ALL_TABS;
@@ -171,7 +184,7 @@ export function ConstructionPage({
         {tab === 'projects' ? <ProjectsTab api={api} companyId={companyId} /> : null}
         {tab === 'contracts' ? <ContractsTab api={api} companyId={companyId} /> : null}
         {tab === 'boq' ? <BoqTab api={api} companyId={companyId} /> : null}
-        {tab === 'progress' ? <HakedisManager api={api} companyId={companyId} /> : null}
+        {tab === 'progress' ? <HakedisManager api={api} companyId={companyId} lang={lang} /> : null}
         {tab === 'measurements' ? <MetrajManager api={api} companyId={companyId} /> : null}
         {tab === 'finance' ? (
           <FinansManager
@@ -195,6 +208,15 @@ export function ConstructionPage({
         ) : null}
         {tab === 'performance' ? (
           <PerformansManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'approvals' ? (
+          <OnayAkisiManager
+            api={api}
+            companyId={companyId}
+            lang={lang}
+            canApprove={canApproveFlows}
+            canCreate={canCreateFlows}
+          />
         ) : null}
         {tab === 'dailylog' ? (
           <SantiyeGunluguManager

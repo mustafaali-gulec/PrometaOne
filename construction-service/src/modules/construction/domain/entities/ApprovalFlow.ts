@@ -255,7 +255,7 @@ export class ApprovalFlow {
     if (!approve) {
       const skipped = decidedSteps
         .filter((s) => s.decision === 'pending')
-        .map((s) => ({ ...s, decision: 'skipped', decidedAt: now }));
+        .map((s): ApprovalStepProps => ({ ...s, decision: 'skipped', decidedAt: now }));
       const finalSteps = decidedSteps.map((s) => skipped.find((k) => k.id === s.id) ?? s);
       return {
         flow: new ApprovalFlow({
@@ -279,7 +279,7 @@ export class ApprovalFlow {
     if (approvedNow >= this.requiredCount) {
       const skipped = decidedSteps
         .filter((s) => s.decision === 'pending')
-        .map((s) => ({ ...s, decision: 'skipped', decidedAt: now }));
+        .map((s): ApprovalStepProps => ({ ...s, decision: 'skipped', decidedAt: now }));
       const finalSteps = decidedSteps.map((s) => skipped.find((k) => k.id === s.id) ?? s);
       return {
         flow: new ApprovalFlow({

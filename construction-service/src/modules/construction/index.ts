@@ -381,7 +381,7 @@ export function registerConstructionModule(
     getDocApproval: new GetDocApprovalUseCase(approvals),
     listApprovalFlows: new ListApprovalFlowsUseCase(approvals),
     getApprovalSummariesForDocs: new GetApprovalSummariesForDocsUseCase(approvals),
-    getMyApprovals: new GetMyApprovalsUseCase(approvals),
+    getMyApprovals: new GetMyApprovalsUseCase(approvals, clock),
     getApprovalHistory: new GetApprovalHistoryUseCase(approvals),
   };
 

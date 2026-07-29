@@ -1,5 +1,5 @@
 /**
- * Faz 1→2→3→4 uçtan uca duman testi. Tek süreç, fetch tabanlı.
+ * Faz 1→2→3→4→5 uçtan uca duman testi. Tek süreç, fetch tabanlı.
  *
  * Yerel dev sunucusuna (varsayılan :3003) karşı koşar; ürettiği tüm veriyi
  * sonunda temizler. Geçici dosya — depoya girmez.
@@ -19,6 +19,13 @@ if (!secret) throw new Error('JWT_SECRET bulunamadı');
 const TOKEN = jwt.sign({ sub: 1, username: 'e2e', role: 'admin', companies: [1] }, secret, {
   expiresIn: '30m',
 });
+
+/** Bugüne göre gün kaydırmalı ISO tarih (kova sınamaları için). */
+function dayShift(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
 
 let ok = 0;
 let fail = 0;
@@ -431,6 +438,63 @@ async function main() {
 
   const mine = (await get('approvals/mine?companyId=1')).json;
   chk('bana atanan onaylar kutusu çalışıyor', true, Array.isArray(mine.actionable));
+
+  /**
+   * GECİKME KOVALARI. Görünüm ileri tarihte de daysOverdue=0 döndürür (gecikme
+   * yok demek); bunu "bugün teslim" saymak paneli yalan söyletiyordu. Kovalar
+   * FARK ile sınanır — kutu kullanıcının bütün bekleyen adımlarını sayar, mutlak
+   * sayı DB'de duran başka akışlardan etkilenir.
+   */
+  const before = mine.buckets;
+  const todayFlow = (
+    await post('approvals', {
+      companyId: 1,
+      docKind: 'expense',
+      docId: 4243,
+      mode: 'unordered',
+      title: 'kova sınaması — bugün',
+      approvers: [
+        { approverUserId: 1, dueDate: dayShift(0) },
+        { approverUserId: 9, dueDate: dayShift(-20) },
+      ],
+    })
+  ).json;
+  const laterFlow = (
+    await post('approvals', {
+      companyId: 1,
+      docKind: 'expense',
+      docId: 4244,
+      mode: 'unordered',
+      title: 'kova sınaması — ileri tarih',
+      approvers: [{ approverUserId: 1, dueDate: dayShift(30) }],
+    })
+  ).json;
+  const mine2 = (await get('approvals/mine?companyId=1')).json;
+  chk('kova: bugün teslim +1', 1, mine2.buckets.dueToday - before.dueToday);
+  chk('kova: ileri tarihli +1 (bugün sayılmaz)', 1, mine2.buckets.upcoming - before.upcoming);
+  chk('kova: gecikme kovaları değişmedi', 0, mine2.buckets.overdue1to7 - before.overdue1to7);
+  chk(
+    'kova: ileri tarihli adım gecikmiş listesinde yok',
+    0,
+    mine2.overdue.filter((r) => r.flowId === laterFlow.id).length,
+  );
+
+  // status=pending şart: önceki koşumların iptal edilmiş akışları aynı belge
+  // numarasında duruyor (denetim izi silinmez), filtresiz sorgu her koşumda büyür.
+  const listed = (await get('approvals?companyId=1&docId=4243&status=pending')).json.flows;
+  chk('sırasız akış listede', 1, listed.length);
+  chk('sırasız akışta sıradaki onaycı yok', null, listed[0].currentApproverUserId);
+  chk('en erken bitiş tarihinden gecikme', true, listed[0].daysOverdue >= 20);
+
+  await post(`approvals/${String(todayFlow.id)}/cancel`, { companyId: 1 });
+  const cancelled = (await get(`approvals/${String(todayFlow.id)}?companyId=1`)).json;
+  chk('iptal edilen akış cancelled', 'cancelled', cancelled.status);
+  chk(
+    'iptalde bekleyen adımlar skipped',
+    0,
+    cancelled.steps.filter((st) => st.decision === 'pending').length,
+  );
+  await post(`approvals/${String(laterFlow.id)}/cancel`, { companyId: 1 });
 
   // Kalan iki adım admin token'ıyla vekâleten onaylanır → 'delegated'
   const d2 = (

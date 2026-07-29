@@ -375,7 +375,107 @@ export type CsLabelKey =
   | 'cs.perf.s.title'
   | 'cs.perf.s.lineCount'
   | 'cs.perf.s.linesWithoutPlan'
-  | 'cs.perf.s.weighted';
+  | 'cs.perf.s.weighted'
+  // FAZ 5 — Jenerik onay akışı
+  | 'cs.apr.title'
+  | 'cs.apr.subtitle'
+  | 'cs.apr.tab.inbox'
+  | 'cs.apr.tab.flows'
+  | 'cs.apr.inbox.actionable'
+  | 'cs.apr.inbox.waiting'
+  | 'cs.apr.inbox.waitingHint'
+  | 'cs.apr.inbox.empty'
+  | 'cs.apr.b.dueToday'
+  | 'cs.apr.b.overdue1to7'
+  | 'cs.apr.b.overdueOver7'
+  | 'cs.apr.b.upcoming'
+  | 'cs.apr.b.noDueDate'
+  | 'cs.apr.c.doc'
+  | 'cs.apr.c.docKind'
+  | 'cs.apr.c.title'
+  | 'cs.apr.c.mode'
+  | 'cs.apr.c.progress'
+  | 'cs.apr.c.seq'
+  | 'cs.apr.c.approver'
+  | 'cs.apr.c.dueDate'
+  | 'cs.apr.c.decision'
+  | 'cs.apr.c.decidedAt'
+  | 'cs.apr.c.decidedBy'
+  | 'cs.apr.c.comment'
+  | 'cs.apr.c.createdAt'
+  | 'cs.apr.c.completedAt'
+  | 'cs.apr.c.overdue'
+  | 'cs.apr.c.nextApprover'
+  | 'cs.apr.c.minApprovals'
+  | 'cs.apr.mode.ordered'
+  | 'cs.apr.mode.unordered'
+  | 'cs.apr.mode.orderedHint'
+  | 'cs.apr.mode.unorderedHint'
+  | 'cs.apr.status.pending'
+  | 'cs.apr.status.approved'
+  | 'cs.apr.status.rejected'
+  | 'cs.apr.status.cancelled'
+  | 'cs.apr.dec.pending'
+  | 'cs.apr.dec.approved'
+  | 'cs.apr.dec.rejected'
+  | 'cs.apr.dec.skipped'
+  | 'cs.apr.dec.delegated'
+  | 'cs.apr.kind.contract'
+  | 'cs.apr.kind.progress'
+  | 'cs.apr.kind.material_request'
+  | 'cs.apr.kind.expense'
+  | 'cs.apr.kind.advance'
+  | 'cs.apr.kind.daily_log'
+  | 'cs.apr.kind.tracking'
+  | 'cs.apr.kind.boq'
+  | 'cs.apr.kind.measurement'
+  | 'cs.apr.kind.payment'
+  | 'cs.apr.act.approve'
+  | 'cs.apr.act.reject'
+  | 'cs.apr.act.cancelFlow'
+  | 'cs.apr.act.start'
+  | 'cs.apr.act.detail'
+  | 'cs.apr.dlg.approveTitle'
+  | 'cs.apr.dlg.rejectTitle'
+  | 'cs.apr.dlg.commentApprove'
+  | 'cs.apr.dlg.commentReject'
+  | 'cs.apr.dlg.rejectWarn'
+  | 'cs.apr.dlg.reasonRequired'
+  | 'cs.apr.dlg.delegateWarn'
+  | 'cs.apr.msg.approved'
+  | 'cs.apr.msg.rejected'
+  | 'cs.apr.msg.flowCompleted'
+  | 'cs.apr.msg.cancelled'
+  | 'cs.apr.msg.started'
+  | 'cs.apr.msg.cancelConfirm'
+  | 'cs.apr.new.title'
+  | 'cs.apr.new.hint'
+  | 'cs.apr.new.approvers'
+  | 'cs.apr.new.addApprover'
+  | 'cs.apr.new.userId'
+  | 'cs.apr.new.allMustApprove'
+  | 'cs.apr.new.minApprovalsHint'
+  | 'cs.apr.new.needApprover'
+  | 'cs.apr.new.dupApprover'
+  | 'cs.apr.f.overdueOnly'
+  | 'cs.apr.f.allKinds'
+  | 'cs.apr.f.allStatuses'
+  | 'cs.apr.f.allProjects'
+  | 'cs.apr.flows.empty'
+  | 'cs.apr.flows.count'
+  | 'cs.apr.steps'
+  | 'cs.apr.history.title'
+  | 'cs.apr.history.empty'
+  | 'cs.apr.hist.created'
+  | 'cs.apr.hist.approved'
+  | 'cs.apr.hist.rejected'
+  | 'cs.apr.hist.cancelled'
+  | 'cs.apr.badge.none'
+  | 'cs.apr.days'
+  | 'cs.apr.user'
+  | 'cs.apr.you'
+  | 'cs.apr.noDueDate'
+  | 'cs.apr.selfOnly';
 
 const DICT: Record<CsLabelKey, Record<Lang, string>> = {
   // ===== ORTAK =============================================================
@@ -2164,6 +2264,601 @@ const DICT: Record<CsLabelKey, Record<Lang, string>> = {
     de: 'gewichtet',
     ar: 'مرجَّح',
   },
+
+  'cs.apr.title': {
+    tr: 'Onay Akışları',
+    en: 'Approval Flows',
+    de: 'Genehmigungsabläufe',
+    ar: 'مسارات الموافقة',
+  },
+  'cs.apr.subtitle': {
+    tr: 'Her belge tipi için tek onay motoru: sıralı veya sırasız, onaycı başına bitiş tarihi, tam karar izi.',
+    en: 'One approval engine for every document type: ordered or unordered, a due date per approver, a full decision trail.',
+    de: 'Eine Genehmigungs-Engine für jeden Belegtyp: geordnet oder unsortiert, Fälligkeitsdatum pro Genehmiger, vollständige Entscheidungsspur.',
+    ar: 'محرك موافقة واحد لكل نوع مستند: مرتب أو غير مرتب، تاريخ استحقاق لكل معتمد، وسجل كامل للقرارات.',
+  },
+  'cs.apr.tab.inbox': {
+    tr: 'Bana Atanan Onaylar',
+    en: 'My Approvals',
+    de: 'Meine Genehmigungen',
+    ar: 'الموافقات المسندة إليّ',
+  },
+  'cs.apr.tab.flows': {
+    tr: 'Tüm Akışlar',
+    en: 'All Flows',
+    de: 'Alle Abläufe',
+    ar: 'كل المسارات',
+  },
+  'cs.apr.inbox.actionable': {
+    tr: 'Şimdi karar verebileceğiniz',
+    en: 'Awaiting your decision',
+    de: 'Warten auf Ihre Entscheidung',
+    ar: 'بانتظار قرارك',
+  },
+  'cs.apr.inbox.waiting': {
+    tr: 'Sıranız beklemede',
+    en: 'Your turn has not come yet',
+    de: 'Ihre Reihe ist noch nicht gekommen',
+    ar: 'لم يحن دورك بعد',
+  },
+  'cs.apr.inbox.waitingHint': {
+    tr: 'Sıralı akışta önceki onaycılar karar verince bu satırlar size düşecek.',
+    en: 'In an ordered flow these rows reach you once the earlier approvers decide.',
+    de: 'In einem geordneten Ablauf erreichen Sie diese Zeilen, sobald die vorherigen Genehmiger entschieden haben.',
+    ar: 'في المسار المرتب تصل إليك هذه السطور بعد أن يقرر المعتمدون السابقون.',
+  },
+  'cs.apr.inbox.empty': {
+    tr: 'Onayınızı bekleyen belge yok.',
+    en: 'No document is waiting for your approval.',
+    de: 'Kein Beleg wartet auf Ihre Genehmigung.',
+    ar: 'لا يوجد مستند ينتظر موافقتك.',
+  },
+  'cs.apr.b.dueToday': {
+    tr: 'Bugün teslim',
+    en: 'Due today',
+    de: 'Heute fällig',
+    ar: 'مستحق اليوم',
+  },
+  'cs.apr.b.overdue1to7': {
+    tr: '1-7 gün gecikmiş',
+    en: '1-7 days overdue',
+    de: '1-7 Tage überfällig',
+    ar: 'متأخر 1-7 أيام',
+  },
+  'cs.apr.b.overdueOver7': {
+    tr: '7 günden fazla gecikmiş',
+    en: 'Over 7 days overdue',
+    de: 'Über 7 Tage überfällig',
+    ar: 'متأخر أكثر من 7 أيام',
+  },
+  'cs.apr.b.upcoming': {
+    tr: 'İleri tarihli',
+    en: 'Upcoming',
+    de: 'Bevorstehend',
+    ar: 'قادم',
+  },
+  'cs.apr.b.noDueDate': {
+    tr: 'Tarihsiz',
+    en: 'No due date',
+    de: 'Ohne Fälligkeit',
+    ar: 'بدون تاريخ استحقاق',
+  },
+  'cs.apr.c.doc': {
+    tr: 'Belge',
+    en: 'Document',
+    de: 'Beleg',
+    ar: 'المستند',
+  },
+  'cs.apr.c.docKind': {
+    tr: 'Belge tipi',
+    en: 'Document type',
+    de: 'Belegtyp',
+    ar: 'نوع المستند',
+  },
+  'cs.apr.c.title': {
+    tr: 'Başlık',
+    en: 'Title',
+    de: 'Titel',
+    ar: 'العنوان',
+  },
+  'cs.apr.c.mode': {
+    tr: 'Akış tipi',
+    en: 'Flow type',
+    de: 'Ablaufart',
+    ar: 'نوع المسار',
+  },
+  'cs.apr.c.progress': {
+    tr: 'Onay sırası',
+    en: 'Approval progress',
+    de: 'Genehmigungsfortschritt',
+    ar: 'تقدم الموافقة',
+  },
+  'cs.apr.c.seq': {
+    tr: 'Sıra',
+    en: 'Seq.',
+    de: 'Reihenfolge',
+    ar: 'الترتيب',
+  },
+  'cs.apr.c.approver': {
+    tr: 'Onaycı',
+    en: 'Approver',
+    de: 'Genehmiger',
+    ar: 'المعتمد',
+  },
+  'cs.apr.c.dueDate': {
+    tr: 'Bitiş tarihi',
+    en: 'Due date',
+    de: 'Fälligkeitsdatum',
+    ar: 'تاريخ الاستحقاق',
+  },
+  'cs.apr.c.decision': {
+    tr: 'Karar',
+    en: 'Decision',
+    de: 'Entscheidung',
+    ar: 'القرار',
+  },
+  'cs.apr.c.decidedAt': {
+    tr: 'Karar tarihi',
+    en: 'Decided at',
+    de: 'Entschieden am',
+    ar: 'تاريخ القرار',
+  },
+  'cs.apr.c.decidedBy': {
+    tr: 'Kararı veren',
+    en: 'Decided by',
+    de: 'Entschieden von',
+    ar: 'صاحب القرار',
+  },
+  'cs.apr.c.comment': {
+    tr: 'Açıklama',
+    en: 'Comment',
+    de: 'Kommentar',
+    ar: 'ملاحظة',
+  },
+  'cs.apr.c.createdAt': {
+    tr: 'Başlatıldı',
+    en: 'Started',
+    de: 'Gestartet',
+    ar: 'بدأ في',
+  },
+  'cs.apr.c.completedAt': {
+    tr: 'Kapandı',
+    en: 'Closed',
+    de: 'Abgeschlossen',
+    ar: 'أُغلق في',
+  },
+  'cs.apr.c.overdue': {
+    tr: 'Gecikme',
+    en: 'Overdue',
+    de: 'Verzug',
+    ar: 'التأخير',
+  },
+  'cs.apr.c.nextApprover': {
+    tr: 'Sıradaki onaycı',
+    en: 'Next approver',
+    de: 'Nächster Genehmiger',
+    ar: 'المعتمد التالي',
+  },
+  'cs.apr.c.minApprovals': {
+    tr: 'Gereken onay',
+    en: 'Approvals required',
+    de: 'Erforderliche Genehmigungen',
+    ar: 'الموافقات المطلوبة',
+  },
+  'cs.apr.mode.ordered': {
+    tr: 'Sıralı',
+    en: 'Ordered',
+    de: 'Geordnet',
+    ar: 'مرتب',
+  },
+  'cs.apr.mode.unordered': {
+    tr: 'Sırasız',
+    en: 'Unordered',
+    de: 'Unsortiert',
+    ar: 'غير مرتب',
+  },
+  'cs.apr.mode.orderedHint': {
+    tr: 'Yalnız sırası gelen onaycı karar verebilir.',
+    en: 'Only the approver whose turn it is can decide.',
+    de: 'Nur der Genehmiger, der an der Reihe ist, kann entscheiden.',
+    ar: 'يمكن للمعتمد صاحب الدور فقط أن يقرر.',
+  },
+  'cs.apr.mode.unorderedHint': {
+    tr: 'Bekleyen onaycıların hepsi aynı anda karar verebilir.',
+    en: 'All pending approvers can decide at the same time.',
+    de: 'Alle ausstehenden Genehmiger können gleichzeitig entscheiden.',
+    ar: 'يمكن لجميع المعتمدين المنتظرين أن يقرروا في الوقت نفسه.',
+  },
+  'cs.apr.status.pending': {
+    tr: 'Bekliyor',
+    en: 'Pending',
+    de: 'Ausstehend',
+    ar: 'قيد الانتظار',
+  },
+  'cs.apr.status.approved': {
+    tr: 'Onaylandı',
+    en: 'Approved',
+    de: 'Genehmigt',
+    ar: 'تم الاعتماد',
+  },
+  'cs.apr.status.rejected': {
+    tr: 'Reddedildi',
+    en: 'Rejected',
+    de: 'Abgelehnt',
+    ar: 'مرفوض',
+  },
+  'cs.apr.status.cancelled': {
+    tr: 'İptal edildi',
+    en: 'Cancelled',
+    de: 'Storniert',
+    ar: 'ملغى',
+  },
+  'cs.apr.dec.pending': {
+    tr: 'Bekliyor',
+    en: 'Pending',
+    de: 'Ausstehend',
+    ar: 'قيد الانتظار',
+  },
+  'cs.apr.dec.approved': {
+    tr: 'Onayladı',
+    en: 'Approved',
+    de: 'Genehmigt',
+    ar: 'اعتمد',
+  },
+  'cs.apr.dec.rejected': {
+    tr: 'Reddetti',
+    en: 'Rejected',
+    de: 'Abgelehnt',
+    ar: 'رفض',
+  },
+  'cs.apr.dec.skipped': {
+    tr: 'Sorulmadı',
+    en: 'Not asked',
+    de: 'Nicht gefragt',
+    ar: 'لم يُسأل',
+  },
+  'cs.apr.dec.delegated': {
+    tr: 'Vekâleten onaylandı',
+    en: 'Approved by proxy',
+    de: 'Stellvertretend genehmigt',
+    ar: 'اعتُمد بالوكالة',
+  },
+  'cs.apr.kind.contract': {
+    tr: 'Sözleşme',
+    en: 'Contract',
+    de: 'Vertrag',
+    ar: 'العقد',
+  },
+  'cs.apr.kind.progress': {
+    tr: 'Hakediş',
+    en: 'Progress payment',
+    de: 'Abschlagszahlung',
+    ar: 'المستخلص',
+  },
+  'cs.apr.kind.material_request': {
+    tr: 'Malzeme talebi',
+    en: 'Material request',
+    de: 'Materialanforderung',
+    ar: 'طلب مواد',
+  },
+  'cs.apr.kind.expense': {
+    tr: 'Harcama',
+    en: 'Expense',
+    de: 'Ausgabe',
+    ar: 'المصروف',
+  },
+  'cs.apr.kind.advance': {
+    tr: 'Avans',
+    en: 'Advance',
+    de: 'Vorschuss',
+    ar: 'السلفة',
+  },
+  'cs.apr.kind.daily_log': {
+    tr: 'Günlük rapor',
+    en: 'Daily log',
+    de: 'Bautagesbericht',
+    ar: 'التقرير اليومي',
+  },
+  'cs.apr.kind.tracking': {
+    tr: 'İlerleme takibi',
+    en: 'Progress tracking',
+    de: 'Fortschrittsverfolgung',
+    ar: 'متابعة التقدم',
+  },
+  'cs.apr.kind.boq': {
+    tr: 'Keşif',
+    en: 'Bill of quantities',
+    de: 'Leistungsverzeichnis',
+    ar: 'جدول الكميات',
+  },
+  'cs.apr.kind.measurement': {
+    tr: 'Metraj',
+    en: 'Measurement',
+    de: 'Aufmaß',
+    ar: 'الحصر',
+  },
+  'cs.apr.kind.payment': {
+    tr: 'Ödeme',
+    en: 'Payment',
+    de: 'Zahlung',
+    ar: 'الدفعة',
+  },
+  'cs.apr.act.approve': {
+    tr: 'Onayla',
+    en: 'Approve',
+    de: 'Genehmigen',
+    ar: 'اعتماد',
+  },
+  'cs.apr.act.reject': {
+    tr: 'Reddet',
+    en: 'Reject',
+    de: 'Ablehnen',
+    ar: 'رفض',
+  },
+  'cs.apr.act.cancelFlow': {
+    tr: 'Akışı iptal et',
+    en: 'Cancel flow',
+    de: 'Ablauf stornieren',
+    ar: 'إلغاء المسار',
+  },
+  'cs.apr.act.start': {
+    tr: 'Onaya gönder',
+    en: 'Send for approval',
+    de: 'Zur Genehmigung senden',
+    ar: 'إرسال للاعتماد',
+  },
+  'cs.apr.act.detail': {
+    tr: 'Ayrıntı',
+    en: 'Detail',
+    de: 'Detail',
+    ar: 'التفاصيل',
+  },
+  'cs.apr.dlg.approveTitle': {
+    tr: 'Onay ver',
+    en: 'Give approval',
+    de: 'Genehmigung erteilen',
+    ar: 'إعطاء الموافقة',
+  },
+  'cs.apr.dlg.rejectTitle': {
+    tr: 'Reddet',
+    en: 'Reject',
+    de: 'Ablehnen',
+    ar: 'رفض',
+  },
+  'cs.apr.dlg.commentApprove': {
+    tr: 'Açıklama (isteğe bağlı)',
+    en: 'Comment (optional)',
+    de: 'Kommentar (optional)',
+    ar: 'ملاحظة (اختياري)',
+  },
+  'cs.apr.dlg.commentReject': {
+    tr: 'Red gerekçesi',
+    en: 'Reason for rejection',
+    de: 'Ablehnungsgrund',
+    ar: 'سبب الرفض',
+  },
+  'cs.apr.dlg.rejectWarn': {
+    tr: 'Red bütün akışı bitirir: kalan onaycılara sorulmaz ve belge ilerlemez.',
+    en: 'A rejection ends the whole flow: the remaining approvers are not asked and the document does not proceed.',
+    de: 'Eine Ablehnung beendet den gesamten Ablauf: Die übrigen Genehmiger werden nicht gefragt und der Beleg läuft nicht weiter.',
+    ar: 'الرفض ينهي المسار بالكامل: لا يُسأل بقية المعتمدين ولا يتقدم المستند.',
+  },
+  'cs.apr.dlg.reasonRequired': {
+    tr: 'Red için gerekçe yazın.',
+    en: 'Please write a reason for the rejection.',
+    de: 'Bitte geben Sie einen Ablehnungsgrund an.',
+    ar: 'يرجى كتابة سبب الرفض.',
+  },
+  'cs.apr.dlg.delegateWarn': {
+    tr: 'Bu adım başka bir onaycıya ait. Vekâleten karar verirseniz izde adınız görünür.',
+    en: 'This step belongs to another approver. If you decide by proxy your name appears in the trail.',
+    de: 'Dieser Schritt gehört einem anderen Genehmiger. Bei einer Stellvertreterentscheidung erscheint Ihr Name in der Spur.',
+    ar: 'هذه الخطوة تخص معتمدًا آخر. إذا قررت بالوكالة فسيظهر اسمك في السجل.',
+  },
+  'cs.apr.msg.approved': {
+    tr: 'Onayınız kaydedildi.',
+    en: 'Your approval was recorded.',
+    de: 'Ihre Genehmigung wurde erfasst.',
+    ar: 'تم تسجيل موافقتك.',
+  },
+  'cs.apr.msg.rejected': {
+    tr: 'Red kaydedildi; akış kapandı.',
+    en: 'The rejection was recorded; the flow is closed.',
+    de: 'Die Ablehnung wurde erfasst; der Ablauf ist abgeschlossen.',
+    ar: 'تم تسجيل الرفض؛ وأُغلق المسار.',
+  },
+  'cs.apr.msg.flowCompleted': {
+    tr: 'Akış tamamlandı — belge onaylandı.',
+    en: 'Flow completed — the document is approved.',
+    de: 'Ablauf abgeschlossen — der Beleg ist genehmigt.',
+    ar: 'اكتمل المسار — تم اعتماد المستند.',
+  },
+  'cs.apr.msg.cancelled': {
+    tr: 'Akış iptal edildi.',
+    en: 'The flow was cancelled.',
+    de: 'Der Ablauf wurde storniert.',
+    ar: 'تم إلغاء المسار.',
+  },
+  'cs.apr.msg.started': {
+    tr: 'Onay akışı başlatıldı.',
+    en: 'The approval flow was started.',
+    de: 'Der Genehmigungsablauf wurde gestartet.',
+    ar: 'تم بدء مسار الموافقة.',
+  },
+  'cs.apr.msg.cancelConfirm': {
+    tr: 'Bu onay akışı iptal edilsin mi? Bekleyen onaycılara artık sorulmaz.',
+    en: 'Cancel this approval flow? The pending approvers will no longer be asked.',
+    de: 'Diesen Genehmigungsablauf stornieren? Die ausstehenden Genehmiger werden nicht mehr gefragt.',
+    ar: 'هل تُلغى مسار الموافقة هذا؟ لن يُسأل المعتمدون المنتظرون بعد الآن.',
+  },
+  'cs.apr.new.title': {
+    tr: 'Yeni onay akışı',
+    en: 'New approval flow',
+    de: 'Neuer Genehmigungsablauf',
+    ar: 'مسار موافقة جديد',
+  },
+  'cs.apr.new.hint': {
+    tr: 'Bir belgenin aynı anda tek aktif akışı olabilir. Onaycı sırası aşağıdaki sıradır.',
+    en: 'A document can have only one active flow at a time. The approver order is the order below.',
+    de: 'Ein Beleg kann nur einen aktiven Ablauf gleichzeitig haben. Die Genehmigerreihenfolge ist die untenstehende.',
+    ar: 'يمكن أن يكون للمستند مسار نشط واحد فقط في وقت واحد. ترتيب المعتمدين هو الترتيب أدناه.',
+  },
+  'cs.apr.new.approvers': {
+    tr: 'Onaycılar',
+    en: 'Approvers',
+    de: 'Genehmiger',
+    ar: 'المعتمدون',
+  },
+  'cs.apr.new.addApprover': {
+    tr: '+ Onaycı',
+    en: '+ Approver',
+    de: '+ Genehmiger',
+    ar: '+ معتمد',
+  },
+  'cs.apr.new.userId': {
+    tr: 'Kullanıcı no',
+    en: 'User no',
+    de: 'Benutzernr.',
+    ar: 'رقم المستخدم',
+  },
+  'cs.apr.new.allMustApprove': {
+    tr: 'Herkes onaylamalı',
+    en: 'Everyone must approve',
+    de: 'Alle müssen genehmigen',
+    ar: 'يجب أن يوافق الجميع',
+  },
+  'cs.apr.new.minApprovalsHint': {
+    tr: 'Boş bırakılırsa herkes onaylamalı. Sayı girilirse (3 onaycıdan 2) o sayıya ulaşınca akış onaylanır.',
+    en: 'If left empty everyone must approve. If a number is given (2 of 3 approvers) the flow is approved when that count is reached.',
+    de: 'Bleibt es leer, müssen alle genehmigen. Wird eine Zahl angegeben (2 von 3 Genehmigern), gilt der Ablauf ab dieser Anzahl als genehmigt.',
+    ar: 'إذا تُرك فارغًا يجب أن يوافق الجميع. وإذا أُدخل رقم (2 من 3 معتمدين) يُعتمد المسار عند الوصول إلى هذا العدد.',
+  },
+  'cs.apr.new.needApprover': {
+    tr: 'En az bir onaycı ekleyin.',
+    en: 'Add at least one approver.',
+    de: 'Fügen Sie mindestens einen Genehmiger hinzu.',
+    ar: 'أضف معتمدًا واحدًا على الأقل.',
+  },
+  'cs.apr.new.dupApprover': {
+    tr: 'Aynı kullanıcı akışta iki kez onaycı olamaz.',
+    en: 'The same user cannot be an approver twice in one flow.',
+    de: 'Derselbe Benutzer kann in einem Ablauf nicht zweimal Genehmiger sein.',
+    ar: 'لا يمكن أن يكون المستخدم نفسه معتمدًا مرتين في المسار.',
+  },
+  'cs.apr.f.overdueOnly': {
+    tr: 'Yalnız gecikmişler',
+    en: 'Overdue only',
+    de: 'Nur überfällige',
+    ar: 'المتأخرة فقط',
+  },
+  'cs.apr.f.allKinds': {
+    tr: 'Bütün belge tipleri',
+    en: 'All document types',
+    de: 'Alle Belegtypen',
+    ar: 'كل أنواع المستندات',
+  },
+  'cs.apr.f.allStatuses': {
+    tr: 'Bütün durumlar',
+    en: 'All statuses',
+    de: 'Alle Status',
+    ar: 'كل الحالات',
+  },
+  'cs.apr.f.allProjects': {
+    tr: 'Bütün projeler',
+    en: 'All projects',
+    de: 'Alle Projekte',
+    ar: 'كل المشاريع',
+  },
+  'cs.apr.flows.empty': {
+    tr: 'Bu süzgeçlerle onay akışı yok.',
+    en: 'No approval flow matches these filters.',
+    de: 'Kein Genehmigungsablauf entspricht diesen Filtern.',
+    ar: 'لا يوجد مسار موافقة يطابق هذه المرشحات.',
+  },
+  'cs.apr.flows.count': {
+    tr: '{n} akış',
+    en: '{n} flows',
+    de: '{n} Abläufe',
+    ar: '{n} مسار',
+  },
+  'cs.apr.steps': {
+    tr: 'Onay adımları',
+    en: 'Approval steps',
+    de: 'Genehmigungsschritte',
+    ar: 'خطوات الموافقة',
+  },
+  'cs.apr.history.title': {
+    tr: 'Karar izi',
+    en: 'Decision trail',
+    de: 'Entscheidungsspur',
+    ar: 'سجل القرارات',
+  },
+  'cs.apr.history.empty': {
+    tr: 'Kayıt yok.',
+    en: 'No records.',
+    de: 'Keine Einträge.',
+    ar: 'لا توجد سجلات.',
+  },
+  'cs.apr.hist.created': {
+    tr: 'Akış başlatıldı',
+    en: 'Flow started',
+    de: 'Ablauf gestartet',
+    ar: 'بدأ المسار',
+  },
+  'cs.apr.hist.approved': {
+    tr: 'Onaylandı',
+    en: 'Approved',
+    de: 'Genehmigt',
+    ar: 'تم الاعتماد',
+  },
+  'cs.apr.hist.rejected': {
+    tr: 'Reddedildi',
+    en: 'Rejected',
+    de: 'Abgelehnt',
+    ar: 'مرفوض',
+  },
+  'cs.apr.hist.cancelled': {
+    tr: 'İptal edildi',
+    en: 'Cancelled',
+    de: 'Storniert',
+    ar: 'ملغى',
+  },
+  'cs.apr.badge.none': {
+    tr: 'Onay akışı yok',
+    en: 'No approval flow',
+    de: 'Kein Genehmigungsablauf',
+    ar: 'لا يوجد مسار موافقة',
+  },
+  'cs.apr.days': {
+    tr: '{n} gün',
+    en: '{n} days',
+    de: '{n} Tage',
+    ar: '{n} يوم',
+  },
+  'cs.apr.user': {
+    tr: 'Kullanıcı #{id}',
+    en: 'User #{id}',
+    de: 'Benutzer #{id}',
+    ar: 'المستخدم #{id}',
+  },
+  'cs.apr.you': {
+    tr: 'siz',
+    en: 'you',
+    de: 'Sie',
+    ar: 'أنت',
+  },
+  'cs.apr.noDueDate': {
+    tr: 'tarihsiz',
+    en: 'no due date',
+    de: 'ohne Fälligkeit',
+    ar: 'بدون تاريخ',
+  },
+  'cs.apr.selfOnly': {
+    tr: 'Yalnız kendi adımınıza karar verebilirsiniz; başkasının adımı yönetici yetkisi ister.',
+    en: 'You can only decide on your own step; another approver’s step requires manager rights.',
+    de: 'Sie können nur über Ihren eigenen Schritt entscheiden; der Schritt eines anderen erfordert Managerrechte.',
+    ar: 'يمكنك أن تقرر في خطوتك فقط؛ خطوة معتمد آخر تتطلب صلاحية مدير.',
+  },
 };
 
 /** Şantiye etiketi getir; `vars` ile {placeholder} doldurulur. */
@@ -2291,5 +2986,43 @@ export function efficiencyBandLabel(band: string, lang: string | undefined): str
       return csT('cs.perf.band.ahead', lang);
     default:
       return csT('cs.perf.band.unknown', lang);
+  }
+}
+
+/** Onay akışının bağlı olduğu belge tipi etiketi. */
+export function approvalDocKindLabel(kind: string, lang: string | undefined): string {
+  return csT(`cs.apr.kind.${kind}` as CsLabelKey, lang);
+}
+
+/** Akış durumu etiketi. */
+export function approvalStatusLabel(status: string, lang: string | undefined): string {
+  return csT(`cs.apr.status.${status}` as CsLabelKey, lang);
+}
+
+/** Adım kararı etiketi ('delegated' onay sayılır ama ayrı gösterilir). */
+export function approvalDecisionLabel(decision: string, lang: string | undefined): string {
+  return csT(`cs.apr.dec.${decision}` as CsLabelKey, lang);
+}
+
+/** Akış tipi etiketi (sıralı/sırasız). */
+export function approvalModeLabel(mode: string, lang: string | undefined): string {
+  return mode === 'unordered'
+    ? csT('cs.apr.mode.unordered', lang)
+    : csT('cs.apr.mode.ordered', lang);
+}
+
+/** Karar izi satırının eylem etiketi; bilinmeyen eylem ham haliyle gösterilir. */
+export function approvalHistoryActionLabel(action: string, lang: string | undefined): string {
+  switch (action) {
+    case 'created':
+      return csT('cs.apr.hist.created', lang);
+    case 'approved':
+      return csT('cs.apr.hist.approved', lang);
+    case 'rejected':
+      return csT('cs.apr.hist.rejected', lang);
+    case 'cancelled':
+      return csT('cs.apr.hist.cancelled', lang);
+    default:
+      return action;
   }
 }
