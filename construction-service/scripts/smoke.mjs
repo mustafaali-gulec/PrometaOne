@@ -1,5 +1,5 @@
 /**
- * Faz 1→2→3→4→5→6 uçtan uca duman testi. Tek süreç, fetch tabanlı.
+ * Faz 1→2→3→4→5→6→7 uçtan uca duman testi. Tek süreç, fetch tabanlı.
  *
  * Yerel dev sunucusuna (varsayılan :3003) karşı koşar; ürettiği tüm veriyi
  * sonunda temizler. Geçici dosya — depoya girmez.
@@ -805,6 +805,142 @@ async function main() {
   const qfDel = (await del(`quality-files/${String(qf.id)}?companyId=1`)).json;
   chk('ek dosya silindi', true, qfDel.deleted);
 
+  console.log('=== FAZ 7: taahhüt & EVM ===');
+
+  // Faz 4 kesfinin ilk satiri poz bagi olarak kullanilir
+  const perfBoq = (await get(`contracts/${String(CTR)}/boq?companyId=1`)).json;
+  const boqLine7 = perfBoq.lines[0];
+
+  // 1) Elle taahhüt (poza bagli)
+  const cmt = (
+    await post('commitments', {
+      companyId: 1,
+      projectId: PRJ,
+      contractId: CTR,
+      boqLineId: boqLine7.id,
+      refNo: `MAN-E2E-${String(PRJ)}`,
+      description: 'C30 hazır beton anlaşması',
+      quantity: 100,
+      unit: 'm3',
+      unitPrice: 300,
+      amount: 30000,
+    })
+  ).json;
+  chk('taahhüt açıldı (açık tutar = tutar)', 30000, cmt.openAmount);
+
+  // 2) Performans satırında taahhüt kolonları
+  const perf7 = (await get(`contracts/${String(CTR)}/performance?companyId=1`)).json;
+  const row7 = perf7.rows.find((r) => r.boqLineId === boqLine7.id);
+  chk('poz satırında açık taahhüt', 30000, row7.openCommittedAmount);
+  chk('maruziyet = fiili + açık taahhüt', r4(row7.expenseAmount + 30000), r4(row7.costExposure));
+  chk(
+    'bütçe sapması = planlanan − maruziyet',
+    r4(row7.plannedAmount - row7.costExposure),
+    r4(row7.budgetVariance),
+  );
+
+  // 3) Kısmi teslimat: açık taahhüt erir, durum partial
+  const partial7 = (
+    await post(`commitments/${String(cmt.id)}/delivery`, { companyId: 1, deliveredAmount: 12000 })
+  ).json;
+  chk('kısmi teslim → partial', 'partial', partial7.status);
+  chk('açık taahhüt eridi', 18000, partial7.openAmount);
+
+  const back7 = await post(`commitments/${String(cmt.id)}/delivery`, {
+    companyId: 1,
+    deliveredAmount: 5000,
+  });
+  chk('teslimat geriye gitmez 400', 400, back7.status);
+
+  // 4) Senkron ucu — idempotent upsert
+  const syncLines = [
+    {
+      refNo: `PO-E2E-${String(PRJ)}`,
+      refLineNo: 1,
+      projectId: PRJ,
+      contractId: CTR,
+      boqLineId: boqLine7.id,
+      description: 'Demir Ø16',
+      amount: 20000,
+    },
+    {
+      refNo: `PO-E2E-${String(PRJ)}`,
+      refLineNo: 2,
+      projectId: PRJ,
+      description: 'Nakliye',
+      amount: 5000,
+    },
+  ];
+  const sync1 = (
+    await post('commitments/sync', { companyId: 1, source: 'purchase_order', lines: syncLines })
+  ).json;
+  chk('senkron ilk koşu: 2 insert', 2, sync1.inserted);
+  const sync2 = (
+    await post('commitments/sync', { companyId: 1, source: 'purchase_order', lines: syncLines })
+  ).json;
+  chk('senkron ikinci koşu: 0 insert (idempotent)', 0, sync2.inserted);
+  chk('senkron ikinci koşu: 2 update', 2, sync2.updated);
+
+  const cmtList = (await get(`commitments?companyId=1&projectId=${String(PRJ)}&openOnly=true`)).json
+    .commitments;
+  chk('açık taahhüt sayısı (1 elle + 2 senkron)', 3, cmtList.length);
+
+  // Kısmi başarı: olmayan projeye satır → errors[], diğeri işlenir
+  const sync3 = (
+    await post('commitments/sync', {
+      companyId: 1,
+      source: 'purchase_order',
+      lines: [
+        {
+          refNo: `PO-ERR-${String(PRJ)}`,
+          refLineNo: 1,
+          projectId: 999999,
+          description: 'X',
+          amount: 1,
+        },
+        {
+          refNo: `PO-ERR-${String(PRJ)}`,
+          refLineNo: 2,
+          projectId: PRJ,
+          description: 'Y',
+          amount: 2,
+        },
+      ],
+    })
+  ).json;
+  chk('senkron kısmi başarı: 1 hata', 1, sync3.errors.length);
+  chk('senkron kısmi başarı: 1 insert', 1, sync3.inserted);
+
+  // 5) EVM — sözleşme özeti
+  const evm7 = (await get(`contracts/${String(CTR)}/evm?companyId=1`)).json;
+  chk('EVM: BAC = keşif toplamı', r4(perf7.summary.plannedAmount), r4(evm7.bac));
+  // Açık taahhüt: elle 18000 (kısmi teslim sonrası) + senkron 20000 (poza bağlı)
+  chk('EVM: açık taahhüt (poza bağlılar)', 38000, evm7.openCommitted);
+  chk(
+    'EVM: bütçe kalan = BAC − maruziyet',
+    r4(evm7.bac - evm7.costExposure),
+    r4(evm7.budgetRemaining),
+  );
+
+  // 6) Proje EVM: poza bağlanmamış taahhüt (nakliye + Y) ayrı görünür
+  const pevm = (await get(`projects/${String(PRJ)}/evm?companyId=1`)).json;
+  chk('proje EVM sözleşme sayısı >= 1', true, pevm.contracts.length >= 1);
+  chk('poza bağlanmamış taahhüt sayısı', 2, pevm.commitments.unlinkedCount);
+  chk('poza bağlanmamış tutar', 5002, pevm.commitments.unlinkedAmount);
+
+  // 7) İptal: açık kısım maruziyetten düşer
+  const cancel7 = (await post(`commitments/${String(cmt.id)}/cancel`, { companyId: 1 })).json;
+  chk('iptal edilen taahhüt açık tutarı 0', 0, cancel7.openAmount);
+  const evm7b = (await get(`contracts/${String(CTR)}/evm?companyId=1`)).json;
+  chk('iptalden sonra açık taahhüt düştü', 20000, evm7b.openCommitted);
+
+  // 8) Kapalı/iptal kaydın tutarı oynatılamaz
+  const editCancelled = await call('PATCH', `commitments/${String(cmt.id)}`, {
+    companyId: 1,
+    amount: 1,
+  });
+  chk('iptal edilen taahhüt düzenlenemez 400', 400, editCancelled.status);
+
   console.log('=== TEMİZLİK ===');
   await del(`projects/${PRJ}?companyId=1`);
   await del(`progress-templates/${TPL}?companyId=1`);
@@ -812,6 +948,23 @@ async function main() {
   for (const f of [af, af2, af3]) {
     await post(`approvals/${String(f.id)}/cancel`, { companyId: 1 });
   }
+  for (const cm of cmtList) {
+    if (cm.id !== cmt.id) await post(`commitments/${String(cm.id)}/cancel`, { companyId: 1 });
+  }
+  await post(`commitments/sync`, {
+    companyId: 1,
+    source: 'purchase_order',
+    lines: [
+      {
+        refNo: `PO-ERR-${String(PRJ)}`,
+        refLineNo: 2,
+        projectId: PRJ,
+        description: 'Y',
+        amount: 2,
+        cancelled: true,
+      },
+    ],
+  });
   await del(`inspection-templates/${String(tpl6.id)}?companyId=1`);
   console.log('  proje pasife çekildi, şablonlar pasifleştirildi');
 

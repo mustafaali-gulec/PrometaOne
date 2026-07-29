@@ -238,6 +238,10 @@ function makeRow(over: Partial<BoqPerformanceRow>): BoqPerformanceRow {
     actualUnitManhours: 1.6,
     expectedManhours: 100,
     efficiency: 1.25,
+    committedAmount: 8_000,
+    openCommittedAmount: 3_000,
+    costExposure: 18_000,
+    budgetVariance: 32_000,
     manhourVariance: -20,
   };
   return { ...base, ...over };

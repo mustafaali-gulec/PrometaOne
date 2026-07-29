@@ -46,6 +46,16 @@ export interface BoqPerformanceRow {
   expectedManhours: number;
   efficiency: number | null;
   manhourVariance: number;
+
+  // FAZ 7 — Taahhüt & maliyet
+  /** Poza verilen toplam sipariş (iptal hariç). */
+  committedAmount: number;
+  /** Açık taahhüt — verilmiş, henüz fiiliye dönmemiş. */
+  openCommittedAmount: number;
+  /** Fiili + açık taahhüt = gerçek maruziyet. */
+  costExposure: number;
+  /** Planlanan − maruziyet. Negatif = poz bütçeyi aşmış/aşmak üzere. */
+  budgetVariance: number;
 }
 
 export interface ContractManhourSummary {
@@ -66,6 +76,11 @@ export interface ContractManhourSummary {
   manhourPct: number | null;
   /** Ağırlıklı verim (Σbeklenen / Σharcanan), satır ortalaması değil. */
   efficiency: number | null;
+  // FAZ 7 — Taahhüt & maliyet
+  committedAmount: number;
+  openCommittedAmount: number;
+  costExposure: number;
+  budgetVariance: number;
 }
 
 export interface PerformanceRepository {

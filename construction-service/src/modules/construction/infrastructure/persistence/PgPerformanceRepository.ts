@@ -46,6 +46,10 @@ interface PerfRow {
   expected_manhours: string;
   efficiency: string | null;
   manhour_variance: string;
+  committed_amount: string;
+  open_committed_amount: string;
+  cost_exposure: string;
+  budget_variance: string;
 }
 
 const PERF_COLS =
@@ -53,7 +57,8 @@ const PERF_COLS =
   'planned_qty, unit_price, planned_amount, pursantaj_pct, planned_unit_manhours, ' +
   'planned_manhours, progress_qty, progress_amount, produced_qty, own_manhours, sub_manhours, ' +
   'actual_manhours, machine_hours, expense_amount, progress_pct, produced_pct, manhour_pct, ' +
-  'earned_pursantaj, actual_unit_manhours, expected_manhours, efficiency, manhour_variance';
+  'earned_pursantaj, actual_unit_manhours, expected_manhours, efficiency, manhour_variance, ' +
+  'committed_amount, open_committed_amount, cost_exposure, budget_variance';
 
 /** NUMERIC → number; NULL korunur. */
 const nn = (v: string | null): number | null => (v === null ? null : Number(v));
@@ -90,6 +95,10 @@ function toPerfRow(r: PerfRow): BoqPerformanceRow {
     expectedManhours: Number(r.expected_manhours),
     efficiency: nn(r.efficiency),
     manhourVariance: Number(r.manhour_variance),
+    committedAmount: Number(r.committed_amount),
+    openCommittedAmount: Number(r.open_committed_amount),
+    costExposure: Number(r.cost_exposure),
+    budgetVariance: Number(r.budget_variance),
   };
 }
 
@@ -110,12 +119,17 @@ interface SummaryRow {
   earned_pursantaj: string;
   manhour_pct: string | null;
   efficiency: string | null;
+  committed_amount: string;
+  open_committed_amount: string;
+  cost_exposure: string;
+  budget_variance: string;
 }
 
 const SUM_COLS =
   'contract_id, project_id, line_count, planned_manhours, actual_manhours, own_manhours, ' +
   'sub_manhours, machine_hours, expected_manhours, manhour_variance, planned_amount, ' +
-  'progress_amount, expense_amount, earned_pursantaj, manhour_pct, efficiency';
+  'progress_amount, expense_amount, earned_pursantaj, manhour_pct, efficiency, ' +
+  'committed_amount, open_committed_amount, cost_exposure, budget_variance';
 
 function toSummary(r: SummaryRow): ContractManhourSummary {
   return {
@@ -135,6 +149,10 @@ function toSummary(r: SummaryRow): ContractManhourSummary {
     earnedPursantaj: Number(r.earned_pursantaj),
     manhourPct: nn(r.manhour_pct),
     efficiency: nn(r.efficiency),
+    committedAmount: Number(r.committed_amount),
+    openCommittedAmount: Number(r.open_committed_amount),
+    costExposure: Number(r.cost_exposure),
+    budgetVariance: Number(r.budget_variance),
   };
 }
 

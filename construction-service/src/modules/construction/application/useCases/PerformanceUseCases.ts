@@ -86,6 +86,11 @@ export interface PerformanceReportDto {
     earnedPursantaj: number;
     /** Planlanan a×s girilmemiş satır sayısı — verim ölçülemeyen kısmı bildirir. */
     linesWithoutPlan: number;
+    // FAZ 7 — Taahhüt & maliyet
+    committedAmount: number;
+    openCommittedAmount: number;
+    costExposure: number;
+    budgetVariance: number;
   };
 }
 
@@ -120,6 +125,10 @@ function summarize(rows: ReadonlyArray<PerformanceRowDto>): PerformanceReportDto
     // Planı olmayan satırı saymak şart: "verim %95" rakamı, pozların yarısında
     // plan yoksa yanıltıcıdır; arayüz bu sayıyı uyarı olarak gösterir.
     linesWithoutPlan: rows.filter((r) => r.plannedUnitManhours <= 0).length,
+    committedAmount: sum((r) => r.committedAmount),
+    openCommittedAmount: sum((r) => r.openCommittedAmount),
+    costExposure: sum((r) => r.costExposure),
+    budgetVariance: sum((r) => r.budgetVariance),
   };
 }
 

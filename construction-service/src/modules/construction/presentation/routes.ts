@@ -24,6 +24,17 @@ import type {
 } from '../application/useCases/ApprovalUseCases.js';
 import type { GetBoqUseCase, SaveBoqLinesUseCase } from '../application/useCases/BoqUseCases.js';
 import type {
+  CancelCommitmentUseCase,
+  CloseCommitmentUseCase,
+  CreateCommitmentUseCase,
+  GetContractEvmUseCase,
+  GetProjectEvmUseCase,
+  ListCommitmentsUseCase,
+  RecordCommitmentDeliveryUseCase,
+  SyncCommitmentsUseCase,
+  UpdateCommitmentUseCase,
+} from '../application/useCases/CommitmentUseCases.js';
+import type {
   CreateContractUseCase,
   ListContractsUseCase,
   UpdateContractUseCase,
@@ -366,6 +377,16 @@ export interface ConstructionRouterDeps {
   addQualityFile: AddQualityFileUseCase;
   listQualityFiles: ListQualityFilesUseCase;
   deleteQualityFile: DeleteQualityFileUseCase;
+  // FAZ 7 — Taahhüt & EVM
+  createCommitment: CreateCommitmentUseCase;
+  updateCommitment: UpdateCommitmentUseCase;
+  recordCommitmentDelivery: RecordCommitmentDeliveryUseCase;
+  closeCommitment: CloseCommitmentUseCase;
+  cancelCommitment: CancelCommitmentUseCase;
+  listCommitments: ListCommitmentsUseCase;
+  syncCommitments: SyncCommitmentsUseCase;
+  getContractEvm: GetContractEvmUseCase;
+  getProjectEvm: GetProjectEvmUseCase;
 }
 
 // --- Schema fragmanları ---------------------------------------------------
@@ -467,6 +488,9 @@ const rfiStatus = z.enum(['open', 'answered', 'closed', 'cancelled']);
 const assignmentStatus = z.enum(['open', 'in_progress', 'done', 'cancelled']);
 const assignmentSource = z.enum(['defect', 'rfi', 'inspection', 'daily_log', 'tracking']);
 const qualityDocKind = z.enum(['defect', 'inspection', 'rfi', 'assignment']);
+// FAZ 7 fragmanları
+const commitmentSource = z.enum(['purchase_order', 'subcontract', 'manual']);
+const commitmentStatus = z.enum(['open', 'partial', 'closed', 'cancelled']);
 const pct = z.number().min(0).max(100);
 const templateBodySchema = z.object({
   groups: z.array(
@@ -4477,6 +4501,259 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
       const q = c.req.valid('query');
       try {
         return c.json(await deps.deleteQualityFile.execute({ fileId: id, companyId: q.companyId }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 7 — TAAHHÜT & EVM ==============================================
+
+  app.get(
+    '/commitments',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        contractId: z.coerce.number().int().positive().optional(),
+        boqLineId: z.coerce.number().int().positive().optional(),
+        vendorId: z.coerce.number().int().positive().optional(),
+        source: commitmentSource.optional(),
+        status: commitmentStatus.optional(),
+        openOnly: z.coerce.boolean().optional(),
+        search: z.string().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ commitments: await deps.listCommitments.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/commitments',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        contractId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        locationId: z.number().int().positive().nullable().optional(),
+        // Elle giriş varsayılanı manual; purchase_order senkron ucundan gelmeli
+        // ama elle PO işlemek de yasak değil (senkron devreye girene dek köprü).
+        source: commitmentSource.optional(),
+        refNo: z.string().min(1).max(60),
+        refLineNo: z.number().int().positive().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        description: z.string().min(1).max(500),
+        quantity: z.number().nonnegative().optional(),
+        unit: z.string().max(20).nullable().optional(),
+        unitPrice: z.number().nonnegative().optional(),
+        amount: z.number().nonnegative(),
+        currency: currency.optional(),
+        committedAt: dateStr.optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.createCommitment.execute({ ...b, createdBy: actorId(c) }), 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/commitments/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        contractId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        locationId: z.number().int().positive().nullable().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        description: z.string().min(1).max(500).optional(),
+        quantity: z.number().nonnegative().optional(),
+        unit: z.string().max(20).nullable().optional(),
+        unitPrice: z.number().nonnegative().optional(),
+        amount: z.number().nonnegative().optional(),
+        committedAt: dateStr.optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateCommitment.execute({ ...b, commitmentId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Teslimat kaydı — KÜMÜLATİF tutar (delta değil); tam teslimde otomatik kapanır. */
+  app.post(
+    '/commitments/:id/delivery',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        deliveredAmount: z.number().nonnegative(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.recordCommitmentDelivery.execute({
+            commitmentId: id,
+            companyId: b.companyId,
+            deliveredAmount: b.deliveredAmount,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/commitments/:id/close',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', z.object({ companyId: z.number().int().positive() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.closeCommitment.execute({ commitmentId: id, companyId: b.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/commitments/:id/cancel',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', z.object({ companyId: z.number().int().positive() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.cancelCommitment.execute({ commitmentId: id, companyId: b.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * SATINALMA KÖPRÜSÜ — idempotent toplu upsert. Monolit /v1/purchasing sipariş
+   * satırlarını (source+refNo+refLineNo) anahtarıyla gönderir; aynı yük iki kez
+   * gelse sonuç değişmez. Kısmi başarı DÖNER (errors[]) — tek bozuk satır
+   * bütün senkronu düşürmez.
+   */
+  app.post(
+    '/commitments/sync',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        source: z.enum(['purchase_order', 'subcontract']),
+        lines: z
+          .array(
+            z.object({
+              refNo: z.string().min(1).max(60),
+              refLineNo: z.number().int().positive(),
+              projectId: z.number().int().positive(),
+              contractId: z.number().int().positive().nullable().optional(),
+              boqLineId: z.number().int().positive().nullable().optional(),
+              locationId: z.number().int().positive().nullable().optional(),
+              vendorId: z.number().int().positive().nullable().optional(),
+              description: z.string().min(1).max(500),
+              quantity: z.number().nonnegative().optional(),
+              unit: z.string().max(20).nullable().optional(),
+              unitPrice: z.number().nonnegative().optional(),
+              amount: z.number().nonnegative(),
+              deliveredAmount: z.number().nonnegative().optional(),
+              currency: currency.optional(),
+              committedAt: dateStr.optional(),
+              cancelled: z.boolean().optional(),
+            }),
+          )
+          .min(1)
+          .max(500),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.syncCommitments.execute({
+            companyId: b.companyId,
+            source: b.source,
+            lines: b.lines,
+            createdBy: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Sözleşme EVM özeti; keşfi olmayan sözleşmede 204. */
+  app.get(
+    '/contracts/:id/evm',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const evm = await deps.getContractEvm.execute({
+          companyId: q.companyId,
+          contractId: id,
+        });
+        if (evm === null) return c.body(null, 204);
+        return c.json(evm);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/projects/:id/evm',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.getProjectEvm.execute({ companyId: q.companyId, projectId: id }));
       } catch (err) {
         mapConstructionError(err);
       }

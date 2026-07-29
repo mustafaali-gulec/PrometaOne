@@ -25,6 +25,17 @@ import {
 } from './application/useCases/ApprovalUseCases.js';
 import { GetBoqUseCase, SaveBoqLinesUseCase } from './application/useCases/BoqUseCases.js';
 import {
+  CancelCommitmentUseCase,
+  CloseCommitmentUseCase,
+  CreateCommitmentUseCase,
+  GetContractEvmUseCase,
+  GetProjectEvmUseCase,
+  ListCommitmentsUseCase,
+  RecordCommitmentDeliveryUseCase,
+  SyncCommitmentsUseCase,
+  UpdateCommitmentUseCase,
+} from './application/useCases/CommitmentUseCases.js';
+import {
   CreateContractUseCase,
   ListContractsUseCase,
   UpdateContractUseCase,
@@ -200,6 +211,7 @@ import {
 } from './application/useCases/TrackingUseCases.js';
 import { PgApprovalRepository } from './infrastructure/persistence/PgApprovalRepository.js';
 import { PgBoqRepository } from './infrastructure/persistence/PgBoqRepository.js';
+import { PgCommitmentRepository } from './infrastructure/persistence/PgCommitmentRepository.js';
 import { PgContractRepository } from './infrastructure/persistence/PgContractRepository.js';
 import { PgDailyLogRepository } from './infrastructure/persistence/PgDailyLogRepository.js';
 import {
@@ -280,6 +292,7 @@ export function registerConstructionModule(
   const rfis = new PgRfiRepository(pool);
   const assignments = new PgAssignmentRepository(pool);
   const qualityFiles = new PgQualityFileRepository(pool);
+  const commitments = new PgCommitmentRepository(pool);
 
   const deps: ConstructionRouterDeps = {
     createProject: new CreateProjectUseCase(projects),
@@ -464,6 +477,16 @@ export function registerConstructionModule(
     addQualityFile: new AddQualityFileUseCase(qualityFiles),
     listQualityFiles: new ListQualityFilesUseCase(qualityFiles),
     deleteQualityFile: new DeleteQualityFileUseCase(qualityFiles),
+    // FAZ 7 — Taahhüt & EVM
+    createCommitment: new CreateCommitmentUseCase(commitments, projects, clock),
+    updateCommitment: new UpdateCommitmentUseCase(commitments, clock),
+    recordCommitmentDelivery: new RecordCommitmentDeliveryUseCase(commitments, clock),
+    closeCommitment: new CloseCommitmentUseCase(commitments, clock),
+    cancelCommitment: new CancelCommitmentUseCase(commitments, clock),
+    listCommitments: new ListCommitmentsUseCase(commitments),
+    syncCommitments: new SyncCommitmentsUseCase(commitments, projects, clock),
+    getContractEvm: new GetContractEvmUseCase(commitments),
+    getProjectEvm: new GetProjectEvmUseCase(commitments),
   };
 
   return createConstructionRouter(deps);

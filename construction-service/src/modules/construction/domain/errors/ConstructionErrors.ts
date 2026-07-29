@@ -360,3 +360,17 @@ export class QualityFileNotFoundError extends ConstructionError {
     super(`Ek dosya bulunamadı: ${id}`);
   }
 }
+
+// ===== FAZ 7 — Taahhüt & EVM ===============================================
+
+export class CommitmentNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Taahhüt kaydı bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateCommitmentRefError extends ConstructionError {
+  constructor(refNo: string, refLineNo: number) {
+    super(`Bu kaynak satırı zaten kayıtlı: ${refNo} / ${refLineNo}`);
+  }
+}

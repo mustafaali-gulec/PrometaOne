@@ -10,6 +10,8 @@ import { HTTPException } from 'hono/http-exception';
 import {
   AdvanceNotFoundError,
   ApprovalFlowNotFoundError,
+  CommitmentNotFoundError,
+  DuplicateCommitmentRefError,
   AssignmentNotFoundError,
   DefectNotFoundError,
   DuplicateAssignmentCodeError,
@@ -97,7 +99,8 @@ export function mapConstructionError(err: unknown): never {
     err instanceof InspectionNotFoundError ||
     err instanceof RfiNotFoundError ||
     err instanceof AssignmentNotFoundError ||
-    err instanceof QualityFileNotFoundError
+    err instanceof QualityFileNotFoundError ||
+    err instanceof CommitmentNotFoundError
   ) {
     throw new HTTPException(404, { message: err.message });
   }
@@ -117,7 +120,8 @@ export function mapConstructionError(err: unknown): never {
     err instanceof DuplicateInspectionTemplateCodeError ||
     err instanceof DuplicateInspectionCodeError ||
     err instanceof DuplicateRfiCodeError ||
-    err instanceof DuplicateAssignmentCodeError
+    err instanceof DuplicateAssignmentCodeError ||
+    err instanceof DuplicateCommitmentRefError
   ) {
     throw new HTTPException(409, { message: err.message });
   }
