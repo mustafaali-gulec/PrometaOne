@@ -102,6 +102,29 @@ import type {
   ApprovalSummariesResponse,
   DecideApprovalResultDto,
   MyApprovalsDto,
+  AssignmentDto,
+  AssignmentSource,
+  AssignmentStatus,
+  AssignmentSummaryRowDto,
+  DefectDto,
+  DefectHistoryRowDto,
+  DefectKind,
+  DefectSeverity,
+  DefectSource,
+  DefectStatus,
+  DefectSummaryRowDto,
+  InspectionDto,
+  InspectionStatus,
+  InspectionTemplateDto,
+  InspectionTemplateKind,
+  QualityDocKind,
+  QualityFileDto,
+  QualityPriority,
+  RfiDiscipline,
+  RfiDto,
+  RfiStatus,
+  RfiSummaryDto,
+  VendorScorecardRowDto,
 } from '../dto/ConstructionDtos';
 
 export interface CreateProjectBody {
@@ -704,6 +727,302 @@ export interface ConstructionApi {
   ): Promise<DecideApprovalResultDto>;
   /** Yönetici yetkisi ister (backend 403). */
   cancelApprovalFlow(flowId: number, companyId: number): Promise<ApprovalFlowDto>;
+
+  // FAZ 6 — Kalite & Güvenlik
+  listDefects(companyId: number, options?: DefectListOptions): Promise<{ defects: DefectDto[] }>;
+  getDefect(
+    id: number,
+    companyId: number,
+  ): Promise<{ defect: DefectDto; history: DefectHistoryRowDto[] }>;
+  createDefect(body: CreateDefectBody): Promise<DefectDto>;
+  updateDefect(id: number, body: UpdateDefectBody): Promise<DefectDto>;
+  changeDefectStatus(
+    id: number,
+    body: { companyId: number; status: DefectStatus; note?: string | null },
+  ): Promise<DefectDto>;
+  getDefectSummary(
+    projectId: number,
+    companyId: number,
+    byLocation?: boolean,
+  ): Promise<{ rows: DefectSummaryRowDto[] }>;
+
+  listInspectionTemplates(
+    companyId: number,
+    options?: { kind?: InspectionTemplateKind; includeInactive?: boolean },
+  ): Promise<{ templates: InspectionTemplateDto[] }>;
+  createInspectionTemplate(body: CreateInspectionTemplateBody): Promise<InspectionTemplateDto>;
+  replaceInspectionTemplateItems(
+    id: number,
+    body: { companyId: number; items: InspectionTemplateItemBody[] },
+  ): Promise<InspectionTemplateDto>;
+  deactivateInspectionTemplate(id: number, companyId: number): Promise<InspectionTemplateDto>;
+
+  listInspections(
+    companyId: number,
+    options?: InspectionListOptions,
+  ): Promise<{ inspections: InspectionDto[] }>;
+  getInspection(id: number, companyId: number): Promise<InspectionDto>;
+  startInspection(body: StartInspectionBody): Promise<InspectionDto>;
+  saveInspectionAnswers(
+    id: number,
+    body: { companyId: number; answers: InspectionAnswerBody[] },
+  ): Promise<InspectionDto>;
+  /** status=approved yönetici ister (backend 403). */
+  changeInspectionStatus(
+    id: number,
+    body: { companyId: number; status: InspectionStatus },
+  ): Promise<InspectionDto>;
+  /** Başarısız denetim maddesinden hasar-eksiklik doğurur ve cevaba bağlar. */
+  raiseDefectFromAnswer(
+    inspectionId: number,
+    itemId: number,
+    body: RaiseDefectBody,
+  ): Promise<{ inspection: InspectionDto; defect: DefectDto }>;
+  getVendorScorecard(
+    companyId: number,
+    options?: { projectId?: number; vendorId?: number },
+  ): Promise<{ rows: VendorScorecardRowDto[] }>;
+
+  listRfis(companyId: number, options?: RfiListOptions): Promise<{ rfis: RfiDto[] }>;
+  createRfi(body: CreateRfiBody): Promise<RfiDto>;
+  updateRfi(id: number, body: UpdateRfiBody): Promise<RfiDto>;
+  answerRfi(id: number, body: { companyId: number; answer: string }): Promise<RfiDto>;
+  changeRfiStatus(id: number, body: { companyId: number; status: RfiStatus }): Promise<RfiDto>;
+  /** Hiç RFI'ı olmayan projede null (backend 204). */
+  getRfiSummary(projectId: number, companyId: number): Promise<RfiSummaryDto | null>;
+
+  listAssignments(
+    companyId: number,
+    options?: AssignmentListOptions,
+  ): Promise<{ assignments: AssignmentDto[] }>;
+  createAssignment(body: CreateAssignmentBody): Promise<AssignmentDto>;
+  updateAssignment(id: number, body: UpdateAssignmentBody): Promise<AssignmentDto>;
+  changeAssignmentStatus(
+    id: number,
+    body: { companyId: number; status: AssignmentStatus },
+  ): Promise<AssignmentDto>;
+  getAssignmentSummary(
+    projectId: number,
+    companyId: number,
+    byUser?: boolean,
+  ): Promise<{ rows: AssignmentSummaryRowDto[] }>;
+
+  listQualityFiles(
+    companyId: number,
+    docKind: QualityDocKind,
+    docId: number,
+  ): Promise<{ files: QualityFileDto[] }>;
+  addQualityFile(body: AddQualityFileBody): Promise<QualityFileDto>;
+  deleteQualityFile(id: number, companyId: number): Promise<{ deleted: boolean }>;
+}
+
+// ===== FAZ 6 — istek gövdeleri ==============================================
+
+export interface DefectListOptions {
+  projectId?: number;
+  locationId?: number;
+  locationSubtree?: boolean;
+  status?: DefectStatus;
+  openOnly?: boolean;
+  severity?: DefectSeverity;
+  defectKind?: DefectKind;
+  vendorId?: number;
+  responsibleUserId?: number;
+  overdueOnly?: boolean;
+  search?: string;
+}
+
+export interface CreateDefectBody {
+  companyId: number;
+  projectId: number;
+  locationId?: number | null;
+  code?: string;
+  title: string;
+  description?: string | null;
+  defectKind: DefectKind;
+  severity?: DefectSeverity;
+  vendorId?: number | null;
+  responsibleUserId?: number | null;
+  source?: DefectSource;
+  boqLineId?: number | null;
+  dueDate?: string | null;
+  costEstimate?: number;
+  currency?: string;
+}
+
+export interface UpdateDefectBody {
+  companyId: number;
+  locationId?: number | null;
+  title?: string;
+  description?: string | null;
+  defectKind?: DefectKind;
+  severity?: DefectSeverity;
+  vendorId?: number | null;
+  responsibleUserId?: number | null;
+  boqLineId?: number | null;
+  dueDate?: string | null;
+  costEstimate?: number;
+  costActual?: number;
+  currency?: string;
+}
+
+export interface InspectionTemplateItemBody {
+  category?: string | null;
+  code: string;
+  text: string;
+  weight?: number;
+  maxScore?: number;
+  isCritical?: boolean;
+  sortOrder?: number;
+}
+
+export interface CreateInspectionTemplateBody {
+  companyId: number;
+  code: string;
+  name: string;
+  kind?: InspectionTemplateKind;
+  description?: string | null;
+  scoring?: 'weighted' | 'pass_fail';
+  passPct?: number;
+  items: InspectionTemplateItemBody[];
+}
+
+export interface InspectionListOptions {
+  projectId?: number;
+  templateId?: number;
+  vendorId?: number;
+  locationId?: number;
+  status?: InspectionStatus;
+  fromDate?: string;
+  toDate?: string;
+}
+
+export interface StartInspectionBody {
+  companyId: number;
+  projectId: number;
+  templateId: number;
+  locationId?: number | null;
+  code?: string;
+  vendorId?: number | null;
+  contractId?: number | null;
+  inspectionDate: string;
+  periodLabel?: string | null;
+  note?: string | null;
+}
+
+export interface InspectionAnswerBody {
+  itemId: number;
+  score?: number | null;
+  isNa?: boolean;
+  note?: string | null;
+}
+
+export interface RaiseDefectBody {
+  companyId: number;
+  defectKind: DefectKind;
+  severity?: DefectSeverity;
+  vendorId?: number | null;
+  responsibleUserId?: number | null;
+  dueDate?: string | null;
+}
+
+export interface RfiListOptions {
+  projectId?: number;
+  locationId?: number;
+  status?: RfiStatus;
+  discipline?: RfiDiscipline;
+  priority?: QualityPriority;
+  askedToUserId?: number;
+  overdueOnly?: boolean;
+  search?: string;
+}
+
+export interface CreateRfiBody {
+  companyId: number;
+  projectId: number;
+  locationId?: number | null;
+  code?: string;
+  subject: string;
+  question: string;
+  discipline?: RfiDiscipline;
+  priority?: QualityPriority;
+  askedToUserId?: number | null;
+  vendorId?: number | null;
+  boqLineId?: number | null;
+  dueDate?: string | null;
+  impactDays?: number;
+  impactCost?: number;
+  currency?: string;
+}
+
+export interface UpdateRfiBody {
+  companyId: number;
+  locationId?: number | null;
+  subject?: string;
+  question?: string;
+  discipline?: RfiDiscipline;
+  priority?: QualityPriority;
+  askedToUserId?: number | null;
+  vendorId?: number | null;
+  boqLineId?: number | null;
+  dueDate?: string | null;
+  impactDays?: number;
+  impactCost?: number;
+  currency?: string;
+}
+
+export interface AssignmentListOptions {
+  projectId?: number;
+  locationId?: number;
+  assignedToUserId?: number;
+  vendorId?: number;
+  status?: AssignmentStatus;
+  openOnly?: boolean;
+  priority?: QualityPriority;
+  sourceKind?: AssignmentSource;
+  sourceId?: number;
+  overdueOnly?: boolean;
+}
+
+export interface CreateAssignmentBody {
+  companyId: number;
+  projectId: number;
+  locationId?: number | null;
+  code?: string;
+  title: string;
+  description?: string | null;
+  assignedToUserId?: number | null;
+  vendorId?: number | null;
+  priority?: QualityPriority;
+  startDate?: string | null;
+  dueDate?: string | null;
+  sourceKind?: AssignmentSource | null;
+  sourceId?: number | null;
+}
+
+export interface UpdateAssignmentBody {
+  companyId: number;
+  locationId?: number | null;
+  title?: string;
+  description?: string | null;
+  assignedToUserId?: number | null;
+  vendorId?: number | null;
+  priority?: QualityPriority;
+  startDate?: string | null;
+  dueDate?: string | null;
+  progressPct?: number;
+}
+
+export interface AddQualityFileBody {
+  companyId: number;
+  docKind: QualityDocKind;
+  docId: number;
+  fileKind?: string;
+  stage?: 'before' | 'after' | 'other';
+  title?: string | null;
+  fileUrl?: string | null;
+  contentBase64?: string | null;
+  mimeType?: string | null;
 }
 
 // ===== FAZ 4 — istek gövdesi =================================================

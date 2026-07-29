@@ -475,7 +475,181 @@ export type CsLabelKey =
   | 'cs.apr.user'
   | 'cs.apr.you'
   | 'cs.apr.noDueDate'
-  | 'cs.apr.selfOnly';
+  | 'cs.apr.selfOnly'
+  // FAZ 6 — Kalite & Güvenlik
+  | 'cs.qg.title'
+  | 'cs.qg.subtitle'
+  | 'cs.qg.tab.defects'
+  | 'cs.qg.tab.inspections'
+  | 'cs.qg.tab.scorecard'
+  | 'cs.qg.tab.rfi'
+  | 'cs.qg.tab.assignments'
+  | 'cs.qg.c.code'
+  | 'cs.qg.c.title'
+  | 'cs.qg.c.location'
+  | 'cs.qg.c.vendor'
+  | 'cs.qg.c.responsible'
+  | 'cs.qg.c.dueDate'
+  | 'cs.qg.c.overdue'
+  | 'cs.qg.c.priority'
+  | 'cs.qg.c.createdAt'
+  | 'cs.qg.c.description'
+  | 'cs.qg.c.note'
+  | 'cs.qg.days'
+  | 'cs.qg.user'
+  | 'cs.qg.filter.openOnly'
+  | 'cs.qg.filter.overdueOnly'
+  | 'cs.qg.filter.all'
+  | 'cs.qg.detail'
+  | 'cs.qg.saved'
+  | 'cs.qg.def.new'
+  | 'cs.qg.def.kind'
+  | 'cs.qg.def.severity'
+  | 'cs.qg.def.source'
+  | 'cs.qg.def.reopen'
+  | 'cs.qg.def.costEstimate'
+  | 'cs.qg.def.costActual'
+  | 'cs.qg.def.dueDateHint'
+  | 'cs.qg.def.statusNote'
+  | 'cs.qg.def.history'
+  | 'cs.qg.def.empty'
+  | 'cs.qg.def.s.open'
+  | 'cs.qg.def.s.awaitingVerify'
+  | 'cs.qg.def.s.closedCount'
+  | 'cs.qg.def.s.critical'
+  | 'cs.qg.def.s.overdue'
+  | 'cs.qg.def.s.reopened'
+  | 'cs.qg.def.s.avgFix'
+  | 'cs.qg.def.reopenBadge'
+  | 'cs.qg.dk.workmanship'
+  | 'cs.qg.dk.missing_work'
+  | 'cs.qg.dk.material_damage'
+  | 'cs.qg.dk.dimensional'
+  | 'cs.qg.dk.plumbing'
+  | 'cs.qg.dk.electrical'
+  | 'cs.qg.dk.paint'
+  | 'cs.qg.dk.insulation'
+  | 'cs.qg.dk.cleaning'
+  | 'cs.qg.dk.safety'
+  | 'cs.qg.dk.other'
+  | 'cs.qg.sev.very_low'
+  | 'cs.qg.sev.low'
+  | 'cs.qg.sev.medium'
+  | 'cs.qg.sev.high'
+  | 'cs.qg.sev.critical'
+  | 'cs.qg.ds.open'
+  | 'cs.qg.ds.in_progress'
+  | 'cs.qg.ds.fixed'
+  | 'cs.qg.ds.verified'
+  | 'cs.qg.ds.closed'
+  | 'cs.qg.ds.rejected'
+  | 'cs.qg.src.internal'
+  | 'cs.qg.src.inspection'
+  | 'cs.qg.src.daily_log'
+  | 'cs.qg.src.client'
+  | 'cs.qg.src.rfi'
+  | 'cs.qg.ins.templates'
+  | 'cs.qg.ins.newTemplate'
+  | 'cs.qg.ins.templateKind'
+  | 'cs.qg.ins.passPct'
+  | 'cs.qg.ins.items'
+  | 'cs.qg.ins.addItem'
+  | 'cs.qg.ins.itemText'
+  | 'cs.qg.ins.weight'
+  | 'cs.qg.ins.maxScore'
+  | 'cs.qg.ins.critical'
+  | 'cs.qg.ins.criticalHint'
+  | 'cs.qg.ins.new'
+  | 'cs.qg.ins.template'
+  | 'cs.qg.ins.date'
+  | 'cs.qg.ins.period'
+  | 'cs.qg.ins.inspector'
+  | 'cs.qg.ins.score'
+  | 'cs.qg.ins.grade'
+  | 'cs.qg.ins.passed'
+  | 'cs.qg.ins.failed'
+  | 'cs.qg.ins.notMeasured'
+  | 'cs.qg.ins.na'
+  | 'cs.qg.ins.naHint'
+  | 'cs.qg.ins.unanswered'
+  | 'cs.qg.ins.criticalFail'
+  | 'cs.qg.ins.saveAnswers'
+  | 'cs.qg.ins.complete'
+  | 'cs.qg.ins.approve'
+  | 'cs.qg.ins.backToDraft'
+  | 'cs.qg.ins.approveWarn'
+  | 'cs.qg.ins.raiseDefect'
+  | 'cs.qg.ins.defectLinked'
+  | 'cs.qg.ins.empty'
+  | 'cs.qg.ins.vendorRequired'
+  | 'cs.qg.itk.quality'
+  | 'cs.qg.itk.subcontractor_scorecard'
+  | 'cs.qg.itk.hse'
+  | 'cs.qg.itk.handover'
+  | 'cs.qg.itk.other'
+  | 'cs.qg.is.draft'
+  | 'cs.qg.is.completed'
+  | 'cs.qg.is.approved'
+  | 'cs.qg.is.cancelled'
+  | 'cs.qg.sc.subtitle'
+  | 'cs.qg.sc.inspections'
+  | 'cs.qg.sc.avgScore'
+  | 'cs.qg.sc.minScore'
+  | 'cs.qg.sc.failed'
+  | 'cs.qg.sc.defects'
+  | 'cs.qg.sc.open'
+  | 'cs.qg.sc.severe'
+  | 'cs.qg.sc.lastInspection'
+  | 'cs.qg.sc.empty'
+  | 'cs.qg.rfi.new'
+  | 'cs.qg.rfi.subject'
+  | 'cs.qg.rfi.question'
+  | 'cs.qg.rfi.answer'
+  | 'cs.qg.rfi.discipline'
+  | 'cs.qg.rfi.askedTo'
+  | 'cs.qg.rfi.age'
+  | 'cs.qg.rfi.impactDays'
+  | 'cs.qg.rfi.impactCost'
+  | 'cs.qg.rfi.impactHint'
+  | 'cs.qg.rfi.writeAnswer'
+  | 'cs.qg.rfi.answerRequired'
+  | 'cs.qg.rfi.empty'
+  | 'cs.qg.rfi.s.oldestOpen'
+  | 'cs.qg.rfi.s.avgAnswer'
+  | 'cs.qg.rfi.s.impactTotal'
+  | 'cs.qg.disc.architectural'
+  | 'cs.qg.disc.structural'
+  | 'cs.qg.disc.mechanical'
+  | 'cs.qg.disc.electrical'
+  | 'cs.qg.disc.infrastructure'
+  | 'cs.qg.disc.landscape'
+  | 'cs.qg.disc.geotechnical'
+  | 'cs.qg.disc.other'
+  | 'cs.qg.rs.open'
+  | 'cs.qg.rs.answered'
+  | 'cs.qg.rs.closed'
+  | 'cs.qg.rs.cancelled'
+  | 'cs.qg.pr.low'
+  | 'cs.qg.pr.medium'
+  | 'cs.qg.pr.high'
+  | 'cs.qg.pr.urgent'
+  | 'cs.qg.asg.new'
+  | 'cs.qg.asg.assignedTo'
+  | 'cs.qg.asg.progress'
+  | 'cs.qg.asg.startDate'
+  | 'cs.qg.asg.source'
+  | 'cs.qg.asg.sourceHint'
+  | 'cs.qg.asg.empty'
+  | 'cs.qg.asg.done100'
+  | 'cs.qg.as.open'
+  | 'cs.qg.as.in_progress'
+  | 'cs.qg.as.done'
+  | 'cs.qg.as.cancelled'
+  | 'cs.qg.asrc.defect'
+  | 'cs.qg.asrc.rfi'
+  | 'cs.qg.asrc.inspection'
+  | 'cs.qg.asrc.daily_log'
+  | 'cs.qg.asrc.tracking';
 
 const DICT: Record<CsLabelKey, Record<Lang, string>> = {
   // ===== ORTAK =============================================================
@@ -2859,6 +3033,1045 @@ const DICT: Record<CsLabelKey, Record<Lang, string>> = {
     de: 'Sie können nur über Ihren eigenen Schritt entscheiden; der Schritt eines anderen erfordert Managerrechte.',
     ar: 'يمكنك أن تقرر في خطوتك فقط؛ خطوة معتمد آخر تتطلب صلاحية مدير.',
   },
+
+  'cs.qg.title': {
+    tr: 'Kalite & Güvenlik',
+    en: 'Quality & Safety',
+    de: 'Qualität & Sicherheit',
+    ar: 'الجودة والسلامة',
+  },
+  'cs.qg.subtitle': {
+    tr: 'Hasar-eksiklik listesi, denetleme ve taşeron karnesi, bilgi talebi (RFI) ve saha görevlendirmesi — hepsi mekân ağacına bağlı.',
+    en: 'Punch list, inspections with subcontractor scorecard, requests for information (RFI) and site assignments — all tied to the location tree.',
+    de: 'Mängelliste, Inspektionen mit Nachunternehmer-Zeugnis, Informationsanfragen (RFI) und Baustellenaufträge — alle an den Ortsbaum gebunden.',
+    ar: 'قائمة العيوب، والتفتيش مع بطاقة تقييم المقاول، وطلبات المعلومات، وتكليفات الموقع — كلها مرتبطة بشجرة المواقع.',
+  },
+  'cs.qg.tab.defects': {
+    tr: 'Hasar-Eksiklik',
+    en: 'Punch List',
+    de: 'Mängelliste',
+    ar: 'العيوب والنواقص',
+  },
+  'cs.qg.tab.inspections': {
+    tr: 'Denetleme',
+    en: 'Inspections',
+    de: 'Inspektionen',
+    ar: 'التفتيش',
+  },
+  'cs.qg.tab.scorecard': {
+    tr: 'Taşeron Karnesi',
+    en: 'Vendor Scorecard',
+    de: 'Nachunternehmer-Zeugnis',
+    ar: 'بطاقة تقييم المقاول',
+  },
+  'cs.qg.tab.rfi': {
+    tr: 'Bilgi Talebi (RFI)',
+    en: 'RFI',
+    de: 'Informationsanfragen (RFI)',
+    ar: 'طلبات المعلومات',
+  },
+  'cs.qg.tab.assignments': {
+    tr: 'Görevlendirme',
+    en: 'Assignments',
+    de: 'Aufträge',
+    ar: 'التكليفات',
+  },
+  'cs.qg.c.code': {
+    tr: 'Kod',
+    en: 'Code',
+    de: 'Code',
+    ar: 'الرمز',
+  },
+  'cs.qg.c.title': {
+    tr: 'Başlık',
+    en: 'Title',
+    de: 'Titel',
+    ar: 'العنوان',
+  },
+  'cs.qg.c.location': {
+    tr: 'Mekân no',
+    en: 'Location no',
+    de: 'Ort-Nr.',
+    ar: 'رقم الموقع',
+  },
+  'cs.qg.c.vendor': {
+    tr: 'Taşeron no',
+    en: 'Vendor no',
+    de: 'Nachunternehmer-Nr.',
+    ar: 'رقم المقاول',
+  },
+  'cs.qg.c.responsible': {
+    tr: 'Sorumlu no',
+    en: 'Responsible no',
+    de: 'Verantwortlicher-Nr.',
+    ar: 'رقم المسؤول',
+  },
+  'cs.qg.c.dueDate': {
+    tr: 'Bitiş tarihi',
+    en: 'Due date',
+    de: 'Fälligkeitsdatum',
+    ar: 'تاريخ الاستحقاق',
+  },
+  'cs.qg.c.overdue': {
+    tr: 'Gecikme',
+    en: 'Overdue',
+    de: 'Verzug',
+    ar: 'التأخير',
+  },
+  'cs.qg.c.priority': {
+    tr: 'Öncelik',
+    en: 'Priority',
+    de: 'Priorität',
+    ar: 'الأولوية',
+  },
+  'cs.qg.c.createdAt': {
+    tr: 'Açılış',
+    en: 'Opened',
+    de: 'Eröffnet',
+    ar: 'فُتح في',
+  },
+  'cs.qg.c.description': {
+    tr: 'Açıklama',
+    en: 'Description',
+    de: 'Beschreibung',
+    ar: 'الوصف',
+  },
+  'cs.qg.c.note': {
+    tr: 'Not',
+    en: 'Note',
+    de: 'Notiz',
+    ar: 'ملاحظة',
+  },
+  'cs.qg.days': {
+    tr: '{n} gün',
+    en: '{n} days',
+    de: '{n} Tage',
+    ar: '{n} يوم',
+  },
+  'cs.qg.user': {
+    tr: 'Kullanıcı #{id}',
+    en: 'User #{id}',
+    de: 'Benutzer #{id}',
+    ar: 'المستخدم #{id}',
+  },
+  'cs.qg.filter.openOnly': {
+    tr: 'Yalnız açıklar',
+    en: 'Open only',
+    de: 'Nur offene',
+    ar: 'المفتوحة فقط',
+  },
+  'cs.qg.filter.overdueOnly': {
+    tr: 'Yalnız gecikmişler',
+    en: 'Overdue only',
+    de: 'Nur überfällige',
+    ar: 'المتأخرة فقط',
+  },
+  'cs.qg.filter.all': {
+    tr: 'Tümü',
+    en: 'All',
+    de: 'Alle',
+    ar: 'الكل',
+  },
+  'cs.qg.detail': {
+    tr: 'Ayrıntı',
+    en: 'Detail',
+    de: 'Detail',
+    ar: 'التفاصيل',
+  },
+  'cs.qg.saved': {
+    tr: 'Kaydedildi.',
+    en: 'Saved.',
+    de: 'Gespeichert.',
+    ar: 'تم الحفظ.',
+  },
+  'cs.qg.def.new': {
+    tr: '+ Hasar-Eksiklik',
+    en: '+ Defect',
+    de: '+ Mangel',
+    ar: '+ عيب',
+  },
+  'cs.qg.def.kind': {
+    tr: 'Hasar tipi',
+    en: 'Defect type',
+    de: 'Mangelart',
+    ar: 'نوع العيب',
+  },
+  'cs.qg.def.severity': {
+    tr: 'Aciliyet',
+    en: 'Severity',
+    de: 'Dringlichkeit',
+    ar: 'الأولوية',
+  },
+  'cs.qg.def.source': {
+    tr: 'Kaynak',
+    en: 'Source',
+    de: 'Quelle',
+    ar: 'المصدر',
+  },
+  'cs.qg.def.reopen': {
+    tr: 'Tekrar',
+    en: 'Reopens',
+    de: 'Wiederöffnungen',
+    ar: 'إعادة الفتح',
+  },
+  'cs.qg.def.costEstimate': {
+    tr: 'Tahmini maliyet',
+    en: 'Estimated cost',
+    de: 'Geschätzte Kosten',
+    ar: 'التكلفة التقديرية',
+  },
+  'cs.qg.def.costActual': {
+    tr: 'Gerçekleşen maliyet',
+    en: 'Actual cost',
+    de: 'Tatsächliche Kosten',
+    ar: 'التكلفة الفعلية',
+  },
+  'cs.qg.def.dueDateHint': {
+    tr: 'Boş bırakılırsa aciliyete göre önerilir (kritik: ertesi gün, çok düşük: 30 gün).',
+    en: 'If left empty it is suggested from severity (critical: next day, very low: 30 days).',
+    de: 'Bleibt es leer, wird es aus der Dringlichkeit vorgeschlagen (kritisch: nächster Tag, sehr niedrig: 30 Tage).',
+    ar: 'إذا تُرك فارغًا يُقترح حسب الأولوية (حرج: اليوم التالي، منخفض جدًا: 30 يومًا).',
+  },
+  'cs.qg.def.statusNote': {
+    tr: 'Durum notu',
+    en: 'Status note',
+    de: 'Statusnotiz',
+    ar: 'ملاحظة الحالة',
+  },
+  'cs.qg.def.history': {
+    tr: 'Durum izi',
+    en: 'Status trail',
+    de: 'Statusverlauf',
+    ar: 'سجل الحالة',
+  },
+  'cs.qg.def.empty': {
+    tr: 'Bu süzgeçlerle hasar-eksiklik kaydı yok.',
+    en: 'No defect matches these filters.',
+    de: 'Kein Mangel entspricht diesen Filtern.',
+    ar: 'لا يوجد عيب يطابق هذه المرشحات.',
+  },
+  'cs.qg.def.s.open': {
+    tr: 'Açık',
+    en: 'Open',
+    de: 'Offen',
+    ar: 'مفتوح',
+  },
+  'cs.qg.def.s.awaitingVerify': {
+    tr: 'Doğrulama bekleyen',
+    en: 'Awaiting verification',
+    de: 'Wartet auf Prüfung',
+    ar: 'بانتظار التحقق',
+  },
+  'cs.qg.def.s.closedCount': {
+    tr: 'Kapanan',
+    en: 'Closed',
+    de: 'Geschlossen',
+    ar: 'مغلق',
+  },
+  'cs.qg.def.s.critical': {
+    tr: 'Kritik',
+    en: 'Critical',
+    de: 'Kritisch',
+    ar: 'حرج',
+  },
+  'cs.qg.def.s.overdue': {
+    tr: 'Gecikmiş',
+    en: 'Overdue',
+    de: 'Überfällig',
+    ar: 'متأخر',
+  },
+  'cs.qg.def.s.reopened': {
+    tr: 'Yeniden açılan',
+    en: 'Reopened',
+    de: 'Wiedereröffnet',
+    ar: 'أُعيد فتحه',
+  },
+  'cs.qg.def.s.avgFix': {
+    tr: 'Ort. giderme (gün)',
+    en: 'Avg. fix (days)',
+    de: 'Ø Behebung (Tage)',
+    ar: 'متوسط الإصلاح (يوم)',
+  },
+  'cs.qg.def.reopenBadge': {
+    tr: '{n} kez yeniden açıldı — "giderildi" deyip geçen iş',
+    en: 'Reopened {n} times — work marked fixed that was not',
+    de: '{n}-mal wiedereröffnet — als behoben gemeldete, aber nicht behobene Arbeit',
+    ar: 'أُعيد فتحه {n} مرة — عمل قيل إنه أُصلح ولم يكن كذلك',
+  },
+  'cs.qg.dk.workmanship': {
+    tr: 'İşçilik hatası',
+    en: 'Workmanship',
+    de: 'Ausführungsfehler',
+    ar: 'خطأ في التنفيذ',
+  },
+  'cs.qg.dk.missing_work': {
+    tr: 'Eksik imalat',
+    en: 'Missing work',
+    de: 'Fehlende Leistung',
+    ar: 'عمل ناقص',
+  },
+  'cs.qg.dk.material_damage': {
+    tr: 'Malzeme hasarı',
+    en: 'Material damage',
+    de: 'Materialschaden',
+    ar: 'تلف المواد',
+  },
+  'cs.qg.dk.dimensional': {
+    tr: 'Ölçü/kot hatası',
+    en: 'Dimensional error',
+    de: 'Maß-/Höhenfehler',
+    ar: 'خطأ في الأبعاد',
+  },
+  'cs.qg.dk.plumbing': {
+    tr: 'Tesisat',
+    en: 'Plumbing',
+    de: 'Sanitär',
+    ar: 'السباكة',
+  },
+  'cs.qg.dk.electrical': {
+    tr: 'Elektrik',
+    en: 'Electrical',
+    de: 'Elektrik',
+    ar: 'الكهرباء',
+  },
+  'cs.qg.dk.paint': {
+    tr: 'Boya/kaplama',
+    en: 'Paint/finish',
+    de: 'Anstrich/Belag',
+    ar: 'الدهان/التشطيب',
+  },
+  'cs.qg.dk.insulation': {
+    tr: 'Yalıtım',
+    en: 'Insulation',
+    de: 'Abdichtung/Dämmung',
+    ar: 'العزل',
+  },
+  'cs.qg.dk.cleaning': {
+    tr: 'Temizlik',
+    en: 'Cleaning',
+    de: 'Reinigung',
+    ar: 'النظافة',
+  },
+  'cs.qg.dk.safety': {
+    tr: 'Güvenlik',
+    en: 'Safety',
+    de: 'Sicherheit',
+    ar: 'السلامة',
+  },
+  'cs.qg.dk.other': {
+    tr: 'Diğer',
+    en: 'Other',
+    de: 'Sonstiges',
+    ar: 'أخرى',
+  },
+  'cs.qg.sev.very_low': {
+    tr: 'Çok düşük',
+    en: 'Very low',
+    de: 'Sehr niedrig',
+    ar: 'منخفض جدًا',
+  },
+  'cs.qg.sev.low': {
+    tr: 'Düşük',
+    en: 'Low',
+    de: 'Niedrig',
+    ar: 'منخفض',
+  },
+  'cs.qg.sev.medium': {
+    tr: 'Orta',
+    en: 'Medium',
+    de: 'Mittel',
+    ar: 'متوسط',
+  },
+  'cs.qg.sev.high': {
+    tr: 'Yüksek',
+    en: 'High',
+    de: 'Hoch',
+    ar: 'مرتفع',
+  },
+  'cs.qg.sev.critical': {
+    tr: 'Kritik',
+    en: 'Critical',
+    de: 'Kritisch',
+    ar: 'حرج',
+  },
+  'cs.qg.ds.open': {
+    tr: 'Açık',
+    en: 'Open',
+    de: 'Offen',
+    ar: 'مفتوح',
+  },
+  'cs.qg.ds.in_progress': {
+    tr: 'Gideriliyor',
+    en: 'In progress',
+    de: 'In Bearbeitung',
+    ar: 'قيد المعالجة',
+  },
+  'cs.qg.ds.fixed': {
+    tr: 'Giderildi',
+    en: 'Fixed',
+    de: 'Behoben',
+    ar: 'أُصلح',
+  },
+  'cs.qg.ds.verified': {
+    tr: 'Doğrulandı',
+    en: 'Verified',
+    de: 'Geprüft',
+    ar: 'تم التحقق',
+  },
+  'cs.qg.ds.closed': {
+    tr: 'Kapandı',
+    en: 'Closed',
+    de: 'Geschlossen',
+    ar: 'مغلق',
+  },
+  'cs.qg.ds.rejected': {
+    tr: 'Reddedildi',
+    en: 'Rejected',
+    de: 'Abgelehnt',
+    ar: 'مرفوض',
+  },
+  'cs.qg.src.internal': {
+    tr: 'İç kontrol',
+    en: 'Internal',
+    de: 'Interne Kontrolle',
+    ar: 'رقابة داخلية',
+  },
+  'cs.qg.src.inspection': {
+    tr: 'Denetim',
+    en: 'Inspection',
+    de: 'Inspektion',
+    ar: 'تفتيش',
+  },
+  'cs.qg.src.daily_log': {
+    tr: 'Günlük rapor',
+    en: 'Daily log',
+    de: 'Bautagebuch',
+    ar: 'التقرير اليومي',
+  },
+  'cs.qg.src.client': {
+    tr: 'İşveren/müşteri',
+    en: 'Client',
+    de: 'Auftraggeber/Kunde',
+    ar: 'العميل',
+  },
+  'cs.qg.src.rfi': {
+    tr: 'Bilgi talebi',
+    en: 'RFI',
+    de: 'Informationsanfrage',
+    ar: 'طلب معلومات',
+  },
+  'cs.qg.ins.templates': {
+    tr: 'Denetim şablonları',
+    en: 'Inspection templates',
+    de: 'Inspektionsvorlagen',
+    ar: 'قوالب التفتيش',
+  },
+  'cs.qg.ins.newTemplate': {
+    tr: '+ Şablon',
+    en: '+ Template',
+    de: '+ Vorlage',
+    ar: '+ قالب',
+  },
+  'cs.qg.ins.templateKind': {
+    tr: 'Şablon tipi',
+    en: 'Template type',
+    de: 'Vorlagentyp',
+    ar: 'نوع القالب',
+  },
+  'cs.qg.ins.passPct': {
+    tr: 'Geçme eşiği (%)',
+    en: 'Pass threshold (%)',
+    de: 'Bestehensgrenze (%)',
+    ar: 'حد النجاح (%)',
+  },
+  'cs.qg.ins.items': {
+    tr: 'Maddeler',
+    en: 'Items',
+    de: 'Positionen',
+    ar: 'البنود',
+  },
+  'cs.qg.ins.addItem': {
+    tr: '+ Madde',
+    en: '+ Item',
+    de: '+ Position',
+    ar: '+ بند',
+  },
+  'cs.qg.ins.itemText': {
+    tr: 'Madde metni',
+    en: 'Item text',
+    de: 'Positionstext',
+    ar: 'نص البند',
+  },
+  'cs.qg.ins.weight': {
+    tr: 'Ağırlık',
+    en: 'Weight',
+    de: 'Gewicht',
+    ar: 'الوزن',
+  },
+  'cs.qg.ins.maxScore': {
+    tr: 'Tam puan',
+    en: 'Max score',
+    de: 'Höchstpunktzahl',
+    ar: 'الدرجة القصوى',
+  },
+  'cs.qg.ins.critical': {
+    tr: 'Kritik',
+    en: 'Critical',
+    de: 'Kritisch',
+    ar: 'حرج',
+  },
+  'cs.qg.ins.criticalHint': {
+    tr: 'Kritik madde sıfır alırsa denetim toplam puandan bağımsız BAŞARISIZ olur (baret takmamak telafi edilemez).',
+    en: 'If a critical item scores zero the inspection FAILS regardless of the total score (no hard hat cannot be compensated).',
+    de: 'Erhält eine kritische Position null Punkte, FÄLLT die Inspektion unabhängig von der Gesamtpunktzahl durch (fehlender Helm ist nicht kompensierbar).',
+    ar: 'إذا حصل بند حرج على صفر تفشل عملية التفتيش بغض النظر عن المجموع (عدم ارتداء الخوذة لا يُعوَّض).',
+  },
+  'cs.qg.ins.new': {
+    tr: '+ Denetim',
+    en: '+ Inspection',
+    de: '+ Inspektion',
+    ar: '+ تفتيش',
+  },
+  'cs.qg.ins.template': {
+    tr: 'Şablon',
+    en: 'Template',
+    de: 'Vorlage',
+    ar: 'القالب',
+  },
+  'cs.qg.ins.date': {
+    tr: 'Denetim tarihi',
+    en: 'Inspection date',
+    de: 'Inspektionsdatum',
+    ar: 'تاريخ التفتيش',
+  },
+  'cs.qg.ins.period': {
+    tr: 'Dönem',
+    en: 'Period',
+    de: 'Zeitraum',
+    ar: 'الفترة',
+  },
+  'cs.qg.ins.inspector': {
+    tr: 'Denetçi',
+    en: 'Inspector',
+    de: 'Prüfer',
+    ar: 'المفتش',
+  },
+  'cs.qg.ins.score': {
+    tr: 'Puan',
+    en: 'Score',
+    de: 'Punktzahl',
+    ar: 'الدرجة',
+  },
+  'cs.qg.ins.grade': {
+    tr: 'Not',
+    en: 'Grade',
+    de: 'Note',
+    ar: 'التقدير',
+  },
+  'cs.qg.ins.passed': {
+    tr: 'Geçti',
+    en: 'Passed',
+    de: 'Bestanden',
+    ar: 'ناجح',
+  },
+  'cs.qg.ins.failed': {
+    tr: 'Kaldı',
+    en: 'Failed',
+    de: 'Durchgefallen',
+    ar: 'راسب',
+  },
+  'cs.qg.ins.notMeasured': {
+    tr: 'Ölçülmedi',
+    en: 'Not measured',
+    de: 'Nicht gemessen',
+    ar: 'لم يُقَس',
+  },
+  'cs.qg.ins.na': {
+    tr: 'Uygulanamaz',
+    en: 'N/A',
+    de: 'Entfällt',
+    ar: 'لا ينطبق',
+  },
+  'cs.qg.ins.naHint': {
+    tr: 'Uygulanamaz madde paydan da paydadan da düşer — 0 vermek taşeronu yapmadığı iş için cezalandırır.',
+    en: 'An N/A item is removed from both numerator and denominator — scoring 0 punishes the vendor for work that does not exist.',
+    de: 'Eine entfallende Position wird aus Zähler und Nenner entfernt — 0 Punkte bestrafen den Nachunternehmer für nicht existierende Arbeit.',
+    ar: 'البند غير المنطبق يُحذف من البسط والمقام — إعطاء صفر يعاقب المقاول على عمل غير موجود.',
+  },
+  'cs.qg.ins.unanswered': {
+    tr: '{n} madde cevapsız',
+    en: '{n} items unanswered',
+    de: '{n} Positionen unbeantwortet',
+    ar: '{n} بند دون إجابة',
+  },
+  'cs.qg.ins.criticalFail': {
+    tr: '{n} kritik madde sıfır — denetim kalır',
+    en: '{n} critical items at zero — inspection fails',
+    de: '{n} kritische Positionen bei null — Inspektion fällt durch',
+    ar: '{n} بند حرج عند الصفر — يفشل التفتيش',
+  },
+  'cs.qg.ins.saveAnswers': {
+    tr: 'Cevapları kaydet',
+    en: 'Save answers',
+    de: 'Antworten speichern',
+    ar: 'حفظ الإجابات',
+  },
+  'cs.qg.ins.complete': {
+    tr: 'Tamamla',
+    en: 'Complete',
+    de: 'Abschließen',
+    ar: 'إكمال',
+  },
+  'cs.qg.ins.approve': {
+    tr: 'Onayla (karneye işle)',
+    en: 'Approve (publish to scorecard)',
+    de: 'Genehmigen (ins Zeugnis)',
+    ar: 'اعتماد (إلى بطاقة التقييم)',
+  },
+  'cs.qg.ins.backToDraft': {
+    tr: 'Taslağa döndür',
+    en: 'Back to draft',
+    de: 'Zurück zum Entwurf',
+    ar: 'إعادة إلى المسودة',
+  },
+  'cs.qg.ins.approveWarn': {
+    tr: 'Onaylanan denetim taslağa dönemez ve cevabı değişmez — karne bu puanla yayınlanır.',
+    en: 'An approved inspection cannot return to draft and its answers cannot change — the scorecard is published with this score.',
+    de: 'Eine genehmigte Inspektion kann nicht zum Entwurf zurück und ihre Antworten sind unveränderlich — das Zeugnis wird mit dieser Punktzahl veröffentlicht.',
+    ar: 'التفتيش المعتمد لا يعود مسودة ولا تتغير إجاباته — تُنشر بطاقة التقييم بهذه الدرجة.',
+  },
+  'cs.qg.ins.raiseDefect': {
+    tr: 'Kusur aç',
+    en: 'Raise defect',
+    de: 'Mangel anlegen',
+    ar: 'فتح عيب',
+  },
+  'cs.qg.ins.defectLinked': {
+    tr: 'Kusur: {code}',
+    en: 'Defect: {code}',
+    de: 'Mangel: {code}',
+    ar: 'العيب: {code}',
+  },
+  'cs.qg.ins.empty': {
+    tr: 'Bu süzgeçlerle denetim yok.',
+    en: 'No inspection matches these filters.',
+    de: 'Keine Inspektion entspricht diesen Filtern.',
+    ar: 'لا يوجد تفتيش يطابق هذه المرشحات.',
+  },
+  'cs.qg.ins.vendorRequired': {
+    tr: 'Karne formu taşeron seçilmeden başlatılamaz.',
+    en: 'A scorecard inspection cannot start without a vendor.',
+    de: 'Eine Zeugnis-Inspektion kann nicht ohne Nachunternehmer beginnen.',
+    ar: 'لا يمكن بدء تفتيش بطاقة التقييم دون اختيار مقاول.',
+  },
+  'cs.qg.itk.quality': {
+    tr: 'Kalite kontrol',
+    en: 'Quality control',
+    de: 'Qualitätskontrolle',
+    ar: 'مراقبة الجودة',
+  },
+  'cs.qg.itk.subcontractor_scorecard': {
+    tr: 'Taşeron karne formu',
+    en: 'Subcontractor scorecard',
+    de: 'Nachunternehmer-Zeugnis',
+    ar: 'بطاقة تقييم المقاول',
+  },
+  'cs.qg.itk.hse': {
+    tr: 'İSG saha turu',
+    en: 'HSE walkdown',
+    de: 'HSE-Begehung',
+    ar: 'جولة السلامة',
+  },
+  'cs.qg.itk.handover': {
+    tr: 'Teslim öncesi',
+    en: 'Handover',
+    de: 'Übergabe',
+    ar: 'ما قبل التسليم',
+  },
+  'cs.qg.itk.other': {
+    tr: 'Diğer',
+    en: 'Other',
+    de: 'Sonstiges',
+    ar: 'أخرى',
+  },
+  'cs.qg.is.draft': {
+    tr: 'Taslak',
+    en: 'Draft',
+    de: 'Entwurf',
+    ar: 'مسودة',
+  },
+  'cs.qg.is.completed': {
+    tr: 'Tamamlandı',
+    en: 'Completed',
+    de: 'Abgeschlossen',
+    ar: 'مكتمل',
+  },
+  'cs.qg.is.approved': {
+    tr: 'Onaylandı',
+    en: 'Approved',
+    de: 'Genehmigt',
+    ar: 'معتمد',
+  },
+  'cs.qg.is.cancelled': {
+    tr: 'İptal',
+    en: 'Cancelled',
+    de: 'Storniert',
+    ar: 'ملغى',
+  },
+  'cs.qg.sc.subtitle': {
+    tr: 'Denetim puanı + hasar-eksiklik davranışı tek satırda. Tekrar sayısı "giderildi" deyip geçen işi gösterir.',
+    en: 'Inspection score + defect behaviour in one row. The reopen count exposes work marked fixed that was not.',
+    de: 'Inspektionspunktzahl + Mängelverhalten in einer Zeile. Die Wiederöffnungszahl zeigt als behoben gemeldete, aber nicht behobene Arbeit.',
+    ar: 'درجة التفتيش وسلوك العيوب في سطر واحد. عدد إعادة الفتح يكشف الأعمال التي قيل إنها أُصلحت ولم تكن كذلك.',
+  },
+  'cs.qg.sc.inspections': {
+    tr: 'Denetim',
+    en: 'Inspections',
+    de: 'Inspektionen',
+    ar: 'التفتيشات',
+  },
+  'cs.qg.sc.avgScore': {
+    tr: 'Ort. puan',
+    en: 'Avg. score',
+    de: 'Ø Punktzahl',
+    ar: 'متوسط الدرجة',
+  },
+  'cs.qg.sc.minScore': {
+    tr: 'En düşük',
+    en: 'Lowest',
+    de: 'Niedrigste',
+    ar: 'الأدنى',
+  },
+  'cs.qg.sc.failed': {
+    tr: 'Kalınan',
+    en: 'Failed',
+    de: 'Durchgefallen',
+    ar: 'راسب',
+  },
+  'cs.qg.sc.defects': {
+    tr: 'Kusur',
+    en: 'Defects',
+    de: 'Mängel',
+    ar: 'العيوب',
+  },
+  'cs.qg.sc.open': {
+    tr: 'Açık',
+    en: 'Open',
+    de: 'Offen',
+    ar: 'مفتوح',
+  },
+  'cs.qg.sc.severe': {
+    tr: 'Ağır',
+    en: 'Severe',
+    de: 'Schwer',
+    ar: 'جسيم',
+  },
+  'cs.qg.sc.lastInspection': {
+    tr: 'Son denetim',
+    en: 'Last inspection',
+    de: 'Letzte Inspektion',
+    ar: 'آخر تفتيش',
+  },
+  'cs.qg.sc.empty': {
+    tr: 'Henüz karneye girecek veri yok — tamamlanmış denetim veya taşerona yazılmış kusur gerekir.',
+    en: 'No scorecard data yet — a completed inspection or a vendor-attributed defect is needed.',
+    de: 'Noch keine Zeugnisdaten — eine abgeschlossene Inspektion oder ein zugeordneter Mangel ist nötig.',
+    ar: 'لا توجد بيانات بعد — يلزم تفتيش مكتمل أو عيب منسوب إلى مقاول.',
+  },
+  'cs.qg.rfi.new': {
+    tr: '+ Bilgi Talebi',
+    en: '+ RFI',
+    de: '+ Anfrage',
+    ar: '+ طلب معلومات',
+  },
+  'cs.qg.rfi.subject': {
+    tr: 'Konu',
+    en: 'Subject',
+    de: 'Betreff',
+    ar: 'الموضوع',
+  },
+  'cs.qg.rfi.question': {
+    tr: 'Soru',
+    en: 'Question',
+    de: 'Frage',
+    ar: 'السؤال',
+  },
+  'cs.qg.rfi.answer': {
+    tr: 'Cevap',
+    en: 'Answer',
+    de: 'Antwort',
+    ar: 'الإجابة',
+  },
+  'cs.qg.rfi.discipline': {
+    tr: 'Disiplin',
+    en: 'Discipline',
+    de: 'Fachbereich',
+    ar: 'التخصص',
+  },
+  'cs.qg.rfi.askedTo': {
+    tr: 'Cevaplayacak no',
+    en: 'Answerer no',
+    de: 'Beantworter-Nr.',
+    ar: 'رقم المجيب',
+  },
+  'cs.qg.rfi.age': {
+    tr: 'Yaş',
+    en: 'Age',
+    de: 'Alter',
+    ar: 'العمر',
+  },
+  'cs.qg.rfi.impactDays': {
+    tr: 'Süre etkisi (gün)',
+    en: 'Time impact (days)',
+    de: 'Zeitwirkung (Tage)',
+    ar: 'أثر المدة (يوم)',
+  },
+  'cs.qg.rfi.impactCost': {
+    tr: 'Maliyet etkisi',
+    en: 'Cost impact',
+    de: 'Kostenwirkung',
+    ar: 'أثر التكلفة',
+  },
+  'cs.qg.rfi.impactHint': {
+    tr: 'Kamu ihalesinde süre uzatımı talebinin dayanağı cevapsız kalan bilgi talepleridir — etkiyi kaydedin.',
+    en: 'In public tenders unanswered RFIs are the basis of time-extension claims — record the impact.',
+    de: 'Bei öffentlichen Vergaben sind unbeantwortete RFIs die Grundlage von Bauzeitverlängerungen — Wirkung erfassen.',
+    ar: 'في المناقصات العامة تكون طلبات المعلومات غير المجابة أساس مطالبات تمديد المدة — سجّل الأثر.',
+  },
+  'cs.qg.rfi.writeAnswer': {
+    tr: 'Cevap yaz',
+    en: 'Write answer',
+    de: 'Antwort schreiben',
+    ar: 'كتابة إجابة',
+  },
+  'cs.qg.rfi.answerRequired': {
+    tr: 'Cevap boş olamaz.',
+    en: 'The answer cannot be empty.',
+    de: 'Die Antwort darf nicht leer sein.',
+    ar: 'لا يمكن أن تكون الإجابة فارغة.',
+  },
+  'cs.qg.rfi.empty': {
+    tr: 'Bu süzgeçlerle bilgi talebi yok.',
+    en: 'No RFI matches these filters.',
+    de: 'Keine Anfrage entspricht diesen Filtern.',
+    ar: 'لا يوجد طلب يطابق هذه المرشحات.',
+  },
+  'cs.qg.rfi.s.oldestOpen': {
+    tr: 'En eski açık (gün)',
+    en: 'Oldest open (days)',
+    de: 'Älteste offene (Tage)',
+    ar: 'أقدم مفتوح (يوم)',
+  },
+  'cs.qg.rfi.s.avgAnswer': {
+    tr: 'Ort. cevap (gün)',
+    en: 'Avg. answer (days)',
+    de: 'Ø Antwort (Tage)',
+    ar: 'متوسط الإجابة (يوم)',
+  },
+  'cs.qg.rfi.s.impactTotal': {
+    tr: 'Toplam süre etkisi',
+    en: 'Total time impact',
+    de: 'Gesamte Zeitwirkung',
+    ar: 'إجمالي أثر المدة',
+  },
+  'cs.qg.disc.architectural': {
+    tr: 'Mimari',
+    en: 'Architectural',
+    de: 'Architektur',
+    ar: 'معماري',
+  },
+  'cs.qg.disc.structural': {
+    tr: 'Statik',
+    en: 'Structural',
+    de: 'Tragwerk',
+    ar: 'إنشائي',
+  },
+  'cs.qg.disc.mechanical': {
+    tr: 'Mekanik',
+    en: 'Mechanical',
+    de: 'HLS',
+    ar: 'ميكانيكي',
+  },
+  'cs.qg.disc.electrical': {
+    tr: 'Elektrik',
+    en: 'Electrical',
+    de: 'Elektro',
+    ar: 'كهربائي',
+  },
+  'cs.qg.disc.infrastructure': {
+    tr: 'Altyapı',
+    en: 'Infrastructure',
+    de: 'Infrastruktur',
+    ar: 'بنية تحتية',
+  },
+  'cs.qg.disc.landscape': {
+    tr: 'Peyzaj',
+    en: 'Landscape',
+    de: 'Freianlagen',
+    ar: 'تنسيق المواقع',
+  },
+  'cs.qg.disc.geotechnical': {
+    tr: 'Geoteknik',
+    en: 'Geotechnical',
+    de: 'Geotechnik',
+    ar: 'جيوتقني',
+  },
+  'cs.qg.disc.other': {
+    tr: 'Diğer',
+    en: 'Other',
+    de: 'Sonstiges',
+    ar: 'أخرى',
+  },
+  'cs.qg.rs.open': {
+    tr: 'Açık',
+    en: 'Open',
+    de: 'Offen',
+    ar: 'مفتوح',
+  },
+  'cs.qg.rs.answered': {
+    tr: 'Cevaplandı',
+    en: 'Answered',
+    de: 'Beantwortet',
+    ar: 'مجاب',
+  },
+  'cs.qg.rs.closed': {
+    tr: 'Kapandı',
+    en: 'Closed',
+    de: 'Geschlossen',
+    ar: 'مغلق',
+  },
+  'cs.qg.rs.cancelled': {
+    tr: 'İptal',
+    en: 'Cancelled',
+    de: 'Storniert',
+    ar: 'ملغى',
+  },
+  'cs.qg.pr.low': {
+    tr: 'Düşük',
+    en: 'Low',
+    de: 'Niedrig',
+    ar: 'منخفضة',
+  },
+  'cs.qg.pr.medium': {
+    tr: 'Orta',
+    en: 'Medium',
+    de: 'Mittel',
+    ar: 'متوسطة',
+  },
+  'cs.qg.pr.high': {
+    tr: 'Yüksek',
+    en: 'High',
+    de: 'Hoch',
+    ar: 'عالية',
+  },
+  'cs.qg.pr.urgent': {
+    tr: 'Acil',
+    en: 'Urgent',
+    de: 'Dringend',
+    ar: 'عاجلة',
+  },
+  'cs.qg.asg.new': {
+    tr: '+ Görev',
+    en: '+ Assignment',
+    de: '+ Auftrag',
+    ar: '+ تكليف',
+  },
+  'cs.qg.asg.assignedTo': {
+    tr: 'Atanan no',
+    en: 'Assignee no',
+    de: 'Zugewiesener-Nr.',
+    ar: 'رقم المكلَّف',
+  },
+  'cs.qg.asg.progress': {
+    tr: 'İlerleme',
+    en: 'Progress',
+    de: 'Fortschritt',
+    ar: 'التقدم',
+  },
+  'cs.qg.asg.startDate': {
+    tr: 'Başlangıç',
+    en: 'Start',
+    de: 'Beginn',
+    ar: 'البداية',
+  },
+  'cs.qg.asg.source': {
+    tr: 'Kaynak belge',
+    en: 'Source document',
+    de: 'Quellbeleg',
+    ar: 'المستند المصدر',
+  },
+  'cs.qg.asg.sourceHint': {
+    tr: 'Buradaki görev bir kaynak belgeye bağlı saha işidir; genel görevler için görev modülünü kullanın.',
+    en: 'An assignment here is site work tied to a source document; use the task module for general tasks.',
+    de: 'Ein Auftrag hier ist an einen Quellbeleg gebundene Baustellenarbeit; für allgemeine Aufgaben das Aufgabenmodul nutzen.',
+    ar: 'التكليف هنا عمل ميداني مرتبط بمستند مصدر؛ للمهام العامة استخدم وحدة المهام.',
+  },
+  'cs.qg.asg.empty': {
+    tr: 'Bu süzgeçlerle görev yok.',
+    en: 'No assignment matches these filters.',
+    de: 'Kein Auftrag entspricht diesen Filtern.',
+    ar: 'لا يوجد تكليف يطابق هذه المرشحات.',
+  },
+  'cs.qg.asg.done100': {
+    tr: 'Biten görev %100 sayılır; yüzde ayrıca girilmez.',
+    en: 'A finished assignment counts as 100%; the percentage is not entered separately.',
+    de: 'Ein abgeschlossener Auftrag zählt als 100 %; der Prozentsatz wird nicht separat erfasst.',
+    ar: 'التكليف المنتهي يُحسب 100٪؛ لا تُدخل النسبة على حدة.',
+  },
+  'cs.qg.as.open': {
+    tr: 'Açık',
+    en: 'Open',
+    de: 'Offen',
+    ar: 'مفتوح',
+  },
+  'cs.qg.as.in_progress': {
+    tr: 'Devam ediyor',
+    en: 'In progress',
+    de: 'In Arbeit',
+    ar: 'قيد التنفيذ',
+  },
+  'cs.qg.as.done': {
+    tr: 'Bitti',
+    en: 'Done',
+    de: 'Erledigt',
+    ar: 'منجز',
+  },
+  'cs.qg.as.cancelled': {
+    tr: 'İptal',
+    en: 'Cancelled',
+    de: 'Storniert',
+    ar: 'ملغى',
+  },
+  'cs.qg.asrc.defect': {
+    tr: 'Hasar-eksiklik',
+    en: 'Defect',
+    de: 'Mangel',
+    ar: 'عيب',
+  },
+  'cs.qg.asrc.rfi': {
+    tr: 'Bilgi talebi',
+    en: 'RFI',
+    de: 'Anfrage',
+    ar: 'طلب معلومات',
+  },
+  'cs.qg.asrc.inspection': {
+    tr: 'Denetim',
+    en: 'Inspection',
+    de: 'Inspektion',
+    ar: 'تفتيش',
+  },
+  'cs.qg.asrc.daily_log': {
+    tr: 'Günlük rapor',
+    en: 'Daily log',
+    de: 'Bautagebuch',
+    ar: 'التقرير اليومي',
+  },
+  'cs.qg.asrc.tracking': {
+    tr: 'İlerleme takibi',
+    en: 'Progress tracking',
+    de: 'Fortschrittsverfolgung',
+    ar: 'متابعة التقدم',
+  },
 };
 
 /** Şantiye etiketi getir; `vars` ile {placeholder} doldurulur. */
@@ -3025,4 +4238,59 @@ export function approvalHistoryActionLabel(action: string, lang: string | undefi
     default:
       return action;
   }
+}
+
+/** Hasar tipi etiketi. */
+export function defectKindLabel(kind: string, lang: string | undefined): string {
+  return csT(`cs.qg.dk.${kind}` as CsLabelKey, lang);
+}
+
+/** Aciliyet etiketi. */
+export function defectSeverityLabel(severity: string, lang: string | undefined): string {
+  return csT(`cs.qg.sev.${severity}` as CsLabelKey, lang);
+}
+
+/** Hasar-eksiklik durum etiketi. */
+export function defectStatusLabel(status: string, lang: string | undefined): string {
+  return csT(`cs.qg.ds.${status}` as CsLabelKey, lang);
+}
+
+/** Kayıt kaynağı etiketi. */
+export function defectSourceLabel(source: string, lang: string | undefined): string {
+  return csT(`cs.qg.src.${source}` as CsLabelKey, lang);
+}
+
+/** Denetim şablonu tipi etiketi. */
+export function inspectionTemplateKindLabel(kind: string, lang: string | undefined): string {
+  return csT(`cs.qg.itk.${kind}` as CsLabelKey, lang);
+}
+
+/** Denetim durumu etiketi. */
+export function inspectionStatusLabel(status: string, lang: string | undefined): string {
+  return csT(`cs.qg.is.${status}` as CsLabelKey, lang);
+}
+
+/** RFI disiplini etiketi. */
+export function rfiDisciplineLabel(discipline: string, lang: string | undefined): string {
+  return csT(`cs.qg.disc.${discipline}` as CsLabelKey, lang);
+}
+
+/** RFI durumu etiketi. */
+export function rfiStatusLabel(status: string, lang: string | undefined): string {
+  return csT(`cs.qg.rs.${status}` as CsLabelKey, lang);
+}
+
+/** Öncelik etiketi (RFI + görevlendirme ortak). */
+export function qualityPriorityLabel(priority: string, lang: string | undefined): string {
+  return csT(`cs.qg.pr.${priority}` as CsLabelKey, lang);
+}
+
+/** Görev durumu etiketi. */
+export function assignmentStatusLabel(status: string, lang: string | undefined): string {
+  return csT(`cs.qg.as.${status}` as CsLabelKey, lang);
+}
+
+/** Görev kaynak belge tipi etiketi. */
+export function assignmentSourceLabel(source: string, lang: string | undefined): string {
+  return csT(`cs.qg.asrc.${source}` as CsLabelKey, lang);
 }

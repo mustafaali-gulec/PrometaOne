@@ -1237,3 +1237,302 @@ export interface DecideApprovalResultDto {
   /** Akış bu kararla kapandı mı — arayüz "belge onaylandı" mesajını buna göre basar. */
   completed: boolean;
 }
+
+// ============================================================================
+// FAZ 6 — KALİTE & GÜVENLİK (cs_defects / cs_inspections / cs_rfis / cs_assignments)
+// ============================================================================
+
+/** Backend enum'larının birebir kopyası — ayrışırsa 400 yeriz. */
+export type DefectKind =
+  | 'workmanship'
+  | 'missing_work'
+  | 'material_damage'
+  | 'dimensional'
+  | 'plumbing'
+  | 'electrical'
+  | 'paint'
+  | 'insulation'
+  | 'cleaning'
+  | 'safety'
+  | 'other';
+export type DefectSeverity = 'very_low' | 'low' | 'medium' | 'high' | 'critical';
+export type DefectStatus = 'open' | 'in_progress' | 'fixed' | 'verified' | 'closed' | 'rejected';
+export type DefectSource = 'internal' | 'inspection' | 'daily_log' | 'client' | 'rfi';
+export type InspectionTemplateKind =
+  | 'quality'
+  | 'subcontractor_scorecard'
+  | 'hse'
+  | 'handover'
+  | 'other';
+export type InspectionStatus = 'draft' | 'completed' | 'approved' | 'cancelled';
+export type RfiDiscipline =
+  | 'architectural'
+  | 'structural'
+  | 'mechanical'
+  | 'electrical'
+  | 'infrastructure'
+  | 'landscape'
+  | 'geotechnical'
+  | 'other';
+export type QualityPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type RfiStatus = 'open' | 'answered' | 'closed' | 'cancelled';
+export type AssignmentStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
+export type AssignmentSource = 'defect' | 'rfi' | 'inspection' | 'daily_log' | 'tracking';
+export type QualityDocKind = 'defect' | 'inspection' | 'rfi' | 'assignment';
+
+export interface DefectDto {
+  id: number;
+  companyId: number;
+  projectId: number;
+  locationId: number | null;
+  code: string;
+  title: string;
+  description: string | null;
+  defectKind: DefectKind;
+  severity: DefectSeverity;
+  status: DefectStatus;
+  vendorId: number | null;
+  responsibleUserId: number | null;
+  reporterUserId: number | null;
+  source: DefectSource;
+  boqLineId: number | null;
+  dueDate: string | null;
+  fixedAt: string | null;
+  fixedBy: number | null;
+  verifiedAt: string | null;
+  verifiedBy: number | null;
+  closedAt: string | null;
+  costEstimate: number;
+  costActual: number;
+  currency: string;
+  /** Kaç kez "giderildi" deyip yeniden açıldı — taşeron karnesi sinyali. */
+  reopenCount: number;
+  createdAt: string;
+  updatedAt: string;
+  closed: boolean;
+  /** Gecikme SUNUCUDA hesaplanır; kapanmış kayıtta null. */
+  daysOverdue: number | null;
+  /** Bu statüden gidilebilecek statüler — geçersiz düğme gösterilmez. */
+  allowedTransitions: DefectStatus[];
+}
+
+export interface DefectHistoryRowDto {
+  id: number;
+  defectId: number;
+  fromStatus: string | null;
+  toStatus: string;
+  note: string | null;
+  actor: number | null;
+  createdAt: string;
+}
+
+export interface DefectSummaryRowDto {
+  projectId: number;
+  locationId: number | null;
+  total: number;
+  openCount: number;
+  awaitingVerify: number;
+  closedCount: number;
+  rejectedCount: number;
+  criticalCount: number;
+  highCount: number;
+  overdueCount: number;
+  reopenedCount: number;
+  costEstimateTotal: number;
+  costActualTotal: number;
+  avgFixDays: number | null;
+}
+
+export interface InspectionTemplateItemDto {
+  id: number;
+  category: string | null;
+  code: string;
+  text: string;
+  weight: number;
+  maxScore: number;
+  /** Sıfır alırsa denetim toplam puandan bağımsız kalır. */
+  isCritical: boolean;
+  sortOrder: number;
+}
+
+export interface InspectionTemplateDto {
+  id: number;
+  companyId: number;
+  code: string;
+  name: string;
+  kind: InspectionTemplateKind;
+  description: string | null;
+  scoring: 'weighted' | 'pass_fail';
+  passPct: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  items: InspectionTemplateItemDto[];
+  /** Karne formu taşeron ister — form alanı zorunlu işaretlenir. */
+  requiresVendor: boolean;
+  maxScoreTotal: number;
+}
+
+export interface InspectionAnswerDto {
+  id: number;
+  itemId: number;
+  itemText: string;
+  weight: number;
+  maxScore: number;
+  score: number | null;
+  isNa: boolean;
+  isCritical: boolean;
+  note: string | null;
+  /** Bu maddeden doğan hasar-eksiklik kaydı. */
+  defectId: number | null;
+}
+
+export interface InspectionLiveScoreDto {
+  totalScore: number;
+  maxScore: number;
+  scorePct: number | null;
+  grade: string | null;
+  passed: boolean | null;
+  criticalFailures: number;
+  answeredCount: number;
+  naCount: number;
+  unansweredCount: number;
+}
+
+export interface InspectionDto {
+  id: number;
+  companyId: number;
+  projectId: number;
+  templateId: number;
+  locationId: number | null;
+  code: string;
+  vendorId: number | null;
+  contractId: number | null;
+  inspectorUserId: number | null;
+  inspectionDate: string;
+  periodLabel: string | null;
+  status: InspectionStatus;
+  note: string | null;
+  totalScore: number;
+  maxScore: number;
+  scorePct: number | null;
+  grade: string | null;
+  passed: boolean | null;
+  passPct: number;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  answers: InspectionAnswerDto[];
+  editable: boolean;
+  live: InspectionLiveScoreDto;
+}
+
+export interface VendorScorecardRowDto {
+  vendorId: number;
+  projectId: number;
+  vendorName: string | null;
+  inspectionCount: number;
+  avgScorePct: number | null;
+  minScorePct: number | null;
+  lastInspectionDate: string | null;
+  failedInspectionCount: number;
+  defectCount: number;
+  defectOpen: number;
+  defectOverdue: number;
+  defectSevere: number;
+  reopenTotal: number;
+  avgFixDays: number | null;
+}
+
+export interface RfiDto {
+  id: number;
+  companyId: number;
+  projectId: number;
+  locationId: number | null;
+  code: string;
+  subject: string;
+  question: string;
+  discipline: RfiDiscipline;
+  priority: QualityPriority;
+  status: RfiStatus;
+  askedBy: number | null;
+  askedToUserId: number | null;
+  vendorId: number | null;
+  boqLineId: number | null;
+  dueDate: string | null;
+  answer: string | null;
+  answeredBy: number | null;
+  answeredAt: string | null;
+  closedAt: string | null;
+  /** Süre/maliyet etkisi — süre uzatımı talebinin dayanağı. */
+  impactDays: number;
+  impactCost: number;
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+  daysOverdue: number | null;
+  ageDays: number;
+}
+
+export interface RfiSummaryDto {
+  projectId: number;
+  total: number;
+  openCount: number;
+  answeredCount: number;
+  closedCount: number;
+  overdueCount: number;
+  avgAnswerDays: number | null;
+  oldestOpenDays: number | null;
+  impactDaysTotal: number;
+  impactCostTotal: number;
+}
+
+export interface AssignmentDto {
+  id: number;
+  companyId: number;
+  projectId: number;
+  locationId: number | null;
+  code: string;
+  title: string;
+  description: string | null;
+  assignedToUserId: number | null;
+  vendorId: number | null;
+  assignedBy: number | null;
+  priority: QualityPriority;
+  status: AssignmentStatus;
+  startDate: string | null;
+  dueDate: string | null;
+  doneAt: string | null;
+  progressPct: number;
+  sourceKind: AssignmentSource | null;
+  sourceId: number | null;
+  createdAt: string;
+  updatedAt: string;
+  daysOverdue: number | null;
+}
+
+export interface AssignmentSummaryRowDto {
+  projectId: number;
+  assignedToUserId: number | null;
+  total: number;
+  openCount: number;
+  inProgressCount: number;
+  doneCount: number;
+  overdueCount: number;
+  avgProgressPct: number | null;
+}
+
+export interface QualityFileDto {
+  id: number;
+  docKind: QualityDocKind;
+  docId: number;
+  fileKind: string;
+  stage: 'before' | 'after' | 'other';
+  title: string | null;
+  fileUrl: string | null;
+  hasContent: boolean;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  createdBy: number | null;
+  createdAt: string;
+}

@@ -26,6 +26,7 @@ import { FinansManager } from '../presentation/components/FinansManager';
 import { GuncelDurumManager } from '../presentation/components/GuncelDurumManager';
 import { HakedisManager } from '../presentation/components/HakedisManager';
 import { IsgucuManager } from '../presentation/components/IsgucuManager';
+import { KaliteGuvenlikManager } from '../presentation/components/KaliteGuvenlikManager';
 import { MekanAgaciManager } from '../presentation/components/MekanAgaciManager';
 import { MetrajManager } from '../presentation/components/MetrajManager';
 import { OnayAkisiManager } from '../presentation/components/OnayAkisiManager';
@@ -56,7 +57,8 @@ export type ConstructionTab =
   | 'trackings'
   | 'dailylog'
   | 'performance'
-  | 'approvals';
+  | 'approvals'
+  | 'quality';
 
 const ALL_TABS: ConstructionTab[] = [
   'projects',
@@ -75,6 +77,7 @@ const ALL_TABS: ConstructionTab[] = [
   'dailylog',
   'performance',
   'approvals',
+  'quality',
 ];
 const TAB_LABELS: Record<ConstructionTab, string> = {
   projects: 'Projeler',
@@ -93,6 +96,7 @@ const TAB_LABELS: Record<ConstructionTab, string> = {
   dailylog: 'Şantiye Günlüğü',
   performance: 'Adam×Saat & Verimlilik',
   approvals: 'Onay Akışları',
+  quality: 'Kalite & Güvenlik',
 };
 
 export interface ConstructionPageProps {
@@ -118,6 +122,8 @@ export interface ConstructionPageProps {
   canApproveFlows?: boolean | undefined;
   /** Yeni onay akışı başlatma yetkisi. */
   canCreateFlows?: boolean | undefined;
+  /** Denetim ONAYLAMA yetkisi (taşeron karnesine işler); backend ayrıca denetler. */
+  canApproveInspections?: boolean | undefined;
 }
 
 export function ConstructionPage({
@@ -131,6 +137,7 @@ export function ConstructionPage({
   canUnlockDailyLog,
   canApproveFlows,
   canCreateFlows,
+  canApproveInspections,
 }: ConstructionPageProps): JSX.Element {
   const scoped = Array.isArray(views) && views.length > 0;
   const visibleTabs: ConstructionTab[] = scoped ? views : ALL_TABS;
@@ -208,6 +215,14 @@ export function ConstructionPage({
         ) : null}
         {tab === 'performance' ? (
           <PerformansManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'quality' ? (
+          <KaliteGuvenlikManager
+            api={api}
+            companyId={companyId}
+            lang={lang}
+            canApprove={canApproveInspections}
+          />
         ) : null}
         {tab === 'approvals' ? (
           <OnayAkisiManager

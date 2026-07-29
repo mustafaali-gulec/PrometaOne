@@ -92,6 +92,23 @@ import type {
   ApprovalSummariesResponse,
   DecideApprovalResultDto,
   MyApprovalsDto,
+  AssignmentDto,
+  AssignmentStatus,
+  AssignmentSummaryRowDto,
+  DefectDto,
+  DefectHistoryRowDto,
+  DefectStatus,
+  DefectSummaryRowDto,
+  InspectionDto,
+  InspectionStatus,
+  InspectionTemplateDto,
+  InspectionTemplateKind,
+  QualityDocKind,
+  QualityFileDto,
+  RfiDto,
+  RfiStatus,
+  RfiSummaryDto,
+  VendorScorecardRowDto,
 } from '../../application/dto/ConstructionDtos';
 import type { AuthTokenProvider } from '../../application/ports/AuthTokenProvider';
 import type {
@@ -146,6 +163,22 @@ import type {
   SetUnitManhoursBody,
   DecideApprovalBody,
   StartApprovalFlowBody,
+  AddQualityFileBody,
+  AssignmentListOptions,
+  CreateAssignmentBody,
+  CreateDefectBody,
+  CreateInspectionTemplateBody,
+  CreateRfiBody,
+  DefectListOptions,
+  InspectionAnswerBody,
+  InspectionListOptions,
+  InspectionTemplateItemBody,
+  RaiseDefectBody,
+  RfiListOptions,
+  StartInspectionBody,
+  UpdateAssignmentBody,
+  UpdateDefectBody,
+  UpdateRfiBody,
 } from '../../application/ports/ConstructionApi';
 
 export class ConstructionApiClient implements ConstructionApi {
@@ -1039,6 +1072,263 @@ export class ConstructionApiClient implements ConstructionApi {
       method: 'POST',
       body: { companyId },
     });
+  }
+
+  // ===== FAZ 6 — KALİTE & GÜVENLİK =========================================
+  /** Filtreleri sorgu dizesine döker; boolean'lar yalnız true iken gönderilir
+   *  (z.coerce.boolean 'false' metnini de true sayar). */
+  private qs(
+    companyId: number,
+    options: Record<string, string | number | boolean | undefined> = {},
+  ): string {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    for (const [k, v] of Object.entries(options)) {
+      if (v === undefined) continue;
+      if (typeof v === 'boolean') {
+        if (v) q.set(k, 'true');
+      } else {
+        q.set(k, String(v));
+      }
+    }
+    return q.toString();
+  }
+
+  listDefects(companyId: number, options?: DefectListOptions): Promise<{ defects: DefectDto[] }> {
+    return this.request<{ defects: DefectDto[] }>(
+      `/v1/construction/defects?${this.qs(companyId, options as Record<string, string | number | boolean | undefined>)}`,
+    );
+  }
+
+  getDefect(
+    id: number,
+    companyId: number,
+  ): Promise<{ defect: DefectDto; history: DefectHistoryRowDto[] }> {
+    return this.request<{ defect: DefectDto; history: DefectHistoryRowDto[] }>(
+      `/v1/construction/defects/${String(id)}?companyId=${String(companyId)}`,
+    );
+  }
+
+  createDefect(body: CreateDefectBody): Promise<DefectDto> {
+    return this.request<DefectDto>(`/v1/construction/defects`, { method: 'POST', body });
+  }
+
+  updateDefect(id: number, body: UpdateDefectBody): Promise<DefectDto> {
+    return this.request<DefectDto>(`/v1/construction/defects/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  changeDefectStatus(
+    id: number,
+    body: { companyId: number; status: DefectStatus; note?: string | null },
+  ): Promise<DefectDto> {
+    return this.request<DefectDto>(`/v1/construction/defects/${String(id)}/status`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  getDefectSummary(
+    projectId: number,
+    companyId: number,
+    byLocation?: boolean,
+  ): Promise<{ rows: DefectSummaryRowDto[] }> {
+    return this.request<{ rows: DefectSummaryRowDto[] }>(
+      `/v1/construction/defects/summary?${this.qs(companyId, { projectId, byLocation })}`,
+    );
+  }
+
+  listInspectionTemplates(
+    companyId: number,
+    options?: { kind?: InspectionTemplateKind; includeInactive?: boolean },
+  ): Promise<{ templates: InspectionTemplateDto[] }> {
+    return this.request<{ templates: InspectionTemplateDto[] }>(
+      `/v1/construction/inspection-templates?${this.qs(companyId, options)}`,
+    );
+  }
+
+  createInspectionTemplate(body: CreateInspectionTemplateBody): Promise<InspectionTemplateDto> {
+    return this.request<InspectionTemplateDto>(`/v1/construction/inspection-templates`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  replaceInspectionTemplateItems(
+    id: number,
+    body: { companyId: number; items: InspectionTemplateItemBody[] },
+  ): Promise<InspectionTemplateDto> {
+    return this.request<InspectionTemplateDto>(
+      `/v1/construction/inspection-templates/${String(id)}/items`,
+      { method: 'PUT', body },
+    );
+  }
+
+  deactivateInspectionTemplate(id: number, companyId: number): Promise<InspectionTemplateDto> {
+    return this.request<InspectionTemplateDto>(
+      `/v1/construction/inspection-templates/${String(id)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  listInspections(
+    companyId: number,
+    options?: InspectionListOptions,
+  ): Promise<{ inspections: InspectionDto[] }> {
+    return this.request<{ inspections: InspectionDto[] }>(
+      `/v1/construction/inspections?${this.qs(companyId, options as Record<string, string | number | boolean | undefined>)}`,
+    );
+  }
+
+  getInspection(id: number, companyId: number): Promise<InspectionDto> {
+    return this.request<InspectionDto>(
+      `/v1/construction/inspections/${String(id)}?companyId=${String(companyId)}`,
+    );
+  }
+
+  startInspection(body: StartInspectionBody): Promise<InspectionDto> {
+    return this.request<InspectionDto>(`/v1/construction/inspections`, { method: 'POST', body });
+  }
+
+  saveInspectionAnswers(
+    id: number,
+    body: { companyId: number; answers: InspectionAnswerBody[] },
+  ): Promise<InspectionDto> {
+    return this.request<InspectionDto>(`/v1/construction/inspections/${String(id)}/answers`, {
+      method: 'PUT',
+      body,
+    });
+  }
+
+  changeInspectionStatus(
+    id: number,
+    body: { companyId: number; status: InspectionStatus },
+  ): Promise<InspectionDto> {
+    return this.request<InspectionDto>(`/v1/construction/inspections/${String(id)}/status`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  raiseDefectFromAnswer(
+    inspectionId: number,
+    itemId: number,
+    body: RaiseDefectBody,
+  ): Promise<{ inspection: InspectionDto; defect: DefectDto }> {
+    return this.request<{ inspection: InspectionDto; defect: DefectDto }>(
+      `/v1/construction/inspections/${String(inspectionId)}/items/${String(itemId)}/raise-defect`,
+      { method: 'POST', body },
+    );
+  }
+
+  getVendorScorecard(
+    companyId: number,
+    options?: { projectId?: number; vendorId?: number },
+  ): Promise<{ rows: VendorScorecardRowDto[] }> {
+    return this.request<{ rows: VendorScorecardRowDto[] }>(
+      `/v1/construction/vendor-scorecard?${this.qs(companyId, options)}`,
+    );
+  }
+
+  listRfis(companyId: number, options?: RfiListOptions): Promise<{ rfis: RfiDto[] }> {
+    return this.request<{ rfis: RfiDto[] }>(
+      `/v1/construction/rfis?${this.qs(companyId, options as Record<string, string | number | boolean | undefined>)}`,
+    );
+  }
+
+  createRfi(body: CreateRfiBody): Promise<RfiDto> {
+    return this.request<RfiDto>(`/v1/construction/rfis`, { method: 'POST', body });
+  }
+
+  updateRfi(id: number, body: UpdateRfiBody): Promise<RfiDto> {
+    return this.request<RfiDto>(`/v1/construction/rfis/${String(id)}`, { method: 'PATCH', body });
+  }
+
+  answerRfi(id: number, body: { companyId: number; answer: string }): Promise<RfiDto> {
+    return this.request<RfiDto>(`/v1/construction/rfis/${String(id)}/answer`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  changeRfiStatus(id: number, body: { companyId: number; status: RfiStatus }): Promise<RfiDto> {
+    return this.request<RfiDto>(`/v1/construction/rfis/${String(id)}/status`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  /** 204 → null (hiç RFI yok — hata değil). */
+  async getRfiSummary(projectId: number, companyId: number): Promise<RfiSummaryDto | null> {
+    const res = await this.request<RfiSummaryDto | undefined>(
+      `/v1/construction/rfis/summary?companyId=${String(companyId)}&projectId=${String(projectId)}`,
+    );
+    return res ?? null;
+  }
+
+  listAssignments(
+    companyId: number,
+    options?: AssignmentListOptions,
+  ): Promise<{ assignments: AssignmentDto[] }> {
+    return this.request<{ assignments: AssignmentDto[] }>(
+      `/v1/construction/assignments?${this.qs(companyId, options as Record<string, string | number | boolean | undefined>)}`,
+    );
+  }
+
+  createAssignment(body: CreateAssignmentBody): Promise<AssignmentDto> {
+    return this.request<AssignmentDto>(`/v1/construction/assignments`, { method: 'POST', body });
+  }
+
+  updateAssignment(id: number, body: UpdateAssignmentBody): Promise<AssignmentDto> {
+    return this.request<AssignmentDto>(`/v1/construction/assignments/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  changeAssignmentStatus(
+    id: number,
+    body: { companyId: number; status: AssignmentStatus },
+  ): Promise<AssignmentDto> {
+    return this.request<AssignmentDto>(`/v1/construction/assignments/${String(id)}/status`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  getAssignmentSummary(
+    projectId: number,
+    companyId: number,
+    byUser?: boolean,
+  ): Promise<{ rows: AssignmentSummaryRowDto[] }> {
+    return this.request<{ rows: AssignmentSummaryRowDto[] }>(
+      `/v1/construction/assignments/summary?${this.qs(companyId, { projectId, byUser })}`,
+    );
+  }
+
+  listQualityFiles(
+    companyId: number,
+    docKind: QualityDocKind,
+    docId: number,
+  ): Promise<{ files: QualityFileDto[] }> {
+    return this.request<{ files: QualityFileDto[] }>(
+      `/v1/construction/quality-files/${docKind}/${String(docId)}?companyId=${String(companyId)}`,
+    );
+  }
+
+  addQualityFile(body: AddQualityFileBody): Promise<QualityFileDto> {
+    return this.request<QualityFileDto>(`/v1/construction/quality-files`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  deleteQualityFile(id: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/quality-files/${String(id)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
   }
 
   // ===== Generic request helper ===========================================

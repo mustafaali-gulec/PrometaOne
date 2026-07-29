@@ -48,6 +48,7 @@ const TABS: ConstructionTab[] = [
   'dailylog',
   'performance',
   'approvals',
+  'quality',
 ];
 
 const tabParam = params.get('tab');
@@ -72,5 +73,6 @@ createRoot(container).render(
     // uygulamada canAct("construction.approvals.*") karar verir.
     canApproveFlows
     canCreateFlows
+    canApproveInspections
   />,
 );
