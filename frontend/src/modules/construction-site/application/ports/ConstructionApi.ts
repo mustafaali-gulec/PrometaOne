@@ -125,6 +125,11 @@ import type {
   RfiStatus,
   RfiSummaryDto,
   VendorScorecardRowDto,
+  CommitmentDto,
+  CommitmentSource,
+  CommitmentStatus,
+  ContractEvmDto,
+  ProjectEvmDto,
 } from '../dto/ConstructionDtos';
 
 export interface CreateProjectBody {
@@ -814,6 +819,72 @@ export interface ConstructionApi {
   ): Promise<{ files: QualityFileDto[] }>;
   addQualityFile(body: AddQualityFileBody): Promise<QualityFileDto>;
   deleteQualityFile(id: number, companyId: number): Promise<{ deleted: boolean }>;
+
+  // FAZ 7 — Taahhüt & EVM
+  listCommitments(
+    companyId: number,
+    options?: CommitmentListOptions,
+  ): Promise<{ commitments: CommitmentDto[] }>;
+  createCommitment(body: CreateCommitmentBody): Promise<CommitmentDto>;
+  updateCommitment(id: number, body: UpdateCommitmentBody): Promise<CommitmentDto>;
+  /** KÜMÜLATİF teslim tutarı (delta değil); tam teslimde otomatik kapanır. */
+  recordCommitmentDelivery(
+    id: number,
+    body: { companyId: number; deliveredAmount: number },
+  ): Promise<CommitmentDto>;
+  closeCommitment(id: number, companyId: number): Promise<CommitmentDto>;
+  cancelCommitment(id: number, companyId: number): Promise<CommitmentDto>;
+  /** Sözleşme EVM özeti; keşfi olmayan sözleşmede null (backend 204). */
+  getContractEvm(contractId: number, companyId: number): Promise<ContractEvmDto | null>;
+  getProjectEvm(projectId: number, companyId: number): Promise<ProjectEvmDto>;
+}
+
+// ===== FAZ 7 — istek gövdeleri ==============================================
+
+export interface CommitmentListOptions {
+  projectId?: number;
+  contractId?: number;
+  boqLineId?: number;
+  vendorId?: number;
+  source?: CommitmentSource;
+  status?: CommitmentStatus;
+  openOnly?: boolean;
+  search?: string;
+}
+
+export interface CreateCommitmentBody {
+  companyId: number;
+  projectId: number;
+  contractId?: number | null;
+  boqLineId?: number | null;
+  locationId?: number | null;
+  source?: CommitmentSource;
+  refNo: string;
+  refLineNo?: number;
+  vendorId?: number | null;
+  description: string;
+  quantity?: number;
+  unit?: string | null;
+  unitPrice?: number;
+  amount: number;
+  currency?: string;
+  committedAt?: string;
+  note?: string | null;
+}
+
+export interface UpdateCommitmentBody {
+  companyId: number;
+  contractId?: number | null;
+  boqLineId?: number | null;
+  locationId?: number | null;
+  vendorId?: number | null;
+  description?: string;
+  quantity?: number;
+  unit?: string | null;
+  unitPrice?: number;
+  amount?: number;
+  committedAt?: string;
+  note?: string | null;
 }
 
 // ===== FAZ 6 — istek gövdeleri ==============================================

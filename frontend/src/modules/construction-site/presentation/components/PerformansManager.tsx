@@ -90,6 +90,7 @@ const GRP_TINT = {
   manhours: '#fef3c7',
   productivity: '#f5f3ff',
   amount: '#f0fdf4',
+  commitment: '#fdf2f8',
 } as const;
 
 const BAND_COLOR: Record<EfficiencyBand, string> = {
@@ -385,11 +386,24 @@ export function PerformansManager({ api, companyId, lang }: PerformansManagerPro
                 label={t('cs.perf.c.earnedPursantaj')}
                 value={`${num(summary.earnedPursantaj, 3)}%`}
               />
+              <Metric
+                label={t('cs.perf.c.costExposure')}
+                value={num(summary.costExposure)}
+                hint={t('cs.evm.exposureHint')}
+              />
+              <div>
+                <span style={label} title={t('cs.perf.h.budgetVariance')}>
+                  {t('cs.perf.c.budgetVariance')}
+                </span>
+                <div style={{ fontSize: 15 }}>
+                  <Signed value={summary.budgetVariance} digits={0} goodWhenPositive />
+                </div>
+              </div>
             </div>
           )}
 
           <div style={{ ...box, padding: 0, overflowX: 'auto' }}>
-            <table style={{ borderCollapse: 'collapse', minWidth: 1900, width: '100%' }}>
+            <table style={{ borderCollapse: 'collapse', minWidth: 2300, width: '100%' }}>
               <thead>
                 {/* Grup satırı — Imperium'un kolon grubu düzeni */}
                 <tr>
@@ -408,6 +422,9 @@ export function PerformansManager({ api, companyId, lang }: PerformansManagerPro
                   </th>
                   <th style={{ ...th(GRP_TINT.amount), textAlign: 'center' }} colSpan={2}>
                     {t('cs.perf.grp.amount')}
+                  </th>
+                  <th style={{ ...th(GRP_TINT.commitment), textAlign: 'center' }} colSpan={4}>
+                    {t('cs.perf.grp.commitment')}
                   </th>
                 </tr>
                 <tr>
@@ -459,6 +476,15 @@ export function PerformansManager({ api, companyId, lang }: PerformansManagerPro
 
                   <th style={th(GRP_TINT.amount)}>{t('cs.perf.c.progressAmount')}</th>
                   <th style={th(GRP_TINT.amount)}>{t('cs.perf.c.expenseAmount')}</th>
+
+                  <th style={th(GRP_TINT.commitment)}>{t('cs.perf.c.committed')}</th>
+                  <th style={th(GRP_TINT.commitment)}>{t('cs.perf.c.openCommitted')}</th>
+                  <th style={th(GRP_TINT.commitment)} title={t('cs.evm.exposureHint')}>
+                    {t('cs.perf.c.costExposure')}
+                  </th>
+                  <th style={th(GRP_TINT.commitment)} title={t('cs.perf.h.budgetVariance')}>
+                    {t('cs.perf.c.budgetVariance')}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -579,6 +605,19 @@ export function PerformansManager({ api, companyId, lang }: PerformansManagerPro
                         {num(r.progressAmount)}
                       </td>
                       <td style={{ ...td, background: GRP_TINT.amount }}>{num(r.expenseAmount)}</td>
+
+                      <td style={{ ...td, background: GRP_TINT.commitment }}>
+                        {num(r.committedAmount)}
+                      </td>
+                      <td style={{ ...td, background: GRP_TINT.commitment, fontWeight: 600 }}>
+                        {num(r.openCommittedAmount)}
+                      </td>
+                      <td style={{ ...td, background: GRP_TINT.commitment }}>
+                        {num(r.costExposure)}
+                      </td>
+                      <td style={{ ...td, background: GRP_TINT.commitment }}>
+                        <Signed value={r.budgetVariance} digits={0} goodWhenPositive />
+                      </td>
                     </tr>
                   );
                 })}
@@ -609,6 +648,12 @@ export function PerformansManager({ api, companyId, lang }: PerformansManagerPro
                     <td style={td}>{num(summary.eacManhours, 1)}</td>
                     <td style={td}>{num(summary.progressAmount)}</td>
                     <td style={td}>{num(summary.expenseAmount)}</td>
+                    <td style={td}>{num(summary.committedAmount)}</td>
+                    <td style={td}>{num(summary.openCommittedAmount)}</td>
+                    <td style={td}>{num(summary.costExposure)}</td>
+                    <td style={td}>
+                      <Signed value={summary.budgetVariance} digits={0} goodWhenPositive />
+                    </td>
                   </tr>
                 </tfoot>
               )}

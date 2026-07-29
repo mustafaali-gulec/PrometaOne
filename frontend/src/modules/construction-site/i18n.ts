@@ -649,7 +649,57 @@ export type CsLabelKey =
   | 'cs.qg.asrc.rfi'
   | 'cs.qg.asrc.inspection'
   | 'cs.qg.asrc.daily_log'
-  | 'cs.qg.asrc.tracking';
+  | 'cs.qg.asrc.tracking'
+  // FAZ 7 — Taahhüt & EVM
+  | 'cs.cmt.title'
+  | 'cs.cmt.subtitle'
+  | 'cs.cmt.new'
+  | 'cs.cmt.c.refNo'
+  | 'cs.cmt.c.source'
+  | 'cs.cmt.c.amount'
+  | 'cs.cmt.c.delivered'
+  | 'cs.cmt.c.open'
+  | 'cs.cmt.c.committedAt'
+  | 'cs.cmt.c.boqLine'
+  | 'cs.cmt.c.contract'
+  | 'cs.cmt.src.purchase_order'
+  | 'cs.cmt.src.subcontract'
+  | 'cs.cmt.src.manual'
+  | 'cs.cmt.st.open'
+  | 'cs.cmt.st.partial'
+  | 'cs.cmt.st.closed'
+  | 'cs.cmt.st.cancelled'
+  | 'cs.cmt.act.delivery'
+  | 'cs.cmt.act.close'
+  | 'cs.cmt.act.cancel'
+  | 'cs.cmt.deliveryHint'
+  | 'cs.cmt.closeConfirm'
+  | 'cs.cmt.cancelConfirm'
+  | 'cs.cmt.empty'
+  | 'cs.cmt.s.openTotal'
+  | 'cs.cmt.s.committedTotal'
+  | 'cs.cmt.s.openCount'
+  | 'cs.cmt.s.unlinked'
+  | 'cs.cmt.s.unlinkedHint'
+  | 'cs.evm.title'
+  | 'cs.evm.bac'
+  | 'cs.evm.ev'
+  | 'cs.evm.ac'
+  | 'cs.evm.openCommitted'
+  | 'cs.evm.exposure'
+  | 'cs.evm.remaining'
+  | 'cs.evm.cpi'
+  | 'cs.evm.cpiHint'
+  | 'cs.evm.exposureHint'
+  | 'cs.evm.noSpi'
+  | 'cs.evm.pctEarned'
+  | 'cs.evm.pctExposure'
+  | 'cs.perf.grp.commitment'
+  | 'cs.perf.c.committed'
+  | 'cs.perf.c.openCommitted'
+  | 'cs.perf.c.costExposure'
+  | 'cs.perf.c.budgetVariance'
+  | 'cs.perf.h.budgetVariance';
 
 const DICT: Record<CsLabelKey, Record<Lang, string>> = {
   // ===== ORTAK =============================================================
@@ -4072,6 +4122,301 @@ const DICT: Record<CsLabelKey, Record<Lang, string>> = {
     de: 'Fortschrittsverfolgung',
     ar: 'متابعة التقدم',
   },
+
+  'cs.cmt.title': {
+    tr: 'Taahhütler & EVM',
+    en: 'Commitments & EVM',
+    de: 'Obligos & EVM',
+    ar: 'الالتزامات و EVM',
+  },
+  'cs.cmt.subtitle': {
+    tr: 'Verilmiş ama henüz faturalanmamış para: siparişler, taşeron anlaşmaları, elle girilen taahhütler. Taahhütsüz bütçe tablosu yalan söyler.',
+    en: 'Money committed but not yet invoiced: purchase orders, subcontract agreements, manual entries. A budget table without commitments lies.',
+    de: 'Zugesagtes, aber noch nicht fakturiertes Geld: Bestellungen, Nachunternehmerverträge, manuelle Einträge. Eine Budgettabelle ohne Obligos lügt.',
+    ar: 'أموال ملتزم بها لم تُفوتر بعد: أوامر شراء، اتفاقيات مقاولين، إدخالات يدوية. جدول ميزانية بلا التزامات يكذب.',
+  },
+  'cs.cmt.new': {
+    tr: '+ Taahhüt',
+    en: '+ Commitment',
+    de: '+ Obligo',
+    ar: '+ التزام',
+  },
+  'cs.cmt.c.refNo': {
+    tr: 'Belge no',
+    en: 'Ref no',
+    de: 'Beleg-Nr.',
+    ar: 'رقم المستند',
+  },
+  'cs.cmt.c.source': {
+    tr: 'Kaynak',
+    en: 'Source',
+    de: 'Quelle',
+    ar: 'المصدر',
+  },
+  'cs.cmt.c.amount': {
+    tr: 'Tutar',
+    en: 'Amount',
+    de: 'Betrag',
+    ar: 'المبلغ',
+  },
+  'cs.cmt.c.delivered': {
+    tr: 'Teslim alınan',
+    en: 'Delivered',
+    de: 'Geliefert',
+    ar: 'المستلم',
+  },
+  'cs.cmt.c.open': {
+    tr: 'Açık taahhüt',
+    en: 'Open commitment',
+    de: 'Offenes Obligo',
+    ar: 'الالتزام المفتوح',
+  },
+  'cs.cmt.c.committedAt': {
+    tr: 'Taahhüt tarihi',
+    en: 'Committed on',
+    de: 'Zugesagt am',
+    ar: 'تاريخ الالتزام',
+  },
+  'cs.cmt.c.boqLine': {
+    tr: 'Keşif satırı no',
+    en: 'BoQ line no',
+    de: 'LV-Positions-Nr.',
+    ar: 'رقم بند الكميات',
+  },
+  'cs.cmt.c.contract': {
+    tr: 'Sözleşme no',
+    en: 'Contract no',
+    de: 'Vertrags-Nr.',
+    ar: 'رقم العقد',
+  },
+  'cs.cmt.src.purchase_order': {
+    tr: 'Satınalma siparişi',
+    en: 'Purchase order',
+    de: 'Bestellung',
+    ar: 'أمر شراء',
+  },
+  'cs.cmt.src.subcontract': {
+    tr: 'Taşeron anlaşması',
+    en: 'Subcontract',
+    de: 'Nachunternehmervertrag',
+    ar: 'عقد مقاول',
+  },
+  'cs.cmt.src.manual': {
+    tr: 'Elle giriş',
+    en: 'Manual',
+    de: 'Manuell',
+    ar: 'إدخال يدوي',
+  },
+  'cs.cmt.st.open': {
+    tr: 'Açık',
+    en: 'Open',
+    de: 'Offen',
+    ar: 'مفتوح',
+  },
+  'cs.cmt.st.partial': {
+    tr: 'Kısmi teslim',
+    en: 'Partially delivered',
+    de: 'Teilgeliefert',
+    ar: 'مستلم جزئيًا',
+  },
+  'cs.cmt.st.closed': {
+    tr: 'Kapandı',
+    en: 'Closed',
+    de: 'Geschlossen',
+    ar: 'مغلق',
+  },
+  'cs.cmt.st.cancelled': {
+    tr: 'İptal',
+    en: 'Cancelled',
+    de: 'Storniert',
+    ar: 'ملغى',
+  },
+  'cs.cmt.act.delivery': {
+    tr: 'Teslimat',
+    en: 'Delivery',
+    de: 'Lieferung',
+    ar: 'تسليم',
+  },
+  'cs.cmt.act.close': {
+    tr: 'Kapat',
+    en: 'Close',
+    de: 'Schließen',
+    ar: 'إغلاق',
+  },
+  'cs.cmt.act.cancel': {
+    tr: 'İptal et',
+    en: 'Cancel',
+    de: 'Stornieren',
+    ar: 'إلغاء',
+  },
+  'cs.cmt.deliveryHint': {
+    tr: 'KÜMÜLATİF teslim tutarı girilir (bu teslimatın tutarı değil, bugüne kadarki toplam). Tam teslimde taahhüt otomatik kapanır.',
+    en: 'Enter the CUMULATIVE delivered amount (total to date, not this delivery). Full delivery closes the commitment automatically.',
+    de: 'Der KUMULIERTE Lieferbetrag wird erfasst (Gesamtsumme bis heute, nicht diese Lieferung). Volllieferung schließt das Obligo automatisch.',
+    ar: 'يُدخل المبلغ المستلم التراكمي (الإجمالي حتى اليوم، لا هذه الدفعة). التسليم الكامل يغلق الالتزام تلقائيًا.',
+  },
+  'cs.cmt.closeConfirm': {
+    tr: 'Taahhüt kapatılsın mı? Kalan açık tutar maruziyetten düşer ve kayıt bir daha düzenlenemez.',
+    en: 'Close this commitment? The remaining open amount leaves the exposure and the record can no longer be edited.',
+    de: 'Dieses Obligo schließen? Der offene Restbetrag verlässt die Exponierung und der Eintrag ist nicht mehr editierbar.',
+    ar: 'هل يُغلق هذا الالتزام؟ يخرج المبلغ المفتوح المتبقي من التعرض ولا يمكن تعديل السجل بعدها.',
+  },
+  'cs.cmt.cancelConfirm': {
+    tr: 'Taahhüt iptal edilsin mi? Teslim alınmış kısım kalır, açık kısım maruziyetten düşer.',
+    en: 'Cancel this commitment? The delivered part remains; the open part leaves the exposure.',
+    de: 'Dieses Obligo stornieren? Der gelieferte Teil bleibt; der offene Teil verlässt die Exponierung.',
+    ar: 'هل يُلغى هذا الالتزام؟ يبقى الجزء المستلم ويخرج الجزء المفتوح من التعرض.',
+  },
+  'cs.cmt.empty': {
+    tr: 'Bu süzgeçlerle taahhüt yok.',
+    en: 'No commitment matches these filters.',
+    de: 'Kein Obligo entspricht diesen Filtern.',
+    ar: 'لا يوجد التزام يطابق هذه المرشحات.',
+  },
+  'cs.cmt.s.openTotal': {
+    tr: 'Açık taahhüt',
+    en: 'Open committed',
+    de: 'Offenes Obligo',
+    ar: 'الالتزام المفتوح',
+  },
+  'cs.cmt.s.committedTotal': {
+    tr: 'Toplam taahhüt',
+    en: 'Total committed',
+    de: 'Gesamtobligo',
+    ar: 'إجمالي الالتزام',
+  },
+  'cs.cmt.s.openCount': {
+    tr: 'Açık kayıt',
+    en: 'Open records',
+    de: 'Offene Einträge',
+    ar: 'سجلات مفتوحة',
+  },
+  'cs.cmt.s.unlinked': {
+    tr: 'Poza bağlanmamış',
+    en: 'Not linked to BoQ',
+    de: 'Ohne LV-Bezug',
+    ar: 'غير مرتبط بالبند',
+  },
+  'cs.cmt.s.unlinkedHint': {
+    tr: 'Poza bağlanmamış taahhüt sözleşme EVM toplamlarına girmez — veri kalitesi göstergesi.',
+    en: 'Commitments not linked to a BoQ line are excluded from contract EVM totals — a data quality signal.',
+    de: 'Obligos ohne LV-Bezug fließen nicht in die Vertrags-EVM-Summen ein — ein Datenqualitätssignal.',
+    ar: 'الالتزامات غير المرتبطة ببند لا تدخل في مجاميع EVM للعقد — مؤشر على جودة البيانات.',
+  },
+  'cs.evm.title': {
+    tr: 'Sözleşme EVM',
+    en: 'Contract EVM',
+    de: 'Vertrags-EVM',
+    ar: 'EVM للعقد',
+  },
+  'cs.evm.bac': {
+    tr: 'Bütçe (BAC)',
+    en: 'Budget (BAC)',
+    de: 'Budget (BAC)',
+    ar: 'الميزانية (BAC)',
+  },
+  'cs.evm.ev': {
+    tr: 'Hakediş (EV)',
+    en: 'Earned (EV)',
+    de: 'Erbracht (EV)',
+    ar: 'المكتسب (EV)',
+  },
+  'cs.evm.ac': {
+    tr: 'Fiili gider (AC)',
+    en: 'Actual cost (AC)',
+    de: 'Ist-Kosten (AC)',
+    ar: 'التكلفة الفعلية (AC)',
+  },
+  'cs.evm.openCommitted': {
+    tr: 'Açık taahhüt',
+    en: 'Open committed',
+    de: 'Offenes Obligo',
+    ar: 'الالتزام المفتوح',
+  },
+  'cs.evm.exposure': {
+    tr: 'Maruziyet',
+    en: 'Exposure',
+    de: 'Exponierung',
+    ar: 'التعرض',
+  },
+  'cs.evm.remaining': {
+    tr: 'Bütçe kalan',
+    en: 'Budget remaining',
+    de: 'Restbudget',
+    ar: 'المتبقي من الميزانية',
+  },
+  'cs.evm.cpi': {
+    tr: 'CPI',
+    en: 'CPI',
+    de: 'CPI',
+    ar: 'CPI',
+  },
+  'cs.evm.cpiHint': {
+    tr: 'CPI = hakediş / fiili gider. 1 altı: kazandığından çok harcıyor.',
+    en: 'CPI = earned value / actual cost. Below 1: spending more than earning.',
+    de: 'CPI = Fertigstellungswert / Ist-Kosten. Unter 1: es wird mehr ausgegeben als verdient.',
+    ar: 'CPI = القيمة المكتسبة ÷ التكلفة الفعلية. أقل من 1: الإنفاق أكثر من الكسب.',
+  },
+  'cs.evm.exposureHint': {
+    tr: 'Maruziyet = fiili gider + açık taahhüt. Sipariş vermeden önce bakılacak sayı budur, harcama değil.',
+    en: 'Exposure = actual cost + open commitments. This is the number to check before ordering, not spend.',
+    de: 'Exponierung = Ist-Kosten + offene Obligos. Diese Zahl zählt vor einer Bestellung, nicht die Ausgaben.',
+    ar: 'التعرض = التكلفة الفعلية + الالتزامات المفتوحة. هذا هو الرقم الذي يُراجع قبل الطلب، لا الإنفاق.',
+  },
+  'cs.evm.noSpi': {
+    tr: 'SPI ve klasik EAC bilerek yok: zaman-fazlı bütçe (baseline) olmadan hesaplanamaz; uydurmak yanlış güven verir.',
+    en: 'SPI and classic EAC are intentionally absent: they cannot be computed without a time-phased baseline; faking them gives false confidence.',
+    de: 'SPI und klassisches EAC fehlen bewusst: ohne zeitphasenbezogene Baseline nicht berechenbar; sie zu erfinden gibt falsche Sicherheit.',
+    ar: 'SPI و EAC الكلاسيكي غائبان عمدًا: لا يمكن حسابهما دون خط أساس زمني؛ اختلاقهما يمنح ثقة زائفة.',
+  },
+  'cs.evm.pctEarned': {
+    tr: 'Kazanılan %',
+    en: 'Earned %',
+    de: 'Erbracht %',
+    ar: 'المكتسب ٪',
+  },
+  'cs.evm.pctExposure': {
+    tr: 'Maruziyet %',
+    en: 'Exposure %',
+    de: 'Exponierung %',
+    ar: 'التعرض ٪',
+  },
+  'cs.perf.grp.commitment': {
+    tr: 'TAAHHÜT & MALİYET',
+    en: 'COMMITMENT & COST',
+    de: 'OBLIGO & KOSTEN',
+    ar: 'الالتزام والتكلفة',
+  },
+  'cs.perf.c.committed': {
+    tr: 'Sipariş (taahhüt)',
+    en: 'Committed (POs)',
+    de: 'Obligo (Bestellungen)',
+    ar: 'الطلبات (التزام)',
+  },
+  'cs.perf.c.openCommitted': {
+    tr: 'Açık taahhüt',
+    en: 'Open committed',
+    de: 'Offenes Obligo',
+    ar: 'الالتزام المفتوح',
+  },
+  'cs.perf.c.costExposure': {
+    tr: 'Maruziyet',
+    en: 'Exposure',
+    de: 'Exponierung',
+    ar: 'التعرض',
+  },
+  'cs.perf.c.budgetVariance': {
+    tr: 'Bütçe sapması',
+    en: 'Budget variance',
+    de: 'Budgetabweichung',
+    ar: 'انحراف الميزانية',
+  },
+  'cs.perf.h.budgetVariance': {
+    tr: 'Planlanan − (fiili + açık taahhüt). Negatif: poz bütçeyi aşmış ya da aşmak üzere — sipariş verilirken görünmeli.',
+    en: 'Planned − (actual + open committed). Negative: the line has exceeded or is about to exceed budget — visible before ordering.',
+    de: 'Geplant − (Ist + offenes Obligo). Negativ: die Position hat das Budget überschritten oder steht kurz davor.',
+    ar: 'المخطط − (الفعلي + الالتزام المفتوح). سالب: تجاوز البند الميزانية أو أوشك — يجب أن يظهر قبل الطلب.',
+  },
 };
 
 /** Şantiye etiketi getir; `vars` ile {placeholder} doldurulur. */
@@ -4293,4 +4638,14 @@ export function assignmentStatusLabel(status: string, lang: string | undefined):
 /** Görev kaynak belge tipi etiketi. */
 export function assignmentSourceLabel(source: string, lang: string | undefined): string {
   return csT(`cs.qg.asrc.${source}` as CsLabelKey, lang);
+}
+
+/** Taahhüt kaynağı etiketi. */
+export function commitmentSourceLabel(source: string, lang: string | undefined): string {
+  return csT(`cs.cmt.src.${source}` as CsLabelKey, lang);
+}
+
+/** Taahhüt durumu etiketi. */
+export function commitmentStatusLabel(status: string, lang: string | undefined): string {
+  return csT(`cs.cmt.st.${status}` as CsLabelKey, lang);
 }

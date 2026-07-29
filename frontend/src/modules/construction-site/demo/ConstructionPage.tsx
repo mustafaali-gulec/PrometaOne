@@ -36,6 +36,7 @@ import { ProjectsKanban } from '../presentation/components/ProjectsKanban';
 import { ProjectsTable } from '../presentation/components/ProjectsTable';
 import { RaporManager } from '../presentation/components/RaporManager';
 import { SantiyeGunluguManager } from '../presentation/components/SantiyeGunluguManager';
+import { TaahhutManager } from '../presentation/components/TaahhutManager';
 import { TakipSablonManager } from '../presentation/components/TakipSablonManager';
 import { useContracts } from '../presentation/hooks/useContracts';
 import { usePozCatalog } from '../presentation/hooks/usePozCatalog';
@@ -58,7 +59,8 @@ export type ConstructionTab =
   | 'dailylog'
   | 'performance'
   | 'approvals'
-  | 'quality';
+  | 'quality'
+  | 'commitments';
 
 const ALL_TABS: ConstructionTab[] = [
   'projects',
@@ -78,6 +80,7 @@ const ALL_TABS: ConstructionTab[] = [
   'performance',
   'approvals',
   'quality',
+  'commitments',
 ];
 const TAB_LABELS: Record<ConstructionTab, string> = {
   projects: 'Projeler',
@@ -97,6 +100,7 @@ const TAB_LABELS: Record<ConstructionTab, string> = {
   performance: 'Adam×Saat & Verimlilik',
   approvals: 'Onay Akışları',
   quality: 'Kalite & Güvenlik',
+  commitments: 'Taahhütler & EVM',
 };
 
 export interface ConstructionPageProps {
@@ -215,6 +219,9 @@ export function ConstructionPage({
         ) : null}
         {tab === 'performance' ? (
           <PerformansManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'commitments' ? (
+          <TaahhutManager api={api} companyId={companyId} lang={lang} />
         ) : null}
         {tab === 'quality' ? (
           <KaliteGuvenlikManager

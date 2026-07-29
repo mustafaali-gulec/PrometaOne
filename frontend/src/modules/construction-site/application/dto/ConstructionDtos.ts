@@ -1030,6 +1030,16 @@ export interface PerformanceRowDto {
   band: EfficiencyBand;
   /** İmalat − hakediş. Pozitif: kesilmemiş iş. Negatif: fazla hakediş. */
   productionVsProgressQty: number;
+
+  // FAZ 7 — Taahhüt & maliyet
+  /** Poza verilen toplam sipariş (iptal hariç). */
+  committedAmount: number;
+  /** Açık taahhüt — verilmiş, henüz fiiliye dönmemiş. */
+  openCommittedAmount: number;
+  /** Fiili + açık taahhüt = gerçek maruziyet. */
+  costExposure: number;
+  /** Planlanan − maruziyet. Negatif = poz bütçeyi aşmış/aşmak üzere. */
+  budgetVariance: number;
 }
 
 export interface PerformanceSummaryDto {
@@ -1053,6 +1063,11 @@ export interface PerformanceSummaryDto {
   earnedPursantaj: number;
   /** Planlanan a×s girilmemiş satır sayısı — verim ölçülemeyen kısım. */
   linesWithoutPlan: number;
+  // FAZ 7 — Taahhüt & maliyet
+  committedAmount: number;
+  openCommittedAmount: number;
+  costExposure: number;
+  budgetVariance: number;
 }
 
 export interface PerformanceReportDto {
@@ -1535,4 +1550,84 @@ export interface QualityFileDto {
   sizeBytes: number | null;
   createdBy: number | null;
   createdAt: string;
+}
+
+// ============================================================================
+// FAZ 7 — TAAHHÜT & EVM (cs_commitments / cs_v_contract_evm)
+// ============================================================================
+
+export type CommitmentSource = 'purchase_order' | 'subcontract' | 'manual';
+export type CommitmentStatus = 'open' | 'partial' | 'closed' | 'cancelled';
+
+export interface CommitmentDto {
+  id: number;
+  companyId: number;
+  projectId: number;
+  contractId: number | null;
+  boqLineId: number | null;
+  locationId: number | null;
+  source: CommitmentSource;
+  refNo: string;
+  refLineNo: number;
+  vendorId: number | null;
+  description: string;
+  quantity: number;
+  unit: string | null;
+  unitPrice: number;
+  amount: number;
+  /** Teslim alınan (KÜMÜLATİF) — artık taahhüt değil, fiiliye dönmüş. */
+  deliveredAmount: number;
+  /** Açık taahhüt = amount − delivered (kapalı/iptalde 0) — maruziyete giren kısım. */
+  openAmount: number;
+  currency: string;
+  status: CommitmentStatus;
+  committedAt: string;
+  closedAt: string | null;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContractEvmDto {
+  contractId: number;
+  projectId: number;
+  lineCount: number;
+  /** Budget At Completion — keşif toplamı. */
+  bac: number;
+  /** Earned Value — hakediş kümülatifi (onaylı/ödenmiş). */
+  ev: number;
+  /** Actual Cost — fiili gider. */
+  ac: number;
+  committedAmount: number;
+  openCommitted: number;
+  costExposure: number;
+  budgetRemaining: number;
+  /** EV/AC; AC 0 → null. <1 = kazandığından çok harcıyor. */
+  cpi: number | null;
+  pctEarned: number | null;
+  pctSpent: number | null;
+  pctExposure: number | null;
+}
+
+export interface ProjectCommitmentSummaryDto {
+  projectId: number;
+  commitmentCount: number;
+  openCount: number;
+  committedTotal: number;
+  openCommitted: number;
+  /** Poza bağlanmamış taahhüt — veri kalitesi göstergesi. */
+  unlinkedCount: number;
+  unlinkedAmount: number;
+}
+
+export interface ProjectEvmDto {
+  contracts: ContractEvmDto[];
+  commitments: ProjectCommitmentSummaryDto | null;
+}
+
+export interface SyncCommitmentsResultDto {
+  inserted: number;
+  updated: number;
+  cancelled: number;
+  errors: { refNo: string; refLineNo: number; message: string }[];
 }

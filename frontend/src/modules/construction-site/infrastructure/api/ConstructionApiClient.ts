@@ -109,6 +109,9 @@ import type {
   RfiStatus,
   RfiSummaryDto,
   VendorScorecardRowDto,
+  CommitmentDto,
+  ContractEvmDto,
+  ProjectEvmDto,
 } from '../../application/dto/ConstructionDtos';
 import type { AuthTokenProvider } from '../../application/ports/AuthTokenProvider';
 import type {
@@ -179,6 +182,9 @@ import type {
   UpdateAssignmentBody,
   UpdateDefectBody,
   UpdateRfiBody,
+  CommitmentListOptions,
+  CreateCommitmentBody,
+  UpdateCommitmentBody,
 } from '../../application/ports/ConstructionApi';
 
 export class ConstructionApiClient implements ConstructionApi {
@@ -1328,6 +1334,65 @@ export class ConstructionApiClient implements ConstructionApi {
     return this.request<{ deleted: boolean }>(
       `/v1/construction/quality-files/${String(id)}?companyId=${String(companyId)}`,
       { method: 'DELETE' },
+    );
+  }
+
+  // ===== FAZ 7 — TAAHHÜT & EVM =============================================
+  listCommitments(
+    companyId: number,
+    options?: CommitmentListOptions,
+  ): Promise<{ commitments: CommitmentDto[] }> {
+    return this.request<{ commitments: CommitmentDto[] }>(
+      `/v1/construction/commitments?${this.qs(companyId, options as Record<string, string | number | boolean | undefined>)}`,
+    );
+  }
+
+  createCommitment(body: CreateCommitmentBody): Promise<CommitmentDto> {
+    return this.request<CommitmentDto>(`/v1/construction/commitments`, { method: 'POST', body });
+  }
+
+  updateCommitment(id: number, body: UpdateCommitmentBody): Promise<CommitmentDto> {
+    return this.request<CommitmentDto>(`/v1/construction/commitments/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  recordCommitmentDelivery(
+    id: number,
+    body: { companyId: number; deliveredAmount: number },
+  ): Promise<CommitmentDto> {
+    return this.request<CommitmentDto>(`/v1/construction/commitments/${String(id)}/delivery`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  closeCommitment(id: number, companyId: number): Promise<CommitmentDto> {
+    return this.request<CommitmentDto>(`/v1/construction/commitments/${String(id)}/close`, {
+      method: 'POST',
+      body: { companyId },
+    });
+  }
+
+  cancelCommitment(id: number, companyId: number): Promise<CommitmentDto> {
+    return this.request<CommitmentDto>(`/v1/construction/commitments/${String(id)}/cancel`, {
+      method: 'POST',
+      body: { companyId },
+    });
+  }
+
+  /** 204 → null (keşfi olmayan sözleşme — hata değil). */
+  async getContractEvm(contractId: number, companyId: number): Promise<ContractEvmDto | null> {
+    const res = await this.request<ContractEvmDto | undefined>(
+      `/v1/construction/contracts/${String(contractId)}/evm?companyId=${String(companyId)}`,
+    );
+    return res ?? null;
+  }
+
+  getProjectEvm(projectId: number, companyId: number): Promise<ProjectEvmDto> {
+    return this.request<ProjectEvmDto>(
+      `/v1/construction/projects/${String(projectId)}/evm?companyId=${String(companyId)}`,
     );
   }
 
