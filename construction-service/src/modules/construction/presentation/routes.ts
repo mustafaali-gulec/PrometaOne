@@ -142,6 +142,39 @@ import type {
   UpdateProjectUseCase,
 } from '../application/useCases/ProjectUseCases.js';
 import type {
+  AddQualityFileUseCase,
+  ChangeAssignmentStatusUseCase,
+  ChangeDefectStatusUseCase,
+  ChangeInspectionStatusUseCase,
+  ChangeRfiStatusUseCase,
+  CreateAssignmentUseCase,
+  CreateDefectUseCase,
+  CreateInspectionTemplateUseCase,
+  CreateRfiUseCase,
+  DeactivateInspectionTemplateUseCase,
+  DeleteQualityFileUseCase,
+  GetAssignmentSummaryUseCase,
+  GetDefectSummaryUseCase,
+  GetDefectUseCase,
+  GetInspectionUseCase,
+  GetRfiSummaryUseCase,
+  GetVendorScorecardUseCase,
+  AnswerRfiUseCase,
+  ListAssignmentsUseCase,
+  ListDefectsUseCase,
+  ListInspectionTemplatesUseCase,
+  ListInspectionsUseCase,
+  ListQualityFilesUseCase,
+  ListRfisUseCase,
+  RaiseDefectFromAnswerUseCase,
+  ReplaceInspectionTemplateItemsUseCase,
+  SaveInspectionAnswersUseCase,
+  StartInspectionUseCase,
+  UpdateAssignmentUseCase,
+  UpdateDefectUseCase,
+  UpdateRfiUseCase,
+} from '../application/useCases/QualityUseCases.js';
+import type {
   GetProgressCurveUseCase,
   GetProjectDashboardUseCase,
 } from '../application/useCases/ReportUseCases.js';
@@ -301,6 +334,38 @@ export interface ConstructionRouterDeps {
   getApprovalSummariesForDocs: GetApprovalSummariesForDocsUseCase;
   getMyApprovals: GetMyApprovalsUseCase;
   getApprovalHistory: GetApprovalHistoryUseCase;
+  // FAZ 6 — Kalite & Güvenlik
+  createDefect: CreateDefectUseCase;
+  updateDefect: UpdateDefectUseCase;
+  changeDefectStatus: ChangeDefectStatusUseCase;
+  listDefects: ListDefectsUseCase;
+  getDefect: GetDefectUseCase;
+  getDefectSummary: GetDefectSummaryUseCase;
+  createInspectionTemplate: CreateInspectionTemplateUseCase;
+  listInspectionTemplates: ListInspectionTemplatesUseCase;
+  replaceInspectionTemplateItems: ReplaceInspectionTemplateItemsUseCase;
+  deactivateInspectionTemplate: DeactivateInspectionTemplateUseCase;
+  startInspection: StartInspectionUseCase;
+  saveInspectionAnswers: SaveInspectionAnswersUseCase;
+  changeInspectionStatus: ChangeInspectionStatusUseCase;
+  listInspections: ListInspectionsUseCase;
+  getInspection: GetInspectionUseCase;
+  raiseDefectFromAnswer: RaiseDefectFromAnswerUseCase;
+  getVendorScorecard: GetVendorScorecardUseCase;
+  createRfi: CreateRfiUseCase;
+  updateRfi: UpdateRfiUseCase;
+  answerRfi: AnswerRfiUseCase;
+  changeRfiStatus: ChangeRfiStatusUseCase;
+  listRfis: ListRfisUseCase;
+  getRfiSummary: GetRfiSummaryUseCase;
+  createAssignment: CreateAssignmentUseCase;
+  updateAssignment: UpdateAssignmentUseCase;
+  changeAssignmentStatus: ChangeAssignmentStatusUseCase;
+  listAssignments: ListAssignmentsUseCase;
+  getAssignmentSummary: GetAssignmentSummaryUseCase;
+  addQualityFile: AddQualityFileUseCase;
+  listQualityFiles: ListQualityFilesUseCase;
+  deleteQualityFile: DeleteQualityFileUseCase;
 }
 
 // --- Schema fragmanları ---------------------------------------------------
@@ -362,6 +427,46 @@ const approvalDocKind = z.enum([
   'payment',
 ]);
 const approvalStatus = z.enum(['pending', 'approved', 'rejected', 'cancelled']);
+// FAZ 6 fragmanları — DB CHECK kısıtlarıyla birebir (QualitySafety VO)
+const defectKind = z.enum([
+  'workmanship',
+  'missing_work',
+  'material_damage',
+  'dimensional',
+  'plumbing',
+  'electrical',
+  'paint',
+  'insulation',
+  'cleaning',
+  'safety',
+  'other',
+]);
+const defectSeverity = z.enum(['very_low', 'low', 'medium', 'high', 'critical']);
+const defectStatus = z.enum(['open', 'in_progress', 'fixed', 'verified', 'closed', 'rejected']);
+const defectSource = z.enum(['internal', 'inspection', 'daily_log', 'client', 'rfi']);
+const inspectionTplKind = z.enum([
+  'quality',
+  'subcontractor_scorecard',
+  'hse',
+  'handover',
+  'other',
+]);
+const inspectionStatus = z.enum(['draft', 'completed', 'approved', 'cancelled']);
+const rfiDiscipline = z.enum([
+  'architectural',
+  'structural',
+  'mechanical',
+  'electrical',
+  'infrastructure',
+  'landscape',
+  'geotechnical',
+  'other',
+]);
+const qualityPriority = z.enum(['low', 'medium', 'high', 'urgent']);
+const rfiStatus = z.enum(['open', 'answered', 'closed', 'cancelled']);
+const assignmentStatus = z.enum(['open', 'in_progress', 'done', 'cancelled']);
+const assignmentSource = z.enum(['defect', 'rfi', 'inspection', 'daily_log', 'tracking']);
+const qualityDocKind = z.enum(['defect', 'inspection', 'rfi', 'assignment']);
 const pct = z.number().min(0).max(100);
 const templateBodySchema = z.object({
   groups: z.array(
@@ -3522,6 +3627,856 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
             actorUserId: actorId(c),
           }),
         );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 6 — KALİTE & GÜVENLİK ==========================================
+
+  // --- Hasar-Eksiklik -------------------------------------------------------
+  app.get(
+    '/defects',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        locationId: z.coerce.number().int().positive().optional(),
+        locationSubtree: z.coerce.boolean().optional(),
+        status: defectStatus.optional(),
+        openOnly: z.coerce.boolean().optional(),
+        severity: defectSeverity.optional(),
+        defectKind: defectKind.optional(),
+        vendorId: z.coerce.number().int().positive().optional(),
+        responsibleUserId: z.coerce.number().int().positive().optional(),
+        overdueOnly: z.coerce.boolean().optional(),
+        search: z.string().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ defects: await deps.listDefects.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // NOT: '/defects/summary' rotası '/defects/:id'den ÖNCE tanımlı — Hono
+  // sırayla eşler, sonra tanımlansa "summary" bir id sanılıp 400 yerdi.
+  app.get(
+    '/defects/summary',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive(),
+        byLocation: z.coerce.boolean().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ rows: await deps.getDefectSummary.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/defects/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.getDefect.execute({ defectId: id, companyId: q.companyId }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/defects',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        code: z.string().max(40).optional(),
+        title: z.string().min(1).max(300),
+        description: z.string().max(4000).nullable().optional(),
+        defectKind,
+        severity: defectSeverity.optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        responsibleUserId: z.number().int().positive().nullable().optional(),
+        source: defectSource.optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        dueDate: dateStr.nullable().optional(),
+        costEstimate: z.number().nonnegative().optional(),
+        currency: currency.optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.createDefect.execute({ ...b, reporterUserId: actorId(c) });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/defects/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        title: z.string().min(1).max(300).optional(),
+        description: z.string().max(4000).nullable().optional(),
+        defectKind: defectKind.optional(),
+        severity: defectSeverity.optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        responsibleUserId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        dueDate: dateStr.nullable().optional(),
+        costEstimate: z.number().nonnegative().optional(),
+        costActual: z.number().nonnegative().optional(),
+        currency: currency.optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateDefect.execute({ ...b, defectId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/defects/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        status: defectStatus,
+        note: z.string().max(2000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.changeDefectStatus.execute({
+            defectId: id,
+            companyId: b.companyId,
+            status: b.status,
+            note: b.note ?? null,
+            actorUserId: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // --- Denetleme şablonları ---------------------------------------------------
+  const tplItemSchema = z.object({
+    category: z.string().max(120).nullable().optional(),
+    code: z.string().min(1).max(40),
+    text: z.string().min(1).max(600),
+    weight: z.number().nonnegative().optional(),
+    maxScore: z.number().positive().optional(),
+    isCritical: z.boolean().optional(),
+    sortOrder: z.number().int().nonnegative().optional(),
+  });
+
+  app.get(
+    '/inspection-templates',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        kind: inspectionTplKind.optional(),
+        includeInactive: z.coerce.boolean().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ templates: await deps.listInspectionTemplates.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/inspection-templates',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        code: z.string().min(1).max(40),
+        name: z.string().min(1).max(300),
+        kind: inspectionTplKind.optional(),
+        description: z.string().max(4000).nullable().optional(),
+        scoring: z.enum(['weighted', 'pass_fail']).optional(),
+        passPct: z.number().min(0).max(100).optional(),
+        items: z.array(tplItemSchema).min(1).max(200),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.createInspectionTemplate.execute(b), 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.put(
+    '/inspection-templates/:id/items',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        items: z.array(tplItemSchema).min(1).max(200),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.replaceInspectionTemplateItems.execute({
+            templateId: id,
+            companyId: b.companyId,
+            items: b.items,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/inspection-templates/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deactivateInspectionTemplate.execute({
+            templateId: id,
+            companyId: q.companyId,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // --- Denetimler -------------------------------------------------------------
+  app.get(
+    '/inspections',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        templateId: z.coerce.number().int().positive().optional(),
+        vendorId: z.coerce.number().int().positive().optional(),
+        locationId: z.coerce.number().int().positive().optional(),
+        status: inspectionStatus.optional(),
+        fromDate: dateStr.optional(),
+        toDate: dateStr.optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ inspections: await deps.listInspections.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // Taşeron karnesi — '/inspections/:id'den ÖNCE (yol çakışması değil ama
+  // simetri için defects/summary ile aynı düzen).
+  app.get(
+    '/vendor-scorecard',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        vendorId: z.coerce.number().int().positive().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ rows: await deps.getVendorScorecard.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/inspections/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getInspection.execute({ inspectionId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/inspections',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        templateId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        code: z.string().max(40).optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        contractId: z.number().int().positive().nullable().optional(),
+        inspectionDate: dateStr,
+        periodLabel: z.string().max(40).nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.startInspection.execute({ ...b, inspectorUserId: actorId(c) });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.put(
+    '/inspections/:id/answers',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        answers: z
+          .array(
+            z.object({
+              itemId: z.number().int().positive(),
+              score: z.number().nonnegative().nullable().optional(),
+              isNa: z.boolean().optional(),
+              note: z.string().max(2000).nullable().optional(),
+            }),
+          )
+          .min(1)
+          .max(200),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.saveInspectionAnswers.execute({
+            inspectionId: id,
+            companyId: b.companyId,
+            answers: b.answers,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * Denetim durumu. ONAY (approved) yönetici ister: onaylı denetim taşeron
+   * karnesine girer ve artık taslağa dönemez — karne o puanla yayınlandı.
+   */
+  app.post(
+    '/inspections/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({ companyId: z.number().int().positive(), status: inspectionStatus }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      if (b.status === 'approved' && !canApprove(actorRole(c))) {
+        return c.json({ message: 'Denetimi onaylamak için yönetici yetkisi gerekir' }, 403);
+      }
+      try {
+        return c.json(
+          await deps.changeInspectionStatus.execute({
+            inspectionId: id,
+            companyId: b.companyId,
+            status: b.status,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Başarısız denetim maddesinden hasar-eksiklik doğur — denetimin işe dönüştüğü uç. */
+  app.post(
+    '/inspections/:id/items/:itemId/raise-defect',
+    requireWrite,
+    zValidator(
+      'param',
+      z.object({
+        id: z.coerce.number().int().positive(),
+        itemId: z.coerce.number().int().positive(),
+      }),
+    ),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        defectKind,
+        severity: defectSeverity.optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        responsibleUserId: z.number().int().positive().nullable().optional(),
+        dueDate: dateStr.nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const p = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.raiseDefectFromAnswer.execute({
+            inspectionId: p.id,
+            itemId: p.itemId,
+            ...b,
+            reporterUserId: actorId(c),
+          }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // --- Bilgi Talebi (RFI) -------------------------------------------------------
+  app.get(
+    '/rfis',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        locationId: z.coerce.number().int().positive().optional(),
+        status: rfiStatus.optional(),
+        discipline: rfiDiscipline.optional(),
+        priority: qualityPriority.optional(),
+        askedToUserId: z.coerce.number().int().positive().optional(),
+        overdueOnly: z.coerce.boolean().optional(),
+        search: z.string().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ rfis: await deps.listRfis.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/rfis/summary',
+    zValidator('query', companyIdQ.extend({ projectId: z.coerce.number().int().positive() })),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const summary = await deps.getRfiSummary.execute(q);
+        // Hiç RFI'ı olmayan projede 204: boş özet uydurmak yanıltır.
+        if (summary === null) return c.body(null, 204);
+        return c.json(summary);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/rfis',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        code: z.string().max(40).optional(),
+        subject: z.string().min(1).max(300),
+        question: z.string().min(1).max(8000),
+        discipline: rfiDiscipline.optional(),
+        priority: qualityPriority.optional(),
+        askedToUserId: z.number().int().positive().nullable().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        dueDate: dateStr.nullable().optional(),
+        impactDays: z.number().int().nonnegative().optional(),
+        impactCost: z.number().nonnegative().optional(),
+        currency: currency.optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.createRfi.execute({ ...b, askedBy: actorId(c) }), 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/rfis/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        subject: z.string().min(1).max(300).optional(),
+        question: z.string().min(1).max(8000).optional(),
+        discipline: rfiDiscipline.optional(),
+        priority: qualityPriority.optional(),
+        askedToUserId: z.number().int().positive().nullable().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        dueDate: dateStr.nullable().optional(),
+        impactDays: z.number().int().nonnegative().optional(),
+        impactCost: z.number().nonnegative().optional(),
+        currency: currency.optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateRfi.execute({ ...b, rfiId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/rfis/:id/answer',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({ companyId: z.number().int().positive(), answer: z.string().min(1).max(8000) }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.answerRfi.execute({
+            rfiId: id,
+            companyId: b.companyId,
+            answer: b.answer,
+            actorUserId: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/rfis/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', z.object({ companyId: z.number().int().positive(), status: rfiStatus })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.changeRfiStatus.execute({
+            rfiId: id,
+            companyId: b.companyId,
+            status: b.status,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // --- Görevlendirme -----------------------------------------------------------
+  app.get(
+    '/assignments',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        locationId: z.coerce.number().int().positive().optional(),
+        assignedToUserId: z.coerce.number().int().positive().optional(),
+        vendorId: z.coerce.number().int().positive().optional(),
+        status: assignmentStatus.optional(),
+        openOnly: z.coerce.boolean().optional(),
+        priority: qualityPriority.optional(),
+        sourceKind: assignmentSource.optional(),
+        sourceId: z.coerce.number().int().positive().optional(),
+        overdueOnly: z.coerce.boolean().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ assignments: await deps.listAssignments.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/assignments/summary',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive(),
+        byUser: z.coerce.boolean().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ rows: await deps.getAssignmentSummary.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/assignments',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        code: z.string().max(40).optional(),
+        title: z.string().min(1).max(300),
+        description: z.string().max(4000).nullable().optional(),
+        assignedToUserId: z.number().int().positive().nullable().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        priority: qualityPriority.optional(),
+        startDate: dateStr.nullable().optional(),
+        dueDate: dateStr.nullable().optional(),
+        sourceKind: assignmentSource.nullable().optional(),
+        sourceId: z.number().int().positive().nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.createAssignment.execute({ ...b, assignedBy: actorId(c) }), 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/assignments/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        title: z.string().min(1).max(300).optional(),
+        description: z.string().max(4000).nullable().optional(),
+        assignedToUserId: z.number().int().positive().nullable().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        priority: qualityPriority.optional(),
+        startDate: dateStr.nullable().optional(),
+        dueDate: dateStr.nullable().optional(),
+        progressPct: z.number().min(0).max(100).optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateAssignment.execute({ ...b, assignmentId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/assignments/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({ companyId: z.number().int().positive(), status: assignmentStatus }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.changeAssignmentStatus.execute({
+            assignmentId: id,
+            companyId: b.companyId,
+            status: b.status,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // --- Ortak ek dosyası (fotoğraf) — polimorfik, 4 ekranda aynı uç ----------------
+  app.get(
+    '/quality-files/:docKind/:docId',
+    zValidator(
+      'param',
+      z.object({ docKind: qualityDocKind, docId: z.coerce.number().int().positive() }),
+    ),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const p = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json({
+          files: await deps.listQualityFiles.execute({
+            companyId: q.companyId,
+            docKind: p.docKind,
+            docId: p.docId,
+          }),
+        });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/quality-files',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        docKind: qualityDocKind,
+        docId: z.number().int().positive(),
+        fileKind: z.string().max(20).optional(),
+        stage: z.enum(['before', 'after', 'other']).optional(),
+        title: z.string().max(300).nullable().optional(),
+        fileUrl: z.string().max(1000).nullable().optional(),
+        /** base64 gömülü içerik — küçük fotoğraflar için. */
+        contentBase64: z.string().max(8_000_000).nullable().optional(),
+        mimeType: z.string().max(100).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const content =
+          b.contentBase64 === null || b.contentBase64 === undefined
+            ? null
+            : Buffer.from(b.contentBase64, 'base64');
+        return c.json(
+          await deps.addQualityFile.execute({
+            companyId: b.companyId,
+            docKind: b.docKind,
+            docId: b.docId,
+            fileKind: b.fileKind,
+            stage: b.stage,
+            title: b.title,
+            fileUrl: b.fileUrl,
+            content,
+            mimeType: b.mimeType,
+            sizeBytes: content === null ? null : content.length,
+            createdBy: actorId(c),
+          }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/quality-files/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.deleteQualityFile.execute({ fileId: id, companyId: q.companyId }));
       } catch (err) {
         mapConstructionError(err);
       }

@@ -1,5 +1,5 @@
 /**
- * Faz 1→2→3→4→5 uçtan uca duman testi. Tek süreç, fetch tabanlı.
+ * Faz 1→2→3→4→5→6 uçtan uca duman testi. Tek süreç, fetch tabanlı.
  *
  * Yerel dev sunucusuna (varsayılan :3003) karşı koşar; ürettiği tüm veriyi
  * sonunda temizler. Geçici dosya — depoya girmez.
@@ -576,6 +576,235 @@ async function main() {
   chk('2/3 onayla akış onaylandı', 'approved', done.flow.status);
   chk('sorulmayan adım skipped', 'skipped', done.flow.steps[2].decision);
 
+  console.log('=== FAZ 6: kalite & güvenlik ===');
+
+  // --- Hasar-eksiklik yaşam döngüsü ---
+  const dfx = (
+    await post('defects', {
+      companyId: 1,
+      projectId: PRJ,
+      title: 'Banyo fayansı çatlak',
+      defectKind: 'workmanship',
+      severity: 'critical',
+      vendorId: 1,
+    })
+  ).json;
+  chk('hasar-eksiklik kodu sunucuda üretildi', 'DEF-0001', dfx.code);
+  chk('kritik kusura ertesi gün bitiş önerildi', dayShift(1), dfx.dueDate);
+  chk('geçiş listesi durumla geliyor', true, dfx.allowedTransitions.includes('fixed'));
+
+  const badVerify = await post(`defects/${String(dfx.id)}/status`, {
+    companyId: 1,
+    status: 'verified',
+  });
+  chk('gidermeden doğrulama 400', 400, badVerify.status);
+
+  await post(`defects/${String(dfx.id)}/status`, {
+    companyId: 1,
+    status: 'fixed',
+    note: 'değişti',
+  });
+  const reopened = (
+    await post(`defects/${String(dfx.id)}/status`, {
+      companyId: 1,
+      status: 'open',
+      note: 'fayans yine çatlak',
+    })
+  ).json;
+  chk('yeniden açılış reopen sayacını artırdı', 1, reopened.reopenCount);
+  chk('yeniden açılışta giderme izi temizlendi', null, reopened.fixedAt);
+
+  await post(`defects/${String(dfx.id)}/status`, { companyId: 1, status: 'fixed' });
+  const verified = (
+    await post(`defects/${String(dfx.id)}/status`, { companyId: 1, status: 'verified' })
+  ).json;
+  chk('giderilen kayıt doğrulandı', 'verified', verified.status);
+
+  const dHist = (await get(`defects/${String(dfx.id)}?companyId=1`)).json;
+  // open(açılış) + fixed + open + fixed + verified = 5 satır
+  chk('hasar-eksiklik geçmişi tam', 5, dHist.history.length);
+
+  const dSum = (await get(`defects/summary?companyId=1&projectId=${String(PRJ)}`)).json.rows[0];
+  chk('özet: yeniden açılan kusur sayılıyor', 1, dSum.reopenedCount);
+
+  // --- Denetleme: Taşeron Karne Formu ---
+  const tpl6 = (
+    await post('inspection-templates', {
+      companyId: 1,
+      code: `E2E-KARNE-${String(PRJ)}`,
+      name: 'E2E Taşeron Karnesi',
+      kind: 'subcontractor_scorecard',
+      passPct: 70,
+      items: [
+        { code: 'K1', text: 'İmalat kalitesi', weight: 2, maxScore: 5 },
+        { code: 'K2', text: 'İş programına uyum', weight: 1, maxScore: 5 },
+        { code: 'ISG', text: 'Baret/KKD kullanımı', weight: 1, maxScore: 5, isCritical: true },
+      ],
+    })
+  ).json;
+  chk('karne şablonu kuruldu (3 madde)', 3, tpl6.items.length);
+  chk('karne formu taşeron istiyor', true, tpl6.requiresVendor);
+
+  const noVendor = await post('inspections', {
+    companyId: 1,
+    projectId: PRJ,
+    templateId: tpl6.id,
+    inspectionDate: dayShift(0),
+  });
+  chk('karne denetimi taşeronsuz 400', 400, noVendor.status);
+
+  const insp = (
+    await post('inspections', {
+      companyId: 1,
+      projectId: PRJ,
+      templateId: tpl6.id,
+      vendorId: 1,
+      inspectionDate: dayShift(0),
+      periodLabel: '2026-07',
+    })
+  ).json;
+  chk('denetim cevap iskeletiyle kuruldu', 3, insp.answers.length);
+  chk('denetim kodu üretildi', true, insp.code.startsWith('DEN-'));
+
+  const k1 = insp.answers.find((x) => x.itemText === 'İmalat kalitesi');
+  const k2 = insp.answers.find((x) => x.itemText === 'İş programına uyum');
+  const isg = insp.answers.find((x) => x.itemText === 'Baret/KKD kullanımı');
+
+  // Kritik madde SIFIR: puan yüksek olsa da denetim kalmalı
+  const scored = (
+    await put(`inspections/${String(insp.id)}/answers`, {
+      companyId: 1,
+      answers: [
+        { itemId: k1.itemId, score: 5 },
+        { itemId: k2.itemId, isNa: true },
+        { itemId: isg.itemId, score: 0 },
+      ],
+    })
+  ).json;
+  // (5×2 + 0×1) / (5×2 + 5×1) = 10/15 = %66,67 — N/A paydadan düştü
+  chk('N/A madde paydadan düştü', 66.67, scored.live.scorePct);
+  chk('kritik madde sıfır → kaldı', false, scored.live.passed);
+  chk('kritik başarısızlık sayısı', 1, scored.live.criticalFailures);
+
+  // Düzeltilmiş puanla tamamla
+  const rescored = (
+    await put(`inspections/${String(insp.id)}/answers`, {
+      companyId: 1,
+      answers: [{ itemId: isg.itemId, score: 4 }],
+    })
+  ).json;
+  chk('yeni puanla geçti (14/15)', true, rescored.live.passed);
+  const completed = (
+    await post(`inspections/${String(insp.id)}/status`, { companyId: 1, status: 'completed' })
+  ).json;
+  chk('denetim tamamlandı, harf notu', 'A', completed.grade);
+
+  // Başarısız maddeden hasar-eksiklik doğur — taşeron denetimden devralınır
+  const raised = (
+    await post(`inspections/${String(insp.id)}/items/${String(k1.itemId)}/raise-defect`, {
+      companyId: 1,
+      defectKind: 'workmanship',
+      severity: 'high',
+    })
+  ).json;
+  chk('denetim maddesinden kusur doğdu', 'inspection', raised.defect.source);
+  chk('kusur karnedeki taşerona yazıldı', 1, raised.defect.vendorId);
+  const dupRaise = await post(
+    `inspections/${String(insp.id)}/items/${String(k1.itemId)}/raise-defect`,
+    { companyId: 1, defectKind: 'workmanship' },
+  );
+  chk('aynı maddeden ikinci kusur 400', 400, dupRaise.status);
+
+  await post(`inspections/${String(insp.id)}/status`, { companyId: 1, status: 'approved' });
+  const editApproved = await put(`inspections/${String(insp.id)}/answers`, {
+    companyId: 1,
+    answers: [{ itemId: k1.itemId, score: 1 }],
+  });
+  chk('onaylanmış denetimin cevabı değiştirilemez (400)', 400, editApproved.status);
+
+  const card = (await get(`vendor-scorecard?companyId=1&projectId=${String(PRJ)}`)).json.rows;
+  chk('taşeron karnesi satırı oluştu', 1, card.length);
+  chk('karnede denetim sayısı', 1, card[0].inspectionCount);
+  chk('karnede reopen toplamı', 1, card[0].reopenTotal);
+
+  // --- RFI ---
+  const rfi = (
+    await post('rfis', {
+      companyId: 1,
+      projectId: PRJ,
+      subject: 'P12 perde kalınlığı',
+      question: '25 mi 30 mu?',
+      discipline: 'structural',
+      priority: 'urgent',
+      dueDate: dayShift(-2),
+      impactDays: 3,
+    })
+  ).json;
+  chk('RFI kodu üretildi', 'RFI-0001', rfi.code);
+  chk('RFI gecikmesi sunucuda hesaplandı', 2, rfi.daysOverdue);
+
+  const answered = (
+    await post(`rfis/${String(rfi.id)}/answer`, { companyId: 1, answer: '30 cm, pafta R-04.' })
+  ).json;
+  chk('cevap durumu answered yaptı', 'answered', answered.status);
+
+  const rfiReopen = (await post(`rfis/${String(rfi.id)}/status`, { companyId: 1, status: 'open' }))
+    .json;
+  chk('yeniden açılan RFI cevabı korur', '30 cm, pafta R-04.', rfiReopen.answer);
+  await post(`rfis/${String(rfi.id)}/status`, { companyId: 1, status: 'closed' });
+
+  const rfiSum = (await get(`rfis/summary?companyId=1&projectId=${String(PRJ)}`)).json;
+  chk('RFI özetinde süre etkisi toplamı', 3, rfiSum.impactDaysTotal);
+
+  // --- Görevlendirme ---
+  const asg = (
+    await post('assignments', {
+      companyId: 1,
+      projectId: PRJ,
+      title: 'Fayans söküm-yenileme',
+      sourceKind: 'defect',
+      sourceId: dfx.id,
+      dueDate: dayShift(3),
+    })
+  ).json;
+  chk('görev kodu üretildi', 'GRV-0001', asg.code);
+
+  const halfSource = await post('assignments', {
+    companyId: 1,
+    projectId: PRJ,
+    title: 'yarım kaynak',
+    sourceKind: 'rfi',
+  });
+  chk('yarım kaynak referansı 400', 400, halfSource.status);
+
+  const doneAsg = (
+    await post(`assignments/${String(asg.id)}/status`, { companyId: 1, status: 'done' })
+  ).json;
+  chk('biten görev %100', 100, doneAsg.progressPct);
+
+  const bySource = (
+    await get(`assignments?companyId=1&sourceKind=defect&sourceId=${String(dfx.id)}`)
+  ).json.assignments;
+  chk('kaynak belgeden görev bulunur', 1, bySource.length);
+
+  // --- Ortak ek dosyası ---
+  const qf = (
+    await post('quality-files', {
+      companyId: 1,
+      docKind: 'defect',
+      docId: dfx.id,
+      stage: 'after',
+      title: 'Yenilenen fayans',
+      contentBase64: Buffer.from('e2e-foto').toString('base64'),
+      mimeType: 'image/jpeg',
+    })
+  ).json;
+  chk('ek dosya yüklendi (gömülü)', true, qf.hasContent);
+  const qfList = (await get(`quality-files/defect/${String(dfx.id)}?companyId=1`)).json.files;
+  chk('ek dosya listelendi', 1, qfList.length);
+  const qfDel = (await del(`quality-files/${String(qf.id)}?companyId=1`)).json;
+  chk('ek dosya silindi', true, qfDel.deleted);
+
   console.log('=== TEMİZLİK ===');
   await del(`projects/${PRJ}?companyId=1`);
   await del(`progress-templates/${TPL}?companyId=1`);
@@ -583,6 +812,7 @@ async function main() {
   for (const f of [af, af2, af3]) {
     await post(`approvals/${String(f.id)}/cancel`, { companyId: 1 });
   }
+  await del(`inspection-templates/${String(tpl6.id)}?companyId=1`);
   console.log('  proje pasife çekildi, şablonlar pasifleştirildi');
 
   console.log(`\nSONUÇ: ${String(ok)} geçti, ${String(fail)} başarısız`);

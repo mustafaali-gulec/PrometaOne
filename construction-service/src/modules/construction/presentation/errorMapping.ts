@@ -10,6 +10,18 @@ import { HTTPException } from 'hono/http-exception';
 import {
   AdvanceNotFoundError,
   ApprovalFlowNotFoundError,
+  AssignmentNotFoundError,
+  DefectNotFoundError,
+  DuplicateAssignmentCodeError,
+  DuplicateDefectCodeError,
+  DuplicateInspectionCodeError,
+  DuplicateInspectionTemplateCodeError,
+  DuplicateRfiCodeError,
+  InspectionNotEditableError,
+  InspectionNotFoundError,
+  InspectionTemplateNotFoundError,
+  QualityFileNotFoundError,
+  RfiNotFoundError,
   ApprovalNotActionableError,
   ApprovalStepNotFoundError,
   AttachmentNotFoundError,
@@ -79,7 +91,13 @@ export function mapConstructionError(err: unknown): never {
     err instanceof DailyLogNotFoundError ||
     err instanceof DailyLogEntryNotFoundError ||
     err instanceof ApprovalFlowNotFoundError ||
-    err instanceof ApprovalStepNotFoundError
+    err instanceof ApprovalStepNotFoundError ||
+    err instanceof DefectNotFoundError ||
+    err instanceof InspectionTemplateNotFoundError ||
+    err instanceof InspectionNotFoundError ||
+    err instanceof RfiNotFoundError ||
+    err instanceof AssignmentNotFoundError ||
+    err instanceof QualityFileNotFoundError
   ) {
     throw new HTTPException(404, { message: err.message });
   }
@@ -94,7 +112,12 @@ export function mapConstructionError(err: unknown): never {
     err instanceof DuplicateLocationCodeError ||
     err instanceof DuplicateProgressTemplateCodeError ||
     err instanceof DuplicateTrackingCodeError ||
-    err instanceof DuplicateApprovalFlowError
+    err instanceof DuplicateApprovalFlowError ||
+    err instanceof DuplicateDefectCodeError ||
+    err instanceof DuplicateInspectionTemplateCodeError ||
+    err instanceof DuplicateInspectionCodeError ||
+    err instanceof DuplicateRfiCodeError ||
+    err instanceof DuplicateAssignmentCodeError
   ) {
     throw new HTTPException(409, { message: err.message });
   }
@@ -113,7 +136,8 @@ export function mapConstructionError(err: unknown): never {
     err instanceof InvalidLocationNestingError ||
     err instanceof InvalidTrackingScopeError ||
     err instanceof TrackingNotActiveError ||
-    err instanceof ApprovalNotActionableError
+    err instanceof ApprovalNotActionableError ||
+    err instanceof InspectionNotEditableError
   ) {
     throw new HTTPException(400, { message: err.message });
   }

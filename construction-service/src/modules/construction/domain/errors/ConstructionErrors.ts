@@ -285,3 +285,78 @@ export class ConstructionValidationError extends ConstructionError {
     super(`Geçersiz veri: ${reason}`);
   }
 }
+
+// ===== FAZ 6 — Kalite & Güvenlik ===========================================
+
+export class DefectNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Hasar-eksiklik kaydı bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateDefectCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu kod projede zaten kullanılıyor: ${code}`);
+  }
+}
+
+export class InspectionTemplateNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Denetim şablonu bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateInspectionTemplateCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu denetim şablonu kodu zaten kullanılıyor: ${code}`);
+  }
+}
+
+export class InspectionNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Denetim bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateInspectionCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu denetim kodu zaten kullanılıyor: ${code}`);
+  }
+}
+
+/** Onaylanmış denetimin cevapları değiştirilemez — karne o puanla yayınlandı. */
+export class InspectionNotEditableError extends ConstructionError {
+  constructor(id: number, status: string) {
+    super(`Denetim bu statüde düzenlenemez (${status}): ${id}`);
+  }
+}
+
+export class RfiNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Bilgi talebi bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateRfiCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu bilgi talebi kodu projede zaten kullanılıyor: ${code}`);
+  }
+}
+
+export class AssignmentNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Görevlendirme bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateAssignmentCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu görevlendirme kodu projede zaten kullanılıyor: ${code}`);
+  }
+}
+
+export class QualityFileNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Ek dosya bulunamadı: ${id}`);
+  }
+}

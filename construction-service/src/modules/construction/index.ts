@@ -143,6 +143,39 @@ import {
   UpdateProjectUseCase,
 } from './application/useCases/ProjectUseCases.js';
 import {
+  AddQualityFileUseCase,
+  AnswerRfiUseCase,
+  ChangeAssignmentStatusUseCase,
+  ChangeDefectStatusUseCase,
+  ChangeInspectionStatusUseCase,
+  ChangeRfiStatusUseCase,
+  CreateAssignmentUseCase,
+  CreateDefectUseCase,
+  CreateInspectionTemplateUseCase,
+  CreateRfiUseCase,
+  DeactivateInspectionTemplateUseCase,
+  DeleteQualityFileUseCase,
+  GetAssignmentSummaryUseCase,
+  GetDefectSummaryUseCase,
+  GetDefectUseCase,
+  GetInspectionUseCase,
+  GetRfiSummaryUseCase,
+  GetVendorScorecardUseCase,
+  ListAssignmentsUseCase,
+  ListDefectsUseCase,
+  ListInspectionTemplatesUseCase,
+  ListInspectionsUseCase,
+  ListQualityFilesUseCase,
+  ListRfisUseCase,
+  RaiseDefectFromAnswerUseCase,
+  ReplaceInspectionTemplateItemsUseCase,
+  SaveInspectionAnswersUseCase,
+  StartInspectionUseCase,
+  UpdateAssignmentUseCase,
+  UpdateDefectUseCase,
+  UpdateRfiUseCase,
+} from './application/useCases/QualityUseCases.js';
+import {
   GetProgressCurveUseCase,
   GetProjectDashboardUseCase,
 } from './application/useCases/ReportUseCases.js';
@@ -198,6 +231,13 @@ import { PgPozCatalogRepository } from './infrastructure/persistence/PgPozCatalo
 import { PgProgressPaymentRepository } from './infrastructure/persistence/PgProgressPaymentRepository.js';
 import { PgProjectRepository } from './infrastructure/persistence/PgProjectRepository.js';
 import {
+  PgAssignmentRepository,
+  PgDefectRepository,
+  PgInspectionRepository,
+  PgQualityFileRepository,
+  PgRfiRepository,
+} from './infrastructure/persistence/PgQualityRepositories.js';
+import {
   PgProgressTemplateRepository,
   PgTrackingRepository,
 } from './infrastructure/persistence/PgTrackingRepositories.js';
@@ -235,6 +275,11 @@ export function registerConstructionModule(
   const dailyLogs = new PgDailyLogRepository(pool);
   const performance = new PgPerformanceRepository(pool);
   const approvals = new PgApprovalRepository(pool);
+  const defects = new PgDefectRepository(pool);
+  const inspections = new PgInspectionRepository(pool);
+  const rfis = new PgRfiRepository(pool);
+  const assignments = new PgAssignmentRepository(pool);
+  const qualityFiles = new PgQualityFileRepository(pool);
 
   const deps: ConstructionRouterDeps = {
     createProject: new CreateProjectUseCase(projects),
@@ -383,6 +428,42 @@ export function registerConstructionModule(
     getApprovalSummariesForDocs: new GetApprovalSummariesForDocsUseCase(approvals),
     getMyApprovals: new GetMyApprovalsUseCase(approvals, clock),
     getApprovalHistory: new GetApprovalHistoryUseCase(approvals),
+    // FAZ 6 — Kalite & Güvenlik
+    createDefect: new CreateDefectUseCase(defects, projects, clock),
+    updateDefect: new UpdateDefectUseCase(defects, clock),
+    changeDefectStatus: new ChangeDefectStatusUseCase(defects, clock),
+    listDefects: new ListDefectsUseCase(defects),
+    getDefect: new GetDefectUseCase(defects),
+    getDefectSummary: new GetDefectSummaryUseCase(defects),
+    createInspectionTemplate: new CreateInspectionTemplateUseCase(inspections),
+    listInspectionTemplates: new ListInspectionTemplatesUseCase(inspections),
+    replaceInspectionTemplateItems: new ReplaceInspectionTemplateItemsUseCase(inspections),
+    deactivateInspectionTemplate: new DeactivateInspectionTemplateUseCase(inspections),
+    startInspection: new StartInspectionUseCase(inspections, projects),
+    saveInspectionAnswers: new SaveInspectionAnswersUseCase(inspections, clock),
+    changeInspectionStatus: new ChangeInspectionStatusUseCase(inspections, clock),
+    listInspections: new ListInspectionsUseCase(inspections),
+    getInspection: new GetInspectionUseCase(inspections),
+    // Denetim maddesinden hasar-eksiklik: kusur karnedeki taşerona yazılır
+    raiseDefectFromAnswer: new RaiseDefectFromAnswerUseCase(
+      inspections,
+      new CreateDefectUseCase(defects, projects, clock),
+    ),
+    getVendorScorecard: new GetVendorScorecardUseCase(inspections),
+    createRfi: new CreateRfiUseCase(rfis, projects),
+    updateRfi: new UpdateRfiUseCase(rfis, clock),
+    answerRfi: new AnswerRfiUseCase(rfis, clock),
+    changeRfiStatus: new ChangeRfiStatusUseCase(rfis, clock),
+    listRfis: new ListRfisUseCase(rfis),
+    getRfiSummary: new GetRfiSummaryUseCase(rfis),
+    createAssignment: new CreateAssignmentUseCase(assignments, projects),
+    updateAssignment: new UpdateAssignmentUseCase(assignments, clock),
+    changeAssignmentStatus: new ChangeAssignmentStatusUseCase(assignments, clock),
+    listAssignments: new ListAssignmentsUseCase(assignments),
+    getAssignmentSummary: new GetAssignmentSummaryUseCase(assignments),
+    addQualityFile: new AddQualityFileUseCase(qualityFiles),
+    listQualityFiles: new ListQualityFilesUseCase(qualityFiles),
+    deleteQualityFile: new DeleteQualityFileUseCase(qualityFiles),
   };
 
   return createConstructionRouter(deps);
