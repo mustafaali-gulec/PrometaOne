@@ -226,6 +226,21 @@ import type {
   UpdateProgressTemplateUseCase,
   UpdateTrackingUseCase,
 } from '../application/useCases/TrackingUseCases.js';
+import type {
+  AddUnitPaymentUseCase,
+  ChangeUnitSaleStatusUseCase,
+  CreateChangeRequestUseCase,
+  CreateUnitSaleUseCase,
+  DecideChangeRequestUseCase,
+  DeleteUnitPaymentUseCase,
+  GetUnitInventoryUseCase,
+  GetUnitSaleUseCase,
+  ListUnitSalesUseCase,
+  SetUnitListPriceUseCase,
+  SyncUnitSalesUseCase,
+  UpdateChangeRequestUseCase,
+  UpdateUnitSaleUseCase,
+} from '../application/useCases/UnitSaleUseCases.js';
 import { LOG_ENTRY_KINDS } from '../domain/valueObjects/DailyLogKind.js';
 
 import { mapConstructionError } from './errorMapping.js';
@@ -421,6 +436,20 @@ export interface ConstructionRouterDeps {
   deactivateMaintenancePlan: DeactivateMaintenancePlanUseCase;
   addMaintenanceRecord: AddMaintenanceRecordUseCase;
   getMachineMaintenance: GetMachineMaintenanceUseCase;
+  // FAZ 10 — Konut satış
+  setUnitListPrice: SetUnitListPriceUseCase;
+  createUnitSale: CreateUnitSaleUseCase;
+  updateUnitSale: UpdateUnitSaleUseCase;
+  changeUnitSaleStatus: ChangeUnitSaleStatusUseCase;
+  listUnitSales: ListUnitSalesUseCase;
+  getUnitSale: GetUnitSaleUseCase;
+  addUnitPayment: AddUnitPaymentUseCase;
+  deleteUnitPayment: DeleteUnitPaymentUseCase;
+  createChangeRequest: CreateChangeRequestUseCase;
+  updateChangeRequest: UpdateChangeRequestUseCase;
+  decideChangeRequest: DecideChangeRequestUseCase;
+  getUnitInventory: GetUnitInventoryUseCase;
+  syncUnitSales: SyncUnitSalesUseCase;
 }
 
 // --- Schema fragmanları ---------------------------------------------------
@@ -525,6 +554,12 @@ const qualityDocKind = z.enum(['defect', 'inspection', 'rfi', 'assignment']);
 // FAZ 7 fragmanları
 const commitmentSource = z.enum(['purchase_order', 'subcontract', 'manual']);
 const commitmentStatus = z.enum(['open', 'partial', 'closed', 'cancelled']);
+const unitSaleStatus = z.enum(['reserved', 'sold', 'barter', 'cancelled']);
+const unitSaleActiveStatus = z.enum(['reserved', 'sold', 'barter']);
+const unitSaleSource = z.enum(['crm', 'manual']);
+const unitPaymentKind = z.enum(['collection', 'refund']);
+const unitPaymentMethod = z.enum(['cash', 'bank', 'cheque', 'other']);
+const changeRequestDecision = z.enum(['approved', 'rejected', 'done']);
 // FAZ 8 fragmanları
 const activityKind = z.enum(['group', 'task', 'milestone']);
 // FAZ 9 fragmanları
@@ -5195,6 +5230,364 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
             actorUserId: actorId(c),
           }),
           201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 10 — KONUT SATIŞ ===============================================
+
+  /** Daire envanteri: projenin TÜM aktif daireleri (satışsız = available) + özet. */
+  app.get(
+    '/projects/:id/unit-inventory',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getUnitInventory.execute({ companyId: q.companyId, projectId: id }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Liste fiyatı defteri — upsert. Satış anında bu değer satışa donar. */
+  app.put(
+    '/unit-prices/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        listPrice: z.number().nonnegative(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.setUnitListPrice.execute({
+            companyId: b.companyId,
+            locationId: id,
+            listPrice: b.listPrice,
+            note: b.note,
+            updatedBy: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/unit-sales',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        locationId: z.coerce.number().int().positive().optional(),
+        status: unitSaleStatus.optional(),
+        source: unitSaleSource.optional(),
+        search: z.string().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ sales: await deps.listUnitSales.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/unit-sales',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        locationId: z.number().int().positive(),
+        status: unitSaleActiveStatus,
+        buyerName: z.string().max(200).nullable().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        listPrice: z.number().nonnegative().optional(),
+        salePrice: z.number().nonnegative(),
+        currency: currency.optional(),
+        reservedAt: dateStr.nullable().optional(),
+        soldAt: dateStr.nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.createUnitSale.execute({ ...b, createdBy: actorId(c) }), 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Detay: satış + tahsilat satırları + değişiklik istekleri + kalan. */
+  app.get(
+    '/unit-sales/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.getUnitSale.execute({ saleId: id, companyId: q.companyId }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/unit-sales/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        buyerName: z.string().min(1).max(200).optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        listPrice: z.number().nonnegative().optional(),
+        salePrice: z.number().nonnegative().optional(),
+        reservedAt: dateStr.nullable().optional(),
+        soldAt: dateStr.nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateUnitSale.execute({ ...b, saleId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Durum geçişi. İptal gerekçe ister; reserved→barter vendorId ister. */
+  app.post(
+    '/unit-sales/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        to: unitSaleStatus,
+        note: z.string().max(4000).nullable().optional(),
+        soldAt: dateStr.optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.changeUnitSaleStatus.execute({ ...b, saleId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Tahsilat/iade satırı. Geleceğe yazılamaz; iade tahsil edileni aşamaz. */
+  app.post(
+    '/unit-sales/:id/payments',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        kind: unitPaymentKind.optional(),
+        paidAt: dateStr.optional(),
+        amount: z.number().positive(),
+        method: unitPaymentMethod.nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.addUnitPayment.execute({ ...b, saleId: id, createdBy: actorId(c) }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/unit-payments/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deleteUnitPayment.execute({ paymentId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Müşteri değişiklik isteği — kod sunucuda üretilir (DGS-0001). */
+  app.post(
+    '/unit-sales/:id/change-requests',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        title: z.string().min(1).max(200),
+        description: z.string().max(4000).nullable().optional(),
+        cost: z.number().nonnegative().optional(),
+        requestedAt: dateStr.optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.createChangeRequest.execute({ ...b, saleId: id, createdBy: actorId(c) }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Kapsam/bedel düzenleme — yalnız open durumda (onaylı bedel sözleşmeseldir). */
+  app.patch(
+    '/change-requests/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        title: z.string().min(1).max(200).optional(),
+        description: z.string().max(4000).nullable().optional(),
+        cost: z.number().nonnegative().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateChangeRequest.execute({ ...b, changeRequestId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Karar: approved | rejected | done. Red gerekçe ister. */
+  app.post(
+    '/change-requests/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        to: changeRequestDecision,
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.decideChangeRequest.execute({
+            ...b,
+            changeRequestId: id,
+            decidedBy: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * CRM KÖPRÜSÜ — idempotent toplu upsert (Faz 7 kalıbı). Satış CRM fırsatları
+   * refNo anahtarıyla gönderir; aynı yük iki kez gelse sonuç değişmez. Kısmi
+   * başarı DÖNER (errors[]) — durum gerilemesi (sold→reserved) satır hatasıdır.
+   */
+  app.post(
+    '/unit-sales/sync',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        lines: z
+          .array(
+            z.object({
+              refNo: z.string().min(1).max(60),
+              projectId: z.number().int().positive(),
+              locationId: z.number().int().positive(),
+              status: unitSaleActiveStatus,
+              buyerName: z.string().max(200).nullable().optional(),
+              vendorId: z.number().int().positive().nullable().optional(),
+              listPrice: z.number().nonnegative().optional(),
+              salePrice: z.number().nonnegative(),
+              currency: currency.optional(),
+              reservedAt: dateStr.nullable().optional(),
+              soldAt: dateStr.nullable().optional(),
+              cancelled: z.boolean().optional(),
+              cancelNote: z.string().max(4000).optional(),
+            }),
+          )
+          .min(1)
+          .max(500),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.syncUnitSales.execute({
+            companyId: b.companyId,
+            lines: b.lines,
+            createdBy: actorId(c),
+          }),
         );
       } catch (err) {
         mapConstructionError(err);

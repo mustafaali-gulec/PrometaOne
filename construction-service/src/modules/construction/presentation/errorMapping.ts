@@ -17,6 +17,13 @@ import {
   ScheduleActivityNotFoundError,
   CommitmentNotFoundError,
   DuplicateCommitmentRefError,
+  ChangeRequestNotEditableError,
+  ChangeRequestNotFoundError,
+  NotAUnitLocationError,
+  RefundExceedsCollectedError,
+  UnitAlreadySoldError,
+  UnitPaymentNotFoundError,
+  UnitSaleNotFoundError,
   AssignmentNotFoundError,
   DefectNotFoundError,
   DuplicateAssignmentCodeError,
@@ -107,7 +114,10 @@ export function mapConstructionError(err: unknown): never {
     err instanceof QualityFileNotFoundError ||
     err instanceof CommitmentNotFoundError ||
     err instanceof ScheduleActivityNotFoundError ||
-    err instanceof MaintenancePlanNotFoundError
+    err instanceof MaintenancePlanNotFoundError ||
+    err instanceof UnitSaleNotFoundError ||
+    err instanceof UnitPaymentNotFoundError ||
+    err instanceof ChangeRequestNotFoundError
   ) {
     throw new HTTPException(404, { message: err.message });
   }
@@ -139,7 +149,10 @@ export function mapConstructionError(err: unknown): never {
   if (
     err instanceof LocationInUseError ||
     err instanceof DailyLogLockedError ||
-    err instanceof ActivityHasChildrenError
+    err instanceof ActivityHasChildrenError ||
+    // Dairede zaten aktif satış olması bir çatışmadır: istemci önce mevcut
+    // kaydı iptal etmeli/güncellemeli.
+    err instanceof UnitAlreadySoldError
   ) {
     throw new HTTPException(409, { message: err.message });
   }
@@ -154,7 +167,10 @@ export function mapConstructionError(err: unknown): never {
     err instanceof TrackingNotActiveError ||
     err instanceof ApprovalNotActionableError ||
     err instanceof InspectionNotEditableError ||
-    err instanceof MeterRollbackError
+    err instanceof MeterRollbackError ||
+    err instanceof NotAUnitLocationError ||
+    err instanceof RefundExceedsCollectedError ||
+    err instanceof ChangeRequestNotEditableError
   ) {
     throw new HTTPException(400, { message: err.message });
   }

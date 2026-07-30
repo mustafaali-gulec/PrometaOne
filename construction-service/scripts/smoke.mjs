@@ -1,5 +1,5 @@
 /**
- * Faz 1→2→3→4→5→6→7→8→9 uçtan uca duman testi. Tek süreç, fetch tabanlı.
+ * Faz 1→2→3→4→5→6→7→8→9→10 uçtan uca duman testi. Tek süreç, fetch tabanlı.
  *
  * Yerel dev sunucusuna (varsayılan :3003) karşı koşar; ürettiği tüm veriyi
  * sonunda temizler. Geçici dosya — depoya girmez.
@@ -1191,6 +1191,169 @@ async function main() {
   ).json;
   chk('notlu sıfırlama kabul', 0, mrReset.currentMeter);
 
+  console.log('=== FAZ 10: konut satış ===');
+
+  // Envanter: Faz 1'in ağacından 8 daire, hepsi satışta (available türetilir)
+  const inv0 = (await get(`projects/${PRJ}/unit-inventory?companyId=1`)).json;
+  chk('envanterde 8 daire', 8, inv0.units.length);
+  chk('hepsi satışta (available)', 8, inv0.summary.availableCount);
+  chk('fiyatsız daire göstergesi', 8, inv0.summary.unpricedAvailableCount);
+  const u1 = inv0.units[0];
+  const u2 = inv0.units[1];
+  const u3 = inv0.units[2];
+
+  // Liste fiyatı defteri; blok fiyatlanamaz
+  await put(`unit-prices/${String(u1.locationId)}`, { companyId: 1, listPrice: 5000000 });
+  const badPrice = await put(`unit-prices/${String(ABLOK)}`, { companyId: 1, listPrice: 1 });
+  chk('blok fiyatlanamaz 400', 400, badPrice.status);
+
+  // Satış: liste fiyatı defterden DONAR, iskonto türetilir
+  const sale10 = (
+    await post('unit-sales', {
+      companyId: 1,
+      projectId: PRJ,
+      locationId: u1.locationId,
+      status: 'sold',
+      buyerName: 'E2E Alıcı',
+      salePrice: 4600000,
+    })
+  ).json;
+  chk('liste fiyatı defterden dondu', 5000000, sale10.listPrice);
+  chk('iskonto (liste − satış)', 400000, sale10.discount);
+
+  const dupSale = await post('unit-sales', {
+    companyId: 1,
+    projectId: PRJ,
+    locationId: u1.locationId,
+    status: 'reserved',
+    buyerName: 'İkinci Alıcı',
+    salePrice: 1,
+  });
+  chk('dolu daireye ikinci satış 409', 409, dupSale.status);
+
+  const blockSale = await post('unit-sales', {
+    companyId: 1,
+    projectId: PRJ,
+    locationId: ABLOK,
+    status: 'sold',
+    buyerName: 'X',
+    salePrice: 1,
+  });
+  chk('blok satılamaz 400', 400, blockSale.status);
+
+  // İş karşılığı: taşeronsuz 400, taşeronlu OK
+  const badBarter = await post('unit-sales', {
+    companyId: 1,
+    projectId: PRJ,
+    locationId: u2.locationId,
+    status: 'barter',
+    salePrice: 3000000,
+  });
+  chk('taşeronsuz iş karşılığı 400', 400, badBarter.status);
+  const barter10 = (
+    await post('unit-sales', {
+      companyId: 1,
+      projectId: PRJ,
+      locationId: u2.locationId,
+      status: 'barter',
+      vendorId: 1,
+      salePrice: 3000000,
+    })
+  ).json;
+  chk('iş karşılığı kaydı açıldı', 'barter', barter10.status);
+
+  // Tahsilat kuralları
+  await post(`unit-sales/${String(sale10.id)}/payments`, {
+    companyId: 1,
+    amount: 1000000,
+    method: 'bank',
+  });
+  const futurePay = await post(`unit-sales/${String(sale10.id)}/payments`, {
+    companyId: 1,
+    amount: 1,
+    paidAt: dayShift(2),
+  });
+  chk('geleceğe tahsilat 400', 400, futurePay.status);
+  const bigRefund = await post(`unit-sales/${String(sale10.id)}/payments`, {
+    companyId: 1,
+    kind: 'refund',
+    amount: 1000001,
+  });
+  chk('iade tahsilatı aşamaz 400', 400, bigRefund.status);
+
+  // Değişiklik isteği: kod sunucudan; open kalana girmez, onaylı girer, sonra donar
+  const cr10 = (
+    await post(`unit-sales/${String(sale10.id)}/change-requests`, {
+      companyId: 1,
+      title: 'Mutfak dolabı değişikliği',
+      cost: 200000,
+    })
+  ).json;
+  chk('DGS kodu sunucuda üretildi', true, /^DGS-\d{4}$/.test(cr10.code));
+  let det10 = (await get(`unit-sales/${String(sale10.id)}?companyId=1`)).json;
+  chk('open değişiklik kalana GİRMEZ (4.6M − 1M)', 3600000, det10.remaining);
+  await post(`change-requests/${String(cr10.id)}/status`, { companyId: 1, to: 'approved' });
+  det10 = (await get(`unit-sales/${String(sale10.id)}?companyId=1`)).json;
+  chk('onaylı değişiklik kalana girer (+200K)', 3800000, det10.remaining);
+  const crEdit = await call('PATCH', `change-requests/${String(cr10.id)}`, {
+    companyId: 1,
+    cost: 1,
+  });
+  chk('onaylı bedel donar 400', 400, crEdit.status);
+
+  // İptal: gerekçesiz 400; iptal daireyi envantere döndürür
+  const res10 = (
+    await post('unit-sales', {
+      companyId: 1,
+      projectId: PRJ,
+      locationId: u3.locationId,
+      status: 'reserved',
+      buyerName: 'Rezervasyon E2E',
+      salePrice: 4000000,
+    })
+  ).json;
+  const noNoteCancel = await post(`unit-sales/${String(res10.id)}/status`, {
+    companyId: 1,
+    to: 'cancelled',
+  });
+  chk('gerekçesiz iptal 400', 400, noNoteCancel.status);
+  await post(`unit-sales/${String(res10.id)}/status`, {
+    companyId: 1,
+    to: 'cancelled',
+    note: 'müşteri vazgeçti',
+  });
+
+  // Özet: satılan ve iş karşılığı AYRI; iptal + tahsilat dürüst
+  const inv1 = (await get(`projects/${PRJ}/unit-inventory?companyId=1`)).json;
+  chk('özet: satıldı 1', 1, inv1.summary.soldCount);
+  chk('özet: iş karşılığı 1', 1, inv1.summary.barterCount);
+  chk('özet: satışta 6 (iptal envantere döndü)', 6, inv1.summary.availableCount);
+  chk('özet: satılan bedeli (barter hariç)', 4600000, inv1.summary.soldValue);
+  chk('özet: iş karşılığı bedeli ayrı', 3000000, inv1.summary.barterValue);
+  chk('özet: tahsilat toplamı', 1000000, inv1.summary.collectedTotal);
+  chk('özet: iptal sayısı', 1, inv1.summary.cancelledCount);
+
+  // CRM köprüsü: idempotent upsert + durum gerilemesi satır hatası
+  const dealLine = {
+    refNo: `DEAL-${String(PRJ)}`,
+    projectId: PRJ,
+    locationId: u3.locationId,
+    status: 'reserved',
+    buyerName: 'CRM Müşterisi',
+    salePrice: 4100000,
+  };
+  const sy1 = (await post('unit-sales/sync', { companyId: 1, lines: [dealLine] })).json;
+  chk('senkron ilk koşu insert', 1, sy1.inserted);
+  const sy2 = (
+    await post('unit-sales/sync', {
+      companyId: 1,
+      lines: [{ ...dealLine, status: 'sold', soldAt: dayShift(0) }],
+    })
+  ).json;
+  chk('senkron ikinci koşu update (reserved→sold)', 1, sy2.updated);
+  const sy3 = (await post('unit-sales/sync', { companyId: 1, lines: [dealLine] })).json;
+  chk('durum gerilemesi satır hatası (sold→reserved)', 1, sy3.errors.length);
+
   console.log('=== TEMİZLİK ===');
   await del(`projects/${PRJ}?companyId=1`);
   await del(`progress-templates/${TPL}?companyId=1`);
@@ -1217,6 +1380,18 @@ async function main() {
   });
   for (const aid of [t1.id, t2.id, ms8.id, grp8.id]) {
     await del(`schedule-activities/${String(aid)}?companyId=1`);
+  }
+  // Faz 10: aktif satışları gerekçeyle iptal et (daireler bu koşuya özgü ama
+  // aktif satır bırakmamak temiz)
+  const openSales = (await get(`unit-sales?companyId=1&projectId=${String(PRJ)}`)).json.sales;
+  for (const s of openSales) {
+    if (s.status !== 'cancelled') {
+      await post(`unit-sales/${String(s.id)}/status`, {
+        companyId: 1,
+        to: 'cancelled',
+        note: 'E2E temizlik',
+      });
+    }
   }
   console.log(`  makine ${mch.code} DB'de kaldi (SF-6'da pasife cekme ucu yok)`);
   await del(`inspection-templates/${String(tpl6.id)}?companyId=1`);
