@@ -11,6 +11,8 @@ import {
   ActivityHasChildrenError,
   AdvanceNotFoundError,
   ApprovalFlowNotFoundError,
+  MaintenancePlanNotFoundError,
+  MeterRollbackError,
   DuplicateActivityCodeError,
   ScheduleActivityNotFoundError,
   CommitmentNotFoundError,
@@ -104,7 +106,8 @@ export function mapConstructionError(err: unknown): never {
     err instanceof AssignmentNotFoundError ||
     err instanceof QualityFileNotFoundError ||
     err instanceof CommitmentNotFoundError ||
-    err instanceof ScheduleActivityNotFoundError
+    err instanceof ScheduleActivityNotFoundError ||
+    err instanceof MaintenancePlanNotFoundError
   ) {
     throw new HTTPException(404, { message: err.message });
   }
@@ -150,7 +153,8 @@ export function mapConstructionError(err: unknown): never {
     err instanceof InvalidTrackingScopeError ||
     err instanceof TrackingNotActiveError ||
     err instanceof ApprovalNotActionableError ||
-    err instanceof InspectionNotEditableError
+    err instanceof InspectionNotEditableError ||
+    err instanceof MeterRollbackError
   ) {
     throw new HTTPException(400, { message: err.message });
   }

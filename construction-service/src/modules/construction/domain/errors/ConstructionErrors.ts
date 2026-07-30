@@ -395,3 +395,21 @@ export class ActivityHasChildrenError extends ConstructionError {
     super(`Aktivitenin altında ${count} satır var, önce onlar taşınmalı/silinmeli: ${id}`);
   }
 }
+
+// ===== FAZ 9 — Makine Parkı ================================================
+
+export class MaintenancePlanNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Bakım planı bulunamadı: ${id}`);
+  }
+}
+
+/** Sayaç geriye gidemez; sayaç değişimi is_reset=true + not ile kaydedilir. */
+export class MeterRollbackError extends ConstructionError {
+  constructor(current: number, attempted: number) {
+    super(
+      `Sayaç geriye gidemez (güncel ${current}, girilen ${attempted}); ` +
+        `sayaç değişimi/sıfırlama ayrı işaretle ve notla kaydedilir`,
+    );
+  }
+}

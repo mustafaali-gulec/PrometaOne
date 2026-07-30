@@ -100,6 +100,15 @@ import {
   UpdateLocationUseCase,
 } from './application/useCases/LocationUseCases.js';
 import {
+  AddMaintenanceRecordUseCase,
+  CreateMaintenancePlanUseCase,
+  DeactivateMaintenancePlanUseCase,
+  GetMachineMaintenanceUseCase,
+  ListMachineParkUseCase,
+  RecordMeterReadingUseCase,
+  UpdateMachineParkDetailsUseCase,
+} from './application/useCases/MachineParkUseCases.js';
+import {
   ChangeMaterialRequestStatusUseCase,
   CreateMaterialRequestUseCase,
   CreateMaterialUseCase,
@@ -237,6 +246,7 @@ import {
   PgTimesheetRepository,
 } from './infrastructure/persistence/PgLaborRepositories.js';
 import { PgLocationRepository } from './infrastructure/persistence/PgLocationRepository.js';
+import { PgMachineParkRepository } from './infrastructure/persistence/PgMachineParkRepository.js';
 import {
   PgMaterialRepository,
   PgMaterialRequestRepository,
@@ -304,6 +314,7 @@ export function registerConstructionModule(
   const qualityFiles = new PgQualityFileRepository(pool);
   const commitments = new PgCommitmentRepository(pool);
   const schedule = new PgScheduleRepository(pool);
+  const machinePark = new PgMachineParkRepository(pool);
 
   const deps: ConstructionRouterDeps = {
     createProject: new CreateProjectUseCase(projects),
@@ -506,6 +517,19 @@ export function registerConstructionModule(
     getProjectSchedule: new GetProjectScheduleUseCase(schedule, projects, clock),
     getActivityProgressLog: new GetActivityProgressLogUseCase(schedule),
     getProjectScheduleCurve: new GetProjectScheduleCurveUseCase(schedule, projects, clock),
+    // FAZ 9 — Makine parkı. Bakım kaydı sayaç kurallarını yeniden yazmasın
+    // diye RecordMeterReadingUseCase'i kompoze eder.
+    listMachinePark: new ListMachineParkUseCase(machinePark, clock),
+    updateMachineParkDetails: new UpdateMachineParkDetailsUseCase(machinePark, clock),
+    recordMeterReading: new RecordMeterReadingUseCase(machinePark, clock),
+    createMaintenancePlan: new CreateMaintenancePlanUseCase(machinePark, clock),
+    deactivateMaintenancePlan: new DeactivateMaintenancePlanUseCase(machinePark),
+    addMaintenanceRecord: new AddMaintenanceRecordUseCase(
+      machinePark,
+      new RecordMeterReadingUseCase(machinePark, clock),
+      clock,
+    ),
+    getMachineMaintenance: new GetMachineMaintenanceUseCase(machinePark, clock),
   };
 
   return createConstructionRouter(deps);
