@@ -136,6 +136,15 @@ import type {
   ScheduleActivityDto,
   ScheduleCurveDto,
   MachineMaintenanceDto,
+  UnitInventoryDto,
+  UnitChangeRequestDto,
+  UnitPaymentDto,
+  UnitPaymentKind,
+  UnitPaymentMethod,
+  UnitSaleDetailDto,
+  UnitSaleDto,
+  UnitSaleSource,
+  UnitSaleStatus,
   MachineParkDto,
   MaintenanceIntervalType,
   MaintenancePlanDto,
@@ -912,6 +921,106 @@ export interface ConstructionApi {
     machineId: number,
     body: AddMaintenanceRecordBody,
   ): Promise<MaintenanceRecordDto>;
+
+  // FAZ 10 — Konut satış
+  getUnitInventory(projectId: number, companyId: number): Promise<UnitInventoryDto>;
+  /** Liste fiyatı defteri (satıştan bağımsız); satış anında kayda donar. */
+  setUnitListPrice(
+    locationId: number,
+    body: { companyId: number; listPrice: number; note?: string | null },
+  ): Promise<{ locationId: number; listPrice: number }>;
+  listUnitSales(
+    companyId: number,
+    filter?: {
+      projectId?: number;
+      locationId?: number;
+      status?: UnitSaleStatus;
+      source?: UnitSaleSource;
+      search?: string;
+    },
+  ): Promise<{ sales: UnitSaleDto[] }>;
+  createUnitSale(body: CreateUnitSaleBody): Promise<UnitSaleDto>;
+  getUnitSale(id: number, companyId: number): Promise<UnitSaleDetailDto>;
+  updateUnitSale(id: number, body: UpdateUnitSaleBody): Promise<UnitSaleDto>;
+  /** İptal gerekçe ister; reserved→barter taşeron ister. */
+  changeUnitSaleStatus(
+    id: number,
+    body: {
+      companyId: number;
+      to: UnitSaleStatus;
+      note?: string | null;
+      soldAt?: string;
+      vendorId?: number | null;
+    },
+  ): Promise<UnitSaleDto>;
+  /** Geleceğe tahsilat yazılamaz; iade tahsil edileni aşamaz. */
+  addUnitPayment(saleId: number, body: AddUnitPaymentBody): Promise<UnitPaymentDto>;
+  deleteUnitPayment(paymentId: number, companyId: number): Promise<{ deleted: boolean }>;
+  createUnitChangeRequest(
+    saleId: number,
+    body: CreateUnitChangeRequestBody,
+  ): Promise<UnitChangeRequestDto>;
+  /** Yalnız open durumda — onaylı bedel sözleşmeseldir. */
+  updateUnitChangeRequest(
+    id: number,
+    body: {
+      companyId: number;
+      title?: string;
+      description?: string | null;
+      cost?: number;
+      note?: string | null;
+    },
+  ): Promise<UnitChangeRequestDto>;
+  decideUnitChangeRequest(
+    id: number,
+    body: { companyId: number; to: 'approved' | 'rejected' | 'done'; note?: string | null },
+  ): Promise<UnitChangeRequestDto>;
+}
+
+// ===== FAZ 10 — istek gövdeleri =============================================
+
+export interface CreateUnitSaleBody {
+  companyId: number;
+  projectId: number;
+  locationId: number;
+  status: 'reserved' | 'sold' | 'barter';
+  buyerName?: string | null;
+  vendorId?: number | null;
+  /** Verilmezse defterdeki liste fiyatı donar. */
+  listPrice?: number;
+  salePrice: number;
+  reservedAt?: string | null;
+  soldAt?: string | null;
+  note?: string | null;
+}
+
+export interface UpdateUnitSaleBody {
+  companyId: number;
+  buyerName?: string;
+  vendorId?: number | null;
+  listPrice?: number;
+  salePrice?: number;
+  reservedAt?: string | null;
+  soldAt?: string | null;
+  note?: string | null;
+}
+
+export interface AddUnitPaymentBody {
+  companyId: number;
+  kind?: UnitPaymentKind;
+  paidAt?: string;
+  amount: number;
+  method?: UnitPaymentMethod | null;
+  note?: string | null;
+}
+
+export interface CreateUnitChangeRequestBody {
+  companyId: number;
+  title: string;
+  description?: string | null;
+  cost?: number;
+  requestedAt?: string;
+  note?: string | null;
 }
 
 // ===== FAZ 9 — istek gövdeleri ==============================================

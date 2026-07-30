@@ -1808,3 +1808,135 @@ export interface MachineMaintenanceDto {
   records: MaintenanceRecordDto[];
   meterLog: MachineMeterLogRowDto[];
 }
+
+// ============================================================================
+// FAZ 10 — KONUT SATIŞ (bağımsız bölüm satış / tahsilat / değişiklik isteği)
+// ============================================================================
+
+export type UnitSaleStatus = 'reserved' | 'sold' | 'barter' | 'cancelled';
+export type UnitSaleSource = 'crm' | 'manual';
+export type UnitPaymentKind = 'collection' | 'refund';
+export type UnitPaymentMethod = 'cash' | 'bank' | 'cheque' | 'other';
+export type ChangeRequestStatus = 'open' | 'approved' | 'rejected' | 'done';
+
+export interface UnitSaleDto {
+  id: number;
+  companyId: number;
+  projectId: number;
+  locationId: number;
+  status: UnitSaleStatus;
+  source: UnitSaleSource;
+  refNo: string | null;
+  buyerName: string | null;
+  vendorId: number | null;
+  /** Satış anında defterden donan liste fiyatı. */
+  listPrice: number;
+  salePrice: number;
+  /** liste − satış; liste donuğu 0 ise null (iskonto bilinmiyor). */
+  discount: number | null;
+  currency: string;
+  reservedAt: string | null;
+  soldAt: string | null;
+  cancelledAt: string | null;
+  cancelNote: string | null;
+  note: string | null;
+  allowedTransitions: UnitSaleStatus[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UnitPaymentDto {
+  id: number;
+  saleId: number;
+  kind: UnitPaymentKind;
+  paidAt: string;
+  amount: number;
+  method: UnitPaymentMethod | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface UnitChangeRequestDto {
+  id: number;
+  saleId: number;
+  code: string;
+  title: string;
+  description: string | null;
+  cost: number;
+  status: ChangeRequestStatus;
+  requestedAt: string;
+  decidedAt: string | null;
+  doneAt: string | null;
+  note: string | null;
+  allowedTransitions: ChangeRequestStatus[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UnitSaleDetailDto {
+  sale: UnitSaleDto;
+  /** Net tahsilat = Σtahsilat − Σiade. */
+  collected: number;
+  /** satış + onaylı değişiklik − tahsilat. */
+  remaining: number;
+  payments: UnitPaymentDto[];
+  changeRequests: UnitChangeRequestDto[];
+}
+
+export interface UnitInventoryRowDto {
+  locationId: number;
+  projectId: number;
+  code: string;
+  name: string;
+  path: string;
+  unitType: string | null;
+  grossArea: number | null;
+  netArea: number | null;
+  facade: string | null;
+  /** Defterdeki güncel liste fiyatı (girilmemişse null). */
+  bookListPrice: number | null;
+  saleId: number | null;
+  /** 'available' = satışsız daire (türetilir). */
+  saleStatus: UnitSaleStatus | 'available';
+  source: UnitSaleSource | null;
+  refNo: string | null;
+  buyerName: string | null;
+  vendorId: number | null;
+  saleListPrice: number | null;
+  salePrice: number | null;
+  discount: number | null;
+  reservedAt: string | null;
+  soldAt: string | null;
+  changeOrderTotal: number | null;
+  collected: number | null;
+  remaining: number | null;
+  openChangeRequests: number;
+}
+
+export interface ProjectSalesSummaryDto {
+  projectId: number;
+  unitCount: number;
+  availableCount: number;
+  reservedCount: number;
+  soldCount: number;
+  barterCount: number;
+  soldValue: number;
+  reservedValue: number;
+  /** İş karşılığı bedeli — nakit DEĞİL, taşeron mahsubu; satılandan ayrı. */
+  barterValue: number;
+  changeOrderTotal: number;
+  collectedTotal: number;
+  remainingTotal: number;
+  availableListValue: number | null;
+  /** Liste fiyatı girilmemiş boş daire — veri kalitesi göstergesi. */
+  unpricedAvailableCount: number;
+  openChangeRequests: number;
+  cancelledCount: number;
+  /** İptal edilmiş satışlarda iade edilmemiş tahsilat. */
+  refundLiability: number;
+}
+
+export interface UnitInventoryDto {
+  units: UnitInventoryRowDto[];
+  summary: ProjectSalesSummaryDto | null;
+}

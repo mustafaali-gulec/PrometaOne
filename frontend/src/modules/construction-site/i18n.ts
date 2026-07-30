@@ -808,7 +808,93 @@ export type CsLabelKey =
   | 'cs.mp.rec.cost'
   | 'cs.mp.rec.hint'
   | 'cs.mp.empty'
-  | 'cs.mp.detailsPanel';
+  | 'cs.mp.detailsPanel'
+  // FAZ 10 — Konut satış
+  | 'cs.us.title'
+  | 'cs.us.subtitle'
+  | 'cs.us.empty'
+  | 'cs.us.barterInfo'
+  | 'cs.us.sum.units'
+  | 'cs.us.sum.available'
+  | 'cs.us.sum.reserved'
+  | 'cs.us.sum.sold'
+  | 'cs.us.sum.barter'
+  | 'cs.us.sum.soldValue'
+  | 'cs.us.sum.barterValue'
+  | 'cs.us.sum.collected'
+  | 'cs.us.sum.remaining'
+  | 'cs.us.sum.refundLiability'
+  | 'cs.us.sum.unpriced'
+  | 'cs.us.sum.openCr'
+  | 'cs.us.sum.cancelled'
+  | 'cs.us.sum.availableListValue'
+  | 'cs.us.st.available'
+  | 'cs.us.st.reserved'
+  | 'cs.us.st.sold'
+  | 'cs.us.st.barter'
+  | 'cs.us.st.cancelled'
+  | 'cs.us.f.unit'
+  | 'cs.us.f.type'
+  | 'cs.us.f.area'
+  | 'cs.us.f.listPrice'
+  | 'cs.us.f.salePrice'
+  | 'cs.us.f.discount'
+  | 'cs.us.f.buyer'
+  | 'cs.us.f.collected'
+  | 'cs.us.f.remaining'
+  | 'cs.us.f.openCr'
+  | 'cs.us.price.edit'
+  | 'cs.us.price.hint'
+  | 'cs.us.form.new'
+  | 'cs.us.form.status'
+  | 'cs.us.form.buyer'
+  | 'cs.us.form.vendor'
+  | 'cs.us.form.vendorHint'
+  | 'cs.us.form.listPrice'
+  | 'cs.us.form.listPriceHint'
+  | 'cs.us.form.salePrice'
+  | 'cs.us.form.reservedAt'
+  | 'cs.us.form.soldAt'
+  | 'cs.us.form.create'
+  | 'cs.us.det.title'
+  | 'cs.us.det.source'
+  | 'cs.us.det.refNo'
+  | 'cs.us.det.frozenList'
+  | 'cs.us.det.cancelNote'
+  | 'cs.us.det.cancelPrompt'
+  | 'cs.us.det.needNote'
+  | 'cs.us.tr.sold'
+  | 'cs.us.tr.barter'
+  | 'cs.us.tr.cancelled'
+  | 'cs.us.pay.title'
+  | 'cs.us.pay.add'
+  | 'cs.us.pay.kind'
+  | 'cs.us.pay.kind.collection'
+  | 'cs.us.pay.kind.refund'
+  | 'cs.us.pay.method'
+  | 'cs.us.pay.method.cash'
+  | 'cs.us.pay.method.bank'
+  | 'cs.us.pay.method.cheque'
+  | 'cs.us.pay.method.other'
+  | 'cs.us.pay.date'
+  | 'cs.us.pay.amount'
+  | 'cs.us.pay.none'
+  | 'cs.us.pay.deleteConfirm'
+  | 'cs.us.cr.title'
+  | 'cs.us.cr.add'
+  | 'cs.us.cr.field.title'
+  | 'cs.us.cr.field.desc'
+  | 'cs.us.cr.field.cost'
+  | 'cs.us.cr.costFrozenHint'
+  | 'cs.us.cr.approve'
+  | 'cs.us.cr.reject'
+  | 'cs.us.cr.done'
+  | 'cs.us.cr.rejectNote'
+  | 'cs.us.cr.none'
+  | 'cs.us.cr.st.open'
+  | 'cs.us.cr.st.approved'
+  | 'cs.us.cr.st.rejected'
+  | 'cs.us.cr.st.done';
 
 const DICT: Record<CsLabelKey, Record<Lang, string>> = {
   // ===== ORTAK =============================================================
@@ -5170,6 +5256,516 @@ const DICT: Record<CsLabelKey, Record<Lang, string>> = {
     de: 'Kartendetails',
     ar: 'تفاصيل البطاقة',
   },
+  'cs.us.title': {
+    tr: 'Konut Satış',
+    en: 'Unit Sales',
+    de: 'Wohnungsverkauf',
+    ar: 'مبيعات الوحدات',
+  },
+  'cs.us.subtitle': {
+    tr: "Bağımsız bölüm envanteri, satış durumu, tahsilat ve müşteri değişiklik istekleri. Daireler mekân ağacından gelir; müşteri ilişkisi Satış CRM'de yürür.",
+    en: 'Unit inventory, sale status, collections and customer change requests. Units come from the location tree; the customer relationship lives in Sales CRM.',
+    de: 'Wohnungsbestand, Verkaufsstatus, Zahlungseingänge und Kundenänderungswünsche. Einheiten stammen aus dem Standortbaum; die Kundenbeziehung läuft im Vertriebs-CRM.',
+    ar: 'مخزون الوحدات وحالة البيع والتحصيلات وطلبات تغيير العملاء. تأتي الوحدات من شجرة المواقع؛ وعلاقة العميل تدار في نظام CRM للمبيعات.',
+  },
+  'cs.us.empty': {
+    tr: 'Bu projede bağımsız bölüm yok. Daireler Mekân Kırılımı ekranında (blok/kat/daire) tanımlanır.',
+    en: 'This project has no units. Units are defined on the Location Breakdown screen (block/floor/unit).',
+    de: 'Dieses Projekt hat keine Einheiten. Einheiten werden im Bildschirm Standortstruktur (Block/Etage/Einheit) definiert.',
+    ar: 'لا توجد وحدات في هذا المشروع. تُعرَّف الوحدات في شاشة تقسيم المواقع (بلوك/طابق/وحدة).',
+  },
+  'cs.us.barterInfo': {
+    tr: 'İş karşılığı verilen daire nakit girişi değildir; taşeron borcunu mahsup eder ve satılan ciroda ayrı gösterilir.',
+    en: 'A unit given in exchange for work is not cash income; it offsets the subcontractor payable and is reported separately from sold value.',
+    de: 'Eine gegen Leistung übergebene Einheit ist kein Bareingang; sie verrechnet die Nachunternehmer-Verbindlichkeit und wird getrennt vom Verkaufswert ausgewiesen.',
+    ar: 'الوحدة الممنوحة مقابل العمل ليست دخلاً نقدياً؛ بل تُخصم من مستحقات المقاول من الباطن وتُعرض منفصلة عن قيمة المبيعات.',
+  },
+  'cs.us.sum.units': {
+    tr: 'Toplam Daire',
+    en: 'Total Units',
+    de: 'Einheiten gesamt',
+    ar: 'إجمالي الوحدات',
+  },
+  'cs.us.sum.available': {
+    tr: 'Satışta',
+    en: 'Available',
+    de: 'Verfügbar',
+    ar: 'متاح للبيع',
+  },
+  'cs.us.sum.reserved': {
+    tr: 'Rezerve',
+    en: 'Reserved',
+    de: 'Reserviert',
+    ar: 'محجوز',
+  },
+  'cs.us.sum.sold': {
+    tr: 'Satıldı',
+    en: 'Sold',
+    de: 'Verkauft',
+    ar: 'مباع',
+  },
+  'cs.us.sum.barter': {
+    tr: 'İş Karşılığı',
+    en: 'Barter (for work)',
+    de: 'Gegenleistung',
+    ar: 'مقابل العمل',
+  },
+  'cs.us.sum.soldValue': {
+    tr: 'Satış Değeri',
+    en: 'Sold Value',
+    de: 'Verkaufswert',
+    ar: 'قيمة المبيعات',
+  },
+  'cs.us.sum.barterValue': {
+    tr: 'İş Karşılığı Bedeli',
+    en: 'Barter Value',
+    de: 'Gegenleistungswert',
+    ar: 'قيمة مقابل العمل',
+  },
+  'cs.us.sum.collected': {
+    tr: 'Tahsilat',
+    en: 'Collected',
+    de: 'Eingezogen',
+    ar: 'المحصَّل',
+  },
+  'cs.us.sum.remaining': {
+    tr: 'Kalan',
+    en: 'Remaining',
+    de: 'Offen',
+    ar: 'المتبقي',
+  },
+  'cs.us.sum.refundLiability': {
+    tr: 'İade Yükümlülüğü',
+    en: 'Refund Liability',
+    de: 'Erstattungsverpflichtung',
+    ar: 'التزام الاسترداد',
+  },
+  'cs.us.sum.unpriced': {
+    tr: '{n} boş dairenin liste fiyatı girilmemiş',
+    en: '{n} available unit(s) have no list price',
+    de: '{n} verfügbare Einheit(en) ohne Listenpreis',
+    ar: '{n} وحدة متاحة بدون سعر معلن',
+  },
+  'cs.us.sum.openCr': {
+    tr: 'Açık Değişiklik İsteği',
+    en: 'Open Change Requests',
+    de: 'Offene Änderungswünsche',
+    ar: 'طلبات تغيير مفتوحة',
+  },
+  'cs.us.sum.cancelled': {
+    tr: 'İptal Edilen Satış',
+    en: 'Cancelled Sales',
+    de: 'Stornierte Verkäufe',
+    ar: 'مبيعات ملغاة',
+  },
+  'cs.us.sum.availableListValue': {
+    tr: 'Boş Daire Liste Değeri',
+    en: 'Available List Value',
+    de: 'Listenwert verfügbarer Einheiten',
+    ar: 'القيمة المعلنة للوحدات المتاحة',
+  },
+  'cs.us.st.available': {
+    tr: 'Satışta',
+    en: 'Available',
+    de: 'Verfügbar',
+    ar: 'متاح',
+  },
+  'cs.us.st.reserved': {
+    tr: 'Rezerve',
+    en: 'Reserved',
+    de: 'Reserviert',
+    ar: 'محجوز',
+  },
+  'cs.us.st.sold': {
+    tr: 'Satıldı',
+    en: 'Sold',
+    de: 'Verkauft',
+    ar: 'مباع',
+  },
+  'cs.us.st.barter': {
+    tr: 'İş Karşılığı',
+    en: 'Barter',
+    de: 'Gegenleistung',
+    ar: 'مقابل العمل',
+  },
+  'cs.us.st.cancelled': {
+    tr: 'İptal',
+    en: 'Cancelled',
+    de: 'Storniert',
+    ar: 'ملغى',
+  },
+  'cs.us.f.unit': {
+    tr: 'Daire',
+    en: 'Unit',
+    de: 'Einheit',
+    ar: 'الوحدة',
+  },
+  'cs.us.f.type': {
+    tr: 'Tip',
+    en: 'Type',
+    de: 'Typ',
+    ar: 'النوع',
+  },
+  'cs.us.f.area': {
+    tr: 'Brüt m²',
+    en: 'Gross m²',
+    de: 'Brutto m²',
+    ar: 'م² إجمالي',
+  },
+  'cs.us.f.listPrice': {
+    tr: 'Liste Fiyatı',
+    en: 'List Price',
+    de: 'Listenpreis',
+    ar: 'السعر المعلن',
+  },
+  'cs.us.f.salePrice': {
+    tr: 'Satış Fiyatı',
+    en: 'Sale Price',
+    de: 'Verkaufspreis',
+    ar: 'سعر البيع',
+  },
+  'cs.us.f.discount': {
+    tr: 'İskonto',
+    en: 'Discount',
+    de: 'Nachlass',
+    ar: 'الخصم',
+  },
+  'cs.us.f.buyer': {
+    tr: 'Alıcı / Taşeron',
+    en: 'Buyer / Vendor',
+    de: 'Käufer / Nachunternehmer',
+    ar: 'المشتري / المقاول',
+  },
+  'cs.us.f.collected': {
+    tr: 'Tahsilat',
+    en: 'Collected',
+    de: 'Eingezogen',
+    ar: 'المحصَّل',
+  },
+  'cs.us.f.remaining': {
+    tr: 'Kalan',
+    en: 'Remaining',
+    de: 'Offen',
+    ar: 'المتبقي',
+  },
+  'cs.us.f.openCr': {
+    tr: 'Değişiklik',
+    en: 'Changes',
+    de: 'Änderungen',
+    ar: 'التغييرات',
+  },
+  'cs.us.price.edit': {
+    tr: 'Liste fiyatı gir',
+    en: 'Set list price',
+    de: 'Listenpreis erfassen',
+    ar: 'إدخال السعر المعلن',
+  },
+  'cs.us.price.hint': {
+    tr: 'Defterdeki fiyat — satış anında kayda donar, sonradan değişse tarihi iskonto oynamaz.',
+    en: 'Price book value — frozen into the sale record at sale time; later changes do not rewrite historical discounts.',
+    de: 'Preisbuchwert — wird beim Verkauf im Datensatz eingefroren; spätere Änderungen verändern historische Nachlässe nicht.',
+    ar: 'قيمة دفتر الأسعار — تُثبَّت في سجل البيع لحظة البيع؛ ولا تغيّر التعديلات اللاحقة الخصومات التاريخية.',
+  },
+  'cs.us.form.new': {
+    tr: 'Satış / Rezervasyon',
+    en: 'Sale / Reservation',
+    de: 'Verkauf / Reservierung',
+    ar: 'بيع / حجز',
+  },
+  'cs.us.form.status': {
+    tr: 'Durum',
+    en: 'Status',
+    de: 'Status',
+    ar: 'الحالة',
+  },
+  'cs.us.form.buyer': {
+    tr: 'Alıcı adı',
+    en: 'Buyer name',
+    de: 'Käufername',
+    ar: 'اسم المشتري',
+  },
+  'cs.us.form.vendor': {
+    tr: 'Taşeron No (İş Karşılığı)',
+    en: 'Vendor ID (barter)',
+    de: 'Nachunternehmer-Nr. (Gegenleistung)',
+    ar: 'رقم المقاول (مقابل العمل)',
+  },
+  'cs.us.form.vendorHint': {
+    tr: 'İş karşılığında daire taşerona hakediş yerine verilir — taşeron zorunludur.',
+    en: 'In a barter sale the unit is given to a subcontractor in lieu of payment — the vendor is mandatory.',
+    de: 'Bei Gegenleistung wird die Einheit dem Nachunternehmer anstelle der Zahlung übergeben — der Nachunternehmer ist Pflicht.',
+    ar: 'في البيع مقابل العمل تُمنح الوحدة للمقاول بدلاً من الدفع — تحديد المقاول إلزامي.',
+  },
+  'cs.us.form.listPrice': {
+    tr: 'Liste fiyatı (boşsa defterden)',
+    en: 'List price (from price book if empty)',
+    de: 'Listenpreis (leer = aus Preisbuch)',
+    ar: 'السعر المعلن (من الدفتر إن تُرك فارغاً)',
+  },
+  'cs.us.form.listPriceHint': {
+    tr: 'Boş bırakılırsa defterdeki liste fiyatı satışa donar.',
+    en: 'If left empty, the price book value is frozen into the sale.',
+    de: 'Bleibt das Feld leer, wird der Preisbuchwert im Verkauf eingefroren.',
+    ar: 'إذا تُرك فارغاً يُثبَّت سعر الدفتر في سجل البيع.',
+  },
+  'cs.us.form.salePrice': {
+    tr: 'Satış fiyatı',
+    en: 'Sale price',
+    de: 'Verkaufspreis',
+    ar: 'سعر البيع',
+  },
+  'cs.us.form.reservedAt': {
+    tr: 'Rezervasyon tarihi',
+    en: 'Reservation date',
+    de: 'Reservierungsdatum',
+    ar: 'تاريخ الحجز',
+  },
+  'cs.us.form.soldAt': {
+    tr: 'Satış tarihi',
+    en: 'Sale date',
+    de: 'Verkaufsdatum',
+    ar: 'تاريخ البيع',
+  },
+  'cs.us.form.create': {
+    tr: 'Kaydet',
+    en: 'Save',
+    de: 'Speichern',
+    ar: 'حفظ',
+  },
+  'cs.us.det.title': {
+    tr: 'Satış Detayı',
+    en: 'Sale Detail',
+    de: 'Verkaufsdetail',
+    ar: 'تفاصيل البيع',
+  },
+  'cs.us.det.source': {
+    tr: 'Kaynak',
+    en: 'Source',
+    de: 'Quelle',
+    ar: 'المصدر',
+  },
+  'cs.us.det.refNo': {
+    tr: 'CRM referansı',
+    en: 'CRM reference',
+    de: 'CRM-Referenz',
+    ar: 'مرجع CRM',
+  },
+  'cs.us.det.frozenList': {
+    tr: 'Satış anındaki liste fiyatı',
+    en: 'List price at sale time',
+    de: 'Listenpreis zum Verkaufszeitpunkt',
+    ar: 'السعر المعلن لحظة البيع',
+  },
+  'cs.us.det.cancelNote': {
+    tr: 'İptal gerekçesi',
+    en: 'Cancellation reason',
+    de: 'Stornogrund',
+    ar: 'سبب الإلغاء',
+  },
+  'cs.us.det.cancelPrompt': {
+    tr: 'İptal gerekçesi (zorunlu)',
+    en: 'Cancellation reason (required)',
+    de: 'Stornogrund (Pflicht)',
+    ar: 'سبب الإلغاء (إلزامي)',
+  },
+  'cs.us.det.needNote': {
+    tr: 'İptal için gerekçe yazın — daire envantere dönerken "neden boşaldı" sorusunun cevabı burada durur.',
+    en: 'Enter a reason to cancel — when the unit returns to inventory, this is where "why did it free up" is answered.',
+    de: 'Geben Sie einen Stornogrund an — kehrt die Einheit in den Bestand zurück, steht die Antwort auf „warum" hier.',
+    ar: 'اكتب سبب الإلغاء — عند عودة الوحدة إلى المخزون تبقى إجابة «لماذا أُخليت» هنا.',
+  },
+  'cs.us.tr.sold': {
+    tr: 'Satışa çevir',
+    en: 'Mark as sold',
+    de: 'Als verkauft markieren',
+    ar: 'تحويل إلى مباع',
+  },
+  'cs.us.tr.barter': {
+    tr: 'İş karşılığına çevir',
+    en: 'Convert to barter',
+    de: 'In Gegenleistung umwandeln',
+    ar: 'تحويل إلى مقابل العمل',
+  },
+  'cs.us.tr.cancelled': {
+    tr: 'İptal et',
+    en: 'Cancel sale',
+    de: 'Stornieren',
+    ar: 'إلغاء',
+  },
+  'cs.us.pay.title': {
+    tr: 'Tahsilat',
+    en: 'Collections',
+    de: 'Zahlungseingänge',
+    ar: 'التحصيلات',
+  },
+  'cs.us.pay.add': {
+    tr: 'Tahsilat ekle',
+    en: 'Add payment',
+    de: 'Zahlung erfassen',
+    ar: 'إضافة دفعة',
+  },
+  'cs.us.pay.kind': {
+    tr: 'Tür',
+    en: 'Kind',
+    de: 'Art',
+    ar: 'النوع',
+  },
+  'cs.us.pay.kind.collection': {
+    tr: 'Tahsilat',
+    en: 'Collection',
+    de: 'Einzahlung',
+    ar: 'تحصيل',
+  },
+  'cs.us.pay.kind.refund': {
+    tr: 'İade',
+    en: 'Refund',
+    de: 'Erstattung',
+    ar: 'استرداد',
+  },
+  'cs.us.pay.method': {
+    tr: 'Yöntem',
+    en: 'Method',
+    de: 'Methode',
+    ar: 'الطريقة',
+  },
+  'cs.us.pay.method.cash': {
+    tr: 'Nakit',
+    en: 'Cash',
+    de: 'Bar',
+    ar: 'نقداً',
+  },
+  'cs.us.pay.method.bank': {
+    tr: 'Banka',
+    en: 'Bank',
+    de: 'Bank',
+    ar: 'بنك',
+  },
+  'cs.us.pay.method.cheque': {
+    tr: 'Çek',
+    en: 'Cheque',
+    de: 'Scheck',
+    ar: 'شيك',
+  },
+  'cs.us.pay.method.other': {
+    tr: 'Diğer',
+    en: 'Other',
+    de: 'Sonstiges',
+    ar: 'أخرى',
+  },
+  'cs.us.pay.date': {
+    tr: 'Tarih',
+    en: 'Date',
+    de: 'Datum',
+    ar: 'التاريخ',
+  },
+  'cs.us.pay.amount': {
+    tr: 'Tutar',
+    en: 'Amount',
+    de: 'Betrag',
+    ar: 'المبلغ',
+  },
+  'cs.us.pay.none': {
+    tr: 'Henüz tahsilat yok.',
+    en: 'No payments yet.',
+    de: 'Noch keine Zahlungen.',
+    ar: 'لا توجد دفعات بعد.',
+  },
+  'cs.us.pay.deleteConfirm': {
+    tr: 'Bu tahsilat satırı silinsin mi?',
+    en: 'Delete this payment row?',
+    de: 'Diese Zahlungszeile löschen?',
+    ar: 'هل تريد حذف سطر الدفعة هذا؟',
+  },
+  'cs.us.cr.title': {
+    tr: 'Değişiklik İstekleri',
+    en: 'Change Requests',
+    de: 'Änderungswünsche',
+    ar: 'طلبات التغيير',
+  },
+  'cs.us.cr.add': {
+    tr: 'İstek ekle',
+    en: 'Add request',
+    de: 'Wunsch erfassen',
+    ar: 'إضافة طلب',
+  },
+  'cs.us.cr.field.title': {
+    tr: 'Başlık',
+    en: 'Title',
+    de: 'Titel',
+    ar: 'العنوان',
+  },
+  'cs.us.cr.field.desc': {
+    tr: 'Açıklama',
+    en: 'Description',
+    de: 'Beschreibung',
+    ar: 'الوصف',
+  },
+  'cs.us.cr.field.cost': {
+    tr: 'Bedel',
+    en: 'Cost',
+    de: 'Kosten',
+    ar: 'التكلفة',
+  },
+  'cs.us.cr.costFrozenHint': {
+    tr: 'Onaylanan bedel sözleşmeseldir ve kaleme donar; fiyat değişecekse yeni istek açılır.',
+    en: 'An approved cost is contractual and frozen; open a new request to change the price.',
+    de: 'Genehmigte Kosten sind vertraglich und eingefroren; für Preisänderungen neuen Wunsch anlegen.',
+    ar: 'التكلفة المعتمدة تعاقدية ومثبتة؛ لتغيير السعر يُفتح طلب جديد.',
+  },
+  'cs.us.cr.approve': {
+    tr: 'Onayla',
+    en: 'Approve',
+    de: 'Genehmigen',
+    ar: 'اعتماد',
+  },
+  'cs.us.cr.reject': {
+    tr: 'Reddet',
+    en: 'Reject',
+    de: 'Ablehnen',
+    ar: 'رفض',
+  },
+  'cs.us.cr.done': {
+    tr: 'Tamamlandı',
+    en: 'Done',
+    de: 'Erledigt',
+    ar: 'تم',
+  },
+  'cs.us.cr.rejectNote': {
+    tr: 'Red gerekçesi (zorunlu)',
+    en: 'Rejection reason (required)',
+    de: 'Ablehnungsgrund (Pflicht)',
+    ar: 'سبب الرفض (إلزامي)',
+  },
+  'cs.us.cr.none': {
+    tr: 'Değişiklik isteği yok.',
+    en: 'No change requests.',
+    de: 'Keine Änderungswünsche.',
+    ar: 'لا توجد طلبات تغيير.',
+  },
+  'cs.us.cr.st.open': {
+    tr: 'Açık',
+    en: 'Open',
+    de: 'Offen',
+    ar: 'مفتوح',
+  },
+  'cs.us.cr.st.approved': {
+    tr: 'Onaylı',
+    en: 'Approved',
+    de: 'Genehmigt',
+    ar: 'معتمد',
+  },
+  'cs.us.cr.st.rejected': {
+    tr: 'Reddedildi',
+    en: 'Rejected',
+    de: 'Abgelehnt',
+    ar: 'مرفوض',
+  },
+  'cs.us.cr.st.done': {
+    tr: 'Tamamlandı',
+    en: 'Done',
+    de: 'Erledigt',
+    ar: 'منجز',
+  },
 };
 
 /** Şantiye etiketi getir; `vars` ile {placeholder} doldurulur. */
@@ -5421,4 +6017,66 @@ export function machineOwnershipLabel(kind: string, lang: string | undefined): s
 /** Bakım aralık tipi etiketi. */
 export function maintenanceIntervalLabel(type: string, lang: string | undefined): string {
   return csT(`cs.mp.plan.it.${type}` as CsLabelKey, lang);
+}
+
+/** Bağımsız bölüm satış durumu etiketi ('available' türetilmiş durum). */
+export function unitSaleStatusLabel(status: string, lang: string | undefined): string {
+  switch (status) {
+    case 'available':
+      return csT('cs.us.st.available', lang);
+    case 'reserved':
+      return csT('cs.us.st.reserved', lang);
+    case 'sold':
+      return csT('cs.us.st.sold', lang);
+    case 'barter':
+      return csT('cs.us.st.barter', lang);
+    case 'cancelled':
+      return csT('cs.us.st.cancelled', lang);
+    default:
+      return status;
+  }
+}
+
+/** Tahsilat türü etiketi. */
+export function unitPaymentKindLabel(kind: string, lang: string | undefined): string {
+  switch (kind) {
+    case 'collection':
+      return csT('cs.us.pay.kind.collection', lang);
+    case 'refund':
+      return csT('cs.us.pay.kind.refund', lang);
+    default:
+      return kind;
+  }
+}
+
+/** Tahsilat yöntemi etiketi. */
+export function unitPaymentMethodLabel(method: string, lang: string | undefined): string {
+  switch (method) {
+    case 'cash':
+      return csT('cs.us.pay.method.cash', lang);
+    case 'bank':
+      return csT('cs.us.pay.method.bank', lang);
+    case 'cheque':
+      return csT('cs.us.pay.method.cheque', lang);
+    case 'other':
+      return csT('cs.us.pay.method.other', lang);
+    default:
+      return method;
+  }
+}
+
+/** Değişiklik isteği durumu etiketi. */
+export function changeRequestStatusLabel(status: string, lang: string | undefined): string {
+  switch (status) {
+    case 'open':
+      return csT('cs.us.cr.st.open', lang);
+    case 'approved':
+      return csT('cs.us.cr.st.approved', lang);
+    case 'rejected':
+      return csT('cs.us.cr.st.rejected', lang);
+    case 'done':
+      return csT('cs.us.cr.st.done', lang);
+    default:
+      return status;
+  }
 }

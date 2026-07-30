@@ -117,6 +117,13 @@ import type {
   ScheduleActivityDto,
   ScheduleCurveDto,
   MachineMaintenanceDto,
+  UnitInventoryDto,
+  UnitChangeRequestDto,
+  UnitPaymentDto,
+  UnitSaleDetailDto,
+  UnitSaleDto,
+  UnitSaleSource,
+  UnitSaleStatus,
   MachineParkDto,
   MaintenancePlanDto,
   MaintenanceRecordDto,
@@ -196,6 +203,10 @@ import type {
   CreateScheduleActivityBody,
   UpdateScheduleActivityBody,
   AddMaintenanceRecordBody,
+  AddUnitPaymentBody,
+  CreateUnitChangeRequestBody,
+  CreateUnitSaleBody,
+  UpdateUnitSaleBody,
   CreateMaintenancePlanBody,
   UpdateMachineParkBody,
 } from '../../application/ports/ConstructionApi';
@@ -1541,6 +1552,121 @@ export class ConstructionApiClient implements ConstructionApi {
   ): Promise<MaintenanceRecordDto> {
     return this.request<MaintenanceRecordDto>(
       `/v1/construction/machine-park/${String(machineId)}/maintenance-records`,
+      { method: 'POST', body },
+    );
+  }
+
+  // ===== FAZ 10 — KONUT SATIŞ ==============================================
+  getUnitInventory(projectId: number, companyId: number): Promise<UnitInventoryDto> {
+    return this.request<UnitInventoryDto>(
+      `/v1/construction/projects/${String(projectId)}/unit-inventory?companyId=${String(companyId)}`,
+    );
+  }
+
+  setUnitListPrice(
+    locationId: number,
+    body: { companyId: number; listPrice: number; note?: string | null },
+  ): Promise<{ locationId: number; listPrice: number }> {
+    return this.request<{ locationId: number; listPrice: number }>(
+      `/v1/construction/unit-prices/${String(locationId)}`,
+      { method: 'PUT', body },
+    );
+  }
+
+  listUnitSales(
+    companyId: number,
+    filter?: {
+      projectId?: number;
+      locationId?: number;
+      status?: UnitSaleStatus;
+      source?: UnitSaleSource;
+      search?: string;
+    },
+  ): Promise<{ sales: UnitSaleDto[] }> {
+    return this.request<{ sales: UnitSaleDto[] }>(
+      `/v1/construction/unit-sales?${this.qs(companyId, { ...filter })}`,
+    );
+  }
+
+  createUnitSale(body: CreateUnitSaleBody): Promise<UnitSaleDto> {
+    return this.request<UnitSaleDto>(`/v1/construction/unit-sales`, { method: 'POST', body });
+  }
+
+  getUnitSale(id: number, companyId: number): Promise<UnitSaleDetailDto> {
+    return this.request<UnitSaleDetailDto>(
+      `/v1/construction/unit-sales/${String(id)}?companyId=${String(companyId)}`,
+    );
+  }
+
+  updateUnitSale(id: number, body: UpdateUnitSaleBody): Promise<UnitSaleDto> {
+    return this.request<UnitSaleDto>(`/v1/construction/unit-sales/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  changeUnitSaleStatus(
+    id: number,
+    body: {
+      companyId: number;
+      to: UnitSaleStatus;
+      note?: string | null;
+      soldAt?: string;
+      vendorId?: number | null;
+    },
+  ): Promise<UnitSaleDto> {
+    return this.request<UnitSaleDto>(`/v1/construction/unit-sales/${String(id)}/status`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  addUnitPayment(saleId: number, body: AddUnitPaymentBody): Promise<UnitPaymentDto> {
+    return this.request<UnitPaymentDto>(`/v1/construction/unit-sales/${String(saleId)}/payments`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  deleteUnitPayment(paymentId: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/unit-payments/${String(paymentId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  createUnitChangeRequest(
+    saleId: number,
+    body: CreateUnitChangeRequestBody,
+  ): Promise<UnitChangeRequestDto> {
+    return this.request<UnitChangeRequestDto>(
+      `/v1/construction/unit-sales/${String(saleId)}/change-requests`,
+      { method: 'POST', body },
+    );
+  }
+
+  updateUnitChangeRequest(
+    id: number,
+    body: {
+      companyId: number;
+      title?: string;
+      description?: string | null;
+      cost?: number;
+      note?: string | null;
+    },
+  ): Promise<UnitChangeRequestDto> {
+    return this.request<UnitChangeRequestDto>(`/v1/construction/change-requests/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  decideUnitChangeRequest(
+    id: number,
+    body: { companyId: number; to: 'approved' | 'rejected' | 'done'; note?: string | null },
+  ): Promise<UnitChangeRequestDto> {
+    return this.request<UnitChangeRequestDto>(
+      `/v1/construction/change-requests/${String(id)}/status`,
       { method: 'POST', body },
     );
   }
