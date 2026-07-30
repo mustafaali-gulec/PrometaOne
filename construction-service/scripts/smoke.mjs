@@ -1,5 +1,5 @@
 /**
- * Faz 1→2→3→4→5→6→7→8 uçtan uca duman testi. Tek süreç, fetch tabanlı.
+ * Faz 1→2→3→4→5→6→7→8→9 uçtan uca duman testi. Tek süreç, fetch tabanlı.
  *
  * Yerel dev sunucusuna (varsayılan :3003) karşı koşar; ürettiği tüm veriyi
  * sonunda temizler. Geçici dosya — depoya girmez.
@@ -1063,6 +1063,134 @@ async function main() {
   const delGrp = await del(`schedule-activities/${String(grp8.id)}?companyId=1`);
   chk('altı dolu grup silinemez 409', 409, delGrp.status);
 
+  console.log('=== FAZ 9: makine parkı ===');
+
+  // SF-6 ucundan makine kur (eski uç aynen çalışıyor olmalı)
+  const mch = (
+    await post('machines', {
+      companyId: 1,
+      code: `EKS-${String(PRJ)}`,
+      name: 'Ekskavatör CAT 320',
+      kind: 'rented',
+      hourlyCost: 1200,
+    })
+  ).json;
+  chk('SF-6 makine ucu çalışıyor', true, typeof mch.id === 'number');
+
+  // Park detayları: plaka/şase/motor + kiralama + garanti
+  const det = (
+    await call('PATCH', `machine-park/${String(mch.id)}`, {
+      companyId: 1,
+      brand: 'Caterpillar',
+      model: '320 GC',
+      modelYear: 2024,
+      plateNo: '34 ABC 123',
+      chassisNo: 'CAT0320GC123',
+      engineNo: 'ENG-9911',
+      meterType: 'hour',
+      rentalStart: dayShift(-60),
+      rentalEnd: dayShift(30),
+      rentalCost: 250000,
+      rentalPeriod: 'monthly',
+      warrantyUntil: dayShift(365),
+      warrantyMeter: 2000,
+    })
+  ).json;
+  chk('park detayları yazıldı (plaka)', '34 ABC 123', det.plateNo);
+  chk('kiralamada kalan gün', 30, det.rentalDaysLeft);
+  chk('garanti sürüyor (iki sınır içinde)', true, det.warranty.inWarranty);
+
+  // Sayaç: ileri okuma OK, geriye 400, sıfırlama notsuz 400 / notlu OK
+  const mr1 = (
+    await post(`machine-park/${String(mch.id)}/meter`, {
+      companyId: 1,
+      meterValue: 1180,
+      readAt: dayShift(-10),
+    })
+  ).json;
+  chk('sayac okuması ilerledi', 1180, mr1.currentMeter);
+
+  const mrBack = await post(`machine-park/${String(mch.id)}/meter`, {
+    companyId: 1,
+    meterValue: 900,
+  });
+  chk('sayac geriye gidemez 400', 400, mrBack.status);
+
+  const mrResetNoNote = await post(`machine-park/${String(mch.id)}/meter`, {
+    companyId: 1,
+    meterValue: 0,
+    isReset: true,
+  });
+  chk('notsuz sıfırlama 400', 400, mrResetNoNote.status);
+
+  const mrFuture = await post(`machine-park/${String(mch.id)}/meter`, {
+    companyId: 1,
+    meterValue: 1300,
+    readAt: dayShift(3),
+  });
+  chk('geleceğe sayac okuması 400', 400, mrFuture.status);
+
+  // Bakım planı (meter): son yapılan 1000, aralık 250 → vade 1250, kalan 70
+  const plan9 = (
+    await post(`machine-park/${String(mch.id)}/maintenance-plans`, {
+      companyId: 1,
+      name: 'Yağ değişimi',
+      intervalType: 'meter',
+      intervalValue: 250,
+      lastDoneMeter: 1000,
+      lastDoneDate: dayShift(-40),
+    })
+  ).json;
+  chk('bakım planı vadesi (1250)', 1250, plan9.due.nextDueMeter);
+  chk('bakım planı kalan (70)', 70, plan9.due.remaining);
+
+  // Hiç bakım görmemiş plan: vade HESAPLANMAZ (uydurma yok)
+  const planNoBase = (
+    await post(`machine-park/${String(mch.id)}/maintenance-plans`, {
+      companyId: 1,
+      name: 'Hidrolik revizyon',
+      intervalType: 'days',
+      intervalValue: 180,
+    })
+  ).json;
+  chk('izsiz planda vade null', null, planNoBase.due.remaining);
+
+  // Bakım kaydı (plana bağlı, sayaçlı): plan izi + sayac birlikte ilerler
+  await post(`machine-park/${String(mch.id)}/maintenance-records`, {
+    companyId: 1,
+    planId: plan9.id,
+    meterAt: 1260,
+    cost: 8500,
+    description: 'Yağ + filtre değişimi',
+  });
+  const maint9 = (await get(`machine-park/${String(mch.id)}/maintenance?companyId=1`)).json;
+  chk('bakım kaydı sayacı ilerletti', 1260, maint9.machine.currentMeter);
+  const plan9b = maint9.plans.find((p) => p.id === plan9.id);
+  chk('plan izi güncellendi → yeni vade 1510', 1510, plan9b.due.nextDueMeter);
+  chk('kayıt + sayac günlüğü düştü', 2, maint9.meterLog.length);
+
+  // Park listesi rozetleri
+  const park9 = (await get('machine-park?companyId=1')).json.machines;
+  const mchRow = park9.find((m) => m.id === mch.id);
+  chk('park listesinde vadesiz plan sayısı (1 izsiz)', 1, mchRow.plansWithoutBaseline);
+  chk('park listesinde gecikmiş plan yok', 0, mchRow.overduePlanCount);
+
+  // Vadeyi geçir: sayac 1600'e → yağ değişimi vadesi (1510) geçmiş
+  await post(`machine-park/${String(mch.id)}/meter`, { companyId: 1, meterValue: 1600 });
+  const park9b = (await get('machine-park?companyId=1')).json.machines;
+  chk('vade geçince gecikmiş plan rozeti', 1, park9b.find((m) => m.id === mch.id).overduePlanCount);
+
+  // Sayaç değişimi: notlu sıfırlama kabul
+  const mrReset = (
+    await post(`machine-park/${String(mch.id)}/meter`, {
+      companyId: 1,
+      meterValue: 0,
+      isReset: true,
+      note: 'Sayac degisti - yenisi sifirdan',
+    })
+  ).json;
+  chk('notlu sıfırlama kabul', 0, mrReset.currentMeter);
+
   console.log('=== TEMİZLİK ===');
   await del(`projects/${PRJ}?companyId=1`);
   await del(`progress-templates/${TPL}?companyId=1`);
@@ -1090,6 +1218,7 @@ async function main() {
   for (const aid of [t1.id, t2.id, ms8.id, grp8.id]) {
     await del(`schedule-activities/${String(aid)}?companyId=1`);
   }
+  console.log(`  makine ${mch.code} DB'de kaldi (SF-6'da pasife cekme ucu yok)`);
   await del(`inspection-templates/${String(tpl6.id)}?companyId=1`);
   console.log('  proje pasife çekildi, şablonlar pasifleştirildi');
 

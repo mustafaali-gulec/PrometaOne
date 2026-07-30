@@ -99,6 +99,15 @@ import type {
   UpdateLocationUseCase,
 } from '../application/useCases/LocationUseCases.js';
 import type {
+  AddMaintenanceRecordUseCase,
+  CreateMaintenancePlanUseCase,
+  DeactivateMaintenancePlanUseCase,
+  GetMachineMaintenanceUseCase,
+  ListMachineParkUseCase,
+  RecordMeterReadingUseCase,
+  UpdateMachineParkDetailsUseCase,
+} from '../application/useCases/MachineParkUseCases.js';
+import type {
   ChangeMaterialRequestStatusUseCase,
   CreateMaterialRequestUseCase,
   CreateMaterialUseCase,
@@ -404,6 +413,14 @@ export interface ConstructionRouterDeps {
   getProjectSchedule: GetProjectScheduleUseCase;
   getActivityProgressLog: GetActivityProgressLogUseCase;
   getProjectScheduleCurve: GetProjectScheduleCurveUseCase;
+  // FAZ 9 — Makine parkı
+  listMachinePark: ListMachineParkUseCase;
+  updateMachineParkDetails: UpdateMachineParkDetailsUseCase;
+  recordMeterReading: RecordMeterReadingUseCase;
+  createMaintenancePlan: CreateMaintenancePlanUseCase;
+  deactivateMaintenancePlan: DeactivateMaintenancePlanUseCase;
+  addMaintenanceRecord: AddMaintenanceRecordUseCase;
+  getMachineMaintenance: GetMachineMaintenanceUseCase;
 }
 
 // --- Schema fragmanları ---------------------------------------------------
@@ -510,6 +527,10 @@ const commitmentSource = z.enum(['purchase_order', 'subcontract', 'manual']);
 const commitmentStatus = z.enum(['open', 'partial', 'closed', 'cancelled']);
 // FAZ 8 fragmanları
 const activityKind = z.enum(['group', 'task', 'milestone']);
+// FAZ 9 fragmanları
+const meterType = z.enum(['km', 'hour']);
+const maintenanceIntervalType = z.enum(['meter', 'days']);
+const rentalPeriod = z.enum(['daily', 'monthly']);
 const pct = z.number().min(0).max(100);
 const templateBodySchema = z.object({
   groups: z.array(
@@ -4968,6 +4989,213 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
             companyId: q.companyId,
           }),
         });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 9 — MAKİNE PARKI ===============================================
+
+  /** Zenginleştirilmiş makine kartları + garanti/kiralama/bakım vadesi rozetleri. */
+  app.get(
+    '/machine-park',
+    zValidator('query', companyIdQ.extend({ includeInactive: z.coerce.boolean().optional() })),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({
+          machines: await deps.listMachinePark.execute({
+            companyId: q.companyId,
+            ...(q.includeInactive !== undefined ? { includeInactive: q.includeInactive } : {}),
+          }),
+        });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Park detayları (plaka/şase/motor, sayaç tipi, kiralama, garanti). SF-6
+   *  temel alanlarına (ad/tip/saat ücreti) dokunmaz — onlar eski uçta. */
+  app.patch(
+    '/machine-park/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        brand: z.string().max(100).nullable().optional(),
+        model: z.string().max(100).nullable().optional(),
+        modelYear: z.number().int().min(1950).max(2100).nullable().optional(),
+        plateNo: z.string().max(20).nullable().optional(),
+        chassisNo: z.string().max(50).nullable().optional(),
+        engineNo: z.string().max(50).nullable().optional(),
+        meterType: meterType.optional(),
+        purchaseDate: dateStr.nullable().optional(),
+        rentalStart: dateStr.nullable().optional(),
+        rentalEnd: dateStr.nullable().optional(),
+        rentalCost: z.number().nonnegative().optional(),
+        rentalPeriod: rentalPeriod.nullable().optional(),
+        warrantyUntil: dateStr.nullable().optional(),
+        warrantyMeter: z.number().nonnegative().nullable().optional(),
+        parkNote: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateMachineParkDetails.execute({ ...b, machineId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * Sayaç okuması. Geriye gidiş yalnız isReset=true + notla (sayaç değişimi);
+   * sessiz düşüş 400. Geleceğe okuma yazılamaz.
+   */
+  app.post(
+    '/machine-park/:id/meter',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        meterValue: z.number().nonnegative(),
+        readAt: dateStr.optional(),
+        isReset: z.boolean().optional(),
+        note: z.string().max(500).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.recordMeterReading.execute({
+            machineId: id,
+            companyId: b.companyId,
+            meterValue: b.meterValue,
+            ...(b.readAt !== undefined ? { readAt: b.readAt } : {}),
+            ...(b.isReset !== undefined ? { isReset: b.isReset } : {}),
+            note: b.note ?? null,
+            actorUserId: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Bakım paneli: makine + planlar (vadeleriyle) + kayıtlar + sayaç günlüğü. */
+  app.get(
+    '/machine-park/:id/maintenance',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getMachineMaintenance.execute({ machineId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/machine-park/:id/maintenance-plans',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        name: z.string().min(1).max(200),
+        intervalType: maintenanceIntervalType,
+        intervalValue: z.number().positive(),
+        lastDoneMeter: z.number().nonnegative().nullable().optional(),
+        lastDoneDate: dateStr.nullable().optional(),
+        note: z.string().max(500).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.createMaintenancePlan.execute({
+            ...b,
+            machineId: id,
+            createdBy: actorId(c),
+          }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/maintenance-plans/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deactivateMaintenancePlan.execute({ planId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * Bakım kaydı. Plana bağlıysa planın son-yapılan izini günceller; sayaç
+   * verilmişse aynı işlemde sayaç okuması olarak da işlenir (bakımda sayaç
+   * zaten okunur — iki ayrı giriş istemek unutulan sayaç demektir).
+   */
+  app.post(
+    '/machine-park/:id/maintenance-records',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        planId: z.number().int().positive().nullable().optional(),
+        doneAt: dateStr.optional(),
+        meterAt: z.number().nonnegative().nullable().optional(),
+        cost: z.number().nonnegative().optional(),
+        description: z.string().min(1).max(500),
+        vendorId: z.number().int().positive().nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.addMaintenanceRecord.execute({
+            ...b,
+            machineId: id,
+            actorUserId: actorId(c),
+          }),
+          201,
+        );
       } catch (err) {
         mapConstructionError(err);
       }
