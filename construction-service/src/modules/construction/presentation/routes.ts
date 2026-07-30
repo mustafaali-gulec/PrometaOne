@@ -2288,6 +2288,8 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
         kind: machineKind.optional(),
         vendorId: z.number().int().positive().nullable().optional(),
         hourlyCost: z.number().nonnegative().optional(),
+        // Pasife çekme / geri alma (SF-6 açığı — silme yok, iz makineyle kalır)
+        active: z.boolean().optional(),
       }),
     ),
     async (c) => {

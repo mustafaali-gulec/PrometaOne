@@ -981,6 +981,11 @@ export interface ConstructionApi {
     id: number,
     body: { companyId: number; to: 'approved' | 'rejected' | 'done'; note?: string | null },
   ): Promise<UnitChangeRequestDto>;
+  /**
+   * CRM köprüsü — idempotent toplu upsert (refNo anahtarı). Satış CRM fırsatı
+   * bağımsız bölüme bağlanınca her kayıtta çağrılır; kısmi başarı errors[].
+   */
+  syncUnitSales(body: SyncUnitSalesBody): Promise<SyncUnitSalesResult>;
 
   // FAZ 11 — İşbirliği
   listProjectMembers(
@@ -1090,6 +1095,31 @@ export interface AddUnitPaymentBody {
   amount: number;
   method?: UnitPaymentMethod | null;
   note?: string | null;
+}
+
+export interface SyncUnitSalesBody {
+  companyId: number;
+  lines: {
+    refNo: string;
+    projectId: number;
+    locationId: number;
+    status: 'reserved' | 'sold' | 'barter';
+    buyerName?: string | null;
+    vendorId?: number | null;
+    listPrice?: number;
+    salePrice: number;
+    reservedAt?: string | null;
+    soldAt?: string | null;
+    cancelled?: boolean;
+    cancelNote?: string;
+  }[];
+}
+
+export interface SyncUnitSalesResult {
+  inserted: number;
+  updated: number;
+  cancelled: number;
+  errors: { refNo: string; message: string }[];
 }
 
 export interface CreateUnitChangeRequestBody {

@@ -13,6 +13,7 @@ import {
   SaveTimesheetUseCase,
 } from '../../application/useCases/LaborUseCases.js';
 import { CreateProjectUseCase } from '../../application/useCases/ProjectUseCases.js';
+import { Machine } from '../../domain/entities/Machine.js';
 import {
   DuplicateMachineCodeError,
   PersonnelNotFoundError,
@@ -133,5 +134,42 @@ describe('LaborUseCases', () => {
     });
     assert.equal(log.workHours, 8);
     assert.equal(log.fuelCost, 1200);
+  });
+});
+
+describe('Machine — pasife çekme / geri alma (SF-6 açığı)', () => {
+  const NOW = new Date('2026-07-30T10:00:00.000Z');
+
+  function machine(): Machine {
+    return Machine.create({
+      id: 1,
+      companyId: 1,
+      code: 'EKS-01',
+      name: 'Ekskavatör',
+      kind: 'rented',
+      vendorId: null,
+      hourlyCost: 1200,
+      active: true,
+      createdBy: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+  }
+
+  it('update({active:false}) pasife çeker; kayıt silinmez, alanlar korunur', () => {
+    const off = machine().update({ active: false }, NOW);
+    assert.equal(off.active, false);
+    assert.equal(off.code, 'EKS-01');
+    assert.equal(off.hourlyCost, 1200);
+  });
+
+  it('pasif makine update({active:true}) ile geri alınır', () => {
+    const back = machine().update({ active: false }, NOW).update({ active: true }, NOW);
+    assert.equal(back.active, true);
+  });
+
+  it('active verilmezse mevcut durum DEĞİŞMEZ (yan etkisiz güncelleme)', () => {
+    const off = machine().update({ active: false }, NOW);
+    assert.equal(off.update({ hourlyCost: 1300 }, NOW).active, false);
   });
 });

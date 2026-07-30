@@ -194,6 +194,12 @@ function poToServer(p, { create = false } = {}) {
     if (prId != null) out.prId = prId;
     if (p.markOrdered === true) out.markOrdered = true;
   }
+  // ŞANTİYE KÖPRÜSÜ (052): isteğe bağlı proje bağı. undefined = alanı gönderme
+  // (mevcut bağ korunur); null/boş = bağı kaldır; sayı = bağla → backend
+  // taahhüt senkronunu (cs_commitments) kendisi tetikler.
+  if (p.constructionProjectId !== undefined) {
+    out.constructionProjectId = numId(p.constructionProjectId);
+  }
   const src = Array.isArray(p.items) ? p.items : Array.isArray(p.lines) ? p.lines : null;
   if (src) {
     const lines = src
@@ -202,6 +208,7 @@ function poToServer(p, { create = false } = {}) {
         quantity: Number(l.quantity) || 0,
         unitPrice: Number(l.unitPrice) || 0,
         receivedQty: Number(l.receivedQty) || 0,
+        constructionBoqLineId: numId(l.constructionBoqLineId),
       }))
       .filter((l) => l.description);
     if (lines.length) out.lines = lines; // PATCH lines min(1) ister — boş dizi gönderme

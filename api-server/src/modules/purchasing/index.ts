@@ -9,6 +9,8 @@
  */
 import type { Pool } from 'pg';
 
+import { config } from '../../config.js';
+
 import { SystemClock } from './application/ports/Clock.js';
 import { AdoptBlobPurchasingUseCase } from './application/useCases/AdoptBlobPurchasing.js';
 import {
@@ -30,6 +32,7 @@ import {
   ListVendorsUseCase,
   UpdateVendorUseCase,
 } from './application/useCases/VendorUseCases.js';
+import { HttpConstructionBridge } from './infrastructure/bridge/HttpConstructionBridge.js';
 import { PgAdoptBlobRepository } from './infrastructure/persistence/PgAdoptBlobRepository.js';
 import { PgPurchaseOrderRepository } from './infrastructure/persistence/PgPurchaseOrderRepository.js';
 import { PgPurchaseRequestRepository } from './infrastructure/persistence/PgPurchaseRequestRepository.js';
@@ -43,6 +46,11 @@ export function registerPurchasingModule(pool: Pool): ReturnType<typeof createPu
   const prs = new PgPurchaseRequestRepository(pool);
   const pos = new PgPurchaseOrderRepository(pool);
   const adopt = new PgAdoptBlobRepository(pool);
+  // Şantiye taahhüt köprüsü — JWT_SECRET iki serviste paylaşımlı (compose).
+  const constructionBridge = new HttpConstructionBridge({
+    baseUrl: config.CONSTRUCTION_SERVICE_URL,
+    jwtSecret: config.JWT_SECRET,
+  });
 
   const deps: PurchasingRouterDeps = {
     createVendor: new CreateVendorUseCase(vendors),
@@ -54,10 +62,16 @@ export function registerPurchasingModule(pool: Pool): ReturnType<typeof createPu
     updatePurchaseRequest: new UpdatePurchaseRequestUseCase(prs, clock),
     deletePurchaseRequest: new DeletePurchaseRequestUseCase(prs),
     changePrStatus: new ChangePrStatusUseCase(prs, clock),
-    createPurchaseOrder: new CreatePurchaseOrderUseCase(pos, vendors, prs, clock),
+    createPurchaseOrder: new CreatePurchaseOrderUseCase(
+      pos,
+      vendors,
+      prs,
+      clock,
+      constructionBridge,
+    ),
     listPurchaseOrders: new ListPurchaseOrdersUseCase(pos),
-    updatePurchaseOrder: new UpdatePurchaseOrderUseCase(pos, clock),
-    changePoStatus: new ChangePoStatusUseCase(pos, clock),
+    updatePurchaseOrder: new UpdatePurchaseOrderUseCase(pos, clock, constructionBridge),
+    changePoStatus: new ChangePoStatusUseCase(pos, clock, constructionBridge),
     adoptBlob: new AdoptBlobPurchasingUseCase(adopt),
   };
 

@@ -218,6 +218,8 @@ export interface UpdateMachineInput {
   kind?: MachineKind | undefined;
   vendorId?: number | null | undefined;
   hourlyCost?: number | undefined;
+  /** Pasife çekme / geri alma — silme yok, log/bakım izi makineyle kalır. */
+  active?: boolean | undefined;
 }
 export class UpdateMachineUseCase {
   constructor(
@@ -233,6 +235,7 @@ export class UpdateMachineUseCase {
         ...(input.kind !== undefined ? { kind: input.kind } : {}),
         ...(input.vendorId !== undefined ? { vendorId: input.vendorId } : {}),
         ...(input.hourlyCost !== undefined ? { hourlyCost: round2(input.hourlyCost) } : {}),
+        ...(input.active !== undefined ? { active: input.active } : {}),
       },
       this.clock.now(),
     );

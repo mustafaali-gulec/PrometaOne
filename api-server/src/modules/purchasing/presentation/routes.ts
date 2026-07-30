@@ -90,6 +90,8 @@ const poLine = z.object({
   quantity: z.number().nonnegative().default(1),
   unitPrice: z.number().nonnegative().default(0),
   receivedQty: z.number().nonnegative().optional(),
+  /** ŞANTİYE (052): isteğe bağlı poz bağı — taahhüt keşif kolonuna düşer. */
+  constructionBoqLineId: z.coerce.number().int().positive().nullable().optional(),
 });
 
 export function createPurchasingRouter(deps: PurchasingRouterDeps): Hono {
@@ -371,6 +373,8 @@ export function createPurchasingRouter(deps: PurchasingRouterDeps): Hono {
         note: z.string().max(4000).nullable().optional(),
         lines: z.array(poLine).optional(),
         markOrdered: z.boolean().optional(),
+        /** ŞANTİYE (052): isteğe bağlı proje bağı — doluysa taahhüt senkronu çalışır. */
+        constructionProjectId: z.coerce.number().int().positive().nullable().optional(),
         /** DÖVİZ (051): dövizli kayıt — kullanılan kur kayda dondurulur. */
         fxRate: z.number().positive().nullable().optional(),
         fxRateSource: fxSource.nullable().optional(),
@@ -399,6 +403,8 @@ export function createPurchasingRouter(deps: PurchasingRouterDeps): Hono {
         currency: currency.optional(),
         note: z.string().max(4000).nullable().optional(),
         lines: z.array(poLine).min(1).optional(),
+        /** ŞANTİYE (052): null göndermek bağı kaldırır. */
+        constructionProjectId: z.coerce.number().int().positive().nullable().optional(),
         /** DÖVİZ (051): dövizli kayıt — kullanılan kur kayda dondurulur. */
         fxRate: z.number().positive().nullable().optional(),
         fxRateSource: fxSource.nullable().optional(),

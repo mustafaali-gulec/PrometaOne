@@ -34,6 +34,7 @@ interface PoRow {
   fx_rate_source: string | null;
   fx_rate_date: Date | null;
   total_amount_try: string | null;
+  construction_project_id: string | null;
 }
 
 interface LineRow {
@@ -43,12 +44,13 @@ interface LineRow {
   quantity: string;
   received_qty: string;
   unit_price: string;
+  construction_boq_line_id: string | null;
 }
 
 const HCOLS =
   'id, company_id, po_no, vendor_id, pr_id, status, currency, note, ordered_at, delivered_at, created_by, created_at, updated_at, ' +
-  // DÖVİZ (051): kayda dondurulmuş kur + TRY karşılığı.
-  'fx_rate, fx_rate_source, fx_rate_date, total_amount_try';
+  // DÖVİZ (051): kayda dondurulmuş kur + TRY karşılığı. ŞANTİYE (052): taahhüt köprü bağı.
+  'fx_rate, fx_rate_source, fx_rate_date, total_amount_try, construction_project_id';
 
 export class PgPurchaseOrderRepository implements PurchaseOrderRepository {
   constructor(private readonly pool: Pool) {}
@@ -69,8 +71,9 @@ export class PgPurchaseOrderRepository implements PurchaseOrderRepository {
       const r = await client.query<PoRow>(
         `INSERT INTO purchase_orders
            (company_id, po_no, vendor_id, pr_id, status, currency, total_amount, note,
-            ordered_at, created_by, fx_rate, fx_rate_source, fx_rate_date, total_amount_try)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+            ordered_at, created_by, fx_rate, fx_rate_source, fx_rate_date, total_amount_try,
+            construction_project_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
          RETURNING ${HCOLS}`,
         [
           input.companyId,
@@ -87,6 +90,7 @@ export class PgPurchaseOrderRepository implements PurchaseOrderRepository {
           fxRow.fx_rate_source,
           fxRow.fx_rate_date,
           fx.toTRY(total),
+          input.constructionProjectId ?? null,
         ],
       );
       const header = r.rows[0]!;
@@ -110,8 +114,9 @@ export class PgPurchaseOrderRepository implements PurchaseOrderRepository {
         `UPDATE purchase_orders
            SET status = $1, currency = $2, total_amount = $3, note = $4,
                ordered_at = $5, delivered_at = $6, updated_at = NOW(),
-               fx_rate = $7, fx_rate_source = $8, fx_rate_date = $9, total_amount_try = $10
-         WHERE id = $11 AND company_id = $12`,
+               fx_rate = $7, fx_rate_source = $8, fx_rate_date = $9, total_amount_try = $10,
+               construction_project_id = $11
+         WHERE id = $12 AND company_id = $13`,
         [
           j.status,
           j.currency,
@@ -123,6 +128,7 @@ export class PgPurchaseOrderRepository implements PurchaseOrderRepository {
           po.fx.toRow().fx_rate_source,
           po.fx.toRow().fx_rate_date,
           po.totalAmountTRY,
+          po.constructionProjectId,
           j.id,
           j.companyId,
         ],
@@ -185,7 +191,8 @@ export class PgPurchaseOrderRepository implements PurchaseOrderRepository {
 
   private async loadLines(poIds: number[]): Promise<Map<number, PurchaseOrderLine[]>> {
     const r = await this.pool.query<LineRow>(
-      `SELECT po_id, line_no, description, quantity, received_qty, unit_price
+      `SELECT po_id, line_no, description, quantity, received_qty, unit_price,
+              construction_boq_line_id
          FROM purchase_order_lines
         WHERE po_id = ANY($1::bigint[])
         ORDER BY po_id, line_no`,
@@ -200,6 +207,8 @@ export class PgPurchaseOrderRepository implements PurchaseOrderRepository {
         quantity: Number(row.quantity),
         receivedQty: Number(row.received_qty),
         unitPrice: Number(row.unit_price),
+        constructionBoqLineId:
+          row.construction_boq_line_id === null ? null : Number(row.construction_boq_line_id),
       });
       map.set(row.po_id, arr);
     }
@@ -215,9 +224,18 @@ async function insertLines(
   for (const ln of lines) {
     await client.query(
       `INSERT INTO purchase_order_lines
-         (po_id, line_no, description, quantity, received_qty, unit_price)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [poId, ln.lineNo, ln.description, ln.quantity, ln.receivedQty, ln.unitPrice],
+         (po_id, line_no, description, quantity, received_qty, unit_price,
+          construction_boq_line_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        poId,
+        ln.lineNo,
+        ln.description,
+        ln.quantity,
+        ln.receivedQty,
+        ln.unitPrice,
+        ln.constructionBoqLineId ?? null,
+      ],
     );
   }
 }
@@ -244,5 +262,7 @@ function rowsToPo(h: PoRow, lines: ReadonlyArray<PurchaseOrderLine>): PurchaseOr
     lines: [...lines],
     fx: FxInfo.fromRow(h),
     ...(h.total_amount_try !== null ? { totalAmountTRY: Number(h.total_amount_try) } : {}),
+    constructionProjectId:
+      h.construction_project_id === null ? null : Number(h.construction_project_id),
   });
 }

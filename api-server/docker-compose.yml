@@ -49,6 +49,8 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-prometa}:${POSTGRES_PASSWORD:-prometa123}@postgres:5432/${POSTGRES_DB:-prometa_one}
       JWT_SECRET: ${JWT_SECRET:-change-this-to-a-long-random-string-min-32-chars-please}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-another-long-random-string-also-min-32-chars-please}
+      # Şantiye köprüsü (052): satınalma → cs_commitments senkron hedefi (aynı compose ağı).
+      CONSTRUCTION_SERVICE_URL: http://construction-service:3002
       # Web Push (VAPID) — host .env'den gecer (CI deploy adimi .env'i checkout'a kopyalar);
       # bos kalirsa push gonderimi Noop olur (boot etkilenmez). SMTP passthrough asagida zaten var.
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
