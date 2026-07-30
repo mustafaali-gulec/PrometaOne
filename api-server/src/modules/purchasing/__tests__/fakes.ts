@@ -168,6 +168,7 @@ export class InMemoryPurchaseOrderRepository implements PurchaseOrderRepository 
       createdAt: FIXED,
       updatedAt: FIXED,
       lines: [...input.lines],
+      constructionProjectId: input.constructionProjectId ?? null,
     });
     this.store.set(po.id, po);
     return po;

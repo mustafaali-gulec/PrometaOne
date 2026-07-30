@@ -33,6 +33,10 @@ const envSchema = z.object({
 
   TCMB_API_KEY: z.string().optional(),
 
+  // Şantiye köprüsü (052): satınalma → cs_commitments senkronunun hedefi.
+  // Compose'ta http://construction-service:3002; yerelde 3002/3003.
+  CONSTRUCTION_SERVICE_URL: z.string().default('http://localhost:3002'),
+
   // Beyanname (GİB e-Beyan) entegrasyon kimliği şifreleme anahtarı — opsiyonel.
   // Yoksa EINVOICE_MASTER_KEY'e düşer; o da yoksa dev'de efemeral anahtar + uyarı.
   EBEYAN_MASTER_KEY: z.string().optional(),

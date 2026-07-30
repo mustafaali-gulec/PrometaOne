@@ -11,6 +11,8 @@ export interface PurchaseOrderLineDto {
   quantity: number;
   receivedQty: number;
   unitPrice: number;
+  /** İsteğe bağlı şantiye poz bağı (cs_boq_lines id). */
+  constructionBoqLineId: number | null;
 }
 
 export interface PurchaseOrderDto {
@@ -28,6 +30,8 @@ export interface PurchaseOrderDto {
   updatedAt: string;
   totalAmount: number;
   lines: PurchaseOrderLineDto[];
+  /** İsteğe bağlı şantiye bağı (cs_projects id) — doluysa taahhüt senkronu çalışır. */
+  constructionProjectId: number | null;
 }
 
 export function toPurchaseOrderDto(po: PurchaseOrder): PurchaseOrderDto {
@@ -52,6 +56,8 @@ export function toPurchaseOrderDto(po: PurchaseOrder): PurchaseOrderDto {
       quantity: l.quantity,
       receivedQty: l.receivedQty,
       unitPrice: l.unitPrice,
+      constructionBoqLineId: l.constructionBoqLineId ?? null,
     })),
+    constructionProjectId: po.constructionProjectId,
   };
 }

@@ -23,6 +23,8 @@ export interface PurchaseOrderLine {
   quantity: number;
   receivedQty: number;
   unitPrice: number;
+  /** İsteğe bağlı şantiye poz bağı (cs_boq_lines id — çapraz servis, FK'sız). */
+  constructionBoqLineId?: number | null;
 }
 
 export interface PurchaseOrderProps {
@@ -48,10 +50,20 @@ export interface PurchaseOrderProps {
   fx?: FxInfo;
   /** total_amount'ın TRY karşılığı; kur bilinmiyorsa null. */
   totalAmountTRY?: number | null;
+  /**
+   * İsteğe bağlı şantiye bağı (cs_projects id). Doluysa sipariş, şantiye
+   * taahhüt projeksiyonuna (cs_commitments) senkronlanır — köprü kararı:
+   * satınalma ikizlenmez, projeksiyon beslenir.
+   */
+  constructionProjectId?: number | null;
 }
 
 /** fx alanları çözülmüş iç gösterim. */
-type ResolvedPoProps = PurchaseOrderProps & { fx: FxInfo; totalAmountTRY: number | null };
+type ResolvedPoProps = PurchaseOrderProps & {
+  fx: FxInfo;
+  totalAmountTRY: number | null;
+  constructionProjectId: number | null;
+};
 
 export class PurchaseOrder {
   private constructor(private readonly props: Readonly<ResolvedPoProps>) {}
@@ -79,7 +91,16 @@ export class PurchaseOrder {
     const total = round2(props.lines.reduce((sum, l) => sum + l.quantity * l.unitPrice, 0));
     const totalAmountTRY =
       props.totalAmountTRY !== undefined ? props.totalAmountTRY : fx.toTRY(total);
-    return new PurchaseOrder({ ...props, fx, totalAmountTRY });
+    return new PurchaseOrder({
+      ...props,
+      fx,
+      totalAmountTRY,
+      constructionProjectId: props.constructionProjectId ?? null,
+      lines: props.lines.map((l) => ({
+        ...l,
+        constructionBoqLineId: l.constructionBoqLineId ?? null,
+      })),
+    });
   }
 
   get id(): number {
@@ -137,6 +158,11 @@ export class PurchaseOrder {
   /** total_amount'ın TRY karşılığı; kur bilinmiyorsa null. */
   get totalAmountTRY(): number | null {
     return this.props.totalAmountTRY;
+  }
+
+  /** Şantiye bağı (cs_projects id); yoksa null — senkrona hiç gitmez. */
+  get constructionProjectId(): number | null {
+    return this.props.constructionProjectId;
   }
 
   changeStatus(next: PoStatus, now: Date): PurchaseOrder {

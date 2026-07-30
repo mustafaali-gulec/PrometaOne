@@ -21,6 +21,8 @@ export interface NewPurchaseOrderInput {
   fxRate?: number | null;
   fxRateSource?: string | null;
   fxRateDate?: string | null;
+  /** İsteğe bağlı şantiye bağı (052) — cs_projects id, FK'sız çapraz servis. */
+  constructionProjectId?: number | null;
 }
 
 export interface ListPurchaseOrdersOptions {

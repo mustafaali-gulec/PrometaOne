@@ -17,6 +17,7 @@ import type { CurrencyCode } from '../../domain/valueObjects/Currency.js';
 import type { PoStatus } from '../../domain/valueObjects/PoStatus.js';
 import { toPurchaseOrderDto, type PurchaseOrderDto } from '../dto/PurchaseOrderDtos.js';
 import type { Clock } from '../ports/Clock.js';
+import type { ConstructionBridge } from '../ports/ConstructionBridge.js';
 import type {
   ListPurchaseOrdersOptions,
   PurchaseOrderRepository,
@@ -29,6 +30,8 @@ export interface PoLineInput {
   quantity: number;
   unitPrice: number;
   receivedQty?: number | undefined;
+  /** İsteğe bağlı şantiye poz bağı (cs_boq_lines id). */
+  constructionBoqLineId?: number | null | undefined;
 }
 
 function toLines(lines: ReadonlyArray<PoLineInput>): PurchaseOrderLine[] {
@@ -38,6 +41,7 @@ function toLines(lines: ReadonlyArray<PoLineInput>): PurchaseOrderLine[] {
     quantity: Number(l.quantity) || 0,
     receivedQty: Number(l.receivedQty) || 0,
     unitPrice: Number(l.unitPrice) || 0,
+    constructionBoqLineId: l.constructionBoqLineId ?? null,
   }));
 }
 
@@ -55,6 +59,8 @@ export interface CreatePurchaseOrderInput {
   fxRate?: number | null | undefined;
   fxRateSource?: string | null | undefined;
   fxRateDate?: string | null | undefined;
+  /** İsteğe bağlı şantiye bağı (cs_projects id) — doluysa taahhüt senkronu tetiklenir. */
+  constructionProjectId?: number | null | undefined;
 }
 
 export class CreatePurchaseOrderUseCase {
@@ -63,6 +69,7 @@ export class CreatePurchaseOrderUseCase {
     private readonly vendors: VendorRepository,
     private readonly prs: PurchaseRequestRepository,
     private readonly clock: Clock,
+    private readonly constructionBridge?: ConstructionBridge,
   ) {}
 
   async execute(input: CreatePurchaseOrderInput): Promise<PurchaseOrderDto> {
@@ -101,7 +108,10 @@ export class CreatePurchaseOrderUseCase {
       fxRate: input.fxRate ?? null,
       fxRateSource: input.fxRateSource ?? null,
       fxRateDate: input.fxRateDate ?? null,
+      constructionProjectId: input.constructionProjectId ?? null,
     });
+    // Köprü best-effort: senkron hatası siparişi düşürmez (adapter loglar).
+    await this.constructionBridge?.syncPurchaseOrder(created);
     return toPurchaseOrderDto(created);
   }
 }
@@ -134,12 +144,15 @@ export interface UpdatePurchaseOrderInput {
   fxRate?: number | null | undefined;
   fxRateSource?: string | null | undefined;
   fxRateDate?: string | null | undefined;
+  /** İsteğe bağlı şantiye bağı; null göndermek bağı kaldırır. */
+  constructionProjectId?: number | null | undefined;
 }
 
 export class UpdatePurchaseOrderUseCase {
   constructor(
     private readonly pos: PurchaseOrderRepository,
     private readonly clock: Clock,
+    private readonly constructionBridge?: ConstructionBridge,
   ) {}
 
   async execute(input: UpdatePurchaseOrderInput): Promise<PurchaseOrderDto> {
@@ -161,9 +174,14 @@ export class UpdatePurchaseOrderUseCase {
       fx,
       note: input.note !== undefined ? input.note?.trim() || null : j.note,
       lines: input.lines !== undefined ? toLines(input.lines) : j.lines,
+      constructionProjectId:
+        input.constructionProjectId !== undefined
+          ? input.constructionProjectId
+          : (j.constructionProjectId ?? null),
       updatedAt: this.clock.now(),
     });
     await this.pos.update(updated);
+    await this.constructionBridge?.syncPurchaseOrder(updated);
     return toPurchaseOrderDto(updated);
   }
 }
@@ -178,6 +196,7 @@ export class ChangePoStatusUseCase {
   constructor(
     private readonly pos: PurchaseOrderRepository,
     private readonly clock: Clock,
+    private readonly constructionBridge?: ConstructionBridge,
   ) {}
 
   async execute(input: ChangePoStatusInput): Promise<PurchaseOrderDto> {
@@ -185,6 +204,9 @@ export class ChangePoStatusUseCase {
     if (!po) throw new PurchaseOrderNotFoundError(input.poId);
     const updated = po.changeStatus(input.status, this.clock.now());
     await this.pos.update(updated);
+    // ordered → taahhüt doğar; received/closed → teslimatla erir; cancelled →
+    // açık kısım maruziyetten düşer (Faz 7 durum kuralları senkron ucunda).
+    await this.constructionBridge?.syncPurchaseOrder(updated);
     return toPurchaseOrderDto(updated);
   }
 }
