@@ -112,6 +112,10 @@ import type {
   CommitmentDto,
   ContractEvmDto,
   ProjectEvmDto,
+  ActivityProgressLogRowDto,
+  ProjectScheduleDto,
+  ScheduleActivityDto,
+  ScheduleCurveDto,
 } from '../../application/dto/ConstructionDtos';
 import type { AuthTokenProvider } from '../../application/ports/AuthTokenProvider';
 import type {
@@ -185,6 +189,8 @@ import type {
   CommitmentListOptions,
   CreateCommitmentBody,
   UpdateCommitmentBody,
+  CreateScheduleActivityBody,
+  UpdateScheduleActivityBody,
 } from '../../application/ports/ConstructionApi';
 
 export class ConstructionApiClient implements ConstructionApi {
@@ -1393,6 +1399,76 @@ export class ConstructionApiClient implements ConstructionApi {
   getProjectEvm(projectId: number, companyId: number): Promise<ProjectEvmDto> {
     return this.request<ProjectEvmDto>(
       `/v1/construction/projects/${String(projectId)}/evm?companyId=${String(companyId)}`,
+    );
+  }
+
+  // ===== FAZ 8 — İŞ PROGRAMI ===============================================
+  getProjectSchedule(
+    projectId: number,
+    companyId: number,
+    includeInactive?: boolean,
+  ): Promise<ProjectScheduleDto> {
+    return this.request<ProjectScheduleDto>(
+      `/v1/construction/projects/${String(projectId)}/schedule?${this.qs(companyId, { includeInactive })}`,
+    );
+  }
+
+  getProjectScheduleCurve(
+    projectId: number,
+    companyId: number,
+    stepDays?: number,
+  ): Promise<ScheduleCurveDto> {
+    return this.request<ScheduleCurveDto>(
+      `/v1/construction/projects/${String(projectId)}/schedule-curve?${this.qs(companyId, { stepDays })}`,
+    );
+  }
+
+  createScheduleActivity(body: CreateScheduleActivityBody): Promise<ScheduleActivityDto> {
+    return this.request<ScheduleActivityDto>(`/v1/construction/schedule-activities`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  updateScheduleActivity(
+    id: number,
+    body: UpdateScheduleActivityBody,
+  ): Promise<ScheduleActivityDto> {
+    return this.request<ScheduleActivityDto>(`/v1/construction/schedule-activities/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  deactivateScheduleActivity(id: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/schedule-activities/${String(id)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  recordScheduleProgress(
+    id: number,
+    body: {
+      companyId: number;
+      progressPct?: number;
+      fromTracking?: boolean;
+      asOf?: string;
+      note?: string | null;
+    },
+  ): Promise<ScheduleActivityDto> {
+    return this.request<ScheduleActivityDto>(
+      `/v1/construction/schedule-activities/${String(id)}/progress`,
+      { method: 'POST', body },
+    );
+  }
+
+  getScheduleProgressLog(
+    id: number,
+    companyId: number,
+  ): Promise<{ log: ActivityProgressLogRowDto[] }> {
+    return this.request<{ log: ActivityProgressLogRowDto[] }>(
+      `/v1/construction/schedule-activities/${String(id)}/progress-log?companyId=${String(companyId)}`,
     );
   }
 
