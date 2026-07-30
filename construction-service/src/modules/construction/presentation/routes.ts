@@ -7,26 +7,71 @@
  */
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 
 import { authMiddleware, companyScopeGuard, requireRole } from '../../../middleware/auth.js';
+import { kindSpecDto } from '../application/dto/DailyLogDtos.js';
+import type {
+  CancelApprovalFlowUseCase,
+  DecideApprovalStepUseCase,
+  GetApprovalFlowUseCase,
+  GetApprovalHistoryUseCase,
+  GetApprovalSummariesForDocsUseCase,
+  GetDocApprovalUseCase,
+  GetMyApprovalsUseCase,
+  ListApprovalFlowsUseCase,
+  StartApprovalFlowUseCase,
+} from '../application/useCases/ApprovalUseCases.js';
 import type { GetBoqUseCase, SaveBoqLinesUseCase } from '../application/useCases/BoqUseCases.js';
 import type {
-  CreateAttachmentUseCase,
-  CreateMeasurementUseCase,
-  DeleteAttachmentUseCase,
-  DeleteMeasurementUseCase,
-  GetMeasurementSummaryUseCase,
-  ListAttachmentsUseCase,
-  ListMeasurementsUseCase,
-  UpdateAttachmentUseCase,
-  UpdateMeasurementUseCase,
-} from '../application/useCases/MeasurementUseCases.js';
+  AddPostCommentUseCase,
+  AddProjectMemberUseCase,
+  AddProjectPhotoUseCase,
+  CreatePostUseCase,
+  DeletePostUseCase,
+  DeleteProjectPhotoUseCase,
+  GetPhotoContentUseCase,
+  GetPostUseCase,
+  ListPostsUseCase,
+  ListProjectMembersUseCase,
+  ListProjectPhotosUseCase,
+  MarkPostReadUseCase,
+  RemoveProjectMemberUseCase,
+  UpdatePostUseCase,
+  UpdateProjectMemberUseCase,
+} from '../application/useCases/CollaborationUseCases.js';
+import type {
+  CancelCommitmentUseCase,
+  CloseCommitmentUseCase,
+  CreateCommitmentUseCase,
+  GetContractEvmUseCase,
+  GetProjectEvmUseCase,
+  ListCommitmentsUseCase,
+  RecordCommitmentDeliveryUseCase,
+  SyncCommitmentsUseCase,
+  UpdateCommitmentUseCase,
+} from '../application/useCases/CommitmentUseCases.js';
 import type {
   CreateContractUseCase,
   ListContractsUseCase,
   UpdateContractUseCase,
 } from '../application/useCases/ContractUseCases.js';
+import type {
+  AddDailyLogCommentUseCase,
+  AddDailyLogFileUseCase,
+  ChangeDailyLogStatusUseCase,
+  DeleteDailyLogEntryUseCase,
+  DeleteDailyLogFileUseCase,
+  GetDailyLogDayUseCase,
+  GetDailyLogMonthUseCase,
+  GetManpowerReportUseCase,
+  GetMaterialConsumptionUseCase,
+  GetProductionActualsUseCase,
+  GetSafetySummaryUseCase,
+  SaveDailyLogEntryUseCase,
+  UpdateDailyLogUseCase,
+} from '../application/useCases/DailyLogUseCases.js';
 import type {
   CreateAdvanceUseCase,
   CreateCashMovementUseCase,
@@ -62,6 +107,25 @@ import type {
   UpdatePersonnelUseCase,
 } from '../application/useCases/LaborUseCases.js';
 import type {
+  BulkGenerateLocationsUseCase,
+  CreateLocationUseCase,
+  DeleteLocationUseCase,
+  GetLocationTreeUseCase,
+  GetLocationUsageUseCase,
+  ListLocationsUseCase,
+  MoveLocationUseCase,
+  UpdateLocationUseCase,
+} from '../application/useCases/LocationUseCases.js';
+import type {
+  AddMaintenanceRecordUseCase,
+  CreateMaintenancePlanUseCase,
+  DeactivateMaintenancePlanUseCase,
+  GetMachineMaintenanceUseCase,
+  ListMachineParkUseCase,
+  RecordMeterReadingUseCase,
+  UpdateMachineParkDetailsUseCase,
+} from '../application/useCases/MachineParkUseCases.js';
+import type {
   ChangeMaterialRequestStatusUseCase,
   CreateMaterialRequestUseCase,
   CreateMaterialUseCase,
@@ -77,6 +141,23 @@ import type {
   SaveMaterialRequestLinesUseCase,
   UpdateMaterialUseCase,
 } from '../application/useCases/MaterialUseCases.js';
+import type {
+  CreateAttachmentUseCase,
+  CreateMeasurementUseCase,
+  DeleteAttachmentUseCase,
+  DeleteMeasurementUseCase,
+  GetMeasurementSummaryUseCase,
+  ListAttachmentsUseCase,
+  ListMeasurementsUseCase,
+  UpdateAttachmentUseCase,
+  UpdateMeasurementUseCase,
+} from '../application/useCases/MeasurementUseCases.js';
+import type {
+  GetContractPerformanceUseCase,
+  GetProjectManhourSummariesUseCase,
+  GetProjectPerformanceUseCase,
+  SetUnitManhoursUseCase,
+} from '../application/useCases/PerformanceUseCases.js';
 import type {
   CreatePozUseCase,
   DeactivatePozUseCase,
@@ -99,9 +180,86 @@ import type {
   UpdateProjectUseCase,
 } from '../application/useCases/ProjectUseCases.js';
 import type {
+  AddQualityFileUseCase,
+  ChangeAssignmentStatusUseCase,
+  ChangeDefectStatusUseCase,
+  ChangeInspectionStatusUseCase,
+  ChangeRfiStatusUseCase,
+  CreateAssignmentUseCase,
+  CreateDefectUseCase,
+  CreateInspectionTemplateUseCase,
+  CreateRfiUseCase,
+  DeactivateInspectionTemplateUseCase,
+  DeleteQualityFileUseCase,
+  GetAssignmentSummaryUseCase,
+  GetDefectSummaryUseCase,
+  GetDefectUseCase,
+  GetInspectionUseCase,
+  GetRfiSummaryUseCase,
+  GetVendorScorecardUseCase,
+  AnswerRfiUseCase,
+  ListAssignmentsUseCase,
+  ListDefectsUseCase,
+  ListInspectionTemplatesUseCase,
+  ListInspectionsUseCase,
+  ListQualityFilesUseCase,
+  ListRfisUseCase,
+  RaiseDefectFromAnswerUseCase,
+  ReplaceInspectionTemplateItemsUseCase,
+  SaveInspectionAnswersUseCase,
+  StartInspectionUseCase,
+  UpdateAssignmentUseCase,
+  UpdateDefectUseCase,
+  UpdateRfiUseCase,
+} from '../application/useCases/QualityUseCases.js';
+import type {
   GetProgressCurveUseCase,
   GetProjectDashboardUseCase,
 } from '../application/useCases/ReportUseCases.js';
+import type {
+  CreateActivityUseCase,
+  DeactivateActivityUseCase,
+  GetActivityProgressLogUseCase,
+  GetProjectScheduleCurveUseCase,
+  GetProjectScheduleUseCase,
+  RecordActivityProgressUseCase,
+  UpdateActivityUseCase,
+} from '../application/useCases/ScheduleUseCases.js';
+import type {
+  AddTrackingLocationsUseCase,
+  ChangeTrackingStatusUseCase,
+  CreateProgressTemplateUseCase,
+  CreateTrackingUseCase,
+  DeactivateProgressTemplateUseCase,
+  GetProgressTemplateUseCase,
+  GetProjectPhysicalProgressUseCase,
+  GetTrackingBoardUseCase,
+  GetTrackingItemHistoryUseCase,
+  ListProgressTemplatesUseCase,
+  ListTrackingsUseCase,
+  RemoveTrackingLocationUseCase,
+  SaveTemplateBodyUseCase,
+  SetTrackingItemStateUseCase,
+  SyncTrackingWithTemplateUseCase,
+  UpdateProgressTemplateUseCase,
+  UpdateTrackingUseCase,
+} from '../application/useCases/TrackingUseCases.js';
+import type {
+  AddUnitPaymentUseCase,
+  ChangeUnitSaleStatusUseCase,
+  CreateChangeRequestUseCase,
+  CreateUnitSaleUseCase,
+  DecideChangeRequestUseCase,
+  DeleteUnitPaymentUseCase,
+  GetUnitInventoryUseCase,
+  GetUnitSaleUseCase,
+  ListUnitSalesUseCase,
+  SetUnitListPriceUseCase,
+  SyncUnitSalesUseCase,
+  UpdateChangeRequestUseCase,
+  UpdateUnitSaleUseCase,
+} from '../application/useCases/UnitSaleUseCases.js';
+import { LOG_ENTRY_KINDS } from '../domain/valueObjects/DailyLogKind.js';
 
 import { mapConstructionError } from './errorMapping.js';
 
@@ -182,6 +340,150 @@ export interface ConstructionRouterDeps {
   listAttachments: ListAttachmentsUseCase;
   updateAttachment: UpdateAttachmentUseCase;
   deleteAttachment: DeleteAttachmentUseCase;
+  // FAZ 1 — Mekân kırılımı
+  createLocation: CreateLocationUseCase;
+  updateLocation: UpdateLocationUseCase;
+  moveLocation: MoveLocationUseCase;
+  listLocations: ListLocationsUseCase;
+  getLocationTree: GetLocationTreeUseCase;
+  getLocationUsage: GetLocationUsageUseCase;
+  deleteLocation: DeleteLocationUseCase;
+  bulkGenerateLocations: BulkGenerateLocationsUseCase;
+  // FAZ 2 — Fiziksel ilerleme takibi
+  createProgressTemplate: CreateProgressTemplateUseCase;
+  updateProgressTemplate: UpdateProgressTemplateUseCase;
+  saveTemplateBody: SaveTemplateBodyUseCase;
+  listProgressTemplates: ListProgressTemplatesUseCase;
+  getProgressTemplate: GetProgressTemplateUseCase;
+  deactivateProgressTemplate: DeactivateProgressTemplateUseCase;
+  createTracking: CreateTrackingUseCase;
+  updateTracking: UpdateTrackingUseCase;
+  changeTrackingStatus: ChangeTrackingStatusUseCase;
+  listTrackings: ListTrackingsUseCase;
+  getTrackingBoard: GetTrackingBoardUseCase;
+  setTrackingItemState: SetTrackingItemStateUseCase;
+  getTrackingItemHistory: GetTrackingItemHistoryUseCase;
+  addTrackingLocations: AddTrackingLocationsUseCase;
+  removeTrackingLocation: RemoveTrackingLocationUseCase;
+  syncTrackingWithTemplate: SyncTrackingWithTemplateUseCase;
+  getProjectPhysicalProgress: GetProjectPhysicalProgressUseCase;
+  // FAZ 3 — Şantiye günlüğü
+  getDailyLogMonth: GetDailyLogMonthUseCase;
+  getDailyLogDay: GetDailyLogDayUseCase;
+  updateDailyLog: UpdateDailyLogUseCase;
+  changeDailyLogStatus: ChangeDailyLogStatusUseCase;
+  saveDailyLogEntry: SaveDailyLogEntryUseCase;
+  deleteDailyLogEntry: DeleteDailyLogEntryUseCase;
+  addDailyLogFile: AddDailyLogFileUseCase;
+  deleteDailyLogFile: DeleteDailyLogFileUseCase;
+  addDailyLogComment: AddDailyLogCommentUseCase;
+  getManpowerReport: GetManpowerReportUseCase;
+  getSafetySummary: GetSafetySummaryUseCase;
+  getProductionActuals: GetProductionActualsUseCase;
+  getMaterialConsumption: GetMaterialConsumptionUseCase;
+  // FAZ 4 — Adam×saat & verimlilik
+  getContractPerformance: GetContractPerformanceUseCase;
+  getProjectPerformance: GetProjectPerformanceUseCase;
+  getProjectManhourSummaries: GetProjectManhourSummariesUseCase;
+  setUnitManhours: SetUnitManhoursUseCase;
+  // FAZ 5 — Jenerik onay akışı
+  startApprovalFlow: StartApprovalFlowUseCase;
+  decideApprovalStep: DecideApprovalStepUseCase;
+  cancelApprovalFlow: CancelApprovalFlowUseCase;
+  getApprovalFlow: GetApprovalFlowUseCase;
+  getDocApproval: GetDocApprovalUseCase;
+  listApprovalFlows: ListApprovalFlowsUseCase;
+  getApprovalSummariesForDocs: GetApprovalSummariesForDocsUseCase;
+  getMyApprovals: GetMyApprovalsUseCase;
+  getApprovalHistory: GetApprovalHistoryUseCase;
+  // FAZ 6 — Kalite & Güvenlik
+  createDefect: CreateDefectUseCase;
+  updateDefect: UpdateDefectUseCase;
+  changeDefectStatus: ChangeDefectStatusUseCase;
+  listDefects: ListDefectsUseCase;
+  getDefect: GetDefectUseCase;
+  getDefectSummary: GetDefectSummaryUseCase;
+  createInspectionTemplate: CreateInspectionTemplateUseCase;
+  listInspectionTemplates: ListInspectionTemplatesUseCase;
+  replaceInspectionTemplateItems: ReplaceInspectionTemplateItemsUseCase;
+  deactivateInspectionTemplate: DeactivateInspectionTemplateUseCase;
+  startInspection: StartInspectionUseCase;
+  saveInspectionAnswers: SaveInspectionAnswersUseCase;
+  changeInspectionStatus: ChangeInspectionStatusUseCase;
+  listInspections: ListInspectionsUseCase;
+  getInspection: GetInspectionUseCase;
+  raiseDefectFromAnswer: RaiseDefectFromAnswerUseCase;
+  getVendorScorecard: GetVendorScorecardUseCase;
+  createRfi: CreateRfiUseCase;
+  updateRfi: UpdateRfiUseCase;
+  answerRfi: AnswerRfiUseCase;
+  changeRfiStatus: ChangeRfiStatusUseCase;
+  listRfis: ListRfisUseCase;
+  getRfiSummary: GetRfiSummaryUseCase;
+  createAssignment: CreateAssignmentUseCase;
+  updateAssignment: UpdateAssignmentUseCase;
+  changeAssignmentStatus: ChangeAssignmentStatusUseCase;
+  listAssignments: ListAssignmentsUseCase;
+  getAssignmentSummary: GetAssignmentSummaryUseCase;
+  addQualityFile: AddQualityFileUseCase;
+  listQualityFiles: ListQualityFilesUseCase;
+  deleteQualityFile: DeleteQualityFileUseCase;
+  // FAZ 7 — Taahhüt & EVM
+  createCommitment: CreateCommitmentUseCase;
+  updateCommitment: UpdateCommitmentUseCase;
+  recordCommitmentDelivery: RecordCommitmentDeliveryUseCase;
+  closeCommitment: CloseCommitmentUseCase;
+  cancelCommitment: CancelCommitmentUseCase;
+  listCommitments: ListCommitmentsUseCase;
+  syncCommitments: SyncCommitmentsUseCase;
+  getContractEvm: GetContractEvmUseCase;
+  getProjectEvm: GetProjectEvmUseCase;
+  // FAZ 8 — İş programı
+  createActivity: CreateActivityUseCase;
+  updateActivity: UpdateActivityUseCase;
+  deactivateActivity: DeactivateActivityUseCase;
+  recordActivityProgress: RecordActivityProgressUseCase;
+  getProjectSchedule: GetProjectScheduleUseCase;
+  getActivityProgressLog: GetActivityProgressLogUseCase;
+  getProjectScheduleCurve: GetProjectScheduleCurveUseCase;
+  // FAZ 9 — Makine parkı
+  listMachinePark: ListMachineParkUseCase;
+  updateMachineParkDetails: UpdateMachineParkDetailsUseCase;
+  recordMeterReading: RecordMeterReadingUseCase;
+  createMaintenancePlan: CreateMaintenancePlanUseCase;
+  deactivateMaintenancePlan: DeactivateMaintenancePlanUseCase;
+  addMaintenanceRecord: AddMaintenanceRecordUseCase;
+  getMachineMaintenance: GetMachineMaintenanceUseCase;
+  // FAZ 10 — Konut satış
+  setUnitListPrice: SetUnitListPriceUseCase;
+  createUnitSale: CreateUnitSaleUseCase;
+  updateUnitSale: UpdateUnitSaleUseCase;
+  changeUnitSaleStatus: ChangeUnitSaleStatusUseCase;
+  listUnitSales: ListUnitSalesUseCase;
+  getUnitSale: GetUnitSaleUseCase;
+  addUnitPayment: AddUnitPaymentUseCase;
+  deleteUnitPayment: DeleteUnitPaymentUseCase;
+  createChangeRequest: CreateChangeRequestUseCase;
+  updateChangeRequest: UpdateChangeRequestUseCase;
+  decideChangeRequest: DecideChangeRequestUseCase;
+  getUnitInventory: GetUnitInventoryUseCase;
+  syncUnitSales: SyncUnitSalesUseCase;
+  // FAZ 11 — İşbirliği
+  listProjectMembers: ListProjectMembersUseCase;
+  addProjectMember: AddProjectMemberUseCase;
+  updateProjectMember: UpdateProjectMemberUseCase;
+  removeProjectMember: RemoveProjectMemberUseCase;
+  listPosts: ListPostsUseCase;
+  createPost: CreatePostUseCase;
+  updatePost: UpdatePostUseCase;
+  deletePost: DeletePostUseCase;
+  markPostRead: MarkPostReadUseCase;
+  getPost: GetPostUseCase;
+  addPostComment: AddPostCommentUseCase;
+  listProjectPhotos: ListProjectPhotosUseCase;
+  addProjectPhoto: AddProjectPhotoUseCase;
+  getPhotoContent: GetPhotoContentUseCase;
+  deleteProjectPhoto: DeleteProjectPhotoUseCase;
 }
 
 // --- Schema fragmanları ---------------------------------------------------
@@ -208,6 +510,158 @@ const mreqStatus = z.enum(['draft', 'submitted', 'approved', 'rejected', 'fulfil
 const companyIdQ = z.object({ companyId: z.coerce.number().int().positive() });
 const idParam = z.object({ id: z.coerce.number().int().positive() });
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+// FAZ 1/2 fragmanları
+const locationKind = z.enum(['site', 'block', 'floor', 'unit', 'zone']);
+const trackScope = z.enum(['general', 'block', 'floor', 'unit']);
+const trackingStatus = z.enum(['draft', 'active', 'completed', 'cancelled']);
+const itemState = z.enum(['not_started', 'in_progress', 'has_defects', 'completed']);
+// FAZ 3 fragmanları
+const workState = z.enum(['working', 'not_working', 'partial']);
+const logEntryKind = z.enum([
+  'subcontractor',
+  'personnel',
+  'equipment',
+  'note',
+  'delivery',
+  'accident',
+  'material_used',
+  'production',
+  'fuel',
+  'maintenance',
+  'visitor',
+]);
+const accidentSeverity = z.enum(['near_miss', 'first_aid', 'medical', 'lost_time', 'fatal']);
+// FAZ 5 fragmanları
+const approvalDocKind = z.enum([
+  'contract',
+  'progress',
+  'material_request',
+  'expense',
+  'advance',
+  'daily_log',
+  'tracking',
+  'boq',
+  'measurement',
+  'payment',
+]);
+const approvalStatus = z.enum(['pending', 'approved', 'rejected', 'cancelled']);
+// FAZ 6 fragmanları — DB CHECK kısıtlarıyla birebir (QualitySafety VO)
+const defectKind = z.enum([
+  'workmanship',
+  'missing_work',
+  'material_damage',
+  'dimensional',
+  'plumbing',
+  'electrical',
+  'paint',
+  'insulation',
+  'cleaning',
+  'safety',
+  'other',
+]);
+const defectSeverity = z.enum(['very_low', 'low', 'medium', 'high', 'critical']);
+const defectStatus = z.enum(['open', 'in_progress', 'fixed', 'verified', 'closed', 'rejected']);
+const defectSource = z.enum(['internal', 'inspection', 'daily_log', 'client', 'rfi']);
+const inspectionTplKind = z.enum([
+  'quality',
+  'subcontractor_scorecard',
+  'hse',
+  'handover',
+  'other',
+]);
+const inspectionStatus = z.enum(['draft', 'completed', 'approved', 'cancelled']);
+const rfiDiscipline = z.enum([
+  'architectural',
+  'structural',
+  'mechanical',
+  'electrical',
+  'infrastructure',
+  'landscape',
+  'geotechnical',
+  'other',
+]);
+const qualityPriority = z.enum(['low', 'medium', 'high', 'urgent']);
+const rfiStatus = z.enum(['open', 'answered', 'closed', 'cancelled']);
+const assignmentStatus = z.enum(['open', 'in_progress', 'done', 'cancelled']);
+const assignmentSource = z.enum(['defect', 'rfi', 'inspection', 'daily_log', 'tracking']);
+const qualityDocKind = z.enum(['defect', 'inspection', 'rfi', 'assignment']);
+// FAZ 7 fragmanları
+const commitmentSource = z.enum(['purchase_order', 'subcontract', 'manual']);
+const commitmentStatus = z.enum(['open', 'partial', 'closed', 'cancelled']);
+const unitSaleStatus = z.enum(['reserved', 'sold', 'barter', 'cancelled']);
+const unitSaleActiveStatus = z.enum(['reserved', 'sold', 'barter']);
+const unitSaleSource = z.enum(['crm', 'manual']);
+const unitPaymentKind = z.enum(['collection', 'refund']);
+const unitPaymentMethod = z.enum(['cash', 'bank', 'cheque', 'other']);
+const changeRequestDecision = z.enum(['approved', 'rejected', 'done']);
+const memberRole = z.enum([
+  'manager',
+  'engineer',
+  'site_chief',
+  'foreman',
+  'accountant',
+  'viewer',
+  'other',
+]);
+// FAZ 8 fragmanları
+const activityKind = z.enum(['group', 'task', 'milestone']);
+// FAZ 9 fragmanları
+const meterType = z.enum(['km', 'hour']);
+const maintenanceIntervalType = z.enum(['meter', 'days']);
+const rentalPeriod = z.enum(['daily', 'monthly']);
+const pct = z.number().min(0).max(100);
+const templateBodySchema = z.object({
+  groups: z.array(
+    z.object({
+      code: z.string().min(1).max(40),
+      name: z.string().min(1).max(300),
+      weightPct: z.number().nonnegative(),
+      sortOrder: z.number().int().nonnegative().optional(),
+      items: z.array(
+        z.object({
+          code: z.string().min(1).max(40),
+          name: z.string().min(1).max(300),
+          weightPct: z.number().nonnegative(),
+          sortOrder: z.number().int().nonnegative().optional(),
+          pozId: z.number().int().positive().nullable().optional(),
+        }),
+      ),
+    }),
+  ),
+});
+
+/** Şablon gövdesindeki isteğe bağlı sortOrder'ları dizi sırasına göre doldurur. */
+function normalizeTemplateBody(body: z.infer<typeof templateBodySchema>): {
+  groups: ReadonlyArray<{
+    code: string;
+    name: string;
+    weightPct: number;
+    sortOrder: number;
+    items: ReadonlyArray<{
+      code: string;
+      name: string;
+      weightPct: number;
+      sortOrder: number;
+      pozId: number | null;
+    }>;
+  }>;
+} {
+  return {
+    groups: body.groups.map((g, gi) => ({
+      code: g.code,
+      name: g.name,
+      weightPct: g.weightPct,
+      sortOrder: g.sortOrder ?? gi,
+      items: g.items.map((i, ii) => ({
+        code: i.code,
+        name: i.name,
+        weightPct: i.weightPct,
+        sortOrder: i.sortOrder ?? ii,
+        pozId: i.pozId ?? null,
+      })),
+    })),
+  };
+}
 
 const tenderSchema = z
   .object({
@@ -236,6 +690,11 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
   const actorRole = (c: { get: (k: string) => unknown }): string => {
     const auth = c.get('auth') as { role?: string } | undefined;
     return auth?.role ?? 'viewer';
+  };
+  // Yazar/okur adı yazma ANINDA JWT'den kopyalanır (cs_ref_users boş olabilir).
+  const actorName = (c: { get: (k: string) => unknown }): string => {
+    const auth = c.get('auth') as { username?: string } | undefined;
+    return auth?.username ?? '';
   };
   // Onay/ödeme görev ayrılığı: hakedişi onaylamak/ödemek yönetici (cfo) ya da
   // admin gerektirir (construction.progress.approve). Diğer geçişler editor.
@@ -1952,6 +2411,3628 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
       try {
         const dto = await deps.getProgressCurve.execute({ contractId: id, companyId: q.companyId });
         return c.json(dto);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 1 — LOCATIONS (Mekân kırılımı) ================================
+
+  app.get(
+    '/projects/:id/locations',
+    zValidator('param', idParam),
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        includeInactive: z.coerce.boolean().optional(),
+        kind: locationKind.optional(),
+        subtreeOf: z.coerce.number().int().positive().optional(),
+        search: z.string().optional(),
+        /** 'tree' → iç içe ağaç + alt toplamlar, 'flat' → düz liste */
+        shape: z.enum(['tree', 'flat']).optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      const opts = {
+        companyId: q.companyId,
+        projectId: id,
+        ...(q.includeInactive !== undefined ? { includeInactive: q.includeInactive } : {}),
+        ...(q.kind !== undefined ? { kind: q.kind } : {}),
+        ...(q.subtreeOf !== undefined ? { subtreeOf: q.subtreeOf } : {}),
+        ...(q.search !== undefined ? { search: q.search } : {}),
+      };
+      try {
+        if (q.shape === 'flat') {
+          return c.json({ locations: await deps.listLocations.execute(opts) });
+        }
+        return c.json({ tree: await deps.getLocationTree.execute(opts) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/locations',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        parentId: z.number().int().positive().nullable().optional(),
+        kind: locationKind,
+        code: z.string().min(1).max(40),
+        name: z.string().max(200).optional(),
+        sortOrder: z.number().int().optional(),
+        unitType: z.string().max(40).nullable().optional(),
+        grossArea: z.number().nonnegative().nullable().optional(),
+        netArea: z.number().nonnegative().nullable().optional(),
+        landShare: z.number().nonnegative().nullable().optional(),
+        facade: z.string().max(40).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.createLocation.execute({ ...b, createdBy: actorId(c) });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/locations/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        code: z.string().min(1).max(40).optional(),
+        name: z.string().min(1).max(200).optional(),
+        sortOrder: z.number().int().optional(),
+        unitType: z.string().max(40).nullable().optional(),
+        grossArea: z.number().nonnegative().nullable().optional(),
+        netArea: z.number().nonnegative().nullable().optional(),
+        landShare: z.number().nonnegative().nullable().optional(),
+        facade: z.string().max(40).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateLocation.execute({ locationId: id, ...b }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/locations/:id/move',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        newParentId: z.number().int().positive().nullable(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.moveLocation.execute({
+            locationId: id,
+            companyId: b.companyId,
+            newParentId: b.newParentId,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Silme öncesi "neye bağlı?" sorgusu — arayüz onay diyaloğunda gösterir. */
+  app.get(
+    '/locations/:id/usage',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getLocationUsage.execute({ locationId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/locations/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ deactivateOnly: z.coerce.boolean().optional() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deleteLocation.execute({
+            locationId: id,
+            companyId: q.companyId,
+            ...(q.deactivateOnly !== undefined ? { deactivateOnly: q.deactivateOnly } : {}),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Toplu mekân üretimi: N blok × M kat × K daire iskeleti. */
+  app.post(
+    '/locations/bulk-generate',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        parentId: z.number().int().positive().nullable().optional(),
+        blocks: z.array(z.string().min(1).max(40)).min(1).max(200),
+        floors: z.array(z.string().min(1).max(40)).max(200).optional(),
+        unitsPerFloor: z.number().int().min(0).max(200).optional(),
+        unitNumbering: z.enum(['sequential', 'per_floor']).optional(),
+        defaultUnitType: z.string().max(40).nullable().optional(),
+        blockNameTemplate: z.string().max(100).optional(),
+        floorNameTemplate: z.string().max(100).optional(),
+        unitNameTemplate: z.string().max(100).optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.bulkGenerateLocations.execute({ ...b, createdBy: actorId(c) });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 2 — PROGRESS TEMPLATES (Takip şablonları) ====================
+
+  app.get(
+    '/progress-templates',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        includeInactive: z.coerce.boolean().optional(),
+        scope: trackScope.optional(),
+        search: z.string().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const list = await deps.listProgressTemplates.execute({
+          companyId: q.companyId,
+          ...(q.includeInactive !== undefined ? { includeInactive: q.includeInactive } : {}),
+          ...(q.scope !== undefined ? { scope: q.scope } : {}),
+          ...(q.search !== undefined ? { search: q.search } : {}),
+        });
+        return c.json({ templates: list });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/progress-templates/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getProgressTemplate.execute({ templateId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/progress-templates',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        name: z.string().min(1).max(300),
+        code: z.string().max(40).optional(),
+        scope: trackScope.optional(),
+        description: z.string().max(4000).nullable().optional(),
+        pctInProgress: pct.optional(),
+        pctHasDefects: pct.optional(),
+        body: templateBodySchema.optional(),
+      }),
+    ),
+    async (c) => {
+      const { body, ...rest } = c.req.valid('json');
+      try {
+        const dto = await deps.createProgressTemplate.execute({
+          ...rest,
+          ...(body !== undefined ? { body: normalizeTemplateBody(body) } : {}),
+          createdBy: actorId(c),
+        });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/progress-templates/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        name: z.string().min(1).max(300).optional(),
+        scope: trackScope.optional(),
+        description: z.string().max(4000).nullable().optional(),
+        pctInProgress: pct.optional(),
+        pctHasDefects: pct.optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateProgressTemplate.execute({ templateId: id, ...b }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Gövde tam-değiştirme. Yanıtta kaç takibin etkilendiği döner. */
+  app.put(
+    '/progress-templates/:id/body',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({ companyId: z.number().int().positive() }).merge(templateBodySchema),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.saveTemplateBody.execute({
+            templateId: id,
+            companyId: b.companyId,
+            body: normalizeTemplateBody({ groups: b.groups }),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/progress-templates/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deactivateProgressTemplate.execute({
+            templateId: id,
+            companyId: q.companyId,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 2 — TRACKINGS (Güncel durum takipleri) =======================
+
+  app.get(
+    '/trackings',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        status: trackingStatus.optional(),
+        includeCancelled: z.coerce.boolean().optional(),
+        search: z.string().optional(),
+        asOf: dateStr.optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const list = await deps.listTrackings.execute({
+          companyId: q.companyId,
+          ...(q.projectId !== undefined ? { projectId: q.projectId } : {}),
+          ...(q.status !== undefined ? { status: q.status } : {}),
+          ...(q.includeCancelled !== undefined ? { includeCancelled: q.includeCancelled } : {}),
+          ...(q.search !== undefined ? { search: q.search } : {}),
+          ...(q.asOf !== undefined ? { asOf: q.asOf } : {}),
+        });
+        return c.json({ trackings: list });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Saha ekranı: lokasyon sekmeleri + grup/iş matrisi + ilerleme/sapma. */
+  app.get(
+    '/trackings/:id/board',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ asOf: dateStr.optional() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getTrackingBoard.execute({
+            trackingId: id,
+            companyId: q.companyId,
+            ...(q.asOf !== undefined ? { asOf: q.asOf } : {}),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/trackings',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        templateId: z.number().int().positive(),
+        name: z.string().min(1).max(300),
+        code: z.string().max(40).optional(),
+        projectWeightPct: pct.optional(),
+        plannedStart: dateStr.nullable().optional(),
+        plannedEnd: dateStr.nullable().optional(),
+        assignedUserId: z.number().int().positive().nullable().optional(),
+        visibleAll: z.boolean().optional(),
+        note: z.string().max(4000).nullable().optional(),
+        locationIds: z.array(z.number().int().positive()).min(1).max(500),
+        locationWeights: z.record(z.string(), z.number().nonnegative()).optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.createTracking.execute({ ...b, createdBy: actorId(c) });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/trackings/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        name: z.string().min(1).max(300).optional(),
+        projectWeightPct: pct.optional(),
+        plannedStart: dateStr.nullable().optional(),
+        plannedEnd: dateStr.nullable().optional(),
+        assignedUserId: z.number().int().positive().nullable().optional(),
+        visibleAll: z.boolean().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateTracking.execute({ trackingId: id, ...b }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/trackings/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({ companyId: z.number().int().positive(), status: trackingStatus }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.changeTrackingStatus.execute({
+            trackingId: id,
+            companyId: b.companyId,
+            status: b.status,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Saha durum girişi (toplu). Yalnız aktif takipte kabul edilir. */
+  app.put(
+    '/trackings/:id/items',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        updates: z
+          .array(
+            z.object({
+              trackingItemId: z.number().int().positive(),
+              state: itemState,
+              overridePct: pct.nullable().optional(),
+              inspectedBy: z.number().int().positive().nullable().optional(),
+              inspectedAt: dateStr.nullable().optional(),
+              note: z.string().max(1000).nullable().optional(),
+            }),
+          )
+          .min(1)
+          .max(1000),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const locations = await deps.setTrackingItemState.execute({
+          trackingId: id,
+          companyId: b.companyId,
+          updates: b.updates,
+          changedBy: actorId(c),
+        });
+        return c.json({ locations });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/tracking-items/:id/history',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const history = await deps.getTrackingItemHistory.execute({
+          trackingItemId: id,
+          companyId: q.companyId,
+        });
+        return c.json({ history });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/trackings/:id/locations',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        locationIds: z.array(z.number().int().positive()).min(1).max(500),
+        locationWeights: z.record(z.string(), z.number().nonnegative()).optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const locations = await deps.addTrackingLocations.execute({ trackingId: id, ...b });
+        return c.json({ locations }, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/trackings/:id/locations/:trackingLocationId',
+    requireWrite,
+    zValidator(
+      'param',
+      z.object({
+        id: z.coerce.number().int().positive(),
+        trackingLocationId: z.coerce.number().int().positive(),
+      }),
+    ),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const p = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const locations = await deps.removeTrackingLocation.execute({
+          trackingId: p.id,
+          companyId: q.companyId,
+          trackingLocationId: p.trackingLocationId,
+        });
+        return c.json({ locations });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Şablona sonradan eklenen işleri takibe yansıtır (mevcut tikler korunur). */
+  app.post(
+    '/trackings/:id/sync-template',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', z.object({ companyId: z.number().int().positive() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.syncTrackingWithTemplate.execute({
+            trackingId: id,
+            companyId: b.companyId,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Proje panelinin "Durum %" göstergesi + takip kırılımı. */
+  app.get(
+    '/projects/:id/physical-progress',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ asOf: dateStr.optional() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getProjectPhysicalProgress.execute({
+            projectId: id,
+            companyId: q.companyId,
+            ...(q.asOf !== undefined ? { asOf: q.asOf } : {}),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 3 — DAILY LOG (Şantiye Günlüğü) ===============================
+
+  /** Ay takvimi: her günün toplamları (takvim hücresi göstergeleri). */
+  app.get(
+    '/projects/:id/daily-logs',
+    zValidator('param', idParam),
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        year: z.coerce.number().int().min(2000).max(2200),
+        month: z.coerce.number().int().min(1).max(12),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getDailyLogMonth.execute({
+            companyId: q.companyId,
+            projectId: id,
+            year: q.year,
+            month: q.month,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * Bir günün tam görünümü. create=true ise gün başlığı yoksa açılır — takvimde
+   * bir güne tıklamak zaten kayıt girme niyetidir. Gün yoksa ve create=false ise
+   * 204 döner (404 değil: "o gün henüz doldurulmadı" bir hata değil).
+   */
+  app.get(
+    '/projects/:id/daily-logs/:logDate',
+    zValidator('param', z.object({ id: z.coerce.number().int().positive(), logDate: dateStr })),
+    zValidator('query', companyIdQ.extend({ create: z.coerce.boolean().optional() })),
+    async (c) => {
+      const p = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const day = await deps.getDailyLogDay.execute({
+          companyId: q.companyId,
+          projectId: p.id,
+          logDate: p.logDate,
+          ...(q.create !== undefined ? { create: q.create } : {}),
+          createdBy: actorId(c),
+        });
+        if (day === null) return c.body(null, 204);
+        return c.json(day);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/daily-logs/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        workState: workState.optional(),
+        tempC: z.number().nullable().optional(),
+        weatherNote: z.string().max(200).nullable().optional(),
+        noWorkReason: z.string().max(200).nullable().optional(),
+        summary: z.string().max(8000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateDailyLog.execute({ logId: id, ...b }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * Gün kilidi. KİLİTLEME editor'a açık (raporu kapatan saha ekibidir), KİLİT
+   * AÇMA yönetici ister: kapanmış bir günü yeniden açmak raporun kanıt değerine
+   * dokunur, bunu şantiye şefi tek başına yapmamalı.
+   */
+  app.post(
+    '/daily-logs/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        status: z.enum(['open', 'locked']),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      if (b.status === 'open' && !canApprove(actorRole(c))) {
+        return c.json({ message: 'Kilit açmak için yönetici yetkisi gerekir' }, 403);
+      }
+      try {
+        return c.json(
+          await deps.changeDailyLogStatus.execute({
+            logId: id,
+            companyId: b.companyId,
+            status: b.status,
+            actorUserId: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Kayıt tipi tarifleri — arayüz form alanlarını buna göre kurar. */
+  app.get('/daily-log-kinds', (c) => {
+    return c.json({ kinds: LOG_ENTRY_KINDS.map((k) => kindSpecDto(k)) });
+  });
+
+  /** Satır ekle/güncelle (entryId varsa güncelleme). */
+  app.put(
+    '/daily-logs/:id/entries',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        entryId: z.number().int().positive().optional(),
+        kind: logEntryKind,
+        locationId: z.number().int().positive().nullable().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        personnelId: z.number().int().positive().nullable().optional(),
+        machineId: z.number().int().positive().nullable().optional(),
+        materialId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        trackingItemId: z.number().int().positive().nullable().optional(),
+        crewName: z.string().max(100).nullable().optional(),
+        personName: z.string().max(200).nullable().optional(),
+        description: z.string().max(1000).nullable().optional(),
+        headcount: z.number().int().nonnegative().nullable().optional(),
+        hours: z.number().nonnegative().nullable().optional(),
+        idleHours: z.number().nonnegative().nullable().optional(),
+        qty: z.number().nonnegative().nullable().optional(),
+        unit: z.string().max(20).nullable().optional(),
+        amount: z.number().nonnegative().nullable().optional(),
+        currency: currency.optional(),
+        waybillNo: z.string().max(60).nullable().optional(),
+        occurredAt: z
+          .string()
+          .regex(/^\d{2}:\d{2}(:\d{2})?$/)
+          .nullable()
+          .optional(),
+        severity: accidentSeverity.nullable().optional(),
+        lostDays: z.number().int().nonnegative().nullable().optional(),
+        sortOrder: z.number().int().nonnegative().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.saveDailyLogEntry.execute({
+          logId: id,
+          ...b,
+          createdBy: actorId(c),
+        });
+        return c.json(dto, b.entryId === undefined ? 201 : 200);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/daily-log-entries/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deleteDailyLogEntry.execute({ entryId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/daily-logs/:id/files',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z
+        .object({
+          companyId: z.number().int().positive(),
+          entryId: z.number().int().positive().nullable().optional(),
+          fileKind: z.enum(['photo', 'doc']).optional(),
+          title: z.string().max(300).nullable().optional(),
+          fileUrl: z.string().max(1000).nullable().optional(),
+          contentBase64: z.string().nullable().optional(),
+          mimeType: z.string().max(100).nullable().optional(),
+        })
+        // DB CHECK'i ile aynı kural, istemciye 400 olarak erken döner
+        .refine((v) => (v.fileUrl ?? null) !== null || (v.contentBase64 ?? null) !== null, {
+          message: 'fileUrl veya contentBase64 zorunlu',
+        }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.addDailyLogFile.execute({
+          companyId: b.companyId,
+          logId: id,
+          entryId: b.entryId ?? null,
+          fileKind: b.fileKind ?? 'photo',
+          title: b.title ?? null,
+          fileUrl: b.fileUrl ?? null,
+          contentBase64: b.contentBase64 ?? null,
+          mimeType: b.mimeType ?? null,
+          createdBy: actorId(c),
+        });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/daily-log-files/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deleteDailyLogFile.execute({ fileId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/daily-logs/:id/comments',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        entryId: z.number().int().positive().nullable().optional(),
+        body: z.string().min(1).max(2000),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.addDailyLogComment.execute({
+          companyId: b.companyId,
+          logId: id,
+          entryId: b.entryId ?? null,
+          body: b.body,
+          createdBy: actorId(c),
+        });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** İş gücü raporu — adam-gün eğrisi. */
+  app.get(
+    '/projects/:id/manpower',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ fromDate: dateStr, toDate: dateStr })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getManpowerReport.execute({
+            companyId: q.companyId,
+            projectId: id,
+            fromDate: q.fromDate,
+            toDate: q.toDate,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** İSG özeti — kaza sıklık ve ağırlık oranları. */
+  app.get(
+    '/projects/:id/safety-summary',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ fromDate: dateStr, toDate: dateStr })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getSafetySummary.execute({
+            companyId: q.companyId,
+            projectId: id,
+            fromDate: q.fromDate,
+            toDate: q.toDate,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Keşif satırı bazında günlükten gelen gerçekleşen imalat. */
+  app.get(
+    '/projects/:id/production-actuals',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const rows = await deps.getProductionActuals.execute({
+          companyId: q.companyId,
+          projectId: id,
+        });
+        return c.json({ rows });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Mekân × malzeme tüketimi (fire analizi girdisi). */
+  app.get(
+    '/projects/:id/material-consumption',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const rows = await deps.getMaterialConsumption.execute({
+          companyId: q.companyId,
+          projectId: id,
+        });
+        return c.json({ rows });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 4 — PERFORMANCE (Adam×saat & verimlilik) ======================
+
+  /** Sözleşme bazlı poz performans tablosu + ağırlıklı özet. */
+  app.get(
+    '/contracts/:id/performance',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getContractPerformance.execute({ contractId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Proje geneli poz performansı (tüm sözleşmeler). */
+  app.get(
+    '/projects/:id/performance',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getProjectPerformance.execute({ projectId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Sözleşme bazlı adam×saat özetleri (proje panelinde kart listesi). */
+  app.get(
+    '/projects/:id/manhour-summaries',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const summaries = await deps.getProjectManhourSummaries.execute({
+          projectId: id,
+          companyId: q.companyId,
+        });
+        return c.json({ summaries });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Birim adam×saat toplu girişi. Keşifteki diğer alanlara dokunmaz. */
+  app.put(
+    '/contracts/:id/unit-manhours',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        updates: z
+          .array(
+            z.object({
+              boqLineId: z.number().int().positive(),
+              unitManhours: z.number().nonnegative(),
+            }),
+          )
+          .min(1)
+          .max(2000),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.setUnitManhours.execute({
+            contractId: id,
+            companyId: b.companyId,
+            updates: b.updates,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 5 — APPROVAL FLOW (Jenerik onay akışı) ========================
+
+  /**
+   * "Bana atanan onaylar" kutusu. Kullanıcı token'dan gelir — başkasının
+   * onay kutusunu görmek anlamsız ve sızıntı olur.
+   */
+  app.get('/approvals/mine', zValidator('query', companyIdQ), async (c) => {
+    const q = c.req.valid('query');
+    const userId = actorId(c);
+    if (userId === null) {
+      return c.json({ message: 'Kullanıcı belirlenemedi' }, 401);
+    }
+    try {
+      return c.json(await deps.getMyApprovals.execute({ companyId: q.companyId, userId }));
+    } catch (err) {
+      mapConstructionError(err);
+    }
+  });
+
+  app.get(
+    '/approvals',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        docKind: approvalDocKind.optional(),
+        docId: z.coerce.number().int().positive().optional(),
+        projectId: z.coerce.number().int().positive().optional(),
+        status: approvalStatus.optional(),
+        overdueOnly: z.coerce.boolean().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const flows = await deps.listApprovalFlows.execute({
+          companyId: q.companyId,
+          ...(q.docKind !== undefined ? { docKind: q.docKind } : {}),
+          ...(q.docId !== undefined ? { docId: q.docId } : {}),
+          ...(q.projectId !== undefined ? { projectId: q.projectId } : {}),
+          ...(q.status !== undefined ? { status: q.status } : {}),
+          ...(q.overdueOnly !== undefined ? { overdueOnly: q.overdueOnly } : {}),
+        });
+        return c.json({ flows });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Liste ekranları için toplu "N/M" özeti — belge başına ayrı istek atmasın. */
+  app.post(
+    '/approvals/summaries',
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        docKind: approvalDocKind,
+        docIds: z.array(z.number().int().positive()).max(500),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const summaries = await deps.getApprovalSummariesForDocs.execute(b);
+        return c.json({ summaries });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Belgenin AKTİF akışı; yoksa 204 (çoğu belgede akış yoktur, hata değil). */
+  app.get(
+    '/approvals/doc/:docKind/:docId',
+    zValidator(
+      'param',
+      z.object({ docKind: approvalDocKind, docId: z.coerce.number().int().positive() }),
+    ),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const p = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const flow = await deps.getDocApproval.execute({
+          companyId: q.companyId,
+          docKind: p.docKind,
+          docId: p.docId,
+        });
+        if (flow === null) return c.body(null, 204);
+        return c.json(flow);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/approvals/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.getApprovalFlow.execute({ companyId: q.companyId, flowId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/approvals/:id/history',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const history = await deps.getApprovalHistory.execute({
+          companyId: q.companyId,
+          flowId: id,
+        });
+        return c.json({ history });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/approvals',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        docKind: approvalDocKind,
+        docId: z.number().int().positive(),
+        projectId: z.number().int().positive().nullable().optional(),
+        mode: z.enum(['ordered', 'unordered']).optional(),
+        minApprovals: z.number().int().positive().nullable().optional(),
+        title: z.string().max(300).nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+        approvers: z
+          .array(
+            z.object({
+              approverUserId: z.number().int().positive(),
+              dueDate: dateStr.nullable().optional(),
+            }),
+          )
+          .min(1)
+          .max(50),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.startApprovalFlow.execute({ ...b, createdBy: actorId(c) });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * Adım kararı. Onaycı KENDİ adımına karar verebilir; başkasının adımına karar
+   * vermek (vekâleten onay) yönetici yetkisi ister ve izde 'delegated' olarak
+   * görünür — kimin bastığı gizlenmez.
+   */
+  app.post(
+    '/approvals/:id/steps/:stepId/decide',
+    requireWrite,
+    zValidator(
+      'param',
+      z.object({
+        id: z.coerce.number().int().positive(),
+        stepId: z.coerce.number().int().positive(),
+      }),
+    ),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        approve: z.boolean(),
+        comment: z.string().max(1000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const p = c.req.valid('param');
+      const b = c.req.valid('json');
+      const userId = actorId(c);
+      if (userId === null) {
+        return c.json({ message: 'Kullanıcı belirlenemedi' }, 401);
+      }
+      try {
+        // Vekâleten onay denetimi: adım başkasınınsa yönetici olmalı.
+        const flow = await deps.getApprovalFlow.execute({
+          companyId: b.companyId,
+          flowId: p.id,
+        });
+        const step = flow.steps.find((s) => s.id === p.stepId);
+        if (step !== undefined && step.approverUserId !== userId && !canApprove(actorRole(c))) {
+          return c.json(
+            { message: 'Başkasının onay adımına karar vermek için yönetici yetkisi gerekir' },
+            403,
+          );
+        }
+        return c.json(
+          await deps.decideApprovalStep.execute({
+            companyId: b.companyId,
+            flowId: p.id,
+            stepId: p.stepId,
+            approve: b.approve,
+            actorUserId: userId,
+            ...(b.comment !== undefined ? { comment: b.comment } : {}),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Akışı iptal et — yönetici yetkisi ister (başlatılmış onayı geri almak). */
+  app.post(
+    '/approvals/:id/cancel',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', z.object({ companyId: z.number().int().positive() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      if (!canApprove(actorRole(c))) {
+        return c.json({ message: 'Onay akışını iptal etmek için yönetici yetkisi gerekir' }, 403);
+      }
+      try {
+        return c.json(
+          await deps.cancelApprovalFlow.execute({
+            companyId: b.companyId,
+            flowId: id,
+            actorUserId: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 6 — KALİTE & GÜVENLİK ==========================================
+
+  // --- Hasar-Eksiklik -------------------------------------------------------
+  app.get(
+    '/defects',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        locationId: z.coerce.number().int().positive().optional(),
+        locationSubtree: z.coerce.boolean().optional(),
+        status: defectStatus.optional(),
+        openOnly: z.coerce.boolean().optional(),
+        severity: defectSeverity.optional(),
+        defectKind: defectKind.optional(),
+        vendorId: z.coerce.number().int().positive().optional(),
+        responsibleUserId: z.coerce.number().int().positive().optional(),
+        overdueOnly: z.coerce.boolean().optional(),
+        search: z.string().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ defects: await deps.listDefects.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // NOT: '/defects/summary' rotası '/defects/:id'den ÖNCE tanımlı — Hono
+  // sırayla eşler, sonra tanımlansa "summary" bir id sanılıp 400 yerdi.
+  app.get(
+    '/defects/summary',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive(),
+        byLocation: z.coerce.boolean().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ rows: await deps.getDefectSummary.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/defects/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.getDefect.execute({ defectId: id, companyId: q.companyId }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/defects',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        code: z.string().max(40).optional(),
+        title: z.string().min(1).max(300),
+        description: z.string().max(4000).nullable().optional(),
+        defectKind,
+        severity: defectSeverity.optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        responsibleUserId: z.number().int().positive().nullable().optional(),
+        source: defectSource.optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        dueDate: dateStr.nullable().optional(),
+        costEstimate: z.number().nonnegative().optional(),
+        currency: currency.optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.createDefect.execute({ ...b, reporterUserId: actorId(c) });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/defects/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        title: z.string().min(1).max(300).optional(),
+        description: z.string().max(4000).nullable().optional(),
+        defectKind: defectKind.optional(),
+        severity: defectSeverity.optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        responsibleUserId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        dueDate: dateStr.nullable().optional(),
+        costEstimate: z.number().nonnegative().optional(),
+        costActual: z.number().nonnegative().optional(),
+        currency: currency.optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateDefect.execute({ ...b, defectId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/defects/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        status: defectStatus,
+        note: z.string().max(2000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.changeDefectStatus.execute({
+            defectId: id,
+            companyId: b.companyId,
+            status: b.status,
+            note: b.note ?? null,
+            actorUserId: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // --- Denetleme şablonları ---------------------------------------------------
+  const tplItemSchema = z.object({
+    category: z.string().max(120).nullable().optional(),
+    code: z.string().min(1).max(40),
+    text: z.string().min(1).max(600),
+    weight: z.number().nonnegative().optional(),
+    maxScore: z.number().positive().optional(),
+    isCritical: z.boolean().optional(),
+    sortOrder: z.number().int().nonnegative().optional(),
+  });
+
+  app.get(
+    '/inspection-templates',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        kind: inspectionTplKind.optional(),
+        includeInactive: z.coerce.boolean().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ templates: await deps.listInspectionTemplates.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/inspection-templates',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        code: z.string().min(1).max(40),
+        name: z.string().min(1).max(300),
+        kind: inspectionTplKind.optional(),
+        description: z.string().max(4000).nullable().optional(),
+        scoring: z.enum(['weighted', 'pass_fail']).optional(),
+        passPct: z.number().min(0).max(100).optional(),
+        items: z.array(tplItemSchema).min(1).max(200),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.createInspectionTemplate.execute(b), 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.put(
+    '/inspection-templates/:id/items',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        items: z.array(tplItemSchema).min(1).max(200),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.replaceInspectionTemplateItems.execute({
+            templateId: id,
+            companyId: b.companyId,
+            items: b.items,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/inspection-templates/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deactivateInspectionTemplate.execute({
+            templateId: id,
+            companyId: q.companyId,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // --- Denetimler -------------------------------------------------------------
+  app.get(
+    '/inspections',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        templateId: z.coerce.number().int().positive().optional(),
+        vendorId: z.coerce.number().int().positive().optional(),
+        locationId: z.coerce.number().int().positive().optional(),
+        status: inspectionStatus.optional(),
+        fromDate: dateStr.optional(),
+        toDate: dateStr.optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ inspections: await deps.listInspections.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // Taşeron karnesi — '/inspections/:id'den ÖNCE (yol çakışması değil ama
+  // simetri için defects/summary ile aynı düzen).
+  app.get(
+    '/vendor-scorecard',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        vendorId: z.coerce.number().int().positive().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ rows: await deps.getVendorScorecard.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/inspections/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getInspection.execute({ inspectionId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/inspections',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        templateId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        code: z.string().max(40).optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        contractId: z.number().int().positive().nullable().optional(),
+        inspectionDate: dateStr,
+        periodLabel: z.string().max(40).nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const dto = await deps.startInspection.execute({ ...b, inspectorUserId: actorId(c) });
+        return c.json(dto, 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.put(
+    '/inspections/:id/answers',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        answers: z
+          .array(
+            z.object({
+              itemId: z.number().int().positive(),
+              score: z.number().nonnegative().nullable().optional(),
+              isNa: z.boolean().optional(),
+              note: z.string().max(2000).nullable().optional(),
+            }),
+          )
+          .min(1)
+          .max(200),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.saveInspectionAnswers.execute({
+            inspectionId: id,
+            companyId: b.companyId,
+            answers: b.answers,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * Denetim durumu. ONAY (approved) yönetici ister: onaylı denetim taşeron
+   * karnesine girer ve artık taslağa dönemez — karne o puanla yayınlandı.
+   */
+  app.post(
+    '/inspections/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({ companyId: z.number().int().positive(), status: inspectionStatus }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      if (b.status === 'approved' && !canApprove(actorRole(c))) {
+        return c.json({ message: 'Denetimi onaylamak için yönetici yetkisi gerekir' }, 403);
+      }
+      try {
+        return c.json(
+          await deps.changeInspectionStatus.execute({
+            inspectionId: id,
+            companyId: b.companyId,
+            status: b.status,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Başarısız denetim maddesinden hasar-eksiklik doğur — denetimin işe dönüştüğü uç. */
+  app.post(
+    '/inspections/:id/items/:itemId/raise-defect',
+    requireWrite,
+    zValidator(
+      'param',
+      z.object({
+        id: z.coerce.number().int().positive(),
+        itemId: z.coerce.number().int().positive(),
+      }),
+    ),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        defectKind,
+        severity: defectSeverity.optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        responsibleUserId: z.number().int().positive().nullable().optional(),
+        dueDate: dateStr.nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const p = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.raiseDefectFromAnswer.execute({
+            inspectionId: p.id,
+            itemId: p.itemId,
+            ...b,
+            reporterUserId: actorId(c),
+          }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // --- Bilgi Talebi (RFI) -------------------------------------------------------
+  app.get(
+    '/rfis',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        locationId: z.coerce.number().int().positive().optional(),
+        status: rfiStatus.optional(),
+        discipline: rfiDiscipline.optional(),
+        priority: qualityPriority.optional(),
+        askedToUserId: z.coerce.number().int().positive().optional(),
+        overdueOnly: z.coerce.boolean().optional(),
+        search: z.string().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ rfis: await deps.listRfis.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/rfis/summary',
+    zValidator('query', companyIdQ.extend({ projectId: z.coerce.number().int().positive() })),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        const summary = await deps.getRfiSummary.execute(q);
+        // Hiç RFI'ı olmayan projede 204: boş özet uydurmak yanıltır.
+        if (summary === null) return c.body(null, 204);
+        return c.json(summary);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/rfis',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        code: z.string().max(40).optional(),
+        subject: z.string().min(1).max(300),
+        question: z.string().min(1).max(8000),
+        discipline: rfiDiscipline.optional(),
+        priority: qualityPriority.optional(),
+        askedToUserId: z.number().int().positive().nullable().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        dueDate: dateStr.nullable().optional(),
+        impactDays: z.number().int().nonnegative().optional(),
+        impactCost: z.number().nonnegative().optional(),
+        currency: currency.optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.createRfi.execute({ ...b, askedBy: actorId(c) }), 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/rfis/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        subject: z.string().min(1).max(300).optional(),
+        question: z.string().min(1).max(8000).optional(),
+        discipline: rfiDiscipline.optional(),
+        priority: qualityPriority.optional(),
+        askedToUserId: z.number().int().positive().nullable().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        dueDate: dateStr.nullable().optional(),
+        impactDays: z.number().int().nonnegative().optional(),
+        impactCost: z.number().nonnegative().optional(),
+        currency: currency.optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateRfi.execute({ ...b, rfiId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/rfis/:id/answer',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({ companyId: z.number().int().positive(), answer: z.string().min(1).max(8000) }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.answerRfi.execute({
+            rfiId: id,
+            companyId: b.companyId,
+            answer: b.answer,
+            actorUserId: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/rfis/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', z.object({ companyId: z.number().int().positive(), status: rfiStatus })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.changeRfiStatus.execute({
+            rfiId: id,
+            companyId: b.companyId,
+            status: b.status,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // --- Görevlendirme -----------------------------------------------------------
+  app.get(
+    '/assignments',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        locationId: z.coerce.number().int().positive().optional(),
+        assignedToUserId: z.coerce.number().int().positive().optional(),
+        vendorId: z.coerce.number().int().positive().optional(),
+        status: assignmentStatus.optional(),
+        openOnly: z.coerce.boolean().optional(),
+        priority: qualityPriority.optional(),
+        sourceKind: assignmentSource.optional(),
+        sourceId: z.coerce.number().int().positive().optional(),
+        overdueOnly: z.coerce.boolean().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ assignments: await deps.listAssignments.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/assignments/summary',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive(),
+        byUser: z.coerce.boolean().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ rows: await deps.getAssignmentSummary.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/assignments',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        code: z.string().max(40).optional(),
+        title: z.string().min(1).max(300),
+        description: z.string().max(4000).nullable().optional(),
+        assignedToUserId: z.number().int().positive().nullable().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        priority: qualityPriority.optional(),
+        startDate: dateStr.nullable().optional(),
+        dueDate: dateStr.nullable().optional(),
+        sourceKind: assignmentSource.nullable().optional(),
+        sourceId: z.number().int().positive().nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.createAssignment.execute({ ...b, assignedBy: actorId(c) }), 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/assignments/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        title: z.string().min(1).max(300).optional(),
+        description: z.string().max(4000).nullable().optional(),
+        assignedToUserId: z.number().int().positive().nullable().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        priority: qualityPriority.optional(),
+        startDate: dateStr.nullable().optional(),
+        dueDate: dateStr.nullable().optional(),
+        progressPct: z.number().min(0).max(100).optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateAssignment.execute({ ...b, assignmentId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/assignments/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({ companyId: z.number().int().positive(), status: assignmentStatus }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.changeAssignmentStatus.execute({
+            assignmentId: id,
+            companyId: b.companyId,
+            status: b.status,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // --- Ortak ek dosyası (fotoğraf) — polimorfik, 4 ekranda aynı uç ----------------
+  app.get(
+    '/quality-files/:docKind/:docId',
+    zValidator(
+      'param',
+      z.object({ docKind: qualityDocKind, docId: z.coerce.number().int().positive() }),
+    ),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const p = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json({
+          files: await deps.listQualityFiles.execute({
+            companyId: q.companyId,
+            docKind: p.docKind,
+            docId: p.docId,
+          }),
+        });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/quality-files',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        docKind: qualityDocKind,
+        docId: z.number().int().positive(),
+        fileKind: z.string().max(20).optional(),
+        stage: z.enum(['before', 'after', 'other']).optional(),
+        title: z.string().max(300).nullable().optional(),
+        fileUrl: z.string().max(1000).nullable().optional(),
+        /** base64 gömülü içerik — küçük fotoğraflar için. */
+        contentBase64: z.string().max(8_000_000).nullable().optional(),
+        mimeType: z.string().max(100).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        const content =
+          b.contentBase64 === null || b.contentBase64 === undefined
+            ? null
+            : Buffer.from(b.contentBase64, 'base64');
+        return c.json(
+          await deps.addQualityFile.execute({
+            companyId: b.companyId,
+            docKind: b.docKind,
+            docId: b.docId,
+            fileKind: b.fileKind,
+            stage: b.stage,
+            title: b.title,
+            fileUrl: b.fileUrl,
+            content,
+            mimeType: b.mimeType,
+            sizeBytes: content === null ? null : content.length,
+            createdBy: actorId(c),
+          }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/quality-files/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.deleteQualityFile.execute({ fileId: id, companyId: q.companyId }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 7 — TAAHHÜT & EVM ==============================================
+
+  app.get(
+    '/commitments',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        contractId: z.coerce.number().int().positive().optional(),
+        boqLineId: z.coerce.number().int().positive().optional(),
+        vendorId: z.coerce.number().int().positive().optional(),
+        source: commitmentSource.optional(),
+        status: commitmentStatus.optional(),
+        openOnly: z.coerce.boolean().optional(),
+        search: z.string().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ commitments: await deps.listCommitments.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/commitments',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        contractId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        locationId: z.number().int().positive().nullable().optional(),
+        // Elle giriş varsayılanı manual; purchase_order senkron ucundan gelmeli
+        // ama elle PO işlemek de yasak değil (senkron devreye girene dek köprü).
+        source: commitmentSource.optional(),
+        refNo: z.string().min(1).max(60),
+        refLineNo: z.number().int().positive().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        description: z.string().min(1).max(500),
+        quantity: z.number().nonnegative().optional(),
+        unit: z.string().max(20).nullable().optional(),
+        unitPrice: z.number().nonnegative().optional(),
+        amount: z.number().nonnegative(),
+        currency: currency.optional(),
+        committedAt: dateStr.optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.createCommitment.execute({ ...b, createdBy: actorId(c) }), 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/commitments/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        contractId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        locationId: z.number().int().positive().nullable().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        description: z.string().min(1).max(500).optional(),
+        quantity: z.number().nonnegative().optional(),
+        unit: z.string().max(20).nullable().optional(),
+        unitPrice: z.number().nonnegative().optional(),
+        amount: z.number().nonnegative().optional(),
+        committedAt: dateStr.optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateCommitment.execute({ ...b, commitmentId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Teslimat kaydı — KÜMÜLATİF tutar (delta değil); tam teslimde otomatik kapanır. */
+  app.post(
+    '/commitments/:id/delivery',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        deliveredAmount: z.number().nonnegative(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.recordCommitmentDelivery.execute({
+            commitmentId: id,
+            companyId: b.companyId,
+            deliveredAmount: b.deliveredAmount,
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/commitments/:id/close',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', z.object({ companyId: z.number().int().positive() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.closeCommitment.execute({ commitmentId: id, companyId: b.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/commitments/:id/cancel',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('json', z.object({ companyId: z.number().int().positive() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.cancelCommitment.execute({ commitmentId: id, companyId: b.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * SATINALMA KÖPRÜSÜ — idempotent toplu upsert. Monolit /v1/purchasing sipariş
+   * satırlarını (source+refNo+refLineNo) anahtarıyla gönderir; aynı yük iki kez
+   * gelse sonuç değişmez. Kısmi başarı DÖNER (errors[]) — tek bozuk satır
+   * bütün senkronu düşürmez.
+   */
+  app.post(
+    '/commitments/sync',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        source: z.enum(['purchase_order', 'subcontract']),
+        lines: z
+          .array(
+            z.object({
+              refNo: z.string().min(1).max(60),
+              refLineNo: z.number().int().positive(),
+              projectId: z.number().int().positive(),
+              contractId: z.number().int().positive().nullable().optional(),
+              boqLineId: z.number().int().positive().nullable().optional(),
+              locationId: z.number().int().positive().nullable().optional(),
+              vendorId: z.number().int().positive().nullable().optional(),
+              description: z.string().min(1).max(500),
+              quantity: z.number().nonnegative().optional(),
+              unit: z.string().max(20).nullable().optional(),
+              unitPrice: z.number().nonnegative().optional(),
+              amount: z.number().nonnegative(),
+              deliveredAmount: z.number().nonnegative().optional(),
+              currency: currency.optional(),
+              committedAt: dateStr.optional(),
+              cancelled: z.boolean().optional(),
+            }),
+          )
+          .min(1)
+          .max(500),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.syncCommitments.execute({
+            companyId: b.companyId,
+            source: b.source,
+            lines: b.lines,
+            createdBy: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Sözleşme EVM özeti; keşfi olmayan sözleşmede 204. */
+  app.get(
+    '/contracts/:id/evm',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const evm = await deps.getContractEvm.execute({
+          companyId: q.companyId,
+          contractId: id,
+        });
+        if (evm === null) return c.body(null, 204);
+        return c.json(evm);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/projects/:id/evm',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.getProjectEvm.execute({ companyId: q.companyId, projectId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 8 — İŞ PROGRAMI (Gantt + S-eğrisi) =============================
+
+  app.get(
+    '/projects/:id/schedule',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ includeInactive: z.coerce.boolean().optional() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getProjectSchedule.execute({
+            companyId: q.companyId,
+            projectId: id,
+            ...(q.includeInactive !== undefined ? { includeInactive: q.includeInactive } : {}),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Planlanan/fiili S-eğrisi. stepDays=7 varsayılan (haftalık nokta). */
+  app.get(
+    '/projects/:id/schedule-curve',
+    zValidator('param', idParam),
+    zValidator(
+      'query',
+      companyIdQ.extend({ stepDays: z.coerce.number().int().min(1).max(90).optional() }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getProjectScheduleCurve.execute({
+            companyId: q.companyId,
+            projectId: id,
+            ...(q.stepDays !== undefined ? { stepDays: q.stepDays } : {}),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/schedule-activities',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        parentId: z.number().int().positive().nullable().optional(),
+        code: z.string().max(40).optional(),
+        name: z.string().min(1).max(300),
+        kind: activityKind.optional(),
+        plannedStart: dateStr,
+        plannedEnd: dateStr.optional(),
+        weightPct: z.number().nonnegative().optional(),
+        trackingId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        locationId: z.number().int().positive().nullable().optional(),
+        dependsOn: z.number().int().positive().nullable().optional(),
+        sortOrder: z.number().int().nonnegative().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.createActivity.execute({ ...b, createdBy: actorId(c) }), 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/schedule-activities/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        parentId: z.number().int().positive().nullable().optional(),
+        name: z.string().min(1).max(300).optional(),
+        kind: activityKind.optional(),
+        plannedStart: dateStr.optional(),
+        plannedEnd: dateStr.optional(),
+        weightPct: z.number().nonnegative().optional(),
+        trackingId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        locationId: z.number().int().positive().nullable().optional(),
+        dependsOn: z.number().int().positive().nullable().optional(),
+        sortOrder: z.number().int().nonnegative().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateActivity.execute({ ...b, activityId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/schedule-activities/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deactivateActivity.execute({ activityId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * İlerleme kaydı: yüzde elle ya da fromTracking=true ile bağlı fiziksel
+   * takipten çekilir. Her kayıt günlüğe düşer — fiili S-eğrisinin kaynağı.
+   */
+  app.post(
+    '/schedule-activities/:id/progress',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z
+        .object({
+          companyId: z.number().int().positive(),
+          progressPct: z.number().min(0).max(100).optional(),
+          fromTracking: z.boolean().optional(),
+          asOf: dateStr.optional(),
+          note: z.string().max(500).nullable().optional(),
+        })
+        .refine((b) => b.progressPct !== undefined || b.fromTracking === true, {
+          message: 'progressPct ya da fromTracking verilmeli',
+        }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.recordActivityProgress.execute({
+            activityId: id,
+            companyId: b.companyId,
+            ...(b.progressPct !== undefined ? { progressPct: b.progressPct } : {}),
+            ...(b.fromTracking !== undefined ? { fromTracking: b.fromTracking } : {}),
+            ...(b.asOf !== undefined ? { asOf: b.asOf } : {}),
+            note: b.note ?? null,
+            actorUserId: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/schedule-activities/:id/progress-log',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json({
+          log: await deps.getActivityProgressLog.execute({
+            activityId: id,
+            companyId: q.companyId,
+          }),
+        });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 9 — MAKİNE PARKI ===============================================
+
+  /** Zenginleştirilmiş makine kartları + garanti/kiralama/bakım vadesi rozetleri. */
+  app.get(
+    '/machine-park',
+    zValidator('query', companyIdQ.extend({ includeInactive: z.coerce.boolean().optional() })),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({
+          machines: await deps.listMachinePark.execute({
+            companyId: q.companyId,
+            ...(q.includeInactive !== undefined ? { includeInactive: q.includeInactive } : {}),
+          }),
+        });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Park detayları (plaka/şase/motor, sayaç tipi, kiralama, garanti). SF-6
+   *  temel alanlarına (ad/tip/saat ücreti) dokunmaz — onlar eski uçta. */
+  app.patch(
+    '/machine-park/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        brand: z.string().max(100).nullable().optional(),
+        model: z.string().max(100).nullable().optional(),
+        modelYear: z.number().int().min(1950).max(2100).nullable().optional(),
+        plateNo: z.string().max(20).nullable().optional(),
+        chassisNo: z.string().max(50).nullable().optional(),
+        engineNo: z.string().max(50).nullable().optional(),
+        meterType: meterType.optional(),
+        purchaseDate: dateStr.nullable().optional(),
+        rentalStart: dateStr.nullable().optional(),
+        rentalEnd: dateStr.nullable().optional(),
+        rentalCost: z.number().nonnegative().optional(),
+        rentalPeriod: rentalPeriod.nullable().optional(),
+        warrantyUntil: dateStr.nullable().optional(),
+        warrantyMeter: z.number().nonnegative().nullable().optional(),
+        parkNote: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateMachineParkDetails.execute({ ...b, machineId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * Sayaç okuması. Geriye gidiş yalnız isReset=true + notla (sayaç değişimi);
+   * sessiz düşüş 400. Geleceğe okuma yazılamaz.
+   */
+  app.post(
+    '/machine-park/:id/meter',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        meterValue: z.number().nonnegative(),
+        readAt: dateStr.optional(),
+        isReset: z.boolean().optional(),
+        note: z.string().max(500).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.recordMeterReading.execute({
+            machineId: id,
+            companyId: b.companyId,
+            meterValue: b.meterValue,
+            ...(b.readAt !== undefined ? { readAt: b.readAt } : {}),
+            ...(b.isReset !== undefined ? { isReset: b.isReset } : {}),
+            note: b.note ?? null,
+            actorUserId: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Bakım paneli: makine + planlar (vadeleriyle) + kayıtlar + sayaç günlüğü. */
+  app.get(
+    '/machine-park/:id/maintenance',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getMachineMaintenance.execute({ machineId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/machine-park/:id/maintenance-plans',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        name: z.string().min(1).max(200),
+        intervalType: maintenanceIntervalType,
+        intervalValue: z.number().positive(),
+        lastDoneMeter: z.number().nonnegative().nullable().optional(),
+        lastDoneDate: dateStr.nullable().optional(),
+        note: z.string().max(500).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.createMaintenancePlan.execute({
+            ...b,
+            machineId: id,
+            createdBy: actorId(c),
+          }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/maintenance-plans/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deactivateMaintenancePlan.execute({ planId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * Bakım kaydı. Plana bağlıysa planın son-yapılan izini günceller; sayaç
+   * verilmişse aynı işlemde sayaç okuması olarak da işlenir (bakımda sayaç
+   * zaten okunur — iki ayrı giriş istemek unutulan sayaç demektir).
+   */
+  app.post(
+    '/machine-park/:id/maintenance-records',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        planId: z.number().int().positive().nullable().optional(),
+        doneAt: dateStr.optional(),
+        meterAt: z.number().nonnegative().nullable().optional(),
+        cost: z.number().nonnegative().optional(),
+        description: z.string().min(1).max(500),
+        vendorId: z.number().int().positive().nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.addMaintenanceRecord.execute({
+            ...b,
+            machineId: id,
+            actorUserId: actorId(c),
+          }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 10 — KONUT SATIŞ ===============================================
+
+  /** Daire envanteri: projenin TÜM aktif daireleri (satışsız = available) + özet. */
+  app.get(
+    '/projects/:id/unit-inventory',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getUnitInventory.execute({ companyId: q.companyId, projectId: id }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Liste fiyatı defteri — upsert. Satış anında bu değer satışa donar. */
+  app.put(
+    '/unit-prices/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        listPrice: z.number().nonnegative(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.setUnitListPrice.execute({
+            companyId: b.companyId,
+            locationId: id,
+            listPrice: b.listPrice,
+            note: b.note,
+            updatedBy: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/unit-sales',
+    zValidator(
+      'query',
+      companyIdQ.extend({
+        projectId: z.coerce.number().int().positive().optional(),
+        locationId: z.coerce.number().int().positive().optional(),
+        status: unitSaleStatus.optional(),
+        source: unitSaleSource.optional(),
+        search: z.string().optional(),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid('query');
+      try {
+        return c.json({ sales: await deps.listUnitSales.execute(q) });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/unit-sales',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        locationId: z.number().int().positive(),
+        status: unitSaleActiveStatus,
+        buyerName: z.string().max(200).nullable().optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        listPrice: z.number().nonnegative().optional(),
+        salePrice: z.number().nonnegative(),
+        currency: currency.optional(),
+        reservedAt: dateStr.nullable().optional(),
+        soldAt: dateStr.nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.createUnitSale.execute({ ...b, createdBy: actorId(c) }), 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Detay: satış + tahsilat satırları + değişiklik istekleri + kalan. */
+  app.get(
+    '/unit-sales/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(await deps.getUnitSale.execute({ saleId: id, companyId: q.companyId }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/unit-sales/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        buyerName: z.string().min(1).max(200).optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+        listPrice: z.number().nonnegative().optional(),
+        salePrice: z.number().nonnegative().optional(),
+        reservedAt: dateStr.nullable().optional(),
+        soldAt: dateStr.nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateUnitSale.execute({ ...b, saleId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Durum geçişi. İptal gerekçe ister; reserved→barter vendorId ister. */
+  app.post(
+    '/unit-sales/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        to: unitSaleStatus,
+        note: z.string().max(4000).nullable().optional(),
+        soldAt: dateStr.optional(),
+        vendorId: z.number().int().positive().nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.changeUnitSaleStatus.execute({ ...b, saleId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Tahsilat/iade satırı. Geleceğe yazılamaz; iade tahsil edileni aşamaz. */
+  app.post(
+    '/unit-sales/:id/payments',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        kind: unitPaymentKind.optional(),
+        paidAt: dateStr.optional(),
+        amount: z.number().positive(),
+        method: unitPaymentMethod.nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.addUnitPayment.execute({ ...b, saleId: id, createdBy: actorId(c) }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/unit-payments/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deleteUnitPayment.execute({ paymentId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Müşteri değişiklik isteği — kod sunucuda üretilir (DGS-0001). */
+  app.post(
+    '/unit-sales/:id/change-requests',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        title: z.string().min(1).max(200),
+        description: z.string().max(4000).nullable().optional(),
+        cost: z.number().nonnegative().optional(),
+        requestedAt: dateStr.optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.createChangeRequest.execute({ ...b, saleId: id, createdBy: actorId(c) }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Kapsam/bedel düzenleme — yalnız open durumda (onaylı bedel sözleşmeseldir). */
+  app.patch(
+    '/change-requests/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        title: z.string().min(1).max(200).optional(),
+        description: z.string().max(4000).nullable().optional(),
+        cost: z.number().nonnegative().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateChangeRequest.execute({ ...b, changeRequestId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Karar: approved | rejected | done. Red gerekçe ister. */
+  app.post(
+    '/change-requests/:id/status',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        to: changeRequestDecision,
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.decideChangeRequest.execute({
+            ...b,
+            changeRequestId: id,
+            decidedBy: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * CRM KÖPRÜSÜ — idempotent toplu upsert (Faz 7 kalıbı). Satış CRM fırsatları
+   * refNo anahtarıyla gönderir; aynı yük iki kez gelse sonuç değişmez. Kısmi
+   * başarı DÖNER (errors[]) — durum gerilemesi (sold→reserved) satır hatasıdır.
+   */
+  app.post(
+    '/unit-sales/sync',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        lines: z
+          .array(
+            z.object({
+              refNo: z.string().min(1).max(60),
+              projectId: z.number().int().positive(),
+              locationId: z.number().int().positive(),
+              status: unitSaleActiveStatus,
+              buyerName: z.string().max(200).nullable().optional(),
+              vendorId: z.number().int().positive().nullable().optional(),
+              listPrice: z.number().nonnegative().optional(),
+              salePrice: z.number().nonnegative(),
+              currency: currency.optional(),
+              reservedAt: dateStr.nullable().optional(),
+              soldAt: dateStr.nullable().optional(),
+              cancelled: z.boolean().optional(),
+              cancelNote: z.string().max(4000).optional(),
+            }),
+          )
+          .min(1)
+          .max(500),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.syncUnitSales.execute({
+            companyId: b.companyId,
+            lines: b.lines,
+            createdBy: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 11 — İŞBİRLİĞİ =================================================
+
+  app.get(
+    '/projects/:id/members',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ includeInactive: z.coerce.boolean().optional() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json({
+          members: await deps.listProjectMembers.execute({ ...q, projectId: id }),
+        });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/projects/:id/members',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        userId: z.number().int().positive(),
+        memberName: z.string().min(1).max(200),
+        memberRole: memberRole.optional(),
+        title: z.string().max(120).nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.addProjectMember.execute({ ...b, projectId: id, addedBy: actorId(c) }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/members/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        memberName: z.string().min(1).max(200).optional(),
+        memberRole: memberRole.optional(),
+        title: z.string().max(120).nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateProjectMember.execute({ ...b, memberId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Soft: geçmiş okuma/yorum izi durur; okuma paydasından düşer. */
+  app.delete(
+    '/members/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.removeProjectMember.execute({ memberId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/projects/:id/posts',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ includeInactive: z.coerce.boolean().optional() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json({
+          posts: await deps.listPosts.execute({ ...q, projectId: id, actorUserId: actorId(c) }),
+        });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/projects/:id/posts',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        title: z.string().max(300).nullable().optional(),
+        body: z.string().min(1).max(20_000),
+        pinned: z.boolean().optional(),
+        /** Bilgilendirme listesi; boş/verilmemiş = tüm aktif ekip. */
+        recipients: z
+          .array(
+            z.object({
+              userId: z.number().int().positive(),
+              userName: z.string().max(200).optional(),
+            }),
+          )
+          .max(200)
+          .optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.createPost.execute({
+            ...b,
+            projectId: id,
+            createdBy: actorId(c),
+            authorName: actorName(c),
+          }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Detay: gönderi + yorumlar + okuyanlar + alıcı listesi. */
+  app.get(
+    '/posts/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getPost.execute({
+            postId: id,
+            companyId: q.companyId,
+            actorUserId: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Yalnız yazar ya da admin; içerik değişince edited_at damgalanır. */
+  app.patch(
+    '/posts/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        title: z.string().max(300).nullable().optional(),
+        body: z.string().min(1).max(20_000).optional(),
+        pinned: z.boolean().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.updatePost.execute({
+            ...b,
+            postId: id,
+            actorUserId: actorId(c),
+            isAdmin: actorRole(c) === 'admin',
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/posts/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deletePost.execute({
+            postId: id,
+            companyId: q.companyId,
+            actorUserId: actorId(c),
+            isAdmin: actorRole(c) === 'admin',
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * Okundu işareti — İDEMPOTENT, ilk okuma anı korunur. Liste çekmek okundu
+   * SAYILMAZ; istemci gönderi genişletilince çağırır.
+   */
+  app.post(
+    '/posts/:id/read',
+    zValidator('param', idParam),
+    zValidator('json', z.object({ companyId: z.number().int().positive() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      const userId = actorId(c);
+      try {
+        if (userId === null) {
+          throw new HTTPException(401, { message: 'Okuma kaydı için kimlik gerekli' });
+        }
+        return c.json(
+          await deps.markPostRead.execute({
+            postId: id,
+            companyId: b.companyId,
+            userId,
+            userName: actorName(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/posts/:id/comments',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        body: z.string().min(1).max(4000),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.addPostComment.execute({
+            postId: id,
+            companyId: b.companyId,
+            body: b.body,
+            createdBy: actorId(c),
+            authorName: actorName(c),
+          }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/projects/:id/photos',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json({
+          photos: await deps.listProjectPhotos.execute({
+            projectId: id,
+            companyId: q.companyId,
+          }),
+        });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/projects/:id/photos',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        title: z.string().max(300).nullable().optional(),
+        takenAt: dateStr.nullable().optional(),
+        fileUrl: z.string().max(1000).nullable().optional(),
+        /** base64 gömülü içerik — küçük fotoğraflar için (Faz 6 kalıbı). */
+        contentBase64: z.string().max(8_000_000).nullable().optional(),
+        mimeType: z.string().max(100).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const content =
+          b.contentBase64 === null || b.contentBase64 === undefined
+            ? null
+            : Buffer.from(b.contentBase64, 'base64');
+        return c.json(
+          await deps.addProjectPhoto.execute({
+            companyId: b.companyId,
+            projectId: id,
+            locationId: b.locationId,
+            title: b.title,
+            takenAt: b.takenAt,
+            fileUrl: b.fileUrl,
+            content,
+            mimeType: b.mimeType,
+            createdBy: actorId(c),
+            authorName: actorName(c),
+          }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Fotoğraf baytları — galeri ızgarası meta ile kurulur, bayt buradan iner. */
+  app.get(
+    '/photos/:id/content',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const res = await deps.getPhotoContent.execute({
+          photoId: id,
+          companyId: q.companyId,
+        });
+        return c.body(new Uint8Array(res.content), 200, {
+          'Content-Type': res.mimeType ?? 'application/octet-stream',
+          'Cache-Control': 'private, max-age=3600',
+        });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/photos/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deleteProjectPhoto.execute({ photoId: id, companyId: q.companyId }),
+        );
       } catch (err) {
         mapConstructionError(err);
       }

@@ -53,6 +53,86 @@ import type {
   ProjectDashboardDto,
   TimesheetDto,
   TimesheetsResponse,
+  BulkGenerateResultDto,
+  DeleteLocationResultDto,
+  LocationDto,
+  LocationListResponse,
+  LocationTreeResponse,
+  LocationUsageDto,
+  ProgressTemplateDto,
+  ProgressTemplatesResponse,
+  ProjectPhysicalProgressDto,
+  SaveTemplateBodyResultDto,
+  TrackScope,
+  TrackingBoardDto,
+  TrackingDto,
+  TrackingItemHistoryResponse,
+  TrackingLocationsResponse,
+  TrackingStatus,
+  TrackingsResponse,
+  DailyLogCommentDto,
+  DailyLogDayDto,
+  DailyLogDto,
+  DailyLogEntryDto,
+  DailyLogFileDto,
+  DailyLogMonthDto,
+  DailyLogStatus,
+  KindSpecsResponse,
+  ManpowerReportDto,
+  MaterialConsumptionResponse,
+  ProductionActualsResponse,
+  SafetySummaryDto,
+  ManhourSummariesResponse,
+  PerformanceReportDto,
+  ApprovalDocKind,
+  ApprovalFlowDto,
+  ApprovalFlowsResponse,
+  ApprovalHistoryResponse,
+  ApprovalStatus,
+  ApprovalSummariesResponse,
+  DecideApprovalResultDto,
+  MyApprovalsDto,
+  AssignmentDto,
+  AssignmentStatus,
+  AssignmentSummaryRowDto,
+  DefectDto,
+  DefectHistoryRowDto,
+  DefectStatus,
+  DefectSummaryRowDto,
+  InspectionDto,
+  InspectionStatus,
+  InspectionTemplateDto,
+  InspectionTemplateKind,
+  QualityDocKind,
+  QualityFileDto,
+  RfiDto,
+  RfiStatus,
+  RfiSummaryDto,
+  VendorScorecardRowDto,
+  CommitmentDto,
+  ContractEvmDto,
+  ProjectEvmDto,
+  ActivityProgressLogRowDto,
+  ProjectScheduleDto,
+  ScheduleActivityDto,
+  ScheduleCurveDto,
+  MachineMaintenanceDto,
+  MemberRole,
+  PostDetailDto,
+  PostCommentDto,
+  PostDto,
+  ProjectMemberDto,
+  ProjectPhotoDto,
+  UnitInventoryDto,
+  UnitChangeRequestDto,
+  UnitPaymentDto,
+  UnitSaleDetailDto,
+  UnitSaleDto,
+  UnitSaleSource,
+  UnitSaleStatus,
+  MachineParkDto,
+  MaintenancePlanDto,
+  MaintenanceRecordDto,
 } from '../../application/dto/ConstructionDtos';
 import type { AuthTokenProvider } from '../../application/ports/AuthTokenProvider';
 import type {
@@ -88,6 +168,56 @@ import type {
   UpdatePaymentBody,
   UpdatePozBody,
   UpdateProjectBody,
+  AddTrackingLocationsBody,
+  BulkGenerateLocationsBody,
+  CreateLocationBody,
+  CreateProgressTemplateBody,
+  CreateTrackingBody,
+  LocationQueryOptions,
+  MoveLocationBody,
+  SaveTemplateBodyBody,
+  SetTrackingItemsBody,
+  UpdateLocationBody,
+  UpdateProgressTemplateBody,
+  UpdateTrackingBody,
+  AddDailyLogCommentBody,
+  AddDailyLogFileBody,
+  SaveDailyLogEntryBody,
+  UpdateDailyLogBody,
+  SetUnitManhoursBody,
+  DecideApprovalBody,
+  StartApprovalFlowBody,
+  AddQualityFileBody,
+  AssignmentListOptions,
+  CreateAssignmentBody,
+  CreateDefectBody,
+  CreateInspectionTemplateBody,
+  CreateRfiBody,
+  DefectListOptions,
+  InspectionAnswerBody,
+  InspectionListOptions,
+  InspectionTemplateItemBody,
+  RaiseDefectBody,
+  RfiListOptions,
+  StartInspectionBody,
+  UpdateAssignmentBody,
+  UpdateDefectBody,
+  UpdateRfiBody,
+  CommitmentListOptions,
+  CreateCommitmentBody,
+  UpdateCommitmentBody,
+  CreateScheduleActivityBody,
+  UpdateScheduleActivityBody,
+  AddMaintenanceRecordBody,
+  AddMemberBody,
+  AddPhotoBody,
+  AddUnitPaymentBody,
+  CreatePostBody,
+  CreateUnitChangeRequestBody,
+  CreateUnitSaleBody,
+  UpdateUnitSaleBody,
+  CreateMaintenancePlanBody,
+  UpdateMachineParkBody,
 } from '../../application/ports/ConstructionApi';
 
 export class ConstructionApiClient implements ConstructionApi {
@@ -499,6 +629,1182 @@ export class ConstructionApiClient implements ConstructionApi {
   getProgressCurve(contractId: number, companyId: number): Promise<ProgressCurveDto> {
     return this.request<ProgressCurveDto>(
       `/v1/construction/contracts/${String(contractId)}/progress-curve?companyId=${String(companyId)}`,
+    );
+  }
+
+  // ===== FAZ 1 — LOCATIONS (Mekân kırılımı) ================================
+  /** Ortak sorgu parametreleri; shape ağaç/düz seçimini çağıran metot ekler. */
+  private locationQuery(companyId: number, options?: LocationQueryOptions): URLSearchParams {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (options?.includeInactive !== undefined)
+      q.set('includeInactive', String(options.includeInactive));
+    if (options?.kind !== undefined) q.set('kind', options.kind);
+    if (options?.subtreeOf !== undefined) q.set('subtreeOf', String(options.subtreeOf));
+    if (options?.search !== undefined) q.set('search', options.search);
+    return q;
+  }
+
+  getLocationTree(
+    projectId: number,
+    companyId: number,
+    options?: LocationQueryOptions,
+  ): Promise<LocationTreeResponse> {
+    const q = this.locationQuery(companyId, options);
+    q.set('shape', 'tree');
+    return this.request<LocationTreeResponse>(
+      `/v1/construction/projects/${String(projectId)}/locations?${q.toString()}`,
+    );
+  }
+
+  listLocations(
+    projectId: number,
+    companyId: number,
+    options?: LocationQueryOptions,
+  ): Promise<LocationListResponse> {
+    const q = this.locationQuery(companyId, options);
+    q.set('shape', 'flat');
+    return this.request<LocationListResponse>(
+      `/v1/construction/projects/${String(projectId)}/locations?${q.toString()}`,
+    );
+  }
+
+  createLocation(body: CreateLocationBody): Promise<LocationDto> {
+    return this.request<LocationDto>(`/v1/construction/locations`, { method: 'POST', body });
+  }
+
+  updateLocation(id: number, body: UpdateLocationBody): Promise<LocationDto> {
+    return this.request<LocationDto>(`/v1/construction/locations/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  moveLocation(id: number, body: MoveLocationBody): Promise<LocationDto> {
+    return this.request<LocationDto>(`/v1/construction/locations/${String(id)}/move`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  getLocationUsage(id: number, companyId: number): Promise<LocationUsageDto> {
+    return this.request<LocationUsageDto>(
+      `/v1/construction/locations/${String(id)}/usage?companyId=${String(companyId)}`,
+    );
+  }
+
+  deleteLocation(
+    id: number,
+    companyId: number,
+    deactivateOnly?: boolean,
+  ): Promise<DeleteLocationResultDto> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (deactivateOnly !== undefined) q.set('deactivateOnly', String(deactivateOnly));
+    return this.request<DeleteLocationResultDto>(
+      `/v1/construction/locations/${String(id)}?${q.toString()}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  bulkGenerateLocations(body: BulkGenerateLocationsBody): Promise<BulkGenerateResultDto> {
+    return this.request<BulkGenerateResultDto>(`/v1/construction/locations/bulk-generate`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  // ===== FAZ 2 — PROGRESS TEMPLATES (Takip şablonları) =====================
+  listProgressTemplates(
+    companyId: number,
+    options?: { includeInactive?: boolean; scope?: TrackScope; search?: string },
+  ): Promise<ProgressTemplatesResponse> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (options?.includeInactive !== undefined)
+      q.set('includeInactive', String(options.includeInactive));
+    if (options?.scope !== undefined) q.set('scope', options.scope);
+    if (options?.search !== undefined) q.set('search', options.search);
+    return this.request<ProgressTemplatesResponse>(
+      `/v1/construction/progress-templates?${q.toString()}`,
+    );
+  }
+
+  getProgressTemplate(id: number, companyId: number): Promise<ProgressTemplateDto> {
+    return this.request<ProgressTemplateDto>(
+      `/v1/construction/progress-templates/${String(id)}?companyId=${String(companyId)}`,
+    );
+  }
+
+  createProgressTemplate(body: CreateProgressTemplateBody): Promise<ProgressTemplateDto> {
+    return this.request<ProgressTemplateDto>(`/v1/construction/progress-templates`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  updateProgressTemplate(
+    id: number,
+    body: UpdateProgressTemplateBody,
+  ): Promise<ProgressTemplateDto> {
+    return this.request<ProgressTemplateDto>(`/v1/construction/progress-templates/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  saveTemplateBody(id: number, body: SaveTemplateBodyBody): Promise<SaveTemplateBodyResultDto> {
+    return this.request<SaveTemplateBodyResultDto>(
+      `/v1/construction/progress-templates/${String(id)}/body`,
+      { method: 'PUT', body },
+    );
+  }
+
+  deactivateProgressTemplate(id: number, companyId: number): Promise<ProgressTemplateDto> {
+    return this.request<ProgressTemplateDto>(
+      `/v1/construction/progress-templates/${String(id)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  // ===== FAZ 2 — TRACKINGS (Güncel durum takipleri) ========================
+  listTrackings(
+    companyId: number,
+    options?: {
+      projectId?: number;
+      status?: TrackingStatus;
+      includeCancelled?: boolean;
+      search?: string;
+      asOf?: string;
+    },
+  ): Promise<TrackingsResponse> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (options?.projectId !== undefined) q.set('projectId', String(options.projectId));
+    if (options?.status !== undefined) q.set('status', options.status);
+    if (options?.includeCancelled !== undefined)
+      q.set('includeCancelled', String(options.includeCancelled));
+    if (options?.search !== undefined) q.set('search', options.search);
+    if (options?.asOf !== undefined) q.set('asOf', options.asOf);
+    return this.request<TrackingsResponse>(`/v1/construction/trackings?${q.toString()}`);
+  }
+
+  getTrackingBoard(id: number, companyId: number, asOf?: string): Promise<TrackingBoardDto> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (asOf !== undefined) q.set('asOf', asOf);
+    return this.request<TrackingBoardDto>(
+      `/v1/construction/trackings/${String(id)}/board?${q.toString()}`,
+    );
+  }
+
+  createTracking(body: CreateTrackingBody): Promise<TrackingDto> {
+    return this.request<TrackingDto>(`/v1/construction/trackings`, { method: 'POST', body });
+  }
+
+  updateTracking(id: number, body: UpdateTrackingBody): Promise<TrackingDto> {
+    return this.request<TrackingDto>(`/v1/construction/trackings/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  changeTrackingStatus(
+    id: number,
+    body: { companyId: number; status: TrackingStatus },
+  ): Promise<TrackingDto> {
+    return this.request<TrackingDto>(`/v1/construction/trackings/${String(id)}/status`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  setTrackingItemStates(
+    id: number,
+    body: SetTrackingItemsBody,
+  ): Promise<TrackingLocationsResponse> {
+    return this.request<TrackingLocationsResponse>(
+      `/v1/construction/trackings/${String(id)}/items`,
+      { method: 'PUT', body },
+    );
+  }
+
+  getTrackingItemHistory(
+    trackingItemId: number,
+    companyId: number,
+  ): Promise<TrackingItemHistoryResponse> {
+    return this.request<TrackingItemHistoryResponse>(
+      `/v1/construction/tracking-items/${String(trackingItemId)}/history?companyId=${String(companyId)}`,
+    );
+  }
+
+  addTrackingLocations(
+    id: number,
+    body: AddTrackingLocationsBody,
+  ): Promise<TrackingLocationsResponse> {
+    return this.request<TrackingLocationsResponse>(
+      `/v1/construction/trackings/${String(id)}/locations`,
+      { method: 'POST', body },
+    );
+  }
+
+  removeTrackingLocation(
+    id: number,
+    trackingLocationId: number,
+    companyId: number,
+  ): Promise<TrackingLocationsResponse> {
+    return this.request<TrackingLocationsResponse>(
+      `/v1/construction/trackings/${String(id)}/locations/${String(trackingLocationId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  syncTrackingWithTemplate(id: number, companyId: number): Promise<{ addedItems: number }> {
+    return this.request<{ addedItems: number }>(
+      `/v1/construction/trackings/${String(id)}/sync-template`,
+      { method: 'POST', body: { companyId } },
+    );
+  }
+
+  getProjectPhysicalProgress(
+    projectId: number,
+    companyId: number,
+    asOf?: string,
+  ): Promise<ProjectPhysicalProgressDto> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (asOf !== undefined) q.set('asOf', asOf);
+    return this.request<ProjectPhysicalProgressDto>(
+      `/v1/construction/projects/${String(projectId)}/physical-progress?${q.toString()}`,
+    );
+  }
+
+  // ===== FAZ 3 — DAILY LOG (Şantiye günlüğü) ===============================
+  getDailyLogMonth(
+    projectId: number,
+    companyId: number,
+    year: number,
+    month: number,
+  ): Promise<DailyLogMonthDto> {
+    const q = new URLSearchParams({
+      companyId: String(companyId),
+      year: String(year),
+      month: String(month),
+    });
+    return this.request<DailyLogMonthDto>(
+      `/v1/construction/projects/${String(projectId)}/daily-logs?${q.toString()}`,
+    );
+  }
+
+  /**
+   * 204 gövdesiz döner (gün henüz doldurulmadı) — request() bunu undefined'a
+   * çevirdiği için null'a normalize ediyoruz ki cagiran taraf tek tip kontrol yapsin.
+   */
+  async getDailyLogDay(
+    projectId: number,
+    companyId: number,
+    logDate: string,
+    create?: boolean,
+  ): Promise<DailyLogDayDto | null> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (create !== undefined) q.set('create', String(create));
+    const res = await this.request<DailyLogDayDto | undefined>(
+      `/v1/construction/projects/${String(projectId)}/daily-logs/${logDate}?${q.toString()}`,
+    );
+    return res ?? null;
+  }
+
+  updateDailyLog(logId: number, body: UpdateDailyLogBody): Promise<DailyLogDto> {
+    return this.request<DailyLogDto>(`/v1/construction/daily-logs/${String(logId)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  changeDailyLogStatus(
+    logId: number,
+    body: { companyId: number; status: DailyLogStatus },
+  ): Promise<DailyLogDto> {
+    return this.request<DailyLogDto>(`/v1/construction/daily-logs/${String(logId)}/status`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  listDailyLogKinds(): Promise<KindSpecsResponse> {
+    return this.request<KindSpecsResponse>(`/v1/construction/daily-log-kinds`);
+  }
+
+  saveDailyLogEntry(logId: number, body: SaveDailyLogEntryBody): Promise<DailyLogEntryDto> {
+    return this.request<DailyLogEntryDto>(`/v1/construction/daily-logs/${String(logId)}/entries`, {
+      method: 'PUT',
+      body,
+    });
+  }
+
+  deleteDailyLogEntry(entryId: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/daily-log-entries/${String(entryId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  addDailyLogFile(logId: number, body: AddDailyLogFileBody): Promise<DailyLogFileDto> {
+    return this.request<DailyLogFileDto>(`/v1/construction/daily-logs/${String(logId)}/files`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  deleteDailyLogFile(fileId: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/daily-log-files/${String(fileId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  addDailyLogComment(logId: number, body: AddDailyLogCommentBody): Promise<DailyLogCommentDto> {
+    return this.request<DailyLogCommentDto>(
+      `/v1/construction/daily-logs/${String(logId)}/comments`,
+      { method: 'POST', body },
+    );
+  }
+
+  getManpowerReport(
+    projectId: number,
+    companyId: number,
+    fromDate: string,
+    toDate: string,
+  ): Promise<ManpowerReportDto> {
+    const q = new URLSearchParams({ companyId: String(companyId), fromDate, toDate });
+    return this.request<ManpowerReportDto>(
+      `/v1/construction/projects/${String(projectId)}/manpower?${q.toString()}`,
+    );
+  }
+
+  getSafetySummary(
+    projectId: number,
+    companyId: number,
+    fromDate: string,
+    toDate: string,
+  ): Promise<SafetySummaryDto> {
+    const q = new URLSearchParams({ companyId: String(companyId), fromDate, toDate });
+    return this.request<SafetySummaryDto>(
+      `/v1/construction/projects/${String(projectId)}/safety-summary?${q.toString()}`,
+    );
+  }
+
+  getProductionActuals(projectId: number, companyId: number): Promise<ProductionActualsResponse> {
+    return this.request<ProductionActualsResponse>(
+      `/v1/construction/projects/${String(projectId)}/production-actuals?companyId=${String(companyId)}`,
+    );
+  }
+
+  getMaterialConsumption(
+    projectId: number,
+    companyId: number,
+  ): Promise<MaterialConsumptionResponse> {
+    return this.request<MaterialConsumptionResponse>(
+      `/v1/construction/projects/${String(projectId)}/material-consumption?companyId=${String(companyId)}`,
+    );
+  }
+
+  // ===== FAZ 4 — PERFORMANCE (Adam×saat & verimlilik) ======================
+  getContractPerformance(contractId: number, companyId: number): Promise<PerformanceReportDto> {
+    return this.request<PerformanceReportDto>(
+      `/v1/construction/contracts/${String(contractId)}/performance?companyId=${String(companyId)}`,
+    );
+  }
+
+  getProjectPerformance(projectId: number, companyId: number): Promise<PerformanceReportDto> {
+    return this.request<PerformanceReportDto>(
+      `/v1/construction/projects/${String(projectId)}/performance?companyId=${String(companyId)}`,
+    );
+  }
+
+  getManhourSummaries(projectId: number, companyId: number): Promise<ManhourSummariesResponse> {
+    return this.request<ManhourSummariesResponse>(
+      `/v1/construction/projects/${String(projectId)}/manhour-summaries?companyId=${String(companyId)}`,
+    );
+  }
+
+  setUnitManhours(contractId: number, body: SetUnitManhoursBody): Promise<{ updated: number }> {
+    return this.request<{ updated: number }>(
+      `/v1/construction/contracts/${String(contractId)}/unit-manhours`,
+      { method: 'PUT', body },
+    );
+  }
+
+  // ===== FAZ 5 — APPROVAL FLOW (Jenerik onay akışı) ========================
+  getMyApprovals(companyId: number): Promise<MyApprovalsDto> {
+    return this.request<MyApprovalsDto>(
+      `/v1/construction/approvals/mine?companyId=${String(companyId)}`,
+    );
+  }
+
+  listApprovalFlows(
+    companyId: number,
+    options?: {
+      docKind?: ApprovalDocKind;
+      docId?: number;
+      projectId?: number;
+      status?: ApprovalStatus;
+      overdueOnly?: boolean;
+    },
+  ): Promise<ApprovalFlowsResponse> {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    if (options?.docKind !== undefined) q.set('docKind', options.docKind);
+    if (options?.docId !== undefined) q.set('docId', String(options.docId));
+    if (options?.projectId !== undefined) q.set('projectId', String(options.projectId));
+    if (options?.status !== undefined) q.set('status', options.status);
+    // Yalnız true iken gönderilir: z.coerce.boolean() "false" metnini de true sayar.
+    if (options?.overdueOnly === true) q.set('overdueOnly', 'true');
+    return this.request<ApprovalFlowsResponse>(`/v1/construction/approvals?${q.toString()}`);
+  }
+
+  getApprovalSummaries(
+    companyId: number,
+    docKind: ApprovalDocKind,
+    docIds: ReadonlyArray<number>,
+  ): Promise<ApprovalSummariesResponse> {
+    return this.request<ApprovalSummariesResponse>(`/v1/construction/approvals/summaries`, {
+      method: 'POST',
+      body: { companyId, docKind, docIds: [...docIds] },
+    });
+  }
+
+  /** 204 → null. request() 204'te undefined döndürdüğü için null'a çevrilir. */
+  async getDocApproval(
+    companyId: number,
+    docKind: ApprovalDocKind,
+    docId: number,
+  ): Promise<ApprovalFlowDto | null> {
+    const res = await this.request<ApprovalFlowDto | undefined>(
+      `/v1/construction/approvals/doc/${docKind}/${String(docId)}?companyId=${String(companyId)}`,
+    );
+    return res ?? null;
+  }
+
+  getApprovalFlow(flowId: number, companyId: number): Promise<ApprovalFlowDto> {
+    return this.request<ApprovalFlowDto>(
+      `/v1/construction/approvals/${String(flowId)}?companyId=${String(companyId)}`,
+    );
+  }
+
+  getApprovalHistory(flowId: number, companyId: number): Promise<ApprovalHistoryResponse> {
+    return this.request<ApprovalHistoryResponse>(
+      `/v1/construction/approvals/${String(flowId)}/history?companyId=${String(companyId)}`,
+    );
+  }
+
+  startApprovalFlow(body: StartApprovalFlowBody): Promise<ApprovalFlowDto> {
+    return this.request<ApprovalFlowDto>(`/v1/construction/approvals`, { method: 'POST', body });
+  }
+
+  decideApprovalStep(
+    flowId: number,
+    stepId: number,
+    body: DecideApprovalBody,
+  ): Promise<DecideApprovalResultDto> {
+    return this.request<DecideApprovalResultDto>(
+      `/v1/construction/approvals/${String(flowId)}/steps/${String(stepId)}/decide`,
+      { method: 'POST', body },
+    );
+  }
+
+  cancelApprovalFlow(flowId: number, companyId: number): Promise<ApprovalFlowDto> {
+    return this.request<ApprovalFlowDto>(`/v1/construction/approvals/${String(flowId)}/cancel`, {
+      method: 'POST',
+      body: { companyId },
+    });
+  }
+
+  // ===== FAZ 6 — KALİTE & GÜVENLİK =========================================
+  /** Filtreleri sorgu dizesine döker; boolean'lar yalnız true iken gönderilir
+   *  (z.coerce.boolean 'false' metnini de true sayar). */
+  private qs(
+    companyId: number,
+    options: Record<string, string | number | boolean | undefined> = {},
+  ): string {
+    const q = new URLSearchParams({ companyId: String(companyId) });
+    for (const [k, v] of Object.entries(options)) {
+      if (v === undefined) continue;
+      if (typeof v === 'boolean') {
+        if (v) q.set(k, 'true');
+      } else {
+        q.set(k, String(v));
+      }
+    }
+    return q.toString();
+  }
+
+  listDefects(companyId: number, options?: DefectListOptions): Promise<{ defects: DefectDto[] }> {
+    return this.request<{ defects: DefectDto[] }>(
+      `/v1/construction/defects?${this.qs(companyId, options as Record<string, string | number | boolean | undefined>)}`,
+    );
+  }
+
+  getDefect(
+    id: number,
+    companyId: number,
+  ): Promise<{ defect: DefectDto; history: DefectHistoryRowDto[] }> {
+    return this.request<{ defect: DefectDto; history: DefectHistoryRowDto[] }>(
+      `/v1/construction/defects/${String(id)}?companyId=${String(companyId)}`,
+    );
+  }
+
+  createDefect(body: CreateDefectBody): Promise<DefectDto> {
+    return this.request<DefectDto>(`/v1/construction/defects`, { method: 'POST', body });
+  }
+
+  updateDefect(id: number, body: UpdateDefectBody): Promise<DefectDto> {
+    return this.request<DefectDto>(`/v1/construction/defects/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  changeDefectStatus(
+    id: number,
+    body: { companyId: number; status: DefectStatus; note?: string | null },
+  ): Promise<DefectDto> {
+    return this.request<DefectDto>(`/v1/construction/defects/${String(id)}/status`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  getDefectSummary(
+    projectId: number,
+    companyId: number,
+    byLocation?: boolean,
+  ): Promise<{ rows: DefectSummaryRowDto[] }> {
+    return this.request<{ rows: DefectSummaryRowDto[] }>(
+      `/v1/construction/defects/summary?${this.qs(companyId, { projectId, byLocation })}`,
+    );
+  }
+
+  listInspectionTemplates(
+    companyId: number,
+    options?: { kind?: InspectionTemplateKind; includeInactive?: boolean },
+  ): Promise<{ templates: InspectionTemplateDto[] }> {
+    return this.request<{ templates: InspectionTemplateDto[] }>(
+      `/v1/construction/inspection-templates?${this.qs(companyId, options)}`,
+    );
+  }
+
+  createInspectionTemplate(body: CreateInspectionTemplateBody): Promise<InspectionTemplateDto> {
+    return this.request<InspectionTemplateDto>(`/v1/construction/inspection-templates`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  replaceInspectionTemplateItems(
+    id: number,
+    body: { companyId: number; items: InspectionTemplateItemBody[] },
+  ): Promise<InspectionTemplateDto> {
+    return this.request<InspectionTemplateDto>(
+      `/v1/construction/inspection-templates/${String(id)}/items`,
+      { method: 'PUT', body },
+    );
+  }
+
+  deactivateInspectionTemplate(id: number, companyId: number): Promise<InspectionTemplateDto> {
+    return this.request<InspectionTemplateDto>(
+      `/v1/construction/inspection-templates/${String(id)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  listInspections(
+    companyId: number,
+    options?: InspectionListOptions,
+  ): Promise<{ inspections: InspectionDto[] }> {
+    return this.request<{ inspections: InspectionDto[] }>(
+      `/v1/construction/inspections?${this.qs(companyId, options as Record<string, string | number | boolean | undefined>)}`,
+    );
+  }
+
+  getInspection(id: number, companyId: number): Promise<InspectionDto> {
+    return this.request<InspectionDto>(
+      `/v1/construction/inspections/${String(id)}?companyId=${String(companyId)}`,
+    );
+  }
+
+  startInspection(body: StartInspectionBody): Promise<InspectionDto> {
+    return this.request<InspectionDto>(`/v1/construction/inspections`, { method: 'POST', body });
+  }
+
+  saveInspectionAnswers(
+    id: number,
+    body: { companyId: number; answers: InspectionAnswerBody[] },
+  ): Promise<InspectionDto> {
+    return this.request<InspectionDto>(`/v1/construction/inspections/${String(id)}/answers`, {
+      method: 'PUT',
+      body,
+    });
+  }
+
+  changeInspectionStatus(
+    id: number,
+    body: { companyId: number; status: InspectionStatus },
+  ): Promise<InspectionDto> {
+    return this.request<InspectionDto>(`/v1/construction/inspections/${String(id)}/status`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  raiseDefectFromAnswer(
+    inspectionId: number,
+    itemId: number,
+    body: RaiseDefectBody,
+  ): Promise<{ inspection: InspectionDto; defect: DefectDto }> {
+    return this.request<{ inspection: InspectionDto; defect: DefectDto }>(
+      `/v1/construction/inspections/${String(inspectionId)}/items/${String(itemId)}/raise-defect`,
+      { method: 'POST', body },
+    );
+  }
+
+  getVendorScorecard(
+    companyId: number,
+    options?: { projectId?: number; vendorId?: number },
+  ): Promise<{ rows: VendorScorecardRowDto[] }> {
+    return this.request<{ rows: VendorScorecardRowDto[] }>(
+      `/v1/construction/vendor-scorecard?${this.qs(companyId, options)}`,
+    );
+  }
+
+  listRfis(companyId: number, options?: RfiListOptions): Promise<{ rfis: RfiDto[] }> {
+    return this.request<{ rfis: RfiDto[] }>(
+      `/v1/construction/rfis?${this.qs(companyId, options as Record<string, string | number | boolean | undefined>)}`,
+    );
+  }
+
+  createRfi(body: CreateRfiBody): Promise<RfiDto> {
+    return this.request<RfiDto>(`/v1/construction/rfis`, { method: 'POST', body });
+  }
+
+  updateRfi(id: number, body: UpdateRfiBody): Promise<RfiDto> {
+    return this.request<RfiDto>(`/v1/construction/rfis/${String(id)}`, { method: 'PATCH', body });
+  }
+
+  answerRfi(id: number, body: { companyId: number; answer: string }): Promise<RfiDto> {
+    return this.request<RfiDto>(`/v1/construction/rfis/${String(id)}/answer`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  changeRfiStatus(id: number, body: { companyId: number; status: RfiStatus }): Promise<RfiDto> {
+    return this.request<RfiDto>(`/v1/construction/rfis/${String(id)}/status`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  /** 204 → null (hiç RFI yok — hata değil). */
+  async getRfiSummary(projectId: number, companyId: number): Promise<RfiSummaryDto | null> {
+    const res = await this.request<RfiSummaryDto | undefined>(
+      `/v1/construction/rfis/summary?companyId=${String(companyId)}&projectId=${String(projectId)}`,
+    );
+    return res ?? null;
+  }
+
+  listAssignments(
+    companyId: number,
+    options?: AssignmentListOptions,
+  ): Promise<{ assignments: AssignmentDto[] }> {
+    return this.request<{ assignments: AssignmentDto[] }>(
+      `/v1/construction/assignments?${this.qs(companyId, options as Record<string, string | number | boolean | undefined>)}`,
+    );
+  }
+
+  createAssignment(body: CreateAssignmentBody): Promise<AssignmentDto> {
+    return this.request<AssignmentDto>(`/v1/construction/assignments`, { method: 'POST', body });
+  }
+
+  updateAssignment(id: number, body: UpdateAssignmentBody): Promise<AssignmentDto> {
+    return this.request<AssignmentDto>(`/v1/construction/assignments/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  changeAssignmentStatus(
+    id: number,
+    body: { companyId: number; status: AssignmentStatus },
+  ): Promise<AssignmentDto> {
+    return this.request<AssignmentDto>(`/v1/construction/assignments/${String(id)}/status`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  getAssignmentSummary(
+    projectId: number,
+    companyId: number,
+    byUser?: boolean,
+  ): Promise<{ rows: AssignmentSummaryRowDto[] }> {
+    return this.request<{ rows: AssignmentSummaryRowDto[] }>(
+      `/v1/construction/assignments/summary?${this.qs(companyId, { projectId, byUser })}`,
+    );
+  }
+
+  listQualityFiles(
+    companyId: number,
+    docKind: QualityDocKind,
+    docId: number,
+  ): Promise<{ files: QualityFileDto[] }> {
+    return this.request<{ files: QualityFileDto[] }>(
+      `/v1/construction/quality-files/${docKind}/${String(docId)}?companyId=${String(companyId)}`,
+    );
+  }
+
+  addQualityFile(body: AddQualityFileBody): Promise<QualityFileDto> {
+    return this.request<QualityFileDto>(`/v1/construction/quality-files`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  deleteQualityFile(id: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/quality-files/${String(id)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  // ===== FAZ 7 — TAAHHÜT & EVM =============================================
+  listCommitments(
+    companyId: number,
+    options?: CommitmentListOptions,
+  ): Promise<{ commitments: CommitmentDto[] }> {
+    return this.request<{ commitments: CommitmentDto[] }>(
+      `/v1/construction/commitments?${this.qs(companyId, options as Record<string, string | number | boolean | undefined>)}`,
+    );
+  }
+
+  createCommitment(body: CreateCommitmentBody): Promise<CommitmentDto> {
+    return this.request<CommitmentDto>(`/v1/construction/commitments`, { method: 'POST', body });
+  }
+
+  updateCommitment(id: number, body: UpdateCommitmentBody): Promise<CommitmentDto> {
+    return this.request<CommitmentDto>(`/v1/construction/commitments/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  recordCommitmentDelivery(
+    id: number,
+    body: { companyId: number; deliveredAmount: number },
+  ): Promise<CommitmentDto> {
+    return this.request<CommitmentDto>(`/v1/construction/commitments/${String(id)}/delivery`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  closeCommitment(id: number, companyId: number): Promise<CommitmentDto> {
+    return this.request<CommitmentDto>(`/v1/construction/commitments/${String(id)}/close`, {
+      method: 'POST',
+      body: { companyId },
+    });
+  }
+
+  cancelCommitment(id: number, companyId: number): Promise<CommitmentDto> {
+    return this.request<CommitmentDto>(`/v1/construction/commitments/${String(id)}/cancel`, {
+      method: 'POST',
+      body: { companyId },
+    });
+  }
+
+  /** 204 → null (keşfi olmayan sözleşme — hata değil). */
+  async getContractEvm(contractId: number, companyId: number): Promise<ContractEvmDto | null> {
+    const res = await this.request<ContractEvmDto | undefined>(
+      `/v1/construction/contracts/${String(contractId)}/evm?companyId=${String(companyId)}`,
+    );
+    return res ?? null;
+  }
+
+  getProjectEvm(projectId: number, companyId: number): Promise<ProjectEvmDto> {
+    return this.request<ProjectEvmDto>(
+      `/v1/construction/projects/${String(projectId)}/evm?companyId=${String(companyId)}`,
+    );
+  }
+
+  // ===== FAZ 8 — İŞ PROGRAMI ===============================================
+  getProjectSchedule(
+    projectId: number,
+    companyId: number,
+    includeInactive?: boolean,
+  ): Promise<ProjectScheduleDto> {
+    return this.request<ProjectScheduleDto>(
+      `/v1/construction/projects/${String(projectId)}/schedule?${this.qs(companyId, { includeInactive })}`,
+    );
+  }
+
+  getProjectScheduleCurve(
+    projectId: number,
+    companyId: number,
+    stepDays?: number,
+  ): Promise<ScheduleCurveDto> {
+    return this.request<ScheduleCurveDto>(
+      `/v1/construction/projects/${String(projectId)}/schedule-curve?${this.qs(companyId, { stepDays })}`,
+    );
+  }
+
+  createScheduleActivity(body: CreateScheduleActivityBody): Promise<ScheduleActivityDto> {
+    return this.request<ScheduleActivityDto>(`/v1/construction/schedule-activities`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  updateScheduleActivity(
+    id: number,
+    body: UpdateScheduleActivityBody,
+  ): Promise<ScheduleActivityDto> {
+    return this.request<ScheduleActivityDto>(`/v1/construction/schedule-activities/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  deactivateScheduleActivity(id: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/schedule-activities/${String(id)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  recordScheduleProgress(
+    id: number,
+    body: {
+      companyId: number;
+      progressPct?: number;
+      fromTracking?: boolean;
+      asOf?: string;
+      note?: string | null;
+    },
+  ): Promise<ScheduleActivityDto> {
+    return this.request<ScheduleActivityDto>(
+      `/v1/construction/schedule-activities/${String(id)}/progress`,
+      { method: 'POST', body },
+    );
+  }
+
+  getScheduleProgressLog(
+    id: number,
+    companyId: number,
+  ): Promise<{ log: ActivityProgressLogRowDto[] }> {
+    return this.request<{ log: ActivityProgressLogRowDto[] }>(
+      `/v1/construction/schedule-activities/${String(id)}/progress-log?companyId=${String(companyId)}`,
+    );
+  }
+
+  // ===== FAZ 9 — MAKİNE PARKI ==============================================
+  listMachinePark(
+    companyId: number,
+    includeInactive?: boolean,
+  ): Promise<{ machines: MachineParkDto[] }> {
+    return this.request<{ machines: MachineParkDto[] }>(
+      `/v1/construction/machine-park?${this.qs(companyId, { includeInactive })}`,
+    );
+  }
+
+  updateMachineParkDetails(id: number, body: UpdateMachineParkBody): Promise<MachineParkDto> {
+    return this.request<MachineParkDto>(`/v1/construction/machine-park/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  recordMeterReading(
+    id: number,
+    body: {
+      companyId: number;
+      meterValue: number;
+      readAt?: string;
+      isReset?: boolean;
+      note?: string | null;
+    },
+  ): Promise<MachineParkDto> {
+    return this.request<MachineParkDto>(`/v1/construction/machine-park/${String(id)}/meter`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  getMachineMaintenance(id: number, companyId: number): Promise<MachineMaintenanceDto> {
+    return this.request<MachineMaintenanceDto>(
+      `/v1/construction/machine-park/${String(id)}/maintenance?companyId=${String(companyId)}`,
+    );
+  }
+
+  createMaintenancePlan(
+    machineId: number,
+    body: CreateMaintenancePlanBody,
+  ): Promise<MaintenancePlanDto> {
+    return this.request<MaintenancePlanDto>(
+      `/v1/construction/machine-park/${String(machineId)}/maintenance-plans`,
+      { method: 'POST', body },
+    );
+  }
+
+  deactivateMaintenancePlan(planId: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/maintenance-plans/${String(planId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  addMaintenanceRecord(
+    machineId: number,
+    body: AddMaintenanceRecordBody,
+  ): Promise<MaintenanceRecordDto> {
+    return this.request<MaintenanceRecordDto>(
+      `/v1/construction/machine-park/${String(machineId)}/maintenance-records`,
+      { method: 'POST', body },
+    );
+  }
+
+  // ===== FAZ 10 — KONUT SATIŞ ==============================================
+  getUnitInventory(projectId: number, companyId: number): Promise<UnitInventoryDto> {
+    return this.request<UnitInventoryDto>(
+      `/v1/construction/projects/${String(projectId)}/unit-inventory?companyId=${String(companyId)}`,
+    );
+  }
+
+  setUnitListPrice(
+    locationId: number,
+    body: { companyId: number; listPrice: number; note?: string | null },
+  ): Promise<{ locationId: number; listPrice: number }> {
+    return this.request<{ locationId: number; listPrice: number }>(
+      `/v1/construction/unit-prices/${String(locationId)}`,
+      { method: 'PUT', body },
+    );
+  }
+
+  listUnitSales(
+    companyId: number,
+    filter?: {
+      projectId?: number;
+      locationId?: number;
+      status?: UnitSaleStatus;
+      source?: UnitSaleSource;
+      search?: string;
+    },
+  ): Promise<{ sales: UnitSaleDto[] }> {
+    return this.request<{ sales: UnitSaleDto[] }>(
+      `/v1/construction/unit-sales?${this.qs(companyId, { ...filter })}`,
+    );
+  }
+
+  createUnitSale(body: CreateUnitSaleBody): Promise<UnitSaleDto> {
+    return this.request<UnitSaleDto>(`/v1/construction/unit-sales`, { method: 'POST', body });
+  }
+
+  getUnitSale(id: number, companyId: number): Promise<UnitSaleDetailDto> {
+    return this.request<UnitSaleDetailDto>(
+      `/v1/construction/unit-sales/${String(id)}?companyId=${String(companyId)}`,
+    );
+  }
+
+  updateUnitSale(id: number, body: UpdateUnitSaleBody): Promise<UnitSaleDto> {
+    return this.request<UnitSaleDto>(`/v1/construction/unit-sales/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  changeUnitSaleStatus(
+    id: number,
+    body: {
+      companyId: number;
+      to: UnitSaleStatus;
+      note?: string | null;
+      soldAt?: string;
+      vendorId?: number | null;
+    },
+  ): Promise<UnitSaleDto> {
+    return this.request<UnitSaleDto>(`/v1/construction/unit-sales/${String(id)}/status`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  addUnitPayment(saleId: number, body: AddUnitPaymentBody): Promise<UnitPaymentDto> {
+    return this.request<UnitPaymentDto>(`/v1/construction/unit-sales/${String(saleId)}/payments`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  deleteUnitPayment(paymentId: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/unit-payments/${String(paymentId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  createUnitChangeRequest(
+    saleId: number,
+    body: CreateUnitChangeRequestBody,
+  ): Promise<UnitChangeRequestDto> {
+    return this.request<UnitChangeRequestDto>(
+      `/v1/construction/unit-sales/${String(saleId)}/change-requests`,
+      { method: 'POST', body },
+    );
+  }
+
+  updateUnitChangeRequest(
+    id: number,
+    body: {
+      companyId: number;
+      title?: string;
+      description?: string | null;
+      cost?: number;
+      note?: string | null;
+    },
+  ): Promise<UnitChangeRequestDto> {
+    return this.request<UnitChangeRequestDto>(`/v1/construction/change-requests/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  decideUnitChangeRequest(
+    id: number,
+    body: { companyId: number; to: 'approved' | 'rejected' | 'done'; note?: string | null },
+  ): Promise<UnitChangeRequestDto> {
+    return this.request<UnitChangeRequestDto>(
+      `/v1/construction/change-requests/${String(id)}/status`,
+      { method: 'POST', body },
+    );
+  }
+
+  // ===== FAZ 11 — İŞBİRLİĞİ ================================================
+  listProjectMembers(
+    projectId: number,
+    companyId: number,
+    includeInactive?: boolean,
+  ): Promise<{ members: ProjectMemberDto[] }> {
+    return this.request<{ members: ProjectMemberDto[] }>(
+      `/v1/construction/projects/${String(projectId)}/members?${this.qs(companyId, { includeInactive })}`,
+    );
+  }
+
+  addProjectMember(projectId: number, body: AddMemberBody): Promise<ProjectMemberDto> {
+    return this.request<ProjectMemberDto>(
+      `/v1/construction/projects/${String(projectId)}/members`,
+      { method: 'POST', body },
+    );
+  }
+
+  updateProjectMember(
+    memberId: number,
+    body: {
+      companyId: number;
+      memberName?: string;
+      memberRole?: MemberRole;
+      title?: string | null;
+      note?: string | null;
+    },
+  ): Promise<ProjectMemberDto> {
+    return this.request<ProjectMemberDto>(`/v1/construction/members/${String(memberId)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  removeProjectMember(memberId: number, companyId: number): Promise<{ removed: boolean }> {
+    return this.request<{ removed: boolean }>(
+      `/v1/construction/members/${String(memberId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  listPosts(projectId: number, companyId: number): Promise<{ posts: PostDto[] }> {
+    return this.request<{ posts: PostDto[] }>(
+      `/v1/construction/projects/${String(projectId)}/posts?companyId=${String(companyId)}`,
+    );
+  }
+
+  createPost(projectId: number, body: CreatePostBody): Promise<PostDto> {
+    return this.request<PostDto>(`/v1/construction/projects/${String(projectId)}/posts`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  getPost(postId: number, companyId: number): Promise<PostDetailDto> {
+    return this.request<PostDetailDto>(
+      `/v1/construction/posts/${String(postId)}?companyId=${String(companyId)}`,
+    );
+  }
+
+  updatePost(
+    postId: number,
+    body: { companyId: number; title?: string | null; body?: string; pinned?: boolean },
+  ): Promise<PostDto> {
+    return this.request<PostDto>(`/v1/construction/posts/${String(postId)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  deletePost(postId: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/posts/${String(postId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  markPostRead(postId: number, companyId: number): Promise<{ read: boolean }> {
+    return this.request<{ read: boolean }>(`/v1/construction/posts/${String(postId)}/read`, {
+      method: 'POST',
+      body: { companyId },
+    });
+  }
+
+  addPostComment(
+    postId: number,
+    body: { companyId: number; body: string },
+  ): Promise<PostCommentDto> {
+    return this.request<PostCommentDto>(`/v1/construction/posts/${String(postId)}/comments`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  listProjectPhotos(projectId: number, companyId: number): Promise<{ photos: ProjectPhotoDto[] }> {
+    return this.request<{ photos: ProjectPhotoDto[] }>(
+      `/v1/construction/projects/${String(projectId)}/photos?companyId=${String(companyId)}`,
+    );
+  }
+
+  addProjectPhoto(projectId: number, body: AddPhotoBody): Promise<ProjectPhotoDto> {
+    return this.request<ProjectPhotoDto>(`/v1/construction/projects/${String(projectId)}/photos`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  getPhotoContentUrl(photoId: number, companyId: number): string {
+    return `${this.baseUrl}/v1/construction/photos/${String(photoId)}/content?companyId=${String(companyId)}`;
+  }
+
+  /** Bayt indirme Authorization ister; <img src> yerine blob URL kurulur. */
+  async fetchPhotoBlob(photoId: number, companyId: number): Promise<Blob> {
+    const token = this.tokens.getAccessToken();
+    const res = await fetch(this.getPhotoContentUrl(photoId, companyId), {
+      headers: { Authorization: `Bearer ${token ?? ''}` },
+    });
+    if (!res.ok) throw new Error(`HTTP ${String(res.status)}`);
+    return res.blob();
+  }
+
+  deleteProjectPhoto(photoId: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/photos/${String(photoId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
     );
   }
 

@@ -57,6 +57,106 @@ import type {
   ProjectDashboardDto,
   TimesheetDto,
   TimesheetsResponse,
+  BulkGenerateResultDto,
+  DeleteLocationResultDto,
+  ItemState,
+  LocationDto,
+  LocationKind,
+  LocationListResponse,
+  LocationTreeResponse,
+  LocationUsageDto,
+  ProgressTemplateDto,
+  ProgressTemplatesResponse,
+  ProjectPhysicalProgressDto,
+  SaveTemplateBodyResultDto,
+  TrackScope,
+  TrackingBoardDto,
+  TrackingDto,
+  TrackingItemHistoryResponse,
+  TrackingLocationsResponse,
+  TrackingStatus,
+  TrackingsResponse,
+  AccidentSeverity,
+  DailyLogCommentDto,
+  DailyLogDayDto,
+  DailyLogDto,
+  DailyLogEntryDto,
+  DailyLogFileDto,
+  DailyLogMonthDto,
+  DailyLogStatus,
+  KindSpecsResponse,
+  LogEntryKind,
+  ManpowerReportDto,
+  MaterialConsumptionResponse,
+  ProductionActualsResponse,
+  SafetySummaryDto,
+  WorkState,
+  ManhourSummariesResponse,
+  PerformanceReportDto,
+  ApprovalDocKind,
+  ApprovalFlowDto,
+  ApprovalFlowsResponse,
+  ApprovalHistoryResponse,
+  ApprovalMode,
+  ApprovalStatus,
+  ApprovalSummariesResponse,
+  DecideApprovalResultDto,
+  MyApprovalsDto,
+  AssignmentDto,
+  AssignmentSource,
+  AssignmentStatus,
+  AssignmentSummaryRowDto,
+  DefectDto,
+  DefectHistoryRowDto,
+  DefectKind,
+  DefectSeverity,
+  DefectSource,
+  DefectStatus,
+  DefectSummaryRowDto,
+  InspectionDto,
+  InspectionStatus,
+  InspectionTemplateDto,
+  InspectionTemplateKind,
+  QualityDocKind,
+  QualityFileDto,
+  QualityPriority,
+  RfiDiscipline,
+  RfiDto,
+  RfiStatus,
+  RfiSummaryDto,
+  VendorScorecardRowDto,
+  CommitmentDto,
+  CommitmentSource,
+  CommitmentStatus,
+  ContractEvmDto,
+  ProjectEvmDto,
+  ActivityKind,
+  ActivityProgressLogRowDto,
+  ProjectScheduleDto,
+  ScheduleActivityDto,
+  ScheduleCurveDto,
+  MachineMaintenanceDto,
+  MemberRole,
+  PostDetailDto,
+  PostCommentDto,
+  PostDto,
+  ProjectMemberDto,
+  ProjectPhotoDto,
+  UnitInventoryDto,
+  UnitChangeRequestDto,
+  UnitPaymentDto,
+  UnitPaymentKind,
+  UnitPaymentMethod,
+  UnitSaleDetailDto,
+  UnitSaleDto,
+  UnitSaleSource,
+  UnitSaleStatus,
+  MachineParkDto,
+  MaintenanceIntervalType,
+  MaintenancePlanDto,
+  MaintenanceRecordDto,
+  MeterType,
+  RentalPeriod,
 } from '../dto/ConstructionDtos';
 
 export interface CreateProjectBody {
@@ -499,4 +599,1064 @@ export interface ConstructionApi {
   // Raporlar
   getProjectDashboard(projectId: number, companyId: number): Promise<ProjectDashboardDto>;
   getProgressCurve(contractId: number, companyId: number): Promise<ProgressCurveDto>;
+
+  // FAZ 1 — Mekân kırılımı
+  getLocationTree(
+    projectId: number,
+    companyId: number,
+    options?: LocationQueryOptions,
+  ): Promise<LocationTreeResponse>;
+  listLocations(
+    projectId: number,
+    companyId: number,
+    options?: LocationQueryOptions,
+  ): Promise<LocationListResponse>;
+  createLocation(body: CreateLocationBody): Promise<LocationDto>;
+  updateLocation(id: number, body: UpdateLocationBody): Promise<LocationDto>;
+  moveLocation(id: number, body: MoveLocationBody): Promise<LocationDto>;
+  getLocationUsage(id: number, companyId: number): Promise<LocationUsageDto>;
+  deleteLocation(
+    id: number,
+    companyId: number,
+    deactivateOnly?: boolean,
+  ): Promise<DeleteLocationResultDto>;
+  bulkGenerateLocations(body: BulkGenerateLocationsBody): Promise<BulkGenerateResultDto>;
+
+  // FAZ 2 — Fiziksel ilerleme takibi: şablonlar
+  listProgressTemplates(
+    companyId: number,
+    options?: { includeInactive?: boolean; scope?: TrackScope; search?: string },
+  ): Promise<ProgressTemplatesResponse>;
+  getProgressTemplate(id: number, companyId: number): Promise<ProgressTemplateDto>;
+  createProgressTemplate(body: CreateProgressTemplateBody): Promise<ProgressTemplateDto>;
+  updateProgressTemplate(
+    id: number,
+    body: UpdateProgressTemplateBody,
+  ): Promise<ProgressTemplateDto>;
+  saveTemplateBody(id: number, body: SaveTemplateBodyBody): Promise<SaveTemplateBodyResultDto>;
+  deactivateProgressTemplate(id: number, companyId: number): Promise<ProgressTemplateDto>;
+
+  // FAZ 2 — Takipler
+  listTrackings(
+    companyId: number,
+    options?: {
+      projectId?: number;
+      status?: TrackingStatus;
+      includeCancelled?: boolean;
+      search?: string;
+      asOf?: string;
+    },
+  ): Promise<TrackingsResponse>;
+  getTrackingBoard(id: number, companyId: number, asOf?: string): Promise<TrackingBoardDto>;
+  createTracking(body: CreateTrackingBody): Promise<TrackingDto>;
+  updateTracking(id: number, body: UpdateTrackingBody): Promise<TrackingDto>;
+  changeTrackingStatus(
+    id: number,
+    body: { companyId: number; status: TrackingStatus },
+  ): Promise<TrackingDto>;
+  setTrackingItemStates(id: number, body: SetTrackingItemsBody): Promise<TrackingLocationsResponse>;
+  getTrackingItemHistory(
+    trackingItemId: number,
+    companyId: number,
+  ): Promise<TrackingItemHistoryResponse>;
+  addTrackingLocations(
+    id: number,
+    body: AddTrackingLocationsBody,
+  ): Promise<TrackingLocationsResponse>;
+  removeTrackingLocation(
+    id: number,
+    trackingLocationId: number,
+    companyId: number,
+  ): Promise<TrackingLocationsResponse>;
+  syncTrackingWithTemplate(id: number, companyId: number): Promise<{ addedItems: number }>;
+  getProjectPhysicalProgress(
+    projectId: number,
+    companyId: number,
+    asOf?: string,
+  ): Promise<ProjectPhysicalProgressDto>;
+
+  // FAZ 3 — Şantiye günlüğü
+  getDailyLogMonth(
+    projectId: number,
+    companyId: number,
+    year: number,
+    month: number,
+  ): Promise<DailyLogMonthDto>;
+  /** Gün yoksa ve create=false ise null döner (404 değil: o gün henüz doldurulmadı). */
+  getDailyLogDay(
+    projectId: number,
+    companyId: number,
+    logDate: string,
+    create?: boolean,
+  ): Promise<DailyLogDayDto | null>;
+  updateDailyLog(logId: number, body: UpdateDailyLogBody): Promise<DailyLogDto>;
+  changeDailyLogStatus(
+    logId: number,
+    body: { companyId: number; status: DailyLogStatus },
+  ): Promise<DailyLogDto>;
+  listDailyLogKinds(): Promise<KindSpecsResponse>;
+  saveDailyLogEntry(logId: number, body: SaveDailyLogEntryBody): Promise<DailyLogEntryDto>;
+  deleteDailyLogEntry(entryId: number, companyId: number): Promise<{ deleted: boolean }>;
+  addDailyLogFile(logId: number, body: AddDailyLogFileBody): Promise<DailyLogFileDto>;
+  deleteDailyLogFile(fileId: number, companyId: number): Promise<{ deleted: boolean }>;
+  addDailyLogComment(logId: number, body: AddDailyLogCommentBody): Promise<DailyLogCommentDto>;
+  getManpowerReport(
+    projectId: number,
+    companyId: number,
+    fromDate: string,
+    toDate: string,
+  ): Promise<ManpowerReportDto>;
+  getSafetySummary(
+    projectId: number,
+    companyId: number,
+    fromDate: string,
+    toDate: string,
+  ): Promise<SafetySummaryDto>;
+  getProductionActuals(projectId: number, companyId: number): Promise<ProductionActualsResponse>;
+  getMaterialConsumption(
+    projectId: number,
+    companyId: number,
+  ): Promise<MaterialConsumptionResponse>;
+
+  // FAZ 4 — Adam×saat & verimlilik
+  getContractPerformance(contractId: number, companyId: number): Promise<PerformanceReportDto>;
+  getProjectPerformance(projectId: number, companyId: number): Promise<PerformanceReportDto>;
+  getManhourSummaries(projectId: number, companyId: number): Promise<ManhourSummariesResponse>;
+  setUnitManhours(contractId: number, body: SetUnitManhoursBody): Promise<{ updated: number }>;
+
+  // FAZ 5 — Jenerik onay akışı
+  /** "Bana atanan onaylar" — kullanıcı token'dan gelir, parametre alınmaz. */
+  getMyApprovals(companyId: number): Promise<MyApprovalsDto>;
+  listApprovalFlows(
+    companyId: number,
+    options?: {
+      docKind?: ApprovalDocKind;
+      docId?: number;
+      projectId?: number;
+      status?: ApprovalStatus;
+      overdueOnly?: boolean;
+    },
+  ): Promise<ApprovalFlowsResponse>;
+  /** Liste ekranlarındaki N/M göstergeleri — belge başına ayrı istek atmamak için. */
+  getApprovalSummaries(
+    companyId: number,
+    docKind: ApprovalDocKind,
+    docIds: ReadonlyArray<number>,
+  ): Promise<ApprovalSummariesResponse>;
+  /** Belgenin aktif akışı; yoksa null (backend 204 döner — hata değil). */
+  getDocApproval(
+    companyId: number,
+    docKind: ApprovalDocKind,
+    docId: number,
+  ): Promise<ApprovalFlowDto | null>;
+  getApprovalFlow(flowId: number, companyId: number): Promise<ApprovalFlowDto>;
+  getApprovalHistory(flowId: number, companyId: number): Promise<ApprovalHistoryResponse>;
+  startApprovalFlow(body: StartApprovalFlowBody): Promise<ApprovalFlowDto>;
+  decideApprovalStep(
+    flowId: number,
+    stepId: number,
+    body: DecideApprovalBody,
+  ): Promise<DecideApprovalResultDto>;
+  /** Yönetici yetkisi ister (backend 403). */
+  cancelApprovalFlow(flowId: number, companyId: number): Promise<ApprovalFlowDto>;
+
+  // FAZ 6 — Kalite & Güvenlik
+  listDefects(companyId: number, options?: DefectListOptions): Promise<{ defects: DefectDto[] }>;
+  getDefect(
+    id: number,
+    companyId: number,
+  ): Promise<{ defect: DefectDto; history: DefectHistoryRowDto[] }>;
+  createDefect(body: CreateDefectBody): Promise<DefectDto>;
+  updateDefect(id: number, body: UpdateDefectBody): Promise<DefectDto>;
+  changeDefectStatus(
+    id: number,
+    body: { companyId: number; status: DefectStatus; note?: string | null },
+  ): Promise<DefectDto>;
+  getDefectSummary(
+    projectId: number,
+    companyId: number,
+    byLocation?: boolean,
+  ): Promise<{ rows: DefectSummaryRowDto[] }>;
+
+  listInspectionTemplates(
+    companyId: number,
+    options?: { kind?: InspectionTemplateKind; includeInactive?: boolean },
+  ): Promise<{ templates: InspectionTemplateDto[] }>;
+  createInspectionTemplate(body: CreateInspectionTemplateBody): Promise<InspectionTemplateDto>;
+  replaceInspectionTemplateItems(
+    id: number,
+    body: { companyId: number; items: InspectionTemplateItemBody[] },
+  ): Promise<InspectionTemplateDto>;
+  deactivateInspectionTemplate(id: number, companyId: number): Promise<InspectionTemplateDto>;
+
+  listInspections(
+    companyId: number,
+    options?: InspectionListOptions,
+  ): Promise<{ inspections: InspectionDto[] }>;
+  getInspection(id: number, companyId: number): Promise<InspectionDto>;
+  startInspection(body: StartInspectionBody): Promise<InspectionDto>;
+  saveInspectionAnswers(
+    id: number,
+    body: { companyId: number; answers: InspectionAnswerBody[] },
+  ): Promise<InspectionDto>;
+  /** status=approved yönetici ister (backend 403). */
+  changeInspectionStatus(
+    id: number,
+    body: { companyId: number; status: InspectionStatus },
+  ): Promise<InspectionDto>;
+  /** Başarısız denetim maddesinden hasar-eksiklik doğurur ve cevaba bağlar. */
+  raiseDefectFromAnswer(
+    inspectionId: number,
+    itemId: number,
+    body: RaiseDefectBody,
+  ): Promise<{ inspection: InspectionDto; defect: DefectDto }>;
+  getVendorScorecard(
+    companyId: number,
+    options?: { projectId?: number; vendorId?: number },
+  ): Promise<{ rows: VendorScorecardRowDto[] }>;
+
+  listRfis(companyId: number, options?: RfiListOptions): Promise<{ rfis: RfiDto[] }>;
+  createRfi(body: CreateRfiBody): Promise<RfiDto>;
+  updateRfi(id: number, body: UpdateRfiBody): Promise<RfiDto>;
+  answerRfi(id: number, body: { companyId: number; answer: string }): Promise<RfiDto>;
+  changeRfiStatus(id: number, body: { companyId: number; status: RfiStatus }): Promise<RfiDto>;
+  /** Hiç RFI'ı olmayan projede null (backend 204). */
+  getRfiSummary(projectId: number, companyId: number): Promise<RfiSummaryDto | null>;
+
+  listAssignments(
+    companyId: number,
+    options?: AssignmentListOptions,
+  ): Promise<{ assignments: AssignmentDto[] }>;
+  createAssignment(body: CreateAssignmentBody): Promise<AssignmentDto>;
+  updateAssignment(id: number, body: UpdateAssignmentBody): Promise<AssignmentDto>;
+  changeAssignmentStatus(
+    id: number,
+    body: { companyId: number; status: AssignmentStatus },
+  ): Promise<AssignmentDto>;
+  getAssignmentSummary(
+    projectId: number,
+    companyId: number,
+    byUser?: boolean,
+  ): Promise<{ rows: AssignmentSummaryRowDto[] }>;
+
+  listQualityFiles(
+    companyId: number,
+    docKind: QualityDocKind,
+    docId: number,
+  ): Promise<{ files: QualityFileDto[] }>;
+  addQualityFile(body: AddQualityFileBody): Promise<QualityFileDto>;
+  deleteQualityFile(id: number, companyId: number): Promise<{ deleted: boolean }>;
+
+  // FAZ 7 — Taahhüt & EVM
+  listCommitments(
+    companyId: number,
+    options?: CommitmentListOptions,
+  ): Promise<{ commitments: CommitmentDto[] }>;
+  createCommitment(body: CreateCommitmentBody): Promise<CommitmentDto>;
+  updateCommitment(id: number, body: UpdateCommitmentBody): Promise<CommitmentDto>;
+  /** KÜMÜLATİF teslim tutarı (delta değil); tam teslimde otomatik kapanır. */
+  recordCommitmentDelivery(
+    id: number,
+    body: { companyId: number; deliveredAmount: number },
+  ): Promise<CommitmentDto>;
+  closeCommitment(id: number, companyId: number): Promise<CommitmentDto>;
+  cancelCommitment(id: number, companyId: number): Promise<CommitmentDto>;
+  /** Sözleşme EVM özeti; keşfi olmayan sözleşmede null (backend 204). */
+  getContractEvm(contractId: number, companyId: number): Promise<ContractEvmDto | null>;
+  getProjectEvm(projectId: number, companyId: number): Promise<ProjectEvmDto>;
+
+  // FAZ 8 — İş programı
+  getProjectSchedule(
+    projectId: number,
+    companyId: number,
+    includeInactive?: boolean,
+  ): Promise<ProjectScheduleDto>;
+  getProjectScheduleCurve(
+    projectId: number,
+    companyId: number,
+    stepDays?: number,
+  ): Promise<ScheduleCurveDto>;
+  createScheduleActivity(body: CreateScheduleActivityBody): Promise<ScheduleActivityDto>;
+  updateScheduleActivity(
+    id: number,
+    body: UpdateScheduleActivityBody,
+  ): Promise<ScheduleActivityDto>;
+  deactivateScheduleActivity(id: number, companyId: number): Promise<{ deleted: boolean }>;
+  /** İlerleme kaydı — günlüğe düşer (fiili S-eğrisinin kaynağı). */
+  recordScheduleProgress(
+    id: number,
+    body: {
+      companyId: number;
+      progressPct?: number;
+      /** true → yüzde bağlı fiziksel takipten çekilir. */
+      fromTracking?: boolean;
+      asOf?: string;
+      note?: string | null;
+    },
+  ): Promise<ScheduleActivityDto>;
+  getScheduleProgressLog(
+    id: number,
+    companyId: number,
+  ): Promise<{ log: ActivityProgressLogRowDto[] }>;
+
+  // FAZ 9 — Makine parkı
+  listMachinePark(
+    companyId: number,
+    includeInactive?: boolean,
+  ): Promise<{ machines: MachineParkDto[] }>;
+  updateMachineParkDetails(id: number, body: UpdateMachineParkBody): Promise<MachineParkDto>;
+  /** Sayaç geriye gidemez; sayaç değişimi isReset=true + notla. */
+  recordMeterReading(
+    id: number,
+    body: {
+      companyId: number;
+      meterValue: number;
+      readAt?: string;
+      isReset?: boolean;
+      note?: string | null;
+    },
+  ): Promise<MachineParkDto>;
+  getMachineMaintenance(id: number, companyId: number): Promise<MachineMaintenanceDto>;
+  createMaintenancePlan(
+    machineId: number,
+    body: CreateMaintenancePlanBody,
+  ): Promise<MaintenancePlanDto>;
+  deactivateMaintenancePlan(planId: number, companyId: number): Promise<{ deleted: boolean }>;
+  /** Plana bağlıysa plan izini günceller; sayaç verilmişse sayaç okuması olarak da işlenir. */
+  addMaintenanceRecord(
+    machineId: number,
+    body: AddMaintenanceRecordBody,
+  ): Promise<MaintenanceRecordDto>;
+
+  // FAZ 10 — Konut satış
+  getUnitInventory(projectId: number, companyId: number): Promise<UnitInventoryDto>;
+  /** Liste fiyatı defteri (satıştan bağımsız); satış anında kayda donar. */
+  setUnitListPrice(
+    locationId: number,
+    body: { companyId: number; listPrice: number; note?: string | null },
+  ): Promise<{ locationId: number; listPrice: number }>;
+  listUnitSales(
+    companyId: number,
+    filter?: {
+      projectId?: number;
+      locationId?: number;
+      status?: UnitSaleStatus;
+      source?: UnitSaleSource;
+      search?: string;
+    },
+  ): Promise<{ sales: UnitSaleDto[] }>;
+  createUnitSale(body: CreateUnitSaleBody): Promise<UnitSaleDto>;
+  getUnitSale(id: number, companyId: number): Promise<UnitSaleDetailDto>;
+  updateUnitSale(id: number, body: UpdateUnitSaleBody): Promise<UnitSaleDto>;
+  /** İptal gerekçe ister; reserved→barter taşeron ister. */
+  changeUnitSaleStatus(
+    id: number,
+    body: {
+      companyId: number;
+      to: UnitSaleStatus;
+      note?: string | null;
+      soldAt?: string;
+      vendorId?: number | null;
+    },
+  ): Promise<UnitSaleDto>;
+  /** Geleceğe tahsilat yazılamaz; iade tahsil edileni aşamaz. */
+  addUnitPayment(saleId: number, body: AddUnitPaymentBody): Promise<UnitPaymentDto>;
+  deleteUnitPayment(paymentId: number, companyId: number): Promise<{ deleted: boolean }>;
+  createUnitChangeRequest(
+    saleId: number,
+    body: CreateUnitChangeRequestBody,
+  ): Promise<UnitChangeRequestDto>;
+  /** Yalnız open durumda — onaylı bedel sözleşmeseldir. */
+  updateUnitChangeRequest(
+    id: number,
+    body: {
+      companyId: number;
+      title?: string;
+      description?: string | null;
+      cost?: number;
+      note?: string | null;
+    },
+  ): Promise<UnitChangeRequestDto>;
+  decideUnitChangeRequest(
+    id: number,
+    body: { companyId: number; to: 'approved' | 'rejected' | 'done'; note?: string | null },
+  ): Promise<UnitChangeRequestDto>;
+
+  // FAZ 11 — İşbirliği
+  listProjectMembers(
+    projectId: number,
+    companyId: number,
+    includeInactive?: boolean,
+  ): Promise<{ members: ProjectMemberDto[] }>;
+  addProjectMember(projectId: number, body: AddMemberBody): Promise<ProjectMemberDto>;
+  updateProjectMember(
+    memberId: number,
+    body: {
+      companyId: number;
+      memberName?: string;
+      memberRole?: MemberRole;
+      title?: string | null;
+      note?: string | null;
+    },
+  ): Promise<ProjectMemberDto>;
+  /** Soft: geçmiş okuma/yorum izi durur; okuma paydasından düşer. */
+  removeProjectMember(memberId: number, companyId: number): Promise<{ removed: boolean }>;
+
+  listPosts(projectId: number, companyId: number): Promise<{ posts: PostDto[] }>;
+  createPost(projectId: number, body: CreatePostBody): Promise<PostDto>;
+  getPost(postId: number, companyId: number): Promise<PostDetailDto>;
+  updatePost(
+    postId: number,
+    body: { companyId: number; title?: string | null; body?: string; pinned?: boolean },
+  ): Promise<PostDto>;
+  deletePost(postId: number, companyId: number): Promise<{ deleted: boolean }>;
+  /** İdempotent; ilk okuma anı korunur. Gönderi genişletilince çağrılır. */
+  markPostRead(postId: number, companyId: number): Promise<{ read: boolean }>;
+  addPostComment(
+    postId: number,
+    body: { companyId: number; body: string },
+  ): Promise<PostCommentDto>;
+
+  listProjectPhotos(projectId: number, companyId: number): Promise<{ photos: ProjectPhotoDto[] }>;
+  addProjectPhoto(projectId: number, body: AddPhotoBody): Promise<ProjectPhotoDto>;
+  /** Görüntüleme URL'i (Authorization header'sız <img> için kullanılamaz — bayt fetch edilir). */
+  getPhotoContentUrl(photoId: number, companyId: number): string;
+  fetchPhotoBlob(photoId: number, companyId: number): Promise<Blob>;
+  deleteProjectPhoto(photoId: number, companyId: number): Promise<{ deleted: boolean }>;
+}
+
+// ===== FAZ 11 — istek gövdeleri =============================================
+
+export interface AddMemberBody {
+  companyId: number;
+  userId: number;
+  memberName: string;
+  memberRole?: MemberRole;
+  title?: string | null;
+  note?: string | null;
+}
+
+export interface CreatePostBody {
+  companyId: number;
+  title?: string | null;
+  body: string;
+  pinned?: boolean;
+  /** Bilgilendirme listesi; boş/verilmemiş = tüm aktif ekip. */
+  recipients?: { userId: number; userName?: string }[];
+}
+
+export interface AddPhotoBody {
+  companyId: number;
+  locationId?: number | null;
+  title?: string | null;
+  takenAt?: string | null;
+  fileUrl?: string | null;
+  contentBase64?: string | null;
+  mimeType?: string | null;
+}
+
+// ===== FAZ 10 — istek gövdeleri =============================================
+
+export interface CreateUnitSaleBody {
+  companyId: number;
+  projectId: number;
+  locationId: number;
+  status: 'reserved' | 'sold' | 'barter';
+  buyerName?: string | null;
+  vendorId?: number | null;
+  /** Verilmezse defterdeki liste fiyatı donar. */
+  listPrice?: number;
+  salePrice: number;
+  reservedAt?: string | null;
+  soldAt?: string | null;
+  note?: string | null;
+}
+
+export interface UpdateUnitSaleBody {
+  companyId: number;
+  buyerName?: string;
+  vendorId?: number | null;
+  listPrice?: number;
+  salePrice?: number;
+  reservedAt?: string | null;
+  soldAt?: string | null;
+  note?: string | null;
+}
+
+export interface AddUnitPaymentBody {
+  companyId: number;
+  kind?: UnitPaymentKind;
+  paidAt?: string;
+  amount: number;
+  method?: UnitPaymentMethod | null;
+  note?: string | null;
+}
+
+export interface CreateUnitChangeRequestBody {
+  companyId: number;
+  title: string;
+  description?: string | null;
+  cost?: number;
+  requestedAt?: string;
+  note?: string | null;
+}
+
+// ===== FAZ 9 — istek gövdeleri ==============================================
+
+export interface UpdateMachineParkBody {
+  companyId: number;
+  brand?: string | null;
+  model?: string | null;
+  modelYear?: number | null;
+  plateNo?: string | null;
+  chassisNo?: string | null;
+  engineNo?: string | null;
+  meterType?: MeterType;
+  purchaseDate?: string | null;
+  rentalStart?: string | null;
+  rentalEnd?: string | null;
+  rentalCost?: number;
+  rentalPeriod?: RentalPeriod | null;
+  warrantyUntil?: string | null;
+  warrantyMeter?: number | null;
+  parkNote?: string | null;
+}
+
+export interface CreateMaintenancePlanBody {
+  companyId: number;
+  name: string;
+  intervalType: MaintenanceIntervalType;
+  intervalValue: number;
+  lastDoneMeter?: number | null;
+  lastDoneDate?: string | null;
+  note?: string | null;
+}
+
+export interface AddMaintenanceRecordBody {
+  companyId: number;
+  planId?: number | null;
+  doneAt?: string;
+  meterAt?: number | null;
+  cost?: number;
+  description: string;
+  vendorId?: number | null;
+}
+
+// ===== FAZ 8 — istek gövdeleri ==============================================
+
+export interface CreateScheduleActivityBody {
+  companyId: number;
+  projectId: number;
+  parentId?: number | null;
+  code?: string;
+  name: string;
+  kind?: ActivityKind;
+  plannedStart: string;
+  plannedEnd?: string;
+  weightPct?: number;
+  trackingId?: number | null;
+  boqLineId?: number | null;
+  locationId?: number | null;
+  dependsOn?: number | null;
+  sortOrder?: number;
+  note?: string | null;
+}
+
+export interface UpdateScheduleActivityBody {
+  companyId: number;
+  parentId?: number | null;
+  name?: string;
+  kind?: ActivityKind;
+  plannedStart?: string;
+  plannedEnd?: string;
+  weightPct?: number;
+  trackingId?: number | null;
+  boqLineId?: number | null;
+  locationId?: number | null;
+  dependsOn?: number | null;
+  sortOrder?: number;
+  note?: string | null;
+}
+
+// ===== FAZ 7 — istek gövdeleri ==============================================
+
+export interface CommitmentListOptions {
+  projectId?: number;
+  contractId?: number;
+  boqLineId?: number;
+  vendorId?: number;
+  source?: CommitmentSource;
+  status?: CommitmentStatus;
+  openOnly?: boolean;
+  search?: string;
+}
+
+export interface CreateCommitmentBody {
+  companyId: number;
+  projectId: number;
+  contractId?: number | null;
+  boqLineId?: number | null;
+  locationId?: number | null;
+  source?: CommitmentSource;
+  refNo: string;
+  refLineNo?: number;
+  vendorId?: number | null;
+  description: string;
+  quantity?: number;
+  unit?: string | null;
+  unitPrice?: number;
+  amount: number;
+  currency?: string;
+  committedAt?: string;
+  note?: string | null;
+}
+
+export interface UpdateCommitmentBody {
+  companyId: number;
+  contractId?: number | null;
+  boqLineId?: number | null;
+  locationId?: number | null;
+  vendorId?: number | null;
+  description?: string;
+  quantity?: number;
+  unit?: string | null;
+  unitPrice?: number;
+  amount?: number;
+  committedAt?: string;
+  note?: string | null;
+}
+
+// ===== FAZ 6 — istek gövdeleri ==============================================
+
+export interface DefectListOptions {
+  projectId?: number;
+  locationId?: number;
+  locationSubtree?: boolean;
+  status?: DefectStatus;
+  openOnly?: boolean;
+  severity?: DefectSeverity;
+  defectKind?: DefectKind;
+  vendorId?: number;
+  responsibleUserId?: number;
+  overdueOnly?: boolean;
+  search?: string;
+}
+
+export interface CreateDefectBody {
+  companyId: number;
+  projectId: number;
+  locationId?: number | null;
+  code?: string;
+  title: string;
+  description?: string | null;
+  defectKind: DefectKind;
+  severity?: DefectSeverity;
+  vendorId?: number | null;
+  responsibleUserId?: number | null;
+  source?: DefectSource;
+  boqLineId?: number | null;
+  dueDate?: string | null;
+  costEstimate?: number;
+  currency?: string;
+}
+
+export interface UpdateDefectBody {
+  companyId: number;
+  locationId?: number | null;
+  title?: string;
+  description?: string | null;
+  defectKind?: DefectKind;
+  severity?: DefectSeverity;
+  vendorId?: number | null;
+  responsibleUserId?: number | null;
+  boqLineId?: number | null;
+  dueDate?: string | null;
+  costEstimate?: number;
+  costActual?: number;
+  currency?: string;
+}
+
+export interface InspectionTemplateItemBody {
+  category?: string | null;
+  code: string;
+  text: string;
+  weight?: number;
+  maxScore?: number;
+  isCritical?: boolean;
+  sortOrder?: number;
+}
+
+export interface CreateInspectionTemplateBody {
+  companyId: number;
+  code: string;
+  name: string;
+  kind?: InspectionTemplateKind;
+  description?: string | null;
+  scoring?: 'weighted' | 'pass_fail';
+  passPct?: number;
+  items: InspectionTemplateItemBody[];
+}
+
+export interface InspectionListOptions {
+  projectId?: number;
+  templateId?: number;
+  vendorId?: number;
+  locationId?: number;
+  status?: InspectionStatus;
+  fromDate?: string;
+  toDate?: string;
+}
+
+export interface StartInspectionBody {
+  companyId: number;
+  projectId: number;
+  templateId: number;
+  locationId?: number | null;
+  code?: string;
+  vendorId?: number | null;
+  contractId?: number | null;
+  inspectionDate: string;
+  periodLabel?: string | null;
+  note?: string | null;
+}
+
+export interface InspectionAnswerBody {
+  itemId: number;
+  score?: number | null;
+  isNa?: boolean;
+  note?: string | null;
+}
+
+export interface RaiseDefectBody {
+  companyId: number;
+  defectKind: DefectKind;
+  severity?: DefectSeverity;
+  vendorId?: number | null;
+  responsibleUserId?: number | null;
+  dueDate?: string | null;
+}
+
+export interface RfiListOptions {
+  projectId?: number;
+  locationId?: number;
+  status?: RfiStatus;
+  discipline?: RfiDiscipline;
+  priority?: QualityPriority;
+  askedToUserId?: number;
+  overdueOnly?: boolean;
+  search?: string;
+}
+
+export interface CreateRfiBody {
+  companyId: number;
+  projectId: number;
+  locationId?: number | null;
+  code?: string;
+  subject: string;
+  question: string;
+  discipline?: RfiDiscipline;
+  priority?: QualityPriority;
+  askedToUserId?: number | null;
+  vendorId?: number | null;
+  boqLineId?: number | null;
+  dueDate?: string | null;
+  impactDays?: number;
+  impactCost?: number;
+  currency?: string;
+}
+
+export interface UpdateRfiBody {
+  companyId: number;
+  locationId?: number | null;
+  subject?: string;
+  question?: string;
+  discipline?: RfiDiscipline;
+  priority?: QualityPriority;
+  askedToUserId?: number | null;
+  vendorId?: number | null;
+  boqLineId?: number | null;
+  dueDate?: string | null;
+  impactDays?: number;
+  impactCost?: number;
+  currency?: string;
+}
+
+export interface AssignmentListOptions {
+  projectId?: number;
+  locationId?: number;
+  assignedToUserId?: number;
+  vendorId?: number;
+  status?: AssignmentStatus;
+  openOnly?: boolean;
+  priority?: QualityPriority;
+  sourceKind?: AssignmentSource;
+  sourceId?: number;
+  overdueOnly?: boolean;
+}
+
+export interface CreateAssignmentBody {
+  companyId: number;
+  projectId: number;
+  locationId?: number | null;
+  code?: string;
+  title: string;
+  description?: string | null;
+  assignedToUserId?: number | null;
+  vendorId?: number | null;
+  priority?: QualityPriority;
+  startDate?: string | null;
+  dueDate?: string | null;
+  sourceKind?: AssignmentSource | null;
+  sourceId?: number | null;
+}
+
+export interface UpdateAssignmentBody {
+  companyId: number;
+  locationId?: number | null;
+  title?: string;
+  description?: string | null;
+  assignedToUserId?: number | null;
+  vendorId?: number | null;
+  priority?: QualityPriority;
+  startDate?: string | null;
+  dueDate?: string | null;
+  progressPct?: number;
+}
+
+export interface AddQualityFileBody {
+  companyId: number;
+  docKind: QualityDocKind;
+  docId: number;
+  fileKind?: string;
+  stage?: 'before' | 'after' | 'other';
+  title?: string | null;
+  fileUrl?: string | null;
+  contentBase64?: string | null;
+  mimeType?: string | null;
+}
+
+// ===== FAZ 4 — istek gövdesi =================================================
+
+export interface SetUnitManhoursBody {
+  companyId: number;
+  updates: { boqLineId: number; unitManhours: number }[];
+}
+
+// ===== FAZ 5 — istek gövdeleri ==============================================
+
+export interface StartApprovalFlowBody {
+  companyId: number;
+  docKind: ApprovalDocKind;
+  docId: number;
+  projectId?: number | null;
+  mode?: ApprovalMode;
+  /** null/boş = herkes onaylamalı. */
+  minApprovals?: number | null;
+  title?: string | null;
+  note?: string | null;
+  approvers: { approverUserId: number; dueDate?: string | null }[];
+}
+
+export interface DecideApprovalBody {
+  companyId: number;
+  approve: boolean;
+  comment?: string | null;
+}
+
+// ===== FAZ 3 — Şantiye günlüğü istek gövdeleri ==============================
+
+export interface UpdateDailyLogBody {
+  companyId: number;
+  workState?: WorkState;
+  tempC?: number | null;
+  weatherNote?: string | null;
+  noWorkReason?: string | null;
+  summary?: string | null;
+}
+
+export interface SaveDailyLogEntryBody {
+  companyId: number;
+  /** Doluysa güncelleme, boşsa ekleme. */
+  entryId?: number;
+  kind: LogEntryKind;
+  locationId?: number | null;
+  vendorId?: number | null;
+  personnelId?: number | null;
+  machineId?: number | null;
+  materialId?: number | null;
+  boqLineId?: number | null;
+  trackingItemId?: number | null;
+  crewName?: string | null;
+  personName?: string | null;
+  description?: string | null;
+  headcount?: number | null;
+  hours?: number | null;
+  idleHours?: number | null;
+  qty?: number | null;
+  unit?: string | null;
+  amount?: number | null;
+  currency?: CurrencyCode;
+  waybillNo?: string | null;
+  occurredAt?: string | null;
+  severity?: AccidentSeverity | null;
+  lostDays?: number | null;
+  sortOrder?: number;
+}
+
+export interface AddDailyLogFileBody {
+  companyId: number;
+  entryId?: number | null;
+  fileKind?: 'photo' | 'doc';
+  title?: string | null;
+  fileUrl?: string | null;
+  contentBase64?: string | null;
+  mimeType?: string | null;
+}
+
+export interface AddDailyLogCommentBody {
+  companyId: number;
+  entryId?: number | null;
+  body: string;
+}
+
+// ===== FAZ 1 — Mekân kırılımı istek gövdeleri ===============================
+
+export interface LocationQueryOptions {
+  includeInactive?: boolean;
+  kind?: LocationKind;
+  subtreeOf?: number;
+  search?: string;
+}
+
+export interface CreateLocationBody {
+  companyId: number;
+  projectId: number;
+  parentId?: number | null;
+  kind: LocationKind;
+  code: string;
+  name?: string;
+  sortOrder?: number;
+  unitType?: string | null;
+  grossArea?: number | null;
+  netArea?: number | null;
+  landShare?: number | null;
+  facade?: string | null;
+}
+
+export interface UpdateLocationBody {
+  companyId: number;
+  code?: string;
+  name?: string;
+  sortOrder?: number;
+  unitType?: string | null;
+  grossArea?: number | null;
+  netArea?: number | null;
+  landShare?: number | null;
+  facade?: string | null;
+}
+
+export interface MoveLocationBody {
+  companyId: number;
+  newParentId: number | null;
+}
+
+export interface BulkGenerateLocationsBody {
+  companyId: number;
+  projectId: number;
+  parentId?: number | null;
+  blocks: string[];
+  floors?: string[];
+  unitsPerFloor?: number;
+  unitNumbering?: 'sequential' | 'per_floor';
+  defaultUnitType?: string | null;
+  blockNameTemplate?: string;
+  floorNameTemplate?: string;
+  unitNameTemplate?: string;
+}
+
+// ===== FAZ 2 — Takip istek gövdeleri =======================================
+
+export interface TemplateBodyPayload {
+  groups: {
+    code: string;
+    name: string;
+    weightPct: number;
+    sortOrder?: number;
+    items: {
+      code: string;
+      name: string;
+      weightPct: number;
+      sortOrder?: number;
+      pozId?: number | null;
+    }[];
+  }[];
+}
+
+export interface CreateProgressTemplateBody {
+  companyId: number;
+  name: string;
+  code?: string;
+  scope?: TrackScope;
+  description?: string | null;
+  pctInProgress?: number;
+  pctHasDefects?: number;
+  body?: TemplateBodyPayload;
+}
+
+export interface UpdateProgressTemplateBody {
+  companyId: number;
+  name?: string;
+  scope?: TrackScope;
+  description?: string | null;
+  pctInProgress?: number;
+  pctHasDefects?: number;
+}
+
+export interface SaveTemplateBodyBody extends TemplateBodyPayload {
+  companyId: number;
+}
+
+export interface CreateTrackingBody {
+  companyId: number;
+  projectId: number;
+  templateId: number;
+  name: string;
+  code?: string;
+  projectWeightPct?: number;
+  plannedStart?: string | null;
+  plannedEnd?: string | null;
+  assignedUserId?: number | null;
+  visibleAll?: boolean;
+  note?: string | null;
+  locationIds: number[];
+  locationWeights?: Record<string, number>;
+}
+
+export interface UpdateTrackingBody {
+  companyId: number;
+  name?: string;
+  projectWeightPct?: number;
+  plannedStart?: string | null;
+  plannedEnd?: string | null;
+  assignedUserId?: number | null;
+  visibleAll?: boolean;
+  note?: string | null;
+}
+
+export interface SetTrackingItemsBody {
+  companyId: number;
+  updates: {
+    trackingItemId: number;
+    state: ItemState;
+    overridePct?: number | null;
+    inspectedBy?: number | null;
+    inspectedAt?: string | null;
+    note?: string | null;
+  }[];
+}
+
+export interface AddTrackingLocationsBody {
+  companyId: number;
+  locationIds: number[];
+  locationWeights?: Record<string, number>;
 }

@@ -158,6 +158,122 @@ export class TimesheetNotFoundError extends ConstructionError {
   }
 }
 
+// ---- FAZ 1: Mekân kırılımı -------------------------------------------------
+
+export class LocationNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Lokasyon bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateLocationCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Aynı üst mekânda bu kodda lokasyon zaten var: ${code}`);
+  }
+}
+
+export class InvalidLocationNestingError extends ConstructionError {
+  constructor(parentLabel: string, childLabel: string) {
+    super(`'${parentLabel}' altına '${childLabel}' eklenemez`);
+  }
+}
+
+export class LocationInUseError extends ConstructionError {
+  constructor(id: number, usage: string) {
+    super(`Lokasyon silinemez (${id}) — bağlı kayıt var: ${usage}`);
+  }
+}
+
+// ---- FAZ 2: Fiziksel ilerleme takibi ---------------------------------------
+
+export class ProgressTemplateNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`İlerleme takip şablonu bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateProgressTemplateCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu kodda takip şablonu zaten var: ${code}`);
+  }
+}
+
+export class TrackingNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Güncel durum takibi bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateTrackingCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu kodda takip zaten var: ${code}`);
+  }
+}
+
+export class TrackingItemNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Takip iş kalemi bulunamadı: ${id}`);
+  }
+}
+
+export class TrackingNotActiveError extends ConstructionError {
+  constructor(status: string) {
+    super(`Saha durumu yalnız aktif takipte güncellenebilir (mevcut durum: '${status}')`);
+  }
+}
+
+export class InvalidTrackingScopeError extends ConstructionError {
+  constructor(scope: string, kindLabel: string) {
+    super(`'${scope}' kapsamlı şablona '${kindLabel}' tipinde lokasyon eklenemez`);
+  }
+}
+
+// ---- FAZ 3: Şantiye günlüğü ------------------------------------------------
+
+export class DailyLogNotFoundError extends ConstructionError {
+  constructor(idOrDate: number | string) {
+    super(`Şantiye günlüğü bulunamadı: ${idOrDate}`);
+  }
+}
+
+export class DailyLogLockedError extends ConstructionError {
+  constructor(logDate: string) {
+    super(`Bu günün raporu kilitli (${logDate}) — değişiklik için önce kilidi açın`);
+  }
+}
+
+export class DailyLogEntryNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Günlük rapor kaydı bulunamadı: ${id}`);
+  }
+}
+
+// ---- FAZ 5: Jenerik onay akışı ---------------------------------------------
+
+export class ApprovalFlowNotFoundError extends ConstructionError {
+  constructor(idOrDoc: number | string) {
+    super(`Onay akışı bulunamadı: ${idOrDoc}`);
+  }
+}
+
+export class ApprovalStepNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Onay adımı bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateApprovalFlowError extends ConstructionError {
+  constructor(docKind: string, docId: number) {
+    super(`Bu belgede zaten bekleyen bir onay akışı var: ${docKind}#${String(docId)}`);
+  }
+}
+
+export class ApprovalNotActionableError extends ConstructionError {
+  constructor(reason: string) {
+    super(`Onay işlemi yapılamaz: ${reason}`);
+  }
+}
+
 export class InvalidStatusTransitionError extends ConstructionError {
   constructor(from: string, to: string) {
     super(`Geçersiz statü geçişi: '${from}' → '${to}'`);
@@ -167,5 +283,222 @@ export class InvalidStatusTransitionError extends ConstructionError {
 export class ConstructionValidationError extends ConstructionError {
   constructor(reason: string) {
     super(`Geçersiz veri: ${reason}`);
+  }
+}
+
+// ===== FAZ 6 — Kalite & Güvenlik ===========================================
+
+export class DefectNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Hasar-eksiklik kaydı bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateDefectCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu kod projede zaten kullanılıyor: ${code}`);
+  }
+}
+
+export class InspectionTemplateNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Denetim şablonu bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateInspectionTemplateCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu denetim şablonu kodu zaten kullanılıyor: ${code}`);
+  }
+}
+
+export class InspectionNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Denetim bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateInspectionCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu denetim kodu zaten kullanılıyor: ${code}`);
+  }
+}
+
+/** Onaylanmış denetimin cevapları değiştirilemez — karne o puanla yayınlandı. */
+export class InspectionNotEditableError extends ConstructionError {
+  constructor(id: number, status: string) {
+    super(`Denetim bu statüde düzenlenemez (${status}): ${id}`);
+  }
+}
+
+export class RfiNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Bilgi talebi bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateRfiCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu bilgi talebi kodu projede zaten kullanılıyor: ${code}`);
+  }
+}
+
+export class AssignmentNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Görevlendirme bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateAssignmentCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu görevlendirme kodu projede zaten kullanılıyor: ${code}`);
+  }
+}
+
+export class QualityFileNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Ek dosya bulunamadı: ${id}`);
+  }
+}
+
+// ===== FAZ 7 — Taahhüt & EVM ===============================================
+
+export class CommitmentNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Taahhüt kaydı bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateCommitmentRefError extends ConstructionError {
+  constructor(refNo: string, refLineNo: number) {
+    super(`Bu kaynak satırı zaten kayıtlı: ${refNo} / ${refLineNo}`);
+  }
+}
+
+// ===== FAZ 8 — İş Programı =================================================
+
+export class ScheduleActivityNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Aktivite bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateActivityCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu aktivite kodu projede zaten kullanılıyor: ${code}`);
+  }
+}
+
+/** Altında aktivite olan satır silinemez — önce çocuklar taşınmalı/silinmeli. */
+export class ActivityHasChildrenError extends ConstructionError {
+  constructor(id: number, count: number) {
+    super(`Aktivitenin altında ${count} satır var, önce onlar taşınmalı/silinmeli: ${id}`);
+  }
+}
+
+// ===== FAZ 9 — Makine Parkı ================================================
+
+export class MaintenancePlanNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Bakım planı bulunamadı: ${id}`);
+  }
+}
+
+/** Sayaç geriye gidemez; sayaç değişimi is_reset=true + not ile kaydedilir. */
+export class MeterRollbackError extends ConstructionError {
+  constructor(current: number, attempted: number) {
+    super(
+      `Sayaç geriye gidemez (güncel ${current}, girilen ${attempted}); ` +
+        `sayaç değişimi/sıfırlama ayrı işaretle ve notla kaydedilir`,
+    );
+  }
+}
+
+// ===== FAZ 10 — Konut Satış ================================================
+
+export class UnitSaleNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Satış kaydı bulunamadı: ${id}`);
+  }
+}
+
+export class UnitPaymentNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Tahsilat kaydı bulunamadı: ${id}`);
+  }
+}
+
+export class ChangeRequestNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Değişiklik isteği bulunamadı: ${id}`);
+  }
+}
+
+/** Bir dairede tek aktif satış olur; ikincisi çatışmadır (409). */
+export class UnitAlreadySoldError extends ConstructionError {
+  constructor(locationId: number) {
+    super(`Bu dairede zaten aktif bir satış/rezervasyon var: ${locationId}`);
+  }
+}
+
+/** Satış yalnız kind='unit' lokasyona bağlanır — blok/kat satılmaz. */
+export class NotAUnitLocationError extends ConstructionError {
+  constructor(id: number, kind: string) {
+    super(`Satış yalnız bağımsız bölüme yapılabilir; lokasyon ${id} tipi: ${kind}`);
+  }
+}
+
+/** İade, tahsil edilenden fazla olamaz. */
+export class RefundExceedsCollectedError extends ConstructionError {
+  constructor(collected: number, attempted: number) {
+    super(`İade tahsilatı aşamaz (tahsil edilen ${collected}, iade ${attempted})`);
+  }
+}
+
+/** Onaylanan/kapanan değişiklik isteğinin bedeli/kapsamı oynatılamaz. */
+export class ChangeRequestNotEditableError extends ConstructionError {
+  constructor(status: string) {
+    super(`Değişiklik isteği '${status}' durumunda düzenlenemez; yeni istek açılmalı`);
+  }
+}
+
+// ===== FAZ 11 — İşbirliği ==================================================
+
+export class PostNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Gönderi bulunamadı: ${id}`);
+  }
+}
+
+export class ProjectMemberNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Proje ekibi üyesi bulunamadı: ${id}`);
+  }
+}
+
+/** Aynı kullanıcı bir projeye iki kez eklenemez (409). */
+export class DuplicateProjectMemberError extends ConstructionError {
+  constructor(userId: number) {
+    super(`Bu kullanıcı zaten proje ekibinde: ${userId}`);
+  }
+}
+
+export class ProjectPhotoNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Fotoğraf bulunamadı: ${id}`);
+  }
+}
+
+/** Gönderiyi yalnız yazarı ya da admin düzenler/siler (403). */
+export class NotPostAuthorError extends ConstructionError {
+  constructor() {
+    super('Bu gönderiyi yalnız yazarı ya da yönetici düzenleyebilir/silebilir');
+  }
+}
+
+/** Pasif (silinmiş) gönderi düzenlenemez. */
+export class PostNotEditableError extends ConstructionError {
+  constructor() {
+    super('Silinmiş gönderi düzenlenemez');
   }
 }

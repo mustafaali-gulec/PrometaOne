@@ -8,19 +8,65 @@
 import { HTTPException } from 'hono/http-exception';
 
 import {
+  ActivityHasChildrenError,
   AdvanceNotFoundError,
+  ApprovalFlowNotFoundError,
+  MaintenancePlanNotFoundError,
+  MeterRollbackError,
+  DuplicateActivityCodeError,
+  ScheduleActivityNotFoundError,
+  CommitmentNotFoundError,
+  DuplicateCommitmentRefError,
+  ChangeRequestNotEditableError,
+  ChangeRequestNotFoundError,
+  DuplicateProjectMemberError,
+  NotPostAuthorError,
+  PostNotEditableError,
+  PostNotFoundError,
+  ProjectMemberNotFoundError,
+  ProjectPhotoNotFoundError,
+  NotAUnitLocationError,
+  RefundExceedsCollectedError,
+  UnitAlreadySoldError,
+  UnitPaymentNotFoundError,
+  UnitSaleNotFoundError,
+  AssignmentNotFoundError,
+  DefectNotFoundError,
+  DuplicateAssignmentCodeError,
+  DuplicateDefectCodeError,
+  DuplicateInspectionCodeError,
+  DuplicateInspectionTemplateCodeError,
+  DuplicateRfiCodeError,
+  InspectionNotEditableError,
+  InspectionNotFoundError,
+  InspectionTemplateNotFoundError,
+  QualityFileNotFoundError,
+  RfiNotFoundError,
+  ApprovalNotActionableError,
+  ApprovalStepNotFoundError,
   AttachmentNotFoundError,
   CashMovementNotFoundError,
   ContractNotFoundError,
   ConstructionValidationError,
+  DailyLogEntryNotFoundError,
+  DailyLogLockedError,
+  DailyLogNotFoundError,
+  DuplicateApprovalFlowError,
   DuplicateContractNoError,
+  DuplicateLocationCodeError,
   DuplicateMachineCodeError,
   DuplicateMaterialCodeError,
   DuplicatePozError,
+  DuplicateProgressTemplateCodeError,
   DuplicateProjectCodeError,
+  DuplicateTrackingCodeError,
   DuplicateWarehouseCodeError,
   ExpenseNotFoundError,
+  InvalidLocationNestingError,
   InvalidStatusTransitionError,
+  InvalidTrackingScopeError,
+  LocationInUseError,
+  LocationNotFoundError,
   MachineNotFoundError,
   MaterialNotFoundError,
   MaterialRequestNotEditableError,
@@ -31,8 +77,12 @@ import {
   PozNotFoundError,
   ProgressNotEditableError,
   ProgressNotFoundError,
+  ProgressTemplateNotFoundError,
   ProjectNotFoundError,
   TimesheetNotFoundError,
+  TrackingItemNotFoundError,
+  TrackingNotActiveError,
+  TrackingNotFoundError,
   WarehouseNotFoundError,
 } from '../domain/errors/ConstructionErrors.js';
 
@@ -53,9 +103,37 @@ export function mapConstructionError(err: unknown): never {
     err instanceof MachineNotFoundError ||
     err instanceof TimesheetNotFoundError ||
     err instanceof MeasurementNotFoundError ||
-    err instanceof AttachmentNotFoundError
+    err instanceof AttachmentNotFoundError ||
+    err instanceof LocationNotFoundError ||
+    err instanceof ProgressTemplateNotFoundError ||
+    err instanceof TrackingNotFoundError ||
+    err instanceof TrackingItemNotFoundError ||
+    err instanceof DailyLogNotFoundError ||
+    err instanceof DailyLogEntryNotFoundError ||
+    err instanceof ApprovalFlowNotFoundError ||
+    err instanceof ApprovalStepNotFoundError ||
+    err instanceof DefectNotFoundError ||
+    err instanceof InspectionTemplateNotFoundError ||
+    err instanceof InspectionNotFoundError ||
+    err instanceof RfiNotFoundError ||
+    err instanceof AssignmentNotFoundError ||
+    err instanceof QualityFileNotFoundError ||
+    err instanceof CommitmentNotFoundError ||
+    err instanceof ScheduleActivityNotFoundError ||
+    err instanceof MaintenancePlanNotFoundError ||
+    err instanceof UnitSaleNotFoundError ||
+    err instanceof UnitPaymentNotFoundError ||
+    err instanceof ChangeRequestNotFoundError ||
+    err instanceof PostNotFoundError ||
+    err instanceof ProjectMemberNotFoundError ||
+    err instanceof ProjectPhotoNotFoundError
   ) {
     throw new HTTPException(404, { message: err.message });
+  }
+
+  // Sahiplik ihlali: kimlik doğru ama yetki yok — 403, 400 değil.
+  if (err instanceof NotPostAuthorError) {
+    throw new HTTPException(403, { message: err.message });
   }
 
   if (
@@ -64,7 +142,32 @@ export function mapConstructionError(err: unknown): never {
     err instanceof DuplicatePozError ||
     err instanceof DuplicateMaterialCodeError ||
     err instanceof DuplicateWarehouseCodeError ||
-    err instanceof DuplicateMachineCodeError
+    err instanceof DuplicateMachineCodeError ||
+    err instanceof DuplicateLocationCodeError ||
+    err instanceof DuplicateProgressTemplateCodeError ||
+    err instanceof DuplicateTrackingCodeError ||
+    err instanceof DuplicateApprovalFlowError ||
+    err instanceof DuplicateDefectCodeError ||
+    err instanceof DuplicateInspectionTemplateCodeError ||
+    err instanceof DuplicateInspectionCodeError ||
+    err instanceof DuplicateRfiCodeError ||
+    err instanceof DuplicateAssignmentCodeError ||
+    err instanceof DuplicateCommitmentRefError ||
+    err instanceof DuplicateActivityCodeError
+  ) {
+    throw new HTTPException(409, { message: err.message });
+  }
+
+  // Bağlı kayıt yüzünden silinemeyen lokasyon bir çatışmadır (409), geçersiz
+  // istek değil: istemci önce bağlı kayıtları taşımalı/temizlemeli.
+  if (
+    err instanceof LocationInUseError ||
+    err instanceof DailyLogLockedError ||
+    err instanceof ActivityHasChildrenError ||
+    // Dairede zaten aktif satış olması bir çatışmadır: istemci önce mevcut
+    // kaydı iptal etmeli/güncellemeli.
+    err instanceof UnitAlreadySoldError ||
+    err instanceof DuplicateProjectMemberError
   ) {
     throw new HTTPException(409, { message: err.message });
   }
@@ -73,10 +176,63 @@ export function mapConstructionError(err: unknown): never {
     err instanceof InvalidStatusTransitionError ||
     err instanceof ConstructionValidationError ||
     err instanceof ProgressNotEditableError ||
-    err instanceof MaterialRequestNotEditableError
+    err instanceof MaterialRequestNotEditableError ||
+    err instanceof InvalidLocationNestingError ||
+    err instanceof InvalidTrackingScopeError ||
+    err instanceof TrackingNotActiveError ||
+    err instanceof ApprovalNotActionableError ||
+    err instanceof InspectionNotEditableError ||
+    err instanceof MeterRollbackError ||
+    err instanceof NotAUnitLocationError ||
+    err instanceof RefundExceedsCollectedError ||
+    err instanceof ChangeRequestNotEditableError ||
+    err instanceof PostNotEditableError
   ) {
     throw new HTTPException(400, { message: err.message });
   }
 
+  mapPostgresError(err);
   throw err;
+}
+
+/**
+ * PostgreSQL kısıt hatalarını anlamlı HTTP koduna çevirir.
+ *
+ * Bunlar normalde use-case doğrulamasıyla önlenir; buradaki eşleme SAVUNMA
+ * KATMANIDIR. Olmadığında istemci 500 görür ve "sunucu bozuk" sanır — oysa
+ * gönderdiği veri geçersizdir. Canlı duman testinde kaza kaydının şiddetsiz
+ * gönderilmesi tam olarak böyle 500'e düşüyordu.
+ *
+ * Yarış durumlarında (aynı anda iki kullanıcı aynı kodu ekler) bu katman tek
+ * korumadır: ön-kontrol geçse bile UNIQUE ihlali burada 409'a döner.
+ */
+function mapPostgresError(err: unknown): void {
+  if (typeof err !== 'object' || err === null) return;
+  const code = (err as { code?: unknown }).code;
+  if (typeof code !== 'string') return;
+
+  const detail = (err as { detail?: unknown }).detail;
+  const constraint = (err as { constraint?: unknown }).constraint;
+  const hint = typeof constraint === 'string' ? ` (${constraint})` : '';
+
+  switch (code) {
+    case '23514': // check_violation
+      throw new HTTPException(400, {
+        message: `Geçersiz veri — kayıt kuralı ihlal edildi${hint}`,
+      });
+    case '23503': // foreign_key_violation
+      throw new HTTPException(400, {
+        message: `Başvurulan kayıt bulunamadı${hint}`,
+      });
+    case '23505': // unique_violation
+      throw new HTTPException(409, {
+        message: `Bu kayıt zaten var${hint}`,
+      });
+    case '23502': // not_null_violation
+      throw new HTTPException(400, {
+        message: `Zorunlu alan boş bırakılamaz${typeof detail === 'string' ? '' : hint}`,
+      });
+    default:
+      return;
+  }
 }

@@ -39,6 +39,10 @@ export { FinansManager } from './presentation/components/FinansManager';
 export { DepoManager } from './presentation/components/DepoManager';
 export { IsgucuManager } from './presentation/components/IsgucuManager';
 export { RaporManager } from './presentation/components/RaporManager';
+export { OnayAkisiManager } from './presentation/components/OnayAkisiManager';
+/** Belge listelerine N/M onay rozeti koymak için — şantiye dışı ekranlar da kullanabilir. */
+export { OnayDurumuBadge } from './presentation/components/OnayDurumuBadge';
+export { useApprovalSummaries } from './presentation/hooks/useApprovalSummaries';
 
 // --- Page (scoped mount)
 export { ConstructionPage } from './demo/ConstructionPage';

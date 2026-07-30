@@ -23,13 +23,25 @@ import { BoqEditor, emptyRow, type BoqEditRow } from '../presentation/components
 import { ContractsTable } from '../presentation/components/ContractsTable';
 import { DepoManager } from '../presentation/components/DepoManager';
 import { FinansManager } from '../presentation/components/FinansManager';
+import { GuncelDurumManager } from '../presentation/components/GuncelDurumManager';
 import { HakedisManager } from '../presentation/components/HakedisManager';
+import { IsbirligiManager } from '../presentation/components/IsbirligiManager';
 import { IsgucuManager } from '../presentation/components/IsgucuManager';
+import { IsProgramiManager } from '../presentation/components/IsProgramiManager';
+import { KaliteGuvenlikManager } from '../presentation/components/KaliteGuvenlikManager';
+import { KonutSatisManager } from '../presentation/components/KonutSatisManager';
+import { MakineParkiManager } from '../presentation/components/MakineParkiManager';
+import { MekanAgaciManager } from '../presentation/components/MekanAgaciManager';
 import { MetrajManager } from '../presentation/components/MetrajManager';
+import { OnayAkisiManager } from '../presentation/components/OnayAkisiManager';
+import { PerformansManager } from '../presentation/components/PerformansManager';
 import { PozCatalogTable } from '../presentation/components/PozCatalogTable';
 import { ProjectsKanban } from '../presentation/components/ProjectsKanban';
 import { ProjectsTable } from '../presentation/components/ProjectsTable';
 import { RaporManager } from '../presentation/components/RaporManager';
+import { SantiyeGunluguManager } from '../presentation/components/SantiyeGunluguManager';
+import { TaahhutManager } from '../presentation/components/TaahhutManager';
+import { TakipSablonManager } from '../presentation/components/TakipSablonManager';
 import { useContracts } from '../presentation/hooks/useContracts';
 import { usePozCatalog } from '../presentation/hooks/usePozCatalog';
 import { useProjects } from '../presentation/hooks/useProjects';
@@ -44,7 +56,19 @@ export type ConstructionTab =
   | 'depot'
   | 'labor'
   | 'reports'
-  | 'poz';
+  | 'poz'
+  | 'locations'
+  | 'templates'
+  | 'trackings'
+  | 'dailylog'
+  | 'performance'
+  | 'approvals'
+  | 'quality'
+  | 'commitments'
+  | 'schedule'
+  | 'machinepark'
+  | 'unitsales'
+  | 'collab';
 
 const ALL_TABS: ConstructionTab[] = [
   'projects',
@@ -57,6 +81,18 @@ const ALL_TABS: ConstructionTab[] = [
   'labor',
   'reports',
   'poz',
+  'locations',
+  'templates',
+  'trackings',
+  'dailylog',
+  'performance',
+  'approvals',
+  'quality',
+  'commitments',
+  'schedule',
+  'machinepark',
+  'unitsales',
+  'collab',
 ];
 const TAB_LABELS: Record<ConstructionTab, string> = {
   projects: 'Projeler',
@@ -69,6 +105,18 @@ const TAB_LABELS: Record<ConstructionTab, string> = {
   labor: 'İş Gücü & Makine',
   reports: 'Raporlar',
   poz: 'Poz Katalog',
+  locations: 'Mekân Kırılımı',
+  templates: 'Takip Şablonları',
+  trackings: 'Güncel Durum',
+  dailylog: 'Şantiye Günlüğü',
+  performance: 'Adam×Saat & Verimlilik',
+  approvals: 'Onay Akışları',
+  quality: 'Kalite & Güvenlik',
+  commitments: 'Taahhütler & EVM',
+  schedule: 'İş Programı',
+  machinepark: 'Makine Parkı',
+  unitsales: 'Konut Satış',
+  collab: 'İşbirliği',
 };
 
 export interface ConstructionPageProps {
@@ -79,6 +127,23 @@ export interface ConstructionPageProps {
   views?: ConstructionTab[];
   /** DÖVİZ: üst uygulamanın kur defteri (app-state exchangeRates + rateHistory). */
   rateBook?: RateBook;
+  /** Arayüz dili (tr/en/de/ar). Faz 1-2 ekranları modül-yerel sözlüğü kullanır. */
+  lang?: string | undefined;
+  /**
+   * Şantiye günlüğünde gün kilidini AÇMA yetkisi. Kapanmış bir raporu yeniden
+   * açmak raporun kanıt değerine dokunduğu için yalnız yöneticiye verilir;
+   * backend de ayrıca denetler (403).
+   */
+  canUnlockDailyLog?: boolean | undefined;
+  /**
+   * Onay akışında yönetici yetkisi: akışı iptal etmek ve BAŞKASININ adımına
+   * vekâleten karar vermek. Backend ayrıca denetler (403).
+   */
+  canApproveFlows?: boolean | undefined;
+  /** Yeni onay akışı başlatma yetkisi. */
+  canCreateFlows?: boolean | undefined;
+  /** Denetim ONAYLAMA yetkisi (taşeron karnesine işler); backend ayrıca denetler. */
+  canApproveInspections?: boolean | undefined;
 }
 
 export function ConstructionPage({
@@ -88,6 +153,11 @@ export function ConstructionPage({
   initialTab,
   views,
   rateBook,
+  lang,
+  canUnlockDailyLog,
+  canApproveFlows,
+  canCreateFlows,
+  canApproveInspections,
 }: ConstructionPageProps): JSX.Element {
   const scoped = Array.isArray(views) && views.length > 0;
   const visibleTabs: ConstructionTab[] = scoped ? views : ALL_TABS;
@@ -141,7 +211,7 @@ export function ConstructionPage({
         {tab === 'projects' ? <ProjectsTab api={api} companyId={companyId} /> : null}
         {tab === 'contracts' ? <ContractsTab api={api} companyId={companyId} /> : null}
         {tab === 'boq' ? <BoqTab api={api} companyId={companyId} /> : null}
-        {tab === 'progress' ? <HakedisManager api={api} companyId={companyId} /> : null}
+        {tab === 'progress' ? <HakedisManager api={api} companyId={companyId} lang={lang} /> : null}
         {tab === 'measurements' ? <MetrajManager api={api} companyId={companyId} /> : null}
         {tab === 'finance' ? (
           <FinansManager
@@ -154,6 +224,56 @@ export function ConstructionPage({
         {tab === 'labor' ? <IsgucuManager api={api} companyId={companyId} /> : null}
         {tab === 'reports' ? <RaporManager api={api} companyId={companyId} /> : null}
         {tab === 'poz' ? <PozTab api={api} companyId={companyId} /> : null}
+        {tab === 'locations' ? (
+          <MekanAgaciManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'templates' ? (
+          <TakipSablonManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'trackings' ? (
+          <GuncelDurumManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'performance' ? (
+          <PerformansManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'collab' ? <IsbirligiManager api={api} companyId={companyId} lang={lang} /> : null}
+        {tab === 'unitsales' ? (
+          <KonutSatisManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'machinepark' ? (
+          <MakineParkiManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'schedule' ? (
+          <IsProgramiManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'commitments' ? (
+          <TaahhutManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'quality' ? (
+          <KaliteGuvenlikManager
+            api={api}
+            companyId={companyId}
+            lang={lang}
+            canApprove={canApproveInspections}
+          />
+        ) : null}
+        {tab === 'approvals' ? (
+          <OnayAkisiManager
+            api={api}
+            companyId={companyId}
+            lang={lang}
+            canApprove={canApproveFlows}
+            canCreate={canCreateFlows}
+          />
+        ) : null}
+        {tab === 'dailylog' ? (
+          <SantiyeGunluguManager
+            api={api}
+            companyId={companyId}
+            lang={lang}
+            canUnlock={canUnlockDailyLog}
+          />
+        ) : null}
       </main>
     </div>
   );

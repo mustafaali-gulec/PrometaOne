@@ -12,23 +12,66 @@ import type { Pool } from 'pg';
 
 import { SystemClock } from './application/ports/Clock.js';
 import type { EventPublisher } from './application/ports/EventPublisher.js';
+import {
+  CancelApprovalFlowUseCase,
+  DecideApprovalStepUseCase,
+  GetApprovalFlowUseCase,
+  GetApprovalHistoryUseCase,
+  GetApprovalSummariesForDocsUseCase,
+  GetDocApprovalUseCase,
+  GetMyApprovalsUseCase,
+  ListApprovalFlowsUseCase,
+  StartApprovalFlowUseCase,
+} from './application/useCases/ApprovalUseCases.js';
 import { GetBoqUseCase, SaveBoqLinesUseCase } from './application/useCases/BoqUseCases.js';
 import {
-  CreateAttachmentUseCase,
-  CreateMeasurementUseCase,
-  DeleteAttachmentUseCase,
-  DeleteMeasurementUseCase,
-  GetMeasurementSummaryUseCase,
-  ListAttachmentsUseCase,
-  ListMeasurementsUseCase,
-  UpdateAttachmentUseCase,
-  UpdateMeasurementUseCase,
-} from './application/useCases/MeasurementUseCases.js';
+  AddPostCommentUseCase,
+  AddProjectMemberUseCase,
+  AddProjectPhotoUseCase,
+  CreatePostUseCase,
+  DeletePostUseCase,
+  DeleteProjectPhotoUseCase,
+  GetPhotoContentUseCase,
+  GetPostUseCase,
+  ListPostsUseCase,
+  ListProjectMembersUseCase,
+  ListProjectPhotosUseCase,
+  MarkPostReadUseCase,
+  RemoveProjectMemberUseCase,
+  UpdatePostUseCase,
+  UpdateProjectMemberUseCase,
+} from './application/useCases/CollaborationUseCases.js';
+import {
+  CancelCommitmentUseCase,
+  CloseCommitmentUseCase,
+  CreateCommitmentUseCase,
+  GetContractEvmUseCase,
+  GetProjectEvmUseCase,
+  ListCommitmentsUseCase,
+  RecordCommitmentDeliveryUseCase,
+  SyncCommitmentsUseCase,
+  UpdateCommitmentUseCase,
+} from './application/useCases/CommitmentUseCases.js';
 import {
   CreateContractUseCase,
   ListContractsUseCase,
   UpdateContractUseCase,
 } from './application/useCases/ContractUseCases.js';
+import {
+  AddDailyLogCommentUseCase,
+  AddDailyLogFileUseCase,
+  ChangeDailyLogStatusUseCase,
+  DeleteDailyLogEntryUseCase,
+  DeleteDailyLogFileUseCase,
+  GetDailyLogDayUseCase,
+  GetDailyLogMonthUseCase,
+  GetManpowerReportUseCase,
+  GetMaterialConsumptionUseCase,
+  GetProductionActualsUseCase,
+  GetSafetySummaryUseCase,
+  SaveDailyLogEntryUseCase,
+  UpdateDailyLogUseCase,
+} from './application/useCases/DailyLogUseCases.js';
 import {
   CreateAdvanceUseCase,
   CreateCashMovementUseCase,
@@ -64,6 +107,25 @@ import {
   UpdatePersonnelUseCase,
 } from './application/useCases/LaborUseCases.js';
 import {
+  BulkGenerateLocationsUseCase,
+  CreateLocationUseCase,
+  DeleteLocationUseCase,
+  GetLocationTreeUseCase,
+  GetLocationUsageUseCase,
+  ListLocationsUseCase,
+  MoveLocationUseCase,
+  UpdateLocationUseCase,
+} from './application/useCases/LocationUseCases.js';
+import {
+  AddMaintenanceRecordUseCase,
+  CreateMaintenancePlanUseCase,
+  DeactivateMaintenancePlanUseCase,
+  GetMachineMaintenanceUseCase,
+  ListMachineParkUseCase,
+  RecordMeterReadingUseCase,
+  UpdateMachineParkDetailsUseCase,
+} from './application/useCases/MachineParkUseCases.js';
+import {
   ChangeMaterialRequestStatusUseCase,
   CreateMaterialRequestUseCase,
   CreateMaterialUseCase,
@@ -79,6 +141,23 @@ import {
   SaveMaterialRequestLinesUseCase,
   UpdateMaterialUseCase,
 } from './application/useCases/MaterialUseCases.js';
+import {
+  CreateAttachmentUseCase,
+  CreateMeasurementUseCase,
+  DeleteAttachmentUseCase,
+  DeleteMeasurementUseCase,
+  GetMeasurementSummaryUseCase,
+  ListAttachmentsUseCase,
+  ListMeasurementsUseCase,
+  UpdateAttachmentUseCase,
+  UpdateMeasurementUseCase,
+} from './application/useCases/MeasurementUseCases.js';
+import {
+  GetContractPerformanceUseCase,
+  GetProjectManhourSummariesUseCase,
+  GetProjectPerformanceUseCase,
+  SetUnitManhoursUseCase,
+} from './application/useCases/PerformanceUseCases.js';
 import {
   CreatePozUseCase,
   DeactivatePozUseCase,
@@ -101,15 +180,91 @@ import {
   UpdateProjectUseCase,
 } from './application/useCases/ProjectUseCases.js';
 import {
+  AddQualityFileUseCase,
+  AnswerRfiUseCase,
+  ChangeAssignmentStatusUseCase,
+  ChangeDefectStatusUseCase,
+  ChangeInspectionStatusUseCase,
+  ChangeRfiStatusUseCase,
+  CreateAssignmentUseCase,
+  CreateDefectUseCase,
+  CreateInspectionTemplateUseCase,
+  CreateRfiUseCase,
+  DeactivateInspectionTemplateUseCase,
+  DeleteQualityFileUseCase,
+  GetAssignmentSummaryUseCase,
+  GetDefectSummaryUseCase,
+  GetDefectUseCase,
+  GetInspectionUseCase,
+  GetRfiSummaryUseCase,
+  GetVendorScorecardUseCase,
+  ListAssignmentsUseCase,
+  ListDefectsUseCase,
+  ListInspectionTemplatesUseCase,
+  ListInspectionsUseCase,
+  ListQualityFilesUseCase,
+  ListRfisUseCase,
+  RaiseDefectFromAnswerUseCase,
+  ReplaceInspectionTemplateItemsUseCase,
+  SaveInspectionAnswersUseCase,
+  StartInspectionUseCase,
+  UpdateAssignmentUseCase,
+  UpdateDefectUseCase,
+  UpdateRfiUseCase,
+} from './application/useCases/QualityUseCases.js';
+import {
   GetProgressCurveUseCase,
   GetProjectDashboardUseCase,
 } from './application/useCases/ReportUseCases.js';
-import { PgBoqRepository } from './infrastructure/persistence/PgBoqRepository.js';
-import { PgContractRepository } from './infrastructure/persistence/PgContractRepository.js';
 import {
-  PgAttachmentRepository,
-  PgMeasurementBookRepository,
-} from './infrastructure/persistence/PgMeasurementRepositories.js';
+  CreateActivityUseCase,
+  DeactivateActivityUseCase,
+  GetActivityProgressLogUseCase,
+  GetProjectScheduleCurveUseCase,
+  GetProjectScheduleUseCase,
+  RecordActivityProgressUseCase,
+  UpdateActivityUseCase,
+} from './application/useCases/ScheduleUseCases.js';
+import {
+  AddTrackingLocationsUseCase,
+  ChangeTrackingStatusUseCase,
+  CreateProgressTemplateUseCase,
+  CreateTrackingUseCase,
+  DeactivateProgressTemplateUseCase,
+  GetProgressTemplateUseCase,
+  GetProjectPhysicalProgressUseCase,
+  GetTrackingBoardUseCase,
+  GetTrackingItemHistoryUseCase,
+  ListProgressTemplatesUseCase,
+  ListTrackingsUseCase,
+  RemoveTrackingLocationUseCase,
+  SaveTemplateBodyUseCase,
+  SetTrackingItemStateUseCase,
+  SyncTrackingWithTemplateUseCase,
+  UpdateProgressTemplateUseCase,
+  UpdateTrackingUseCase,
+} from './application/useCases/TrackingUseCases.js';
+import {
+  AddUnitPaymentUseCase,
+  ChangeUnitSaleStatusUseCase,
+  CreateChangeRequestUseCase,
+  CreateUnitSaleUseCase,
+  DecideChangeRequestUseCase,
+  DeleteUnitPaymentUseCase,
+  GetUnitInventoryUseCase,
+  GetUnitSaleUseCase,
+  ListUnitSalesUseCase,
+  SetUnitListPriceUseCase,
+  SyncUnitSalesUseCase,
+  UpdateChangeRequestUseCase,
+  UpdateUnitSaleUseCase,
+} from './application/useCases/UnitSaleUseCases.js';
+import { PgApprovalRepository } from './infrastructure/persistence/PgApprovalRepository.js';
+import { PgBoqRepository } from './infrastructure/persistence/PgBoqRepository.js';
+import { PgCollaborationRepository } from './infrastructure/persistence/PgCollaborationRepository.js';
+import { PgCommitmentRepository } from './infrastructure/persistence/PgCommitmentRepository.js';
+import { PgContractRepository } from './infrastructure/persistence/PgContractRepository.js';
+import { PgDailyLogRepository } from './infrastructure/persistence/PgDailyLogRepository.js';
 import {
   PgAdvanceRepository,
   PgCashMovementRepository,
@@ -123,15 +278,35 @@ import {
   PgPersonnelRepository,
   PgTimesheetRepository,
 } from './infrastructure/persistence/PgLaborRepositories.js';
+import { PgLocationRepository } from './infrastructure/persistence/PgLocationRepository.js';
+import { PgMachineParkRepository } from './infrastructure/persistence/PgMachineParkRepository.js';
 import {
   PgMaterialRepository,
   PgMaterialRequestRepository,
   PgStockRepository,
   PgWarehouseRepository,
 } from './infrastructure/persistence/PgMaterialRepositories.js';
+import {
+  PgAttachmentRepository,
+  PgMeasurementBookRepository,
+} from './infrastructure/persistence/PgMeasurementRepositories.js';
+import { PgPerformanceRepository } from './infrastructure/persistence/PgPerformanceRepository.js';
 import { PgPozCatalogRepository } from './infrastructure/persistence/PgPozCatalogRepository.js';
 import { PgProgressPaymentRepository } from './infrastructure/persistence/PgProgressPaymentRepository.js';
 import { PgProjectRepository } from './infrastructure/persistence/PgProjectRepository.js';
+import {
+  PgAssignmentRepository,
+  PgDefectRepository,
+  PgInspectionRepository,
+  PgQualityFileRepository,
+  PgRfiRepository,
+} from './infrastructure/persistence/PgQualityRepositories.js';
+import { PgScheduleRepository } from './infrastructure/persistence/PgScheduleRepository.js';
+import {
+  PgProgressTemplateRepository,
+  PgTrackingRepository,
+} from './infrastructure/persistence/PgTrackingRepositories.js';
+import { PgUnitSaleRepository } from './infrastructure/persistence/PgUnitSaleRepository.js';
 import { createConstructionRouter, type ConstructionRouterDeps } from './presentation/routes.js';
 
 export function registerConstructionModule(
@@ -160,6 +335,22 @@ export function registerConstructionModule(
   const laborCost = new PgLaborCostRepository(pool);
   const measurements = new PgMeasurementBookRepository(pool);
   const attachments = new PgAttachmentRepository(pool);
+  const locations = new PgLocationRepository(pool);
+  const progressTemplates = new PgProgressTemplateRepository(pool);
+  const trackings = new PgTrackingRepository(pool);
+  const dailyLogs = new PgDailyLogRepository(pool);
+  const performance = new PgPerformanceRepository(pool);
+  const approvals = new PgApprovalRepository(pool);
+  const defects = new PgDefectRepository(pool);
+  const inspections = new PgInspectionRepository(pool);
+  const rfis = new PgRfiRepository(pool);
+  const assignments = new PgAssignmentRepository(pool);
+  const qualityFiles = new PgQualityFileRepository(pool);
+  const commitments = new PgCommitmentRepository(pool);
+  const schedule = new PgScheduleRepository(pool);
+  const machinePark = new PgMachineParkRepository(pool);
+  const unitSales = new PgUnitSaleRepository(pool);
+  const collaboration = new PgCollaborationRepository(pool);
 
   const deps: ConstructionRouterDeps = {
     createProject: new CreateProjectUseCase(projects),
@@ -244,6 +435,167 @@ export function registerConstructionModule(
     listAttachments: new ListAttachmentsUseCase(attachments),
     updateAttachment: new UpdateAttachmentUseCase(attachments, measurements),
     deleteAttachment: new DeleteAttachmentUseCase(attachments, measurements),
+
+    // FAZ 1 — Mekân kırılımı (Proje > Blok > Kat > Bağımsız Bölüm)
+    createLocation: new CreateLocationUseCase(locations, projects),
+    updateLocation: new UpdateLocationUseCase(locations, clock),
+    moveLocation: new MoveLocationUseCase(locations),
+    listLocations: new ListLocationsUseCase(locations),
+    getLocationTree: new GetLocationTreeUseCase(locations),
+    getLocationUsage: new GetLocationUsageUseCase(locations),
+    deleteLocation: new DeleteLocationUseCase(locations, clock),
+    bulkGenerateLocations: new BulkGenerateLocationsUseCase(locations, projects),
+
+    // FAZ 2 — Fiziksel ilerleme takibi (Güncel Durum)
+    createProgressTemplate: new CreateProgressTemplateUseCase(progressTemplates),
+    updateProgressTemplate: new UpdateProgressTemplateUseCase(progressTemplates, clock),
+    saveTemplateBody: new SaveTemplateBodyUseCase(progressTemplates),
+    listProgressTemplates: new ListProgressTemplatesUseCase(progressTemplates),
+    getProgressTemplate: new GetProgressTemplateUseCase(progressTemplates),
+    deactivateProgressTemplate: new DeactivateProgressTemplateUseCase(progressTemplates, clock),
+    createTracking: new CreateTrackingUseCase(trackings, progressTemplates, projects, locations),
+    updateTracking: new UpdateTrackingUseCase(trackings, clock),
+    changeTrackingStatus: new ChangeTrackingStatusUseCase(trackings, clock),
+    listTrackings: new ListTrackingsUseCase(trackings, clock),
+    getTrackingBoard: new GetTrackingBoardUseCase(trackings, progressTemplates, clock),
+    setTrackingItemState: new SetTrackingItemStateUseCase(trackings),
+    getTrackingItemHistory: new GetTrackingItemHistoryUseCase(trackings),
+    addTrackingLocations: new AddTrackingLocationsUseCase(trackings, progressTemplates, locations),
+    removeTrackingLocation: new RemoveTrackingLocationUseCase(trackings),
+    syncTrackingWithTemplate: new SyncTrackingWithTemplateUseCase(trackings),
+    getProjectPhysicalProgress: new GetProjectPhysicalProgressUseCase(trackings, projects, clock),
+
+    // FAZ 3 — Şantiye günlüğü. saveDailyLogEntry puantaj/makine köprülerini
+    // kurduğu için timesheets ve machineLogs repo'larını da alır.
+    getDailyLogMonth: new GetDailyLogMonthUseCase(dailyLogs),
+    getDailyLogDay: new GetDailyLogDayUseCase(dailyLogs, projects),
+    updateDailyLog: new UpdateDailyLogUseCase(dailyLogs, clock),
+    changeDailyLogStatus: new ChangeDailyLogStatusUseCase(dailyLogs, clock),
+    saveDailyLogEntry: new SaveDailyLogEntryUseCase(dailyLogs, timesheets, machineLogs),
+    deleteDailyLogEntry: new DeleteDailyLogEntryUseCase(dailyLogs),
+    addDailyLogFile: new AddDailyLogFileUseCase(dailyLogs),
+    deleteDailyLogFile: new DeleteDailyLogFileUseCase(dailyLogs),
+    addDailyLogComment: new AddDailyLogCommentUseCase(dailyLogs),
+    getManpowerReport: new GetManpowerReportUseCase(dailyLogs),
+    getSafetySummary: new GetSafetySummaryUseCase(dailyLogs),
+    getProductionActuals: new GetProductionActualsUseCase(dailyLogs),
+    getMaterialConsumption: new GetMaterialConsumptionUseCase(dailyLogs),
+
+    // FAZ 4 — Adam×saat & verimlilik (poz bazlı işçilik performansı)
+    getContractPerformance: new GetContractPerformanceUseCase(performance, contracts),
+    getProjectPerformance: new GetProjectPerformanceUseCase(performance, projects),
+    getProjectManhourSummaries: new GetProjectManhourSummariesUseCase(performance, projects),
+    setUnitManhours: new SetUnitManhoursUseCase(performance, contracts),
+
+    // FAZ 5 — Jenerik onay akışı. Akış kapandığında belgeyi ilerletme
+    // sorumluluğu bu modülde DEĞİL: 'approval' konusuna olay yayınlanır,
+    // belgenin kendi durum makinesi dinler (hakediş→muhasebe ile aynı seam).
+    startApprovalFlow: new StartApprovalFlowUseCase(approvals),
+    decideApprovalStep: new DecideApprovalStepUseCase(approvals, clock, events),
+    cancelApprovalFlow: new CancelApprovalFlowUseCase(approvals, clock, events),
+    getApprovalFlow: new GetApprovalFlowUseCase(approvals),
+    getDocApproval: new GetDocApprovalUseCase(approvals),
+    listApprovalFlows: new ListApprovalFlowsUseCase(approvals),
+    getApprovalSummariesForDocs: new GetApprovalSummariesForDocsUseCase(approvals),
+    getMyApprovals: new GetMyApprovalsUseCase(approvals, clock),
+    getApprovalHistory: new GetApprovalHistoryUseCase(approvals),
+    // FAZ 6 — Kalite & Güvenlik
+    createDefect: new CreateDefectUseCase(defects, projects, clock),
+    updateDefect: new UpdateDefectUseCase(defects, clock),
+    changeDefectStatus: new ChangeDefectStatusUseCase(defects, clock),
+    listDefects: new ListDefectsUseCase(defects),
+    getDefect: new GetDefectUseCase(defects),
+    getDefectSummary: new GetDefectSummaryUseCase(defects),
+    createInspectionTemplate: new CreateInspectionTemplateUseCase(inspections),
+    listInspectionTemplates: new ListInspectionTemplatesUseCase(inspections),
+    replaceInspectionTemplateItems: new ReplaceInspectionTemplateItemsUseCase(inspections),
+    deactivateInspectionTemplate: new DeactivateInspectionTemplateUseCase(inspections),
+    startInspection: new StartInspectionUseCase(inspections, projects),
+    saveInspectionAnswers: new SaveInspectionAnswersUseCase(inspections, clock),
+    changeInspectionStatus: new ChangeInspectionStatusUseCase(inspections, clock),
+    listInspections: new ListInspectionsUseCase(inspections),
+    getInspection: new GetInspectionUseCase(inspections),
+    // Denetim maddesinden hasar-eksiklik: kusur karnedeki taşerona yazılır
+    raiseDefectFromAnswer: new RaiseDefectFromAnswerUseCase(
+      inspections,
+      new CreateDefectUseCase(defects, projects, clock),
+    ),
+    getVendorScorecard: new GetVendorScorecardUseCase(inspections),
+    createRfi: new CreateRfiUseCase(rfis, projects),
+    updateRfi: new UpdateRfiUseCase(rfis, clock),
+    answerRfi: new AnswerRfiUseCase(rfis, clock),
+    changeRfiStatus: new ChangeRfiStatusUseCase(rfis, clock),
+    listRfis: new ListRfisUseCase(rfis),
+    getRfiSummary: new GetRfiSummaryUseCase(rfis),
+    createAssignment: new CreateAssignmentUseCase(assignments, projects),
+    updateAssignment: new UpdateAssignmentUseCase(assignments, clock),
+    changeAssignmentStatus: new ChangeAssignmentStatusUseCase(assignments, clock),
+    listAssignments: new ListAssignmentsUseCase(assignments),
+    getAssignmentSummary: new GetAssignmentSummaryUseCase(assignments),
+    addQualityFile: new AddQualityFileUseCase(qualityFiles),
+    listQualityFiles: new ListQualityFilesUseCase(qualityFiles),
+    deleteQualityFile: new DeleteQualityFileUseCase(qualityFiles),
+    // FAZ 7 — Taahhüt & EVM
+    createCommitment: new CreateCommitmentUseCase(commitments, projects, clock),
+    updateCommitment: new UpdateCommitmentUseCase(commitments, clock),
+    recordCommitmentDelivery: new RecordCommitmentDeliveryUseCase(commitments, clock),
+    closeCommitment: new CloseCommitmentUseCase(commitments, clock),
+    cancelCommitment: new CancelCommitmentUseCase(commitments, clock),
+    listCommitments: new ListCommitmentsUseCase(commitments),
+    syncCommitments: new SyncCommitmentsUseCase(commitments, projects, clock),
+    getContractEvm: new GetContractEvmUseCase(commitments),
+    getProjectEvm: new GetProjectEvmUseCase(commitments),
+    // FAZ 8 — İş programı
+    createActivity: new CreateActivityUseCase(schedule, projects, clock),
+    updateActivity: new UpdateActivityUseCase(schedule, clock),
+    deactivateActivity: new DeactivateActivityUseCase(schedule),
+    recordActivityProgress: new RecordActivityProgressUseCase(schedule, clock),
+    getProjectSchedule: new GetProjectScheduleUseCase(schedule, projects, clock),
+    getActivityProgressLog: new GetActivityProgressLogUseCase(schedule),
+    getProjectScheduleCurve: new GetProjectScheduleCurveUseCase(schedule, projects, clock),
+    // FAZ 9 — Makine parkı. Bakım kaydı sayaç kurallarını yeniden yazmasın
+    // diye RecordMeterReadingUseCase'i kompoze eder.
+    listMachinePark: new ListMachineParkUseCase(machinePark, clock),
+    updateMachineParkDetails: new UpdateMachineParkDetailsUseCase(machinePark, clock),
+    recordMeterReading: new RecordMeterReadingUseCase(machinePark, clock),
+    createMaintenancePlan: new CreateMaintenancePlanUseCase(machinePark, clock),
+    deactivateMaintenancePlan: new DeactivateMaintenancePlanUseCase(machinePark),
+    addMaintenanceRecord: new AddMaintenanceRecordUseCase(
+      machinePark,
+      new RecordMeterReadingUseCase(machinePark, clock),
+      clock,
+    ),
+    getMachineMaintenance: new GetMachineMaintenanceUseCase(machinePark, clock),
+    // FAZ 10 — Konut satış (köprü: müşteri ilişkisi Satış CRM'de)
+    setUnitListPrice: new SetUnitListPriceUseCase(unitSales, locations),
+    createUnitSale: new CreateUnitSaleUseCase(unitSales, projects, locations, clock),
+    updateUnitSale: new UpdateUnitSaleUseCase(unitSales, clock),
+    changeUnitSaleStatus: new ChangeUnitSaleStatusUseCase(unitSales, clock),
+    listUnitSales: new ListUnitSalesUseCase(unitSales),
+    getUnitSale: new GetUnitSaleUseCase(unitSales),
+    addUnitPayment: new AddUnitPaymentUseCase(unitSales, clock),
+    deleteUnitPayment: new DeleteUnitPaymentUseCase(unitSales),
+    createChangeRequest: new CreateChangeRequestUseCase(unitSales, clock),
+    updateChangeRequest: new UpdateChangeRequestUseCase(unitSales, clock),
+    decideChangeRequest: new DecideChangeRequestUseCase(unitSales, clock),
+    getUnitInventory: new GetUnitInventoryUseCase(unitSales, projects),
+    syncUnitSales: new SyncUnitSalesUseCase(unitSales, projects, locations, clock),
+    // FAZ 11 — İşbirliği
+    listProjectMembers: new ListProjectMembersUseCase(collaboration),
+    addProjectMember: new AddProjectMemberUseCase(collaboration, projects),
+    updateProjectMember: new UpdateProjectMemberUseCase(collaboration),
+    removeProjectMember: new RemoveProjectMemberUseCase(collaboration),
+    listPosts: new ListPostsUseCase(collaboration),
+    createPost: new CreatePostUseCase(collaboration, projects),
+    updatePost: new UpdatePostUseCase(collaboration, clock),
+    deletePost: new DeletePostUseCase(collaboration, clock),
+    markPostRead: new MarkPostReadUseCase(collaboration),
+    getPost: new GetPostUseCase(collaboration),
+    addPostComment: new AddPostCommentUseCase(collaboration),
+    listProjectPhotos: new ListProjectPhotosUseCase(collaboration),
+    addProjectPhoto: new AddProjectPhotoUseCase(collaboration, projects, locations),
+    getPhotoContent: new GetPhotoContentUseCase(collaboration),
+    deleteProjectPhoto: new DeleteProjectPhotoUseCase(collaboration),
   };
 
   return createConstructionRouter(deps);
