@@ -1940,3 +1940,89 @@ export interface UnitInventoryDto {
   units: UnitInventoryRowDto[];
   summary: ProjectSalesSummaryDto | null;
 }
+
+// ============================================================================
+// FAZ 11 — İŞBİRLİĞİ (duyuru panosu + ekip + okunma bilgisi + galeri)
+// ============================================================================
+
+export type MemberRole =
+  | 'manager'
+  | 'engineer'
+  | 'site_chief'
+  | 'foreman'
+  | 'accountant'
+  | 'viewer'
+  | 'other';
+
+export interface ProjectMemberDto {
+  id: number;
+  projectId: number;
+  userId: number;
+  /** Ekleme anında kopyalanan görünen ad (ref tablosu boş olabilir). */
+  memberName: string;
+  memberRole: MemberRole;
+  title: string | null;
+  note: string | null;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface PostDto {
+  id: number;
+  projectId: number;
+  title: string | null;
+  body: string;
+  pinned: boolean;
+  active: boolean;
+  createdBy: number | null;
+  authorName: string;
+  /** İçerik değiştiyse damgalanır — okunmuş duyurunun değiştiği gizlenmez. */
+  editedAt: string | null;
+  createdAt: string;
+  /** Hedef kitle: açık bilgilendirme listesi ya da aktif ekip. */
+  recipientCount: number;
+  targetReadCount: number;
+  totalReadCount: number;
+  commentCount: number;
+  /** Payda 0 → null ("hedef kitle tanımsız", "kimse okumadı" değil). */
+  readPct: number | null;
+  myRead: boolean;
+}
+
+export interface PostCommentDto {
+  id: number;
+  postId: number;
+  body: string;
+  createdBy: number | null;
+  authorName: string;
+  createdAt: string;
+}
+
+export interface PostReadDto {
+  userId: number;
+  userName: string;
+  readAt: string;
+}
+
+export interface PostDetailDto {
+  post: PostDto;
+  comments: PostCommentDto[];
+  reads: PostReadDto[];
+  recipients: { userId: number; userName: string }[];
+}
+
+export interface ProjectPhotoDto {
+  id: number;
+  projectId: number;
+  locationId: number | null;
+  locationPath: string | null;
+  title: string | null;
+  takenAt: string | null;
+  fileUrl: string | null;
+  /** true → bayt GET /photos/:id/content'ten iner. */
+  hasContent: boolean;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  authorName: string;
+  createdAt: string;
+}

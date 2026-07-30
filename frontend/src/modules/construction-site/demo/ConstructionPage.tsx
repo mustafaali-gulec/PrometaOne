@@ -25,6 +25,7 @@ import { DepoManager } from '../presentation/components/DepoManager';
 import { FinansManager } from '../presentation/components/FinansManager';
 import { GuncelDurumManager } from '../presentation/components/GuncelDurumManager';
 import { HakedisManager } from '../presentation/components/HakedisManager';
+import { IsbirligiManager } from '../presentation/components/IsbirligiManager';
 import { IsgucuManager } from '../presentation/components/IsgucuManager';
 import { IsProgramiManager } from '../presentation/components/IsProgramiManager';
 import { KaliteGuvenlikManager } from '../presentation/components/KaliteGuvenlikManager';
@@ -66,7 +67,8 @@ export type ConstructionTab =
   | 'commitments'
   | 'schedule'
   | 'machinepark'
-  | 'unitsales';
+  | 'unitsales'
+  | 'collab';
 
 const ALL_TABS: ConstructionTab[] = [
   'projects',
@@ -90,6 +92,7 @@ const ALL_TABS: ConstructionTab[] = [
   'schedule',
   'machinepark',
   'unitsales',
+  'collab',
 ];
 const TAB_LABELS: Record<ConstructionTab, string> = {
   projects: 'Projeler',
@@ -113,6 +116,7 @@ const TAB_LABELS: Record<ConstructionTab, string> = {
   schedule: 'İş Programı',
   machinepark: 'Makine Parkı',
   unitsales: 'Konut Satış',
+  collab: 'İşbirliği',
 };
 
 export interface ConstructionPageProps {
@@ -232,6 +236,7 @@ export function ConstructionPage({
         {tab === 'performance' ? (
           <PerformansManager api={api} companyId={companyId} lang={lang} />
         ) : null}
+        {tab === 'collab' ? <IsbirligiManager api={api} companyId={companyId} lang={lang} /> : null}
         {tab === 'unitsales' ? (
           <KonutSatisManager api={api} companyId={companyId} lang={lang} />
         ) : null}

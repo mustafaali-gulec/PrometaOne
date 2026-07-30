@@ -894,7 +894,59 @@ export type CsLabelKey =
   | 'cs.us.cr.st.open'
   | 'cs.us.cr.st.approved'
   | 'cs.us.cr.st.rejected'
-  | 'cs.us.cr.st.done';
+  | 'cs.us.cr.st.done'
+  // FAZ 11 — İşbirliği
+  | 'cs.cb.title'
+  | 'cs.cb.subtitle'
+  | 'cs.cb.tab.wall'
+  | 'cs.cb.tab.team'
+  | 'cs.cb.tab.gallery'
+  | 'cs.cb.wall.new'
+  | 'cs.cb.wall.titleField'
+  | 'cs.cb.wall.bodyField'
+  | 'cs.cb.wall.pin'
+  | 'cs.cb.wall.pinned'
+  | 'cs.cb.wall.recipients'
+  | 'cs.cb.wall.recipientsHint'
+  | 'cs.cb.wall.publish'
+  | 'cs.cb.wall.empty'
+  | 'cs.cb.wall.edited'
+  | 'cs.cb.wall.readStats'
+  | 'cs.cb.wall.readPctUnknown'
+  | 'cs.cb.wall.readers'
+  | 'cs.cb.wall.noReaders'
+  | 'cs.cb.wall.comments'
+  | 'cs.cb.wall.addComment'
+  | 'cs.cb.wall.deleteConfirm'
+  | 'cs.cb.wall.unpin'
+  | 'cs.cb.wall.myUnread'
+  | 'cs.cb.team.add'
+  | 'cs.cb.team.userId'
+  | 'cs.cb.team.name'
+  | 'cs.cb.team.role'
+  | 'cs.cb.team.titleField'
+  | 'cs.cb.team.remove'
+  | 'cs.cb.team.removeConfirm'
+  | 'cs.cb.team.empty'
+  | 'cs.cb.team.denomHint'
+  | 'cs.cb.role.manager'
+  | 'cs.cb.role.engineer'
+  | 'cs.cb.role.site_chief'
+  | 'cs.cb.role.foreman'
+  | 'cs.cb.role.accountant'
+  | 'cs.cb.role.viewer'
+  | 'cs.cb.role.other'
+  | 'cs.cb.gal.add'
+  | 'cs.cb.gal.titleField'
+  | 'cs.cb.gal.takenAt'
+  | 'cs.cb.gal.location'
+  | 'cs.cb.gal.locationHint'
+  | 'cs.cb.gal.file'
+  | 'cs.cb.gal.url'
+  | 'cs.cb.gal.empty'
+  | 'cs.cb.gal.deleteConfirm'
+  | 'cs.cb.gal.needPayload'
+  | 'cs.cb.gal.external';
 
 const DICT: Record<CsLabelKey, Record<Lang, string>> = {
   // ===== ORTAK =============================================================
@@ -5766,6 +5818,312 @@ const DICT: Record<CsLabelKey, Record<Lang, string>> = {
     de: 'Erledigt',
     ar: 'منجز',
   },
+  'cs.cb.title': {
+    tr: 'İşbirliği',
+    en: 'Collaboration',
+    de: 'Zusammenarbeit',
+    ar: 'التعاون',
+  },
+  'cs.cb.subtitle': {
+    tr: 'Duyuru panosu, proje ekibi, okunma bilgisi ve galeri. Okunma oranının paydası açık bilgilendirme listesi ya da aktif ekiptir.',
+    en: 'Announcement board, project team, read receipts and gallery. The read-rate denominator is the explicit notify list or the active team.',
+    de: 'Schwarzes Brett, Projektteam, Lesebestätigungen und Galerie. Nenner der Lesequote ist die explizite Verteilerliste oder das aktive Team.',
+    ar: 'لوحة الإعلانات وفريق المشروع وإيصالات القراءة والمعرض. مقام نسبة القراءة هو قائمة الإبلاغ الصريحة أو الفريق النشط.',
+  },
+  'cs.cb.tab.wall': {
+    tr: 'Duyuru Panosu',
+    en: 'Board',
+    de: 'Schwarzes Brett',
+    ar: 'لوحة الإعلانات',
+  },
+  'cs.cb.tab.team': {
+    tr: 'Proje Ekibi',
+    en: 'Project Team',
+    de: 'Projektteam',
+    ar: 'فريق المشروع',
+  },
+  'cs.cb.tab.gallery': {
+    tr: 'Galeri',
+    en: 'Gallery',
+    de: 'Galerie',
+    ar: 'المعرض',
+  },
+  'cs.cb.wall.new': {
+    tr: 'Yeni duyuru',
+    en: 'New post',
+    de: 'Neuer Beitrag',
+    ar: 'منشور جديد',
+  },
+  'cs.cb.wall.titleField': {
+    tr: 'Başlık (isteğe bağlı)',
+    en: 'Title (optional)',
+    de: 'Titel (optional)',
+    ar: 'العنوان (اختياري)',
+  },
+  'cs.cb.wall.bodyField': {
+    tr: 'Metin',
+    en: 'Body',
+    de: 'Text',
+    ar: 'النص',
+  },
+  'cs.cb.wall.pin': {
+    tr: 'Sabitle',
+    en: 'Pin',
+    de: 'Anheften',
+    ar: 'تثبيت',
+  },
+  'cs.cb.wall.pinned': {
+    tr: 'Sabit',
+    en: 'Pinned',
+    de: 'Angeheftet',
+    ar: 'مثبت',
+  },
+  'cs.cb.wall.recipients': {
+    tr: 'Bilgilendirme listesi (isteğe bağlı)',
+    en: 'Notify list (optional)',
+    de: 'Verteilerliste (optional)',
+    ar: 'قائمة الإبلاغ (اختياري)',
+  },
+  'cs.cb.wall.recipientsHint': {
+    tr: 'Boş bırakılırsa hedef kitle tüm aktif ekiptir; seçilirse okunma oranı yalnız seçilenler üzerinden hesaplanır.',
+    en: 'If left empty the audience is the whole active team; if set, the read rate is computed over the selected people only.',
+    de: 'Bleibt sie leer, ist die Zielgruppe das gesamte aktive Team; sonst wird die Lesequote nur über die Ausgewählten berechnet.',
+    ar: 'إذا تُركت فارغة يكون الجمهور كل الفريق النشط؛ وإذا حُددت تُحسب نسبة القراءة على المحددين فقط.',
+  },
+  'cs.cb.wall.publish': {
+    tr: 'Yayınla',
+    en: 'Publish',
+    de: 'Veröffentlichen',
+    ar: 'نشر',
+  },
+  'cs.cb.wall.empty': {
+    tr: 'Bu projede duyuru yok.',
+    en: 'No posts in this project.',
+    de: 'Keine Beiträge in diesem Projekt.',
+    ar: 'لا توجد منشورات في هذا المشروع.',
+  },
+  'cs.cb.wall.edited': {
+    tr: 'düzenlendi',
+    en: 'edited',
+    de: 'bearbeitet',
+    ar: 'عُدِّل',
+  },
+  'cs.cb.wall.readStats': {
+    tr: '{read}/{total} okudu',
+    en: '{read}/{total} read',
+    de: '{read}/{total} gelesen',
+    ar: 'قرأه {read}/{total}',
+  },
+  'cs.cb.wall.readPctUnknown': {
+    tr: 'Hedef kitle tanımsız — ekip boş ve liste yok',
+    en: 'Audience undefined — team empty and no list',
+    de: 'Zielgruppe undefiniert — Team leer und keine Liste',
+    ar: 'الجمهور غير محدد — الفريق فارغ ولا توجد قائمة',
+  },
+  'cs.cb.wall.readers': {
+    tr: 'Okuyanlar',
+    en: 'Readers',
+    de: 'Gelesen von',
+    ar: 'القرّاء',
+  },
+  'cs.cb.wall.noReaders': {
+    tr: 'Henüz okuyan yok.',
+    en: 'No readers yet.',
+    de: 'Noch niemand hat gelesen.',
+    ar: 'لا قرّاء بعد.',
+  },
+  'cs.cb.wall.comments': {
+    tr: 'Yorumlar',
+    en: 'Comments',
+    de: 'Kommentare',
+    ar: 'التعليقات',
+  },
+  'cs.cb.wall.addComment': {
+    tr: 'Yorum yaz…',
+    en: 'Write a comment…',
+    de: 'Kommentar schreiben…',
+    ar: 'اكتب تعليقاً…',
+  },
+  'cs.cb.wall.deleteConfirm': {
+    tr: 'Bu duyuru silinsin mi? Okunma izi korunur (yumuşak silme).',
+    en: 'Delete this post? Read trail is kept (soft delete).',
+    de: 'Diesen Beitrag löschen? Lesespur bleibt erhalten (Soft Delete).',
+    ar: 'هل تريد حذف هذا المنشور؟ يُحتفظ بسجل القراءة (حذف ناعم).',
+  },
+  'cs.cb.wall.unpin': {
+    tr: 'Sabitlemeyi kaldır',
+    en: 'Unpin',
+    de: 'Lösen',
+    ar: 'إلغاء التثبيت',
+  },
+  'cs.cb.wall.myUnread': {
+    tr: 'Okumadınız',
+    en: 'Unread',
+    de: 'Ungelesen',
+    ar: 'غير مقروء',
+  },
+  'cs.cb.team.add': {
+    tr: 'Üye ekle',
+    en: 'Add member',
+    de: 'Mitglied hinzufügen',
+    ar: 'إضافة عضو',
+  },
+  'cs.cb.team.userId': {
+    tr: 'Kullanıcı No',
+    en: 'User ID',
+    de: 'Benutzer-Nr.',
+    ar: 'رقم المستخدم',
+  },
+  'cs.cb.team.name': {
+    tr: 'Görünen ad',
+    en: 'Display name',
+    de: 'Anzeigename',
+    ar: 'الاسم الظاهر',
+  },
+  'cs.cb.team.role': {
+    tr: 'Rol',
+    en: 'Role',
+    de: 'Rolle',
+    ar: 'الدور',
+  },
+  'cs.cb.team.titleField': {
+    tr: 'Unvan',
+    en: 'Title',
+    de: 'Titel',
+    ar: 'اللقب',
+  },
+  'cs.cb.team.remove': {
+    tr: 'Çıkar',
+    en: 'Remove',
+    de: 'Entfernen',
+    ar: 'إزالة',
+  },
+  'cs.cb.team.removeConfirm': {
+    tr: 'Üye ekipten çıkarılsın mı? Okuma/yorum izi korunur; okunma paydasından düşer.',
+    en: 'Remove member from the team? Read/comment trail is kept; they leave the read denominator.',
+    de: 'Mitglied aus dem Team entfernen? Lese-/Kommentarspur bleibt; fällt aus dem Lesequoten-Nenner.',
+    ar: 'هل تريد إزالة العضو من الفريق؟ يُحتفظ بسجل القراءة/التعليق؛ ويُستبعد من مقام نسبة القراءة.',
+  },
+  'cs.cb.team.empty': {
+    tr: 'Proje ekibi boş. Ekip, duyuruların okunma oranının paydasıdır.',
+    en: 'The project team is empty. The team is the denominator of post read rates.',
+    de: 'Das Projektteam ist leer. Das Team ist der Nenner der Lesequoten.',
+    ar: 'فريق المشروع فارغ. الفريق هو مقام نسب قراءة المنشورات.',
+  },
+  'cs.cb.team.denomHint': {
+    tr: 'Geri dönen üye aynı kaydı canlandırır — payda şişmez.',
+    en: 'A returning member revives the same record — the denominator does not inflate.',
+    de: 'Ein zurückkehrendes Mitglied reaktiviert denselben Datensatz — der Nenner bläht nicht auf.',
+    ar: 'العضو العائد يعيد تفعيل السجل نفسه — لا يتضخم المقام.',
+  },
+  'cs.cb.role.manager': {
+    tr: 'Proje Müdürü',
+    en: 'Project Manager',
+    de: 'Projektleiter',
+    ar: 'مدير المشروع',
+  },
+  'cs.cb.role.engineer': {
+    tr: 'Mühendis',
+    en: 'Engineer',
+    de: 'Ingenieur',
+    ar: 'مهندس',
+  },
+  'cs.cb.role.site_chief': {
+    tr: 'Şantiye Şefi',
+    en: 'Site Chief',
+    de: 'Bauleiter',
+    ar: 'رئيس الموقع',
+  },
+  'cs.cb.role.foreman': {
+    tr: 'Formen',
+    en: 'Foreman',
+    de: 'Polier',
+    ar: 'ملاحظ عمال',
+  },
+  'cs.cb.role.accountant': {
+    tr: 'Muhasebe',
+    en: 'Accountant',
+    de: 'Buchhaltung',
+    ar: 'محاسب',
+  },
+  'cs.cb.role.viewer': {
+    tr: 'İzleyici',
+    en: 'Viewer',
+    de: 'Beobachter',
+    ar: 'مشاهد',
+  },
+  'cs.cb.role.other': {
+    tr: 'Diğer',
+    en: 'Other',
+    de: 'Sonstige',
+    ar: 'أخرى',
+  },
+  'cs.cb.gal.add': {
+    tr: 'Fotoğraf ekle',
+    en: 'Add photo',
+    de: 'Foto hinzufügen',
+    ar: 'إضافة صورة',
+  },
+  'cs.cb.gal.titleField': {
+    tr: 'Açıklama',
+    en: 'Caption',
+    de: 'Beschreibung',
+    ar: 'الوصف',
+  },
+  'cs.cb.gal.takenAt': {
+    tr: 'Çekim tarihi',
+    en: 'Taken at',
+    de: 'Aufnahmedatum',
+    ar: 'تاريخ الالتقاط',
+  },
+  'cs.cb.gal.location': {
+    tr: 'Mekân No (isteğe bağlı)',
+    en: 'Location ID (optional)',
+    de: 'Standort-Nr. (optional)',
+    ar: 'رقم الموقع (اختياري)',
+  },
+  'cs.cb.gal.locationHint': {
+    tr: 'Fotoğrafı mekân ağacına bağlar — "hangi blokta/dairede" sorusu galeriyi rapora bağlar.',
+    en: 'Links the photo to the location tree — "which block/unit" ties the gallery to reports.',
+    de: 'Verknüpft das Foto mit dem Standortbaum — „welcher Block/welche Einheit" verbindet Galerie und Berichte.',
+    ar: 'يربط الصورة بشجرة المواقع — سؤال «أي بلوك/وحدة» يربط المعرض بالتقارير.',
+  },
+  'cs.cb.gal.file': {
+    tr: 'Dosya',
+    en: 'File',
+    de: 'Datei',
+    ar: 'الملف',
+  },
+  'cs.cb.gal.url': {
+    tr: 'ya da URL',
+    en: 'or URL',
+    de: 'oder URL',
+    ar: 'أو رابط',
+  },
+  'cs.cb.gal.empty': {
+    tr: 'Galeride fotoğraf yok.',
+    en: 'No photos in the gallery.',
+    de: 'Keine Fotos in der Galerie.',
+    ar: 'لا توجد صور في المعرض.',
+  },
+  'cs.cb.gal.deleteConfirm': {
+    tr: 'Fotoğraf galeriden kaldırılsın mı?',
+    en: 'Remove the photo from the gallery?',
+    de: 'Foto aus der Galerie entfernen?',
+    ar: 'هل تريد إزالة الصورة من المعرض؟',
+  },
+  'cs.cb.gal.needPayload': {
+    tr: 'Dosya seçin ya da URL girin.',
+    en: 'Pick a file or enter a URL.',
+    de: 'Datei wählen oder URL eingeben.',
+    ar: 'اختر ملفاً أو أدخل رابطاً.',
+  },
+  'cs.cb.gal.external': {
+    tr: 'Dış bağlantı',
+    en: 'External link',
+    de: 'Externer Link',
+    ar: 'رابط خارجي',
+  },
 };
 
 /** Şantiye etiketi getir; `vars` ile {placeholder} doldurulur. */
@@ -6078,5 +6436,27 @@ export function changeRequestStatusLabel(status: string, lang: string | undefine
       return csT('cs.us.cr.st.done', lang);
     default:
       return status;
+  }
+}
+
+/** Proje ekibi rolü etiketi. */
+export function memberRoleLabel(role: string, lang: string | undefined): string {
+  switch (role) {
+    case 'manager':
+      return csT('cs.cb.role.manager', lang);
+    case 'engineer':
+      return csT('cs.cb.role.engineer', lang);
+    case 'site_chief':
+      return csT('cs.cb.role.site_chief', lang);
+    case 'foreman':
+      return csT('cs.cb.role.foreman', lang);
+    case 'accountant':
+      return csT('cs.cb.role.accountant', lang);
+    case 'viewer':
+      return csT('cs.cb.role.viewer', lang);
+    case 'other':
+      return csT('cs.cb.role.other', lang);
+    default:
+      return role;
   }
 }
