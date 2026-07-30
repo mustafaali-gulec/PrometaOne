@@ -1631,3 +1631,79 @@ export interface SyncCommitmentsResultDto {
   cancelled: number;
   errors: { refNo: string; refLineNo: number; message: string }[];
 }
+
+// ============================================================================
+// FAZ 8 — İŞ PROGRAMI (cs_schedule_activities / cs_schedule_progress_log)
+// ============================================================================
+
+export type ActivityKind = 'group' | 'task' | 'milestone';
+
+export interface ScheduleActivityDto {
+  id: number;
+  companyId: number;
+  projectId: number;
+  parentId: number | null;
+  code: string;
+  name: string;
+  kind: ActivityKind;
+  plannedStart: string;
+  plannedEnd: string;
+  /** Fiili tarihler İLERLEMEDEN türer (ilk >0 başlangıç, 100 bitiş) — elle girilmez. */
+  actualStart: string | null;
+  actualEnd: string | null;
+  progressPct: number;
+  weightPct: number;
+  trackingId: number | null;
+  boqLineId: number | null;
+  locationId: number | null;
+  dependsOn: number | null;
+  sortOrder: number;
+  note: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  /** Gecikme günü (bitmemiş + planlanan bitişi geçmiş); grup satırında null. */
+  daysOverdue: number | null;
+  /** Bağlı fiziksel takibin GÜNCEL yüzdesi — referans; otomatik eşitlenmez. */
+  trackingPct: number | null;
+}
+
+export interface ScheduleSummaryDto {
+  projectId: number;
+  taskCount: number;
+  doneCount: number;
+  overdueCount: number;
+  notStartedLateCount: number;
+  projectStart: string | null;
+  projectEnd: string | null;
+}
+
+export interface ProjectScheduleDto {
+  activities: ScheduleActivityDto[];
+  summary: ScheduleSummaryDto | null;
+}
+
+export interface ScheduleCurvePointDto {
+  date: string;
+  plannedPct: number;
+  /** Gelecek tarihte null — fiili gelecek için çizilmez. */
+  actualPct: number | null;
+}
+
+export interface ScheduleCurveDto {
+  points: ScheduleCurvePointDto[];
+  /** 'explicit' = girilen ağırlıklar; 'duration' = süre-orantılı (ağırlık girilmemiş). */
+  weightMode: 'explicit' | 'duration';
+  plannedStart: string | null;
+  plannedEnd: string | null;
+}
+
+export interface ActivityProgressLogRowDto {
+  id: number;
+  activityId: number;
+  asOf: string;
+  progressPct: number;
+  note: string | null;
+  createdBy: number | null;
+  createdAt: string;
+}

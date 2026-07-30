@@ -699,7 +699,50 @@ export type CsLabelKey =
   | 'cs.perf.c.openCommitted'
   | 'cs.perf.c.costExposure'
   | 'cs.perf.c.budgetVariance'
-  | 'cs.perf.h.budgetVariance';
+  | 'cs.perf.h.budgetVariance'
+  // FAZ 8 — İş programı
+  | 'cs.sch.title'
+  | 'cs.sch.subtitle'
+  | 'cs.sch.tab.gantt'
+  | 'cs.sch.tab.curve'
+  | 'cs.sch.new'
+  | 'cs.sch.c.name'
+  | 'cs.sch.c.kind'
+  | 'cs.sch.c.plannedStart'
+  | 'cs.sch.c.plannedEnd'
+  | 'cs.sch.c.actualStart'
+  | 'cs.sch.c.actualEnd'
+  | 'cs.sch.c.progress'
+  | 'cs.sch.c.weight'
+  | 'cs.sch.c.parent'
+  | 'cs.sch.c.dependsOn'
+  | 'cs.sch.c.tracking'
+  | 'cs.sch.kind.group'
+  | 'cs.sch.kind.task'
+  | 'cs.sch.kind.milestone'
+  | 'cs.sch.s.tasks'
+  | 'cs.sch.s.done'
+  | 'cs.sch.s.overdue'
+  | 'cs.sch.s.notStartedLate'
+  | 'cs.sch.s.range'
+  | 'cs.sch.empty'
+  | 'cs.sch.milestoneHint'
+  | 'cs.sch.weightHint'
+  | 'cs.sch.prog.title'
+  | 'cs.sch.prog.asOf'
+  | 'cs.sch.prog.hint'
+  | 'cs.sch.prog.fromTracking'
+  | 'cs.sch.prog.fromTrackingHint'
+  | 'cs.sch.prog.log'
+  | 'cs.sch.gantt.today'
+  | 'cs.sch.gantt.planned'
+  | 'cs.sch.gantt.actual'
+  | 'cs.sch.curve.weightExplicit'
+  | 'cs.sch.curve.weightDuration'
+  | 'cs.sch.curve.empty'
+  | 'cs.sch.curve.actualNote'
+  | 'cs.sch.deleteConfirm'
+  | 'cs.sch.trackingDrift';
 
 const DICT: Record<CsLabelKey, Record<Lang, string>> = {
   // ===== ORTAK =============================================================
@@ -4417,6 +4460,259 @@ const DICT: Record<CsLabelKey, Record<Lang, string>> = {
     de: 'Geplant − (Ist + offenes Obligo). Negativ: die Position hat das Budget überschritten oder steht kurz davor.',
     ar: 'المخطط − (الفعلي + الالتزام المفتوح). سالب: تجاوز البند الميزانية أو أوشك — يجب أن يظهر قبل الطلب.',
   },
+
+  'cs.sch.title': {
+    tr: 'İş Programı',
+    en: 'Schedule',
+    de: 'Terminplan',
+    ar: 'البرنامج الزمني',
+  },
+  'cs.sch.subtitle': {
+    tr: 'Aktivite listesi (WBS), Gantt ve planlanan/fiili S-eğrisi. Fiili eğri ilerleme kayıtlarından çizilir — kayıt yoksa eğri de yoktur.',
+    en: 'Activity list (WBS), Gantt and planned/actual S-curve. The actual curve is drawn from progress records — no record, no curve.',
+    de: 'Vorgangsliste (PSP), Gantt und Soll/Ist-S-Kurve. Die Ist-Kurve entsteht aus Fortschrittseinträgen — kein Eintrag, keine Kurve.',
+    ar: 'قائمة الأنشطة، ومخطط جانت، ومنحنى S المخطط/الفعلي. يُرسم المنحنى الفعلي من سجلات التقدم — لا سجل، لا منحنى.',
+  },
+  'cs.sch.tab.gantt': {
+    tr: 'Gantt',
+    en: 'Gantt',
+    de: 'Gantt',
+    ar: 'جانت',
+  },
+  'cs.sch.tab.curve': {
+    tr: 'S-Eğrisi',
+    en: 'S-Curve',
+    de: 'S-Kurve',
+    ar: 'منحنى S',
+  },
+  'cs.sch.new': {
+    tr: '+ Aktivite',
+    en: '+ Activity',
+    de: '+ Vorgang',
+    ar: '+ نشاط',
+  },
+  'cs.sch.c.name': {
+    tr: 'Aktivite',
+    en: 'Activity',
+    de: 'Vorgang',
+    ar: 'النشاط',
+  },
+  'cs.sch.c.kind': {
+    tr: 'Tip',
+    en: 'Type',
+    de: 'Typ',
+    ar: 'النوع',
+  },
+  'cs.sch.c.plannedStart': {
+    tr: 'Plan başlangıç',
+    en: 'Planned start',
+    de: 'Soll-Beginn',
+    ar: 'البداية المخططة',
+  },
+  'cs.sch.c.plannedEnd': {
+    tr: 'Plan bitiş',
+    en: 'Planned end',
+    de: 'Soll-Ende',
+    ar: 'النهاية المخططة',
+  },
+  'cs.sch.c.actualStart': {
+    tr: 'Fiili başlangıç',
+    en: 'Actual start',
+    de: 'Ist-Beginn',
+    ar: 'البداية الفعلية',
+  },
+  'cs.sch.c.actualEnd': {
+    tr: 'Fiili bitiş',
+    en: 'Actual end',
+    de: 'Ist-Ende',
+    ar: 'النهاية الفعلية',
+  },
+  'cs.sch.c.progress': {
+    tr: 'İlerleme',
+    en: 'Progress',
+    de: 'Fortschritt',
+    ar: 'التقدم',
+  },
+  'cs.sch.c.weight': {
+    tr: 'Ağırlık',
+    en: 'Weight',
+    de: 'Gewicht',
+    ar: 'الوزن',
+  },
+  'cs.sch.c.parent': {
+    tr: 'Üst grup',
+    en: 'Parent group',
+    de: 'Übergruppe',
+    ar: 'المجموعة الأم',
+  },
+  'cs.sch.c.dependsOn': {
+    tr: 'Öncül',
+    en: 'Predecessor',
+    de: 'Vorgänger',
+    ar: 'السابق',
+  },
+  'cs.sch.c.tracking': {
+    tr: 'Fiziksel takip no',
+    en: 'Tracking no',
+    de: 'Verfolgungs-Nr.',
+    ar: 'رقم المتابعة',
+  },
+  'cs.sch.kind.group': {
+    tr: 'Grup',
+    en: 'Group',
+    de: 'Gruppe',
+    ar: 'مجموعة',
+  },
+  'cs.sch.kind.task': {
+    tr: 'İş',
+    en: 'Task',
+    de: 'Vorgang',
+    ar: 'مهمة',
+  },
+  'cs.sch.kind.milestone': {
+    tr: 'Kilometre taşı',
+    en: 'Milestone',
+    de: 'Meilenstein',
+    ar: 'معلم رئيسي',
+  },
+  'cs.sch.s.tasks': {
+    tr: 'Yaprak aktivite',
+    en: 'Leaf activities',
+    de: 'Blattvorgänge',
+    ar: 'أنشطة طرفية',
+  },
+  'cs.sch.s.done': {
+    tr: 'Biten',
+    en: 'Done',
+    de: 'Fertig',
+    ar: 'منجز',
+  },
+  'cs.sch.s.overdue': {
+    tr: 'Gecikmiş',
+    en: 'Overdue',
+    de: 'Überfällig',
+    ar: 'متأخر',
+  },
+  'cs.sch.s.notStartedLate': {
+    tr: 'Geç kalan başlangıç',
+    en: 'Late to start',
+    de: 'Verspäteter Beginn',
+    ar: 'بداية متأخرة',
+  },
+  'cs.sch.s.range': {
+    tr: 'Program aralığı',
+    en: 'Schedule range',
+    de: 'Terminbereich',
+    ar: 'نطاق البرنامج',
+  },
+  'cs.sch.empty': {
+    tr: 'Bu projede henüz aktivite yok. İlk aktiviteyi ekleyin — grup satırları WBS başlığıdır, eğriye yalnız iş ve kilometre taşları girer.',
+    en: 'No activities in this project yet. Add the first one — group rows are WBS headers; only tasks and milestones enter the curve.',
+    de: 'Noch keine Vorgänge in diesem Projekt. Fügen Sie den ersten hinzu — Gruppenzeilen sind PSP-Überschriften; nur Vorgänge und Meilensteine gehen in die Kurve ein.',
+    ar: 'لا توجد أنشطة في هذا المشروع بعد. أضف الأول — صفوف المجموعات عناوين، والمنحنى يشمل المهام والمعالم فقط.',
+  },
+  'cs.sch.milestoneHint': {
+    tr: 'Kilometre taşının süresi yoktur; yalnız tarih seçilir.',
+    en: 'A milestone has no duration; only a date is chosen.',
+    de: 'Ein Meilenstein hat keine Dauer; nur ein Datum wird gewählt.',
+    ar: 'المعلم الرئيسي بلا مدة؛ يُختار تاريخ فقط.',
+  },
+  'cs.sch.weightHint': {
+    tr: 'Boş bırakılabilir: hiç ağırlık girilmezse eğri süre-orantılı çizilir.',
+    en: 'May be left empty: with no weights the curve is duration-weighted.',
+    de: 'Kann leer bleiben: ohne Gewichte wird die Kurve dauerproportional gezeichnet.',
+    ar: 'يمكن تركه فارغًا: دون أوزان يُرسم المنحنى بتناسب المدة.',
+  },
+  'cs.sch.prog.title': {
+    tr: 'İlerleme kaydı',
+    en: 'Record progress',
+    de: 'Fortschritt erfassen',
+    ar: 'تسجيل التقدم',
+  },
+  'cs.sch.prog.asOf': {
+    tr: 'Tarih',
+    en: 'As of',
+    de: 'Stichtag',
+    ar: 'بتاريخ',
+  },
+  'cs.sch.prog.hint': {
+    tr: 'Her kayıt günlüğe düşer ve fiili S-eğrisini besler. Aynı güne ikinci kayıt üzerine yazar (düzeltme). Geleceğe kayıt yazılamaz.',
+    en: 'Every record goes to the log and feeds the actual S-curve. A second record on the same day overwrites (a correction). No future records.',
+    de: 'Jeder Eintrag geht ins Journal und speist die Ist-Kurve. Ein zweiter Eintrag am selben Tag überschreibt (Korrektur). Keine Zukunftseinträge.',
+    ar: 'كل تسجيل يدخل السجل ويغذي المنحنى الفعلي. تسجيل ثانٍ في اليوم نفسه يستبدل (تصحيح). لا تسجيلات مستقبلية.',
+  },
+  'cs.sch.prog.fromTracking': {
+    tr: 'Takipten çek ({pct}%)',
+    en: 'Pull from tracking ({pct}%)',
+    de: 'Aus Verfolgung übernehmen ({pct}%)',
+    ar: 'سحب من المتابعة ({pct}٪)',
+  },
+  'cs.sch.prog.fromTrackingHint': {
+    tr: 'Bağlı fiziksel takibin güncel yüzdesini aktiviteye yazar. Otomatik değildir: program yüzdesi beyandır, takip ölçümdür.',
+    en: 'Writes the linked tracking percentage into the activity. Not automatic: the schedule percentage is a declaration, tracking is a measurement.',
+    de: 'Schreibt den Prozentwert der verknüpften Verfolgung in den Vorgang. Nicht automatisch: der Terminplanwert ist eine Erklärung, die Verfolgung eine Messung.',
+    ar: 'يكتب نسبة المتابعة المرتبطة في النشاط. ليس تلقائيًا: نسبة البرنامج إقرار والمتابعة قياس.',
+  },
+  'cs.sch.prog.log': {
+    tr: 'İlerleme günlüğü',
+    en: 'Progress log',
+    de: 'Fortschrittsjournal',
+    ar: 'سجل التقدم',
+  },
+  'cs.sch.gantt.today': {
+    tr: 'Bugün',
+    en: 'Today',
+    de: 'Heute',
+    ar: 'اليوم',
+  },
+  'cs.sch.gantt.planned': {
+    tr: 'Planlanan',
+    en: 'Planned',
+    de: 'Soll',
+    ar: 'المخطط',
+  },
+  'cs.sch.gantt.actual': {
+    tr: 'Fiili',
+    en: 'Actual',
+    de: 'Ist',
+    ar: 'الفعلي',
+  },
+  'cs.sch.curve.weightExplicit': {
+    tr: 'Ağırlıklar: girilen değerlerle',
+    en: 'Weights: as entered',
+    de: 'Gewichte: wie erfasst',
+    ar: 'الأوزان: كما أُدخلت',
+  },
+  'cs.sch.curve.weightDuration': {
+    tr: 'Ağırlıklar: süre-orantılı (ağırlık girilmemiş)',
+    en: 'Weights: duration-based (none entered)',
+    de: 'Gewichte: dauerproportional (keine erfasst)',
+    ar: 'الأوزان: بتناسب المدة (لم تُدخل)',
+  },
+  'cs.sch.curve.empty': {
+    tr: 'Eğri için aktivite gerekli.',
+    en: 'Activities are needed for the curve.',
+    de: 'Für die Kurve sind Vorgänge nötig.',
+    ar: 'المنحنى يحتاج إلى أنشطة.',
+  },
+  'cs.sch.curve.actualNote': {
+    tr: 'Fiili çizgi yalnız kayıtlı ilerleme günlerinde yükselir; gelecek çizilmez.',
+    en: 'The actual line rises only on recorded progress days; the future is not drawn.',
+    de: 'Die Ist-Linie steigt nur an erfassten Fortschrittstagen; die Zukunft wird nicht gezeichnet.',
+    ar: 'يرتفع الخط الفعلي فقط في أيام التقدم المسجلة؛ لا يُرسم المستقبل.',
+  },
+  'cs.sch.deleteConfirm': {
+    tr: 'Aktivite silinsin mi? İlerleme günlüğü kayıtları denetim izi olarak kalır.',
+    en: 'Delete this activity? Its progress log remains as an audit trail.',
+    de: 'Diesen Vorgang löschen? Sein Fortschrittsjournal bleibt als Prüfpfad erhalten.',
+    ar: 'هل يُحذف هذا النشاط؟ يبقى سجل تقدمه كأثر تدقيق.',
+  },
+  'cs.sch.trackingDrift': {
+    tr: 'Takip: {pct}%',
+    en: 'Tracking: {pct}%',
+    de: 'Verfolgung: {pct}%',
+    ar: 'المتابعة: {pct}٪',
+  },
 };
 
 /** Şantiye etiketi getir; `vars` ile {placeholder} doldurulur. */
@@ -4648,4 +4944,9 @@ export function commitmentSourceLabel(source: string, lang: string | undefined):
 /** Taahhüt durumu etiketi. */
 export function commitmentStatusLabel(status: string, lang: string | undefined): string {
   return csT(`cs.cmt.st.${status}` as CsLabelKey, lang);
+}
+
+/** Aktivite tipi etiketi. */
+export function activityKindLabel(kind: string, lang: string | undefined): string {
+  return csT(`cs.sch.kind.${kind}` as CsLabelKey, lang);
 }

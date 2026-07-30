@@ -130,6 +130,11 @@ import type {
   CommitmentStatus,
   ContractEvmDto,
   ProjectEvmDto,
+  ActivityKind,
+  ActivityProgressLogRowDto,
+  ProjectScheduleDto,
+  ScheduleActivityDto,
+  ScheduleCurveDto,
 } from '../dto/ConstructionDtos';
 
 export interface CreateProjectBody {
@@ -837,6 +842,76 @@ export interface ConstructionApi {
   /** Sözleşme EVM özeti; keşfi olmayan sözleşmede null (backend 204). */
   getContractEvm(contractId: number, companyId: number): Promise<ContractEvmDto | null>;
   getProjectEvm(projectId: number, companyId: number): Promise<ProjectEvmDto>;
+
+  // FAZ 8 — İş programı
+  getProjectSchedule(
+    projectId: number,
+    companyId: number,
+    includeInactive?: boolean,
+  ): Promise<ProjectScheduleDto>;
+  getProjectScheduleCurve(
+    projectId: number,
+    companyId: number,
+    stepDays?: number,
+  ): Promise<ScheduleCurveDto>;
+  createScheduleActivity(body: CreateScheduleActivityBody): Promise<ScheduleActivityDto>;
+  updateScheduleActivity(
+    id: number,
+    body: UpdateScheduleActivityBody,
+  ): Promise<ScheduleActivityDto>;
+  deactivateScheduleActivity(id: number, companyId: number): Promise<{ deleted: boolean }>;
+  /** İlerleme kaydı — günlüğe düşer (fiili S-eğrisinin kaynağı). */
+  recordScheduleProgress(
+    id: number,
+    body: {
+      companyId: number;
+      progressPct?: number;
+      /** true → yüzde bağlı fiziksel takipten çekilir. */
+      fromTracking?: boolean;
+      asOf?: string;
+      note?: string | null;
+    },
+  ): Promise<ScheduleActivityDto>;
+  getScheduleProgressLog(
+    id: number,
+    companyId: number,
+  ): Promise<{ log: ActivityProgressLogRowDto[] }>;
+}
+
+// ===== FAZ 8 — istek gövdeleri ==============================================
+
+export interface CreateScheduleActivityBody {
+  companyId: number;
+  projectId: number;
+  parentId?: number | null;
+  code?: string;
+  name: string;
+  kind?: ActivityKind;
+  plannedStart: string;
+  plannedEnd?: string;
+  weightPct?: number;
+  trackingId?: number | null;
+  boqLineId?: number | null;
+  locationId?: number | null;
+  dependsOn?: number | null;
+  sortOrder?: number;
+  note?: string | null;
+}
+
+export interface UpdateScheduleActivityBody {
+  companyId: number;
+  parentId?: number | null;
+  name?: string;
+  kind?: ActivityKind;
+  plannedStart?: string;
+  plannedEnd?: string;
+  weightPct?: number;
+  trackingId?: number | null;
+  boqLineId?: number | null;
+  locationId?: number | null;
+  dependsOn?: number | null;
+  sortOrder?: number;
+  note?: string | null;
 }
 
 // ===== FAZ 7 — istek gövdeleri ==============================================

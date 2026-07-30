@@ -26,6 +26,7 @@ import { FinansManager } from '../presentation/components/FinansManager';
 import { GuncelDurumManager } from '../presentation/components/GuncelDurumManager';
 import { HakedisManager } from '../presentation/components/HakedisManager';
 import { IsgucuManager } from '../presentation/components/IsgucuManager';
+import { IsProgramiManager } from '../presentation/components/IsProgramiManager';
 import { KaliteGuvenlikManager } from '../presentation/components/KaliteGuvenlikManager';
 import { MekanAgaciManager } from '../presentation/components/MekanAgaciManager';
 import { MetrajManager } from '../presentation/components/MetrajManager';
@@ -60,7 +61,8 @@ export type ConstructionTab =
   | 'performance'
   | 'approvals'
   | 'quality'
-  | 'commitments';
+  | 'commitments'
+  | 'schedule';
 
 const ALL_TABS: ConstructionTab[] = [
   'projects',
@@ -81,6 +83,7 @@ const ALL_TABS: ConstructionTab[] = [
   'approvals',
   'quality',
   'commitments',
+  'schedule',
 ];
 const TAB_LABELS: Record<ConstructionTab, string> = {
   projects: 'Projeler',
@@ -101,6 +104,7 @@ const TAB_LABELS: Record<ConstructionTab, string> = {
   approvals: 'Onay Akışları',
   quality: 'Kalite & Güvenlik',
   commitments: 'Taahhütler & EVM',
+  schedule: 'İş Programı',
 };
 
 export interface ConstructionPageProps {
@@ -219,6 +223,9 @@ export function ConstructionPage({
         ) : null}
         {tab === 'performance' ? (
           <PerformansManager api={api} companyId={companyId} lang={lang} />
+        ) : null}
+        {tab === 'schedule' ? (
+          <IsProgramiManager api={api} companyId={companyId} lang={lang} />
         ) : null}
         {tab === 'commitments' ? (
           <TaahhutManager api={api} companyId={companyId} lang={lang} />
