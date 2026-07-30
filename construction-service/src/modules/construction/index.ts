@@ -227,6 +227,21 @@ import {
   UpdateProgressTemplateUseCase,
   UpdateTrackingUseCase,
 } from './application/useCases/TrackingUseCases.js';
+import {
+  AddUnitPaymentUseCase,
+  ChangeUnitSaleStatusUseCase,
+  CreateChangeRequestUseCase,
+  CreateUnitSaleUseCase,
+  DecideChangeRequestUseCase,
+  DeleteUnitPaymentUseCase,
+  GetUnitInventoryUseCase,
+  GetUnitSaleUseCase,
+  ListUnitSalesUseCase,
+  SetUnitListPriceUseCase,
+  SyncUnitSalesUseCase,
+  UpdateChangeRequestUseCase,
+  UpdateUnitSaleUseCase,
+} from './application/useCases/UnitSaleUseCases.js';
 import { PgApprovalRepository } from './infrastructure/persistence/PgApprovalRepository.js';
 import { PgBoqRepository } from './infrastructure/persistence/PgBoqRepository.js';
 import { PgCommitmentRepository } from './infrastructure/persistence/PgCommitmentRepository.js';
@@ -273,6 +288,7 @@ import {
   PgProgressTemplateRepository,
   PgTrackingRepository,
 } from './infrastructure/persistence/PgTrackingRepositories.js';
+import { PgUnitSaleRepository } from './infrastructure/persistence/PgUnitSaleRepository.js';
 import { createConstructionRouter, type ConstructionRouterDeps } from './presentation/routes.js';
 
 export function registerConstructionModule(
@@ -315,6 +331,7 @@ export function registerConstructionModule(
   const commitments = new PgCommitmentRepository(pool);
   const schedule = new PgScheduleRepository(pool);
   const machinePark = new PgMachineParkRepository(pool);
+  const unitSales = new PgUnitSaleRepository(pool);
 
   const deps: ConstructionRouterDeps = {
     createProject: new CreateProjectUseCase(projects),
@@ -530,6 +547,20 @@ export function registerConstructionModule(
       clock,
     ),
     getMachineMaintenance: new GetMachineMaintenanceUseCase(machinePark, clock),
+    // FAZ 10 — Konut satış (köprü: müşteri ilişkisi Satış CRM'de)
+    setUnitListPrice: new SetUnitListPriceUseCase(unitSales, locations),
+    createUnitSale: new CreateUnitSaleUseCase(unitSales, projects, locations, clock),
+    updateUnitSale: new UpdateUnitSaleUseCase(unitSales, clock),
+    changeUnitSaleStatus: new ChangeUnitSaleStatusUseCase(unitSales, clock),
+    listUnitSales: new ListUnitSalesUseCase(unitSales),
+    getUnitSale: new GetUnitSaleUseCase(unitSales),
+    addUnitPayment: new AddUnitPaymentUseCase(unitSales, clock),
+    deleteUnitPayment: new DeleteUnitPaymentUseCase(unitSales),
+    createChangeRequest: new CreateChangeRequestUseCase(unitSales, clock),
+    updateChangeRequest: new UpdateChangeRequestUseCase(unitSales, clock),
+    decideChangeRequest: new DecideChangeRequestUseCase(unitSales, clock),
+    getUnitInventory: new GetUnitInventoryUseCase(unitSales, projects),
+    syncUnitSales: new SyncUnitSalesUseCase(unitSales, projects, locations, clock),
   };
 
   return createConstructionRouter(deps);

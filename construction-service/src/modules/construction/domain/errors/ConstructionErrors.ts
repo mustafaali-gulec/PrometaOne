@@ -413,3 +413,51 @@ export class MeterRollbackError extends ConstructionError {
     );
   }
 }
+
+// ===== FAZ 10 — Konut Satış ================================================
+
+export class UnitSaleNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Satış kaydı bulunamadı: ${id}`);
+  }
+}
+
+export class UnitPaymentNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Tahsilat kaydı bulunamadı: ${id}`);
+  }
+}
+
+export class ChangeRequestNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Değişiklik isteği bulunamadı: ${id}`);
+  }
+}
+
+/** Bir dairede tek aktif satış olur; ikincisi çatışmadır (409). */
+export class UnitAlreadySoldError extends ConstructionError {
+  constructor(locationId: number) {
+    super(`Bu dairede zaten aktif bir satış/rezervasyon var: ${locationId}`);
+  }
+}
+
+/** Satış yalnız kind='unit' lokasyona bağlanır — blok/kat satılmaz. */
+export class NotAUnitLocationError extends ConstructionError {
+  constructor(id: number, kind: string) {
+    super(`Satış yalnız bağımsız bölüme yapılabilir; lokasyon ${id} tipi: ${kind}`);
+  }
+}
+
+/** İade, tahsil edilenden fazla olamaz. */
+export class RefundExceedsCollectedError extends ConstructionError {
+  constructor(collected: number, attempted: number) {
+    super(`İade tahsilatı aşamaz (tahsil edilen ${collected}, iade ${attempted})`);
+  }
+}
+
+/** Onaylanan/kapanan değişiklik isteğinin bedeli/kapsamı oynatılamaz. */
+export class ChangeRequestNotEditableError extends ConstructionError {
+  constructor(status: string) {
+    super(`Değişiklik isteği '${status}' durumunda düzenlenemez; yeni istek açılmalı`);
+  }
+}
