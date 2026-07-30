@@ -212,6 +212,8 @@ import type {
   AddMemberBody,
   AddPhotoBody,
   AddUnitPaymentBody,
+  SyncUnitSalesBody,
+  SyncUnitSalesResult,
   CreatePostBody,
   CreateUnitChangeRequestBody,
   CreateUnitSaleBody,
@@ -1678,6 +1680,13 @@ export class ConstructionApiClient implements ConstructionApi {
       `/v1/construction/change-requests/${String(id)}/status`,
       { method: 'POST', body },
     );
+  }
+
+  syncUnitSales(body: SyncUnitSalesBody): Promise<SyncUnitSalesResult> {
+    return this.request<SyncUnitSalesResult>(`/v1/construction/unit-sales/sync`, {
+      method: 'POST',
+      body,
+    });
   }
 
   // ===== FAZ 11 — İŞBİRLİĞİ ================================================
