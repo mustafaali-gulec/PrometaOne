@@ -461,3 +461,44 @@ export class ChangeRequestNotEditableError extends ConstructionError {
     super(`Değişiklik isteği '${status}' durumunda düzenlenemez; yeni istek açılmalı`);
   }
 }
+
+// ===== FAZ 11 — İşbirliği ==================================================
+
+export class PostNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Gönderi bulunamadı: ${id}`);
+  }
+}
+
+export class ProjectMemberNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Proje ekibi üyesi bulunamadı: ${id}`);
+  }
+}
+
+/** Aynı kullanıcı bir projeye iki kez eklenemez (409). */
+export class DuplicateProjectMemberError extends ConstructionError {
+  constructor(userId: number) {
+    super(`Bu kullanıcı zaten proje ekibinde: ${userId}`);
+  }
+}
+
+export class ProjectPhotoNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Fotoğraf bulunamadı: ${id}`);
+  }
+}
+
+/** Gönderiyi yalnız yazarı ya da admin düzenler/siler (403). */
+export class NotPostAuthorError extends ConstructionError {
+  constructor() {
+    super('Bu gönderiyi yalnız yazarı ya da yönetici düzenleyebilir/silebilir');
+  }
+}
+
+/** Pasif (silinmiş) gönderi düzenlenemez. */
+export class PostNotEditableError extends ConstructionError {
+  constructor() {
+    super('Silinmiş gönderi düzenlenemez');
+  }
+}

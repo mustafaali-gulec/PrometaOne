@@ -7,6 +7,7 @@
  */
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 
 import { authMiddleware, companyScopeGuard, requireRole } from '../../../middleware/auth.js';
@@ -23,6 +24,23 @@ import type {
   StartApprovalFlowUseCase,
 } from '../application/useCases/ApprovalUseCases.js';
 import type { GetBoqUseCase, SaveBoqLinesUseCase } from '../application/useCases/BoqUseCases.js';
+import type {
+  AddPostCommentUseCase,
+  AddProjectMemberUseCase,
+  AddProjectPhotoUseCase,
+  CreatePostUseCase,
+  DeletePostUseCase,
+  DeleteProjectPhotoUseCase,
+  GetPhotoContentUseCase,
+  GetPostUseCase,
+  ListPostsUseCase,
+  ListProjectMembersUseCase,
+  ListProjectPhotosUseCase,
+  MarkPostReadUseCase,
+  RemoveProjectMemberUseCase,
+  UpdatePostUseCase,
+  UpdateProjectMemberUseCase,
+} from '../application/useCases/CollaborationUseCases.js';
 import type {
   CancelCommitmentUseCase,
   CloseCommitmentUseCase,
@@ -450,6 +468,22 @@ export interface ConstructionRouterDeps {
   decideChangeRequest: DecideChangeRequestUseCase;
   getUnitInventory: GetUnitInventoryUseCase;
   syncUnitSales: SyncUnitSalesUseCase;
+  // FAZ 11 — İşbirliği
+  listProjectMembers: ListProjectMembersUseCase;
+  addProjectMember: AddProjectMemberUseCase;
+  updateProjectMember: UpdateProjectMemberUseCase;
+  removeProjectMember: RemoveProjectMemberUseCase;
+  listPosts: ListPostsUseCase;
+  createPost: CreatePostUseCase;
+  updatePost: UpdatePostUseCase;
+  deletePost: DeletePostUseCase;
+  markPostRead: MarkPostReadUseCase;
+  getPost: GetPostUseCase;
+  addPostComment: AddPostCommentUseCase;
+  listProjectPhotos: ListProjectPhotosUseCase;
+  addProjectPhoto: AddProjectPhotoUseCase;
+  getPhotoContent: GetPhotoContentUseCase;
+  deleteProjectPhoto: DeleteProjectPhotoUseCase;
 }
 
 // --- Schema fragmanları ---------------------------------------------------
@@ -560,6 +594,15 @@ const unitSaleSource = z.enum(['crm', 'manual']);
 const unitPaymentKind = z.enum(['collection', 'refund']);
 const unitPaymentMethod = z.enum(['cash', 'bank', 'cheque', 'other']);
 const changeRequestDecision = z.enum(['approved', 'rejected', 'done']);
+const memberRole = z.enum([
+  'manager',
+  'engineer',
+  'site_chief',
+  'foreman',
+  'accountant',
+  'viewer',
+  'other',
+]);
 // FAZ 8 fragmanları
 const activityKind = z.enum(['group', 'task', 'milestone']);
 // FAZ 9 fragmanları
@@ -647,6 +690,11 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
   const actorRole = (c: { get: (k: string) => unknown }): string => {
     const auth = c.get('auth') as { role?: string } | undefined;
     return auth?.role ?? 'viewer';
+  };
+  // Yazar/okur adı yazma ANINDA JWT'den kopyalanır (cs_ref_users boş olabilir).
+  const actorName = (c: { get: (k: string) => unknown }): string => {
+    const auth = c.get('auth') as { username?: string } | undefined;
+    return auth?.username ?? '';
   };
   // Onay/ödeme görev ayrılığı: hakedişi onaylamak/ödemek yönetici (cfo) ya da
   // admin gerektirir (construction.progress.approve). Diğer geçişler editor.
@@ -5588,6 +5636,402 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
             lines: b.lines,
             createdBy: actorId(c),
           }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 11 — İŞBİRLİĞİ =================================================
+
+  app.get(
+    '/projects/:id/members',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ includeInactive: z.coerce.boolean().optional() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json({
+          members: await deps.listProjectMembers.execute({ ...q, projectId: id }),
+        });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/projects/:id/members',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        userId: z.number().int().positive(),
+        memberName: z.string().min(1).max(200),
+        memberRole: memberRole.optional(),
+        title: z.string().max(120).nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.addProjectMember.execute({ ...b, projectId: id, addedBy: actorId(c) }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/members/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        memberName: z.string().min(1).max(200).optional(),
+        memberRole: memberRole.optional(),
+        title: z.string().max(120).nullable().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateProjectMember.execute({ ...b, memberId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Soft: geçmiş okuma/yorum izi durur; okuma paydasından düşer. */
+  app.delete(
+    '/members/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.removeProjectMember.execute({ memberId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/projects/:id/posts',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ includeInactive: z.coerce.boolean().optional() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json({
+          posts: await deps.listPosts.execute({ ...q, projectId: id, actorUserId: actorId(c) }),
+        });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/projects/:id/posts',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        title: z.string().max(300).nullable().optional(),
+        body: z.string().min(1).max(20_000),
+        pinned: z.boolean().optional(),
+        /** Bilgilendirme listesi; boş/verilmemiş = tüm aktif ekip. */
+        recipients: z
+          .array(
+            z.object({
+              userId: z.number().int().positive(),
+              userName: z.string().max(200).optional(),
+            }),
+          )
+          .max(200)
+          .optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.createPost.execute({
+            ...b,
+            projectId: id,
+            createdBy: actorId(c),
+            authorName: actorName(c),
+          }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Detay: gönderi + yorumlar + okuyanlar + alıcı listesi. */
+  app.get(
+    '/posts/:id',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getPost.execute({
+            postId: id,
+            companyId: q.companyId,
+            actorUserId: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Yalnız yazar ya da admin; içerik değişince edited_at damgalanır. */
+  app.patch(
+    '/posts/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        title: z.string().max(300).nullable().optional(),
+        body: z.string().min(1).max(20_000).optional(),
+        pinned: z.boolean().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.updatePost.execute({
+            ...b,
+            postId: id,
+            actorUserId: actorId(c),
+            isAdmin: actorRole(c) === 'admin',
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/posts/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deletePost.execute({
+            postId: id,
+            companyId: q.companyId,
+            actorUserId: actorId(c),
+            isAdmin: actorRole(c) === 'admin',
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * Okundu işareti — İDEMPOTENT, ilk okuma anı korunur. Liste çekmek okundu
+   * SAYILMAZ; istemci gönderi genişletilince çağırır.
+   */
+  app.post(
+    '/posts/:id/read',
+    zValidator('param', idParam),
+    zValidator('json', z.object({ companyId: z.number().int().positive() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      const userId = actorId(c);
+      try {
+        if (userId === null) {
+          throw new HTTPException(401, { message: 'Okuma kaydı için kimlik gerekli' });
+        }
+        return c.json(
+          await deps.markPostRead.execute({
+            postId: id,
+            companyId: b.companyId,
+            userId,
+            userName: actorName(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/posts/:id/comments',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        body: z.string().min(1).max(4000),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.addPostComment.execute({
+            postId: id,
+            companyId: b.companyId,
+            body: b.body,
+            createdBy: actorId(c),
+            authorName: actorName(c),
+          }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/projects/:id/photos',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json({
+          photos: await deps.listProjectPhotos.execute({
+            projectId: id,
+            companyId: q.companyId,
+          }),
+        });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/projects/:id/photos',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        locationId: z.number().int().positive().nullable().optional(),
+        title: z.string().max(300).nullable().optional(),
+        takenAt: dateStr.nullable().optional(),
+        fileUrl: z.string().max(1000).nullable().optional(),
+        /** base64 gömülü içerik — küçük fotoğraflar için (Faz 6 kalıbı). */
+        contentBase64: z.string().max(8_000_000).nullable().optional(),
+        mimeType: z.string().max(100).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        const content =
+          b.contentBase64 === null || b.contentBase64 === undefined
+            ? null
+            : Buffer.from(b.contentBase64, 'base64');
+        return c.json(
+          await deps.addProjectPhoto.execute({
+            companyId: b.companyId,
+            projectId: id,
+            locationId: b.locationId,
+            title: b.title,
+            takenAt: b.takenAt,
+            fileUrl: b.fileUrl,
+            content,
+            mimeType: b.mimeType,
+            createdBy: actorId(c),
+            authorName: actorName(c),
+          }),
+          201,
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Fotoğraf baytları — galeri ızgarası meta ile kurulur, bayt buradan iner. */
+  app.get(
+    '/photos/:id/content',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const res = await deps.getPhotoContent.execute({
+          photoId: id,
+          companyId: q.companyId,
+        });
+        return c.body(new Uint8Array(res.content), 200, {
+          'Content-Type': res.mimeType ?? 'application/octet-stream',
+          'Cache-Control': 'private, max-age=3600',
+        });
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/photos/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deleteProjectPhoto.execute({ photoId: id, companyId: q.companyId }),
         );
       } catch (err) {
         mapConstructionError(err);
