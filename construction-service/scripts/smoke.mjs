@@ -1,5 +1,5 @@
 /**
- * Faz 1→2→3→4→5→6→7→8→9→10 uçtan uca duman testi. Tek süreç, fetch tabanlı.
+ * Faz 1→2→3→4→5→6→7→8→9→10→11 uçtan uca duman testi. Tek süreç, fetch tabanlı.
  *
  * Yerel dev sunucusuna (varsayılan :3003) karşı koşar; ürettiği tüm veriyi
  * sonunda temizler. Geçici dosya — depoya girmez.
@@ -1354,6 +1354,114 @@ async function main() {
   const sy3 = (await post('unit-sales/sync', { companyId: 1, lines: [dealLine] })).json;
   chk('durum gerilemesi satır hatası (sold→reserved)', 1, sy3.errors.length);
 
+  console.log('=== FAZ 11: işbirliği ===');
+
+  // Ekip: 2 üye; aynı kullanıcı ikinci kez eklenemez
+  const m1 = (
+    await post(`projects/${PRJ}/members`, {
+      companyId: 1,
+      userId: 1,
+      memberName: 'E2E Şantiye Şefi',
+      memberRole: 'manager',
+    })
+  ).json;
+  chk('üye eklendi (rol)', 'manager', m1.memberRole);
+  const m2 = (
+    await post(`projects/${PRJ}/members`, {
+      companyId: 1,
+      userId: 9,
+      memberName: 'E2E Mühendis',
+      memberRole: 'engineer',
+    })
+  ).json;
+  const dupMember = await post(`projects/${PRJ}/members`, {
+    companyId: 1,
+    userId: 9,
+    memberName: 'Kopya',
+  });
+  chk('aynı kullanıcı ikinci kez eklenemez 409', 409, dupMember.status);
+
+  // Listesiz gönderi: payda = aktif ekip (2); yazar adı JWT'den kopyalanır
+  const p11 = (
+    await post(`projects/${PRJ}/posts`, {
+      companyId: 1,
+      title: 'Beton dökümü',
+      body: 'Yarın 08:00 A blok temel dökümü.',
+      pinned: true,
+    })
+  ).json;
+  chk('listesiz gönderide payda = aktif ekip', 2, p11.recipientCount);
+  chk('yazar adı JWT üzerinden', 'e2e', p11.authorName);
+
+  // Okundu: idempotent, ilk an korunur; sub=1 ekipte → hedef içi
+  await post(`posts/${String(p11.id)}/read`, { companyId: 1 });
+  await post(`posts/${String(p11.id)}/read`, { companyId: 1 });
+  const pDet = (await get(`posts/${String(p11.id)}?companyId=1`)).json;
+  chk('iki okundu işareti tek kayıt', 1, pDet.reads.length);
+  chk('hedef içi okuma sayıldı', 1, pDet.post.targetReadCount);
+  chk('okunma oranı %50 (1/2)', 50, r4(pDet.post.readPct));
+  chk('myRead true', true, pDet.post.myRead);
+
+  // Hedefli gönderi: açık liste paydası; hedef DIŞI okuma targete girmez
+  const p12 = (
+    await post(`projects/${PRJ}/posts`, {
+      companyId: 1,
+      body: 'Sadece mühendisin görmesi gereken not.',
+      recipients: [{ userId: 9, userName: 'E2E Mühendis' }],
+    })
+  ).json;
+  chk('açık bilgilendirme listesi paydası 1', 1, p12.recipientCount);
+  await post(`posts/${String(p12.id)}/read`, { companyId: 1 });
+  const pDet2 = (await get(`posts/${String(p12.id)}?companyId=1`)).json;
+  chk('hedef dışı okuma targete girmez', 0, pDet2.post.targetReadCount);
+  chk('ama toplam okumada görünür', 1, pDet2.post.totalReadCount);
+
+  // Yorum + düzenleme izi (içerik → edited_at; yalnız pin → iz yok)
+  await post(`posts/${String(p11.id)}/comments`, { companyId: 1, body: 'Vibratör ekibi hazır.' });
+  const pDet3 = (await get(`posts/${String(p11.id)}?companyId=1`)).json;
+  chk('yorum düştü', 1, pDet3.comments.length);
+  const editedPost = (
+    await call('PATCH', `posts/${String(p11.id)}`, { companyId: 1, body: 'Döküm 09:00’a alındı.' })
+  ).json;
+  chk('içerik düzenlemesi iz bıraktı', true, editedPost.editedAt !== null);
+  const pinOnly = (await call('PATCH', `posts/${String(p12.id)}`, { companyId: 1, pinned: true }))
+    .json;
+  chk('yalnız pin düzenleme izi bırakmaz', null, pinOnly.editedAt);
+
+  // Üye ayrılınca listesiz gönderinin paydası düşer (soft: okuma izi durur)
+  await del(`members/${String(m2.id)}?companyId=1`);
+  const posts11 = (await get(`projects/${PRJ}/posts?companyId=1`)).json.posts;
+  chk('üye ayrılınca payda 1', 1, posts11.find((p) => p.id === p11.id).recipientCount);
+
+  // Galeri: mekân bağlı yükleme + bayt indirme + yüksüz 400
+  const photo11 = (
+    await post(`projects/${PRJ}/photos`, {
+      companyId: 1,
+      title: 'Temel demir bağlama',
+      locationId: ABLOK,
+      contentBase64: Buffer.from('fake-image-bytes').toString('base64'),
+      mimeType: 'image/png',
+      takenAt: dayShift(0),
+    })
+  ).json;
+  chk('fotoğraf mekâna bağlandı', true, photo11.locationPath !== null);
+  const photoRes = await fetch(`${B}/photos/${String(photo11.id)}/content?companyId=1`, {
+    headers: { Authorization: `Bearer ${TOKEN}` },
+  });
+  chk('fotoğraf baytları mime ile iner', 'image/png', photoRes.headers.get('content-type'));
+  chk('bayt içerik birebir', 'fake-image-bytes', await photoRes.text());
+  const noPayload = await post(`projects/${PRJ}/photos`, { companyId: 1, title: 'boş' });
+  chk('yüksüz fotoğraf 400', 400, noPayload.status);
+
+  // Soft delete: gönderi listeden düşer, izi durur
+  await del(`posts/${String(p12.id)}?companyId=1`);
+  const postsAfterDel = (await get(`projects/${PRJ}/posts?companyId=1`)).json.posts;
+  chk(
+    'silinen gönderi listeden düştü (soft)',
+    undefined,
+    postsAfterDel.find((p) => p.id === p12.id),
+  );
+
   console.log('=== TEMİZLİK ===');
   await del(`projects/${PRJ}?companyId=1`);
   await del(`progress-templates/${TPL}?companyId=1`);
@@ -1381,6 +1489,10 @@ async function main() {
   for (const aid of [t1.id, t2.id, ms8.id, grp8.id]) {
     await del(`schedule-activities/${String(aid)}?companyId=1`);
   }
+  // Faz 11: gönderi + fotoğraf soft-delete, üye pasife (izler proje ile kalır)
+  await del(`posts/${String(p11.id)}?companyId=1`);
+  await del(`photos/${String(photo11.id)}?companyId=1`);
+  await del(`members/${String(m1.id)}?companyId=1`);
   // Faz 10: aktif satışları gerekçeyle iptal et (daireler bu koşuya özgü ama
   // aktif satır bırakmamak temiz)
   const openSales = (await get(`unit-sales?companyId=1&projectId=${String(PRJ)}`)).json.sales;

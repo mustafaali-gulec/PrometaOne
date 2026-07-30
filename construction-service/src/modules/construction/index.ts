@@ -25,6 +25,23 @@ import {
 } from './application/useCases/ApprovalUseCases.js';
 import { GetBoqUseCase, SaveBoqLinesUseCase } from './application/useCases/BoqUseCases.js';
 import {
+  AddPostCommentUseCase,
+  AddProjectMemberUseCase,
+  AddProjectPhotoUseCase,
+  CreatePostUseCase,
+  DeletePostUseCase,
+  DeleteProjectPhotoUseCase,
+  GetPhotoContentUseCase,
+  GetPostUseCase,
+  ListPostsUseCase,
+  ListProjectMembersUseCase,
+  ListProjectPhotosUseCase,
+  MarkPostReadUseCase,
+  RemoveProjectMemberUseCase,
+  UpdatePostUseCase,
+  UpdateProjectMemberUseCase,
+} from './application/useCases/CollaborationUseCases.js';
+import {
   CancelCommitmentUseCase,
   CloseCommitmentUseCase,
   CreateCommitmentUseCase,
@@ -244,6 +261,7 @@ import {
 } from './application/useCases/UnitSaleUseCases.js';
 import { PgApprovalRepository } from './infrastructure/persistence/PgApprovalRepository.js';
 import { PgBoqRepository } from './infrastructure/persistence/PgBoqRepository.js';
+import { PgCollaborationRepository } from './infrastructure/persistence/PgCollaborationRepository.js';
 import { PgCommitmentRepository } from './infrastructure/persistence/PgCommitmentRepository.js';
 import { PgContractRepository } from './infrastructure/persistence/PgContractRepository.js';
 import { PgDailyLogRepository } from './infrastructure/persistence/PgDailyLogRepository.js';
@@ -332,6 +350,7 @@ export function registerConstructionModule(
   const schedule = new PgScheduleRepository(pool);
   const machinePark = new PgMachineParkRepository(pool);
   const unitSales = new PgUnitSaleRepository(pool);
+  const collaboration = new PgCollaborationRepository(pool);
 
   const deps: ConstructionRouterDeps = {
     createProject: new CreateProjectUseCase(projects),
@@ -561,6 +580,22 @@ export function registerConstructionModule(
     decideChangeRequest: new DecideChangeRequestUseCase(unitSales, clock),
     getUnitInventory: new GetUnitInventoryUseCase(unitSales, projects),
     syncUnitSales: new SyncUnitSalesUseCase(unitSales, projects, locations, clock),
+    // FAZ 11 — İşbirliği
+    listProjectMembers: new ListProjectMembersUseCase(collaboration),
+    addProjectMember: new AddProjectMemberUseCase(collaboration, projects),
+    updateProjectMember: new UpdateProjectMemberUseCase(collaboration),
+    removeProjectMember: new RemoveProjectMemberUseCase(collaboration),
+    listPosts: new ListPostsUseCase(collaboration),
+    createPost: new CreatePostUseCase(collaboration, projects),
+    updatePost: new UpdatePostUseCase(collaboration, clock),
+    deletePost: new DeletePostUseCase(collaboration, clock),
+    markPostRead: new MarkPostReadUseCase(collaboration),
+    getPost: new GetPostUseCase(collaboration),
+    addPostComment: new AddPostCommentUseCase(collaboration),
+    listProjectPhotos: new ListProjectPhotosUseCase(collaboration),
+    addProjectPhoto: new AddProjectPhotoUseCase(collaboration, projects, locations),
+    getPhotoContent: new GetPhotoContentUseCase(collaboration),
+    deleteProjectPhoto: new DeleteProjectPhotoUseCase(collaboration),
   };
 
   return createConstructionRouter(deps);

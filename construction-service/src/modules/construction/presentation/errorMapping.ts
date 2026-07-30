@@ -19,6 +19,12 @@ import {
   DuplicateCommitmentRefError,
   ChangeRequestNotEditableError,
   ChangeRequestNotFoundError,
+  DuplicateProjectMemberError,
+  NotPostAuthorError,
+  PostNotEditableError,
+  PostNotFoundError,
+  ProjectMemberNotFoundError,
+  ProjectPhotoNotFoundError,
   NotAUnitLocationError,
   RefundExceedsCollectedError,
   UnitAlreadySoldError,
@@ -117,9 +123,17 @@ export function mapConstructionError(err: unknown): never {
     err instanceof MaintenancePlanNotFoundError ||
     err instanceof UnitSaleNotFoundError ||
     err instanceof UnitPaymentNotFoundError ||
-    err instanceof ChangeRequestNotFoundError
+    err instanceof ChangeRequestNotFoundError ||
+    err instanceof PostNotFoundError ||
+    err instanceof ProjectMemberNotFoundError ||
+    err instanceof ProjectPhotoNotFoundError
   ) {
     throw new HTTPException(404, { message: err.message });
+  }
+
+  // Sahiplik ihlali: kimlik doğru ama yetki yok — 403, 400 değil.
+  if (err instanceof NotPostAuthorError) {
+    throw new HTTPException(403, { message: err.message });
   }
 
   if (
@@ -152,7 +166,8 @@ export function mapConstructionError(err: unknown): never {
     err instanceof ActivityHasChildrenError ||
     // Dairede zaten aktif satış olması bir çatışmadır: istemci önce mevcut
     // kaydı iptal etmeli/güncellemeli.
-    err instanceof UnitAlreadySoldError
+    err instanceof UnitAlreadySoldError ||
+    err instanceof DuplicateProjectMemberError
   ) {
     throw new HTTPException(409, { message: err.message });
   }
@@ -170,7 +185,8 @@ export function mapConstructionError(err: unknown): never {
     err instanceof MeterRollbackError ||
     err instanceof NotAUnitLocationError ||
     err instanceof RefundExceedsCollectedError ||
-    err instanceof ChangeRequestNotEditableError
+    err instanceof ChangeRequestNotEditableError ||
+    err instanceof PostNotEditableError
   ) {
     throw new HTTPException(400, { message: err.message });
   }
