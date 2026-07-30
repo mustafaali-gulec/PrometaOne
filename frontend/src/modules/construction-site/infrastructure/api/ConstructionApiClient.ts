@@ -116,6 +116,10 @@ import type {
   ProjectScheduleDto,
   ScheduleActivityDto,
   ScheduleCurveDto,
+  MachineMaintenanceDto,
+  MachineParkDto,
+  MaintenancePlanDto,
+  MaintenanceRecordDto,
 } from '../../application/dto/ConstructionDtos';
 import type { AuthTokenProvider } from '../../application/ports/AuthTokenProvider';
 import type {
@@ -191,6 +195,9 @@ import type {
   UpdateCommitmentBody,
   CreateScheduleActivityBody,
   UpdateScheduleActivityBody,
+  AddMaintenanceRecordBody,
+  CreateMaintenancePlanBody,
+  UpdateMachineParkBody,
 } from '../../application/ports/ConstructionApi';
 
 export class ConstructionApiClient implements ConstructionApi {
@@ -1469,6 +1476,72 @@ export class ConstructionApiClient implements ConstructionApi {
   ): Promise<{ log: ActivityProgressLogRowDto[] }> {
     return this.request<{ log: ActivityProgressLogRowDto[] }>(
       `/v1/construction/schedule-activities/${String(id)}/progress-log?companyId=${String(companyId)}`,
+    );
+  }
+
+  // ===== FAZ 9 — MAKİNE PARKI ==============================================
+  listMachinePark(
+    companyId: number,
+    includeInactive?: boolean,
+  ): Promise<{ machines: MachineParkDto[] }> {
+    return this.request<{ machines: MachineParkDto[] }>(
+      `/v1/construction/machine-park?${this.qs(companyId, { includeInactive })}`,
+    );
+  }
+
+  updateMachineParkDetails(id: number, body: UpdateMachineParkBody): Promise<MachineParkDto> {
+    return this.request<MachineParkDto>(`/v1/construction/machine-park/${String(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  recordMeterReading(
+    id: number,
+    body: {
+      companyId: number;
+      meterValue: number;
+      readAt?: string;
+      isReset?: boolean;
+      note?: string | null;
+    },
+  ): Promise<MachineParkDto> {
+    return this.request<MachineParkDto>(`/v1/construction/machine-park/${String(id)}/meter`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  getMachineMaintenance(id: number, companyId: number): Promise<MachineMaintenanceDto> {
+    return this.request<MachineMaintenanceDto>(
+      `/v1/construction/machine-park/${String(id)}/maintenance?companyId=${String(companyId)}`,
+    );
+  }
+
+  createMaintenancePlan(
+    machineId: number,
+    body: CreateMaintenancePlanBody,
+  ): Promise<MaintenancePlanDto> {
+    return this.request<MaintenancePlanDto>(
+      `/v1/construction/machine-park/${String(machineId)}/maintenance-plans`,
+      { method: 'POST', body },
+    );
+  }
+
+  deactivateMaintenancePlan(planId: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/maintenance-plans/${String(planId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  addMaintenanceRecord(
+    machineId: number,
+    body: AddMaintenanceRecordBody,
+  ): Promise<MaintenanceRecordDto> {
+    return this.request<MaintenanceRecordDto>(
+      `/v1/construction/machine-park/${String(machineId)}/maintenance-records`,
+      { method: 'POST', body },
     );
   }
 

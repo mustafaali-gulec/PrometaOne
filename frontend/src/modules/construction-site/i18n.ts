@@ -742,7 +742,73 @@ export type CsLabelKey =
   | 'cs.sch.curve.empty'
   | 'cs.sch.curve.actualNote'
   | 'cs.sch.deleteConfirm'
-  | 'cs.sch.trackingDrift';
+  | 'cs.sch.trackingDrift'
+  // FAZ 9 — Makine parkı
+  | 'cs.mp.title'
+  | 'cs.mp.subtitle'
+  | 'cs.mp.c.machine'
+  | 'cs.mp.c.plate'
+  | 'cs.mp.c.chassis'
+  | 'cs.mp.c.engine'
+  | 'cs.mp.c.brand'
+  | 'cs.mp.c.model'
+  | 'cs.mp.c.modelYear'
+  | 'cs.mp.c.meter'
+  | 'cs.mp.c.meterType'
+  | 'cs.mp.c.ownership'
+  | 'cs.mp.c.warranty'
+  | 'cs.mp.c.rental'
+  | 'cs.mp.c.maintenance'
+  | 'cs.mp.c.purchaseDate'
+  | 'cs.mp.meter.km'
+  | 'cs.mp.meter.hour'
+  | 'cs.mp.own.owned'
+  | 'cs.mp.own.rented'
+  | 'cs.mp.own.subcontractor'
+  | 'cs.mp.rp.daily'
+  | 'cs.mp.rp.monthly'
+  | 'cs.mp.rentalStart'
+  | 'cs.mp.rentalEnd'
+  | 'cs.mp.rentalCost'
+  | 'cs.mp.rentalDaysLeft'
+  | 'cs.mp.rentalExpired'
+  | 'cs.mp.warrantyUntil'
+  | 'cs.mp.warrantyMeter'
+  | 'cs.mp.warrantyHint'
+  | 'cs.mp.warranty.in'
+  | 'cs.mp.warranty.out'
+  | 'cs.mp.warranty.none'
+  | 'cs.mp.warranty.daysLeft'
+  | 'cs.mp.warranty.meterLeft'
+  | 'cs.mp.meterPanel.title'
+  | 'cs.mp.meterPanel.hint'
+  | 'cs.mp.meterPanel.value'
+  | 'cs.mp.meterPanel.isReset'
+  | 'cs.mp.meterPanel.log'
+  | 'cs.mp.plan.title'
+  | 'cs.mp.plan.new'
+  | 'cs.mp.plan.name'
+  | 'cs.mp.plan.intervalType'
+  | 'cs.mp.plan.intervalValue'
+  | 'cs.mp.plan.it.meter'
+  | 'cs.mp.plan.it.days'
+  | 'cs.mp.plan.lastDone'
+  | 'cs.mp.plan.nextDue'
+  | 'cs.mp.plan.remaining'
+  | 'cs.mp.plan.noBaseline'
+  | 'cs.mp.plan.baselineHint'
+  | 'cs.mp.plan.overdue'
+  | 'cs.mp.plan.deleteConfirm'
+  | 'cs.mp.rec.title'
+  | 'cs.mp.rec.new'
+  | 'cs.mp.rec.plan'
+  | 'cs.mp.rec.planNone'
+  | 'cs.mp.rec.doneAt'
+  | 'cs.mp.rec.meterAt'
+  | 'cs.mp.rec.cost'
+  | 'cs.mp.rec.hint'
+  | 'cs.mp.empty'
+  | 'cs.mp.detailsPanel';
 
 const DICT: Record<CsLabelKey, Record<Lang, string>> = {
   // ===== ORTAK =============================================================
@@ -4713,6 +4779,397 @@ const DICT: Record<CsLabelKey, Record<Lang, string>> = {
     de: 'Verfolgung: {pct}%',
     ar: 'المتابعة: {pct}٪',
   },
+
+  'cs.mp.title': {
+    tr: 'Makine Parkı',
+    en: 'Machine Park',
+    de: 'Maschinenpark',
+    ar: 'حظيرة المعدات',
+  },
+  'cs.mp.subtitle': {
+    tr: 'Sahiplik, plaka/şase/motor, KM-saat sayacı, garanti ve bakım planı. Sayaç geriye gitmez; sayaç değişimi işaretle ve notla kaydedilir.',
+    en: 'Ownership, plate/chassis/engine, km-hour meter, warranty and maintenance plan. The meter never rolls back; a meter change is recorded with a flag and a note.',
+    de: 'Eigentum, Kennzeichen/Fahrgestell/Motor, km-Stunden-Zähler, Garantie und Wartungsplan. Der Zähler läuft nie rückwärts; ein Zählerwechsel wird mit Kennzeichen und Notiz erfasst.',
+    ar: 'الملكية، اللوحة/الشاسيه/المحرك، عداد الكيلومترات-الساعات، الضمان وخطة الصيانة. العداد لا يرجع؛ يُسجل تغيير العداد بعلامة وملاحظة.',
+  },
+  'cs.mp.c.machine': {
+    tr: 'Makine',
+    en: 'Machine',
+    de: 'Maschine',
+    ar: 'الآلة',
+  },
+  'cs.mp.c.plate': {
+    tr: 'Plaka',
+    en: 'Plate',
+    de: 'Kennzeichen',
+    ar: 'اللوحة',
+  },
+  'cs.mp.c.chassis': {
+    tr: 'Şase no',
+    en: 'Chassis no',
+    de: 'Fahrgestell-Nr.',
+    ar: 'رقم الشاسيه',
+  },
+  'cs.mp.c.engine': {
+    tr: 'Motor no',
+    en: 'Engine no',
+    de: 'Motor-Nr.',
+    ar: 'رقم المحرك',
+  },
+  'cs.mp.c.brand': {
+    tr: 'Marka',
+    en: 'Brand',
+    de: 'Marke',
+    ar: 'الماركة',
+  },
+  'cs.mp.c.model': {
+    tr: 'Model',
+    en: 'Model',
+    de: 'Modell',
+    ar: 'الموديل',
+  },
+  'cs.mp.c.modelYear': {
+    tr: 'Model yılı',
+    en: 'Model year',
+    de: 'Baujahr',
+    ar: 'سنة الصنع',
+  },
+  'cs.mp.c.meter': {
+    tr: 'Sayaç',
+    en: 'Meter',
+    de: 'Zähler',
+    ar: 'العداد',
+  },
+  'cs.mp.c.meterType': {
+    tr: 'Sayaç tipi',
+    en: 'Meter type',
+    de: 'Zählertyp',
+    ar: 'نوع العداد',
+  },
+  'cs.mp.c.ownership': {
+    tr: 'Sahiplik',
+    en: 'Ownership',
+    de: 'Eigentum',
+    ar: 'الملكية',
+  },
+  'cs.mp.c.warranty': {
+    tr: 'Garanti',
+    en: 'Warranty',
+    de: 'Garantie',
+    ar: 'الضمان',
+  },
+  'cs.mp.c.rental': {
+    tr: 'Kiralama',
+    en: 'Rental',
+    de: 'Miete',
+    ar: 'الإيجار',
+  },
+  'cs.mp.c.maintenance': {
+    tr: 'Bakım',
+    en: 'Maintenance',
+    de: 'Wartung',
+    ar: 'الصيانة',
+  },
+  'cs.mp.c.purchaseDate': {
+    tr: 'Satın alma tarihi',
+    en: 'Purchase date',
+    de: 'Kaufdatum',
+    ar: 'تاريخ الشراء',
+  },
+  'cs.mp.meter.km': {
+    tr: 'KM',
+    en: 'KM',
+    de: 'km',
+    ar: 'كم',
+  },
+  'cs.mp.meter.hour': {
+    tr: 'Saat',
+    en: 'Hours',
+    de: 'Stunden',
+    ar: 'ساعة',
+  },
+  'cs.mp.own.owned': {
+    tr: 'Öz mal',
+    en: 'Owned',
+    de: 'Eigen',
+    ar: 'مملوكة',
+  },
+  'cs.mp.own.rented': {
+    tr: 'Kiralık',
+    en: 'Rented',
+    de: 'Gemietet',
+    ar: 'مستأجرة',
+  },
+  'cs.mp.own.subcontractor': {
+    tr: 'Taşeron makinesi',
+    en: 'Subcontractor',
+    de: 'Nachunternehmer',
+    ar: 'مقاول',
+  },
+  'cs.mp.rp.daily': {
+    tr: 'Günlük',
+    en: 'Daily',
+    de: 'Täglich',
+    ar: 'يومي',
+  },
+  'cs.mp.rp.monthly': {
+    tr: 'Aylık',
+    en: 'Monthly',
+    de: 'Monatlich',
+    ar: 'شهري',
+  },
+  'cs.mp.rentalStart': {
+    tr: 'Kira başlangıcı',
+    en: 'Rental start',
+    de: 'Mietbeginn',
+    ar: 'بداية الإيجار',
+  },
+  'cs.mp.rentalEnd': {
+    tr: 'Kira bitişi',
+    en: 'Rental end',
+    de: 'Mietende',
+    ar: 'نهاية الإيجار',
+  },
+  'cs.mp.rentalCost': {
+    tr: 'Kira bedeli',
+    en: 'Rental cost',
+    de: 'Mietkosten',
+    ar: 'قيمة الإيجار',
+  },
+  'cs.mp.rentalDaysLeft': {
+    tr: 'Kirada kalan {n} gün',
+    en: '{n} days left on rental',
+    de: '{n} Tage Restmiete',
+    ar: 'باقي {n} يوم من الإيجار',
+  },
+  'cs.mp.rentalExpired': {
+    tr: 'Kira süresi dolmuş',
+    en: 'Rental expired',
+    de: 'Miete abgelaufen',
+    ar: 'انتهى الإيجار',
+  },
+  'cs.mp.warrantyUntil': {
+    tr: 'Garanti bitiş tarihi',
+    en: 'Warranty until',
+    de: 'Garantie bis',
+    ar: 'الضمان حتى',
+  },
+  'cs.mp.warrantyMeter': {
+    tr: 'Garanti sayaç sınırı',
+    en: 'Warranty meter limit',
+    de: 'Garantie-Zählergrenze',
+    ar: 'حد عداد الضمان',
+  },
+  'cs.mp.warrantyHint': {
+    tr: 'İki sınırdan hangisi önce dolarsa garanti biter ("2 yıl / 100.000 km" mantığı). İkisi de boşsa garanti bilgisi yok sayılır.',
+    en: 'Whichever limit is reached first ends the warranty (the "2 years / 100,000 km" logic). If both are empty, warranty info is treated as unknown.',
+    de: 'Welche Grenze zuerst erreicht wird, beendet die Garantie (die Logik "2 Jahre / 100.000 km"). Sind beide leer, gilt die Garantie als unbekannt.',
+    ar: 'أي حد يكتمل أولًا ينهي الضمان (منطق "سنتان / 100,000 كم"). إذا كان كلاهما فارغًا يُعد الضمان غير معروف.',
+  },
+  'cs.mp.warranty.in': {
+    tr: 'Garantide',
+    en: 'In warranty',
+    de: 'In Garantie',
+    ar: 'في الضمان',
+  },
+  'cs.mp.warranty.out': {
+    tr: 'Garanti bitti',
+    en: 'Out of warranty',
+    de: 'Garantie abgelaufen',
+    ar: 'انتهى الضمان',
+  },
+  'cs.mp.warranty.none': {
+    tr: 'Garanti bilgisi yok',
+    en: 'No warranty info',
+    de: 'Keine Garantieinfo',
+    ar: 'لا معلومات ضمان',
+  },
+  'cs.mp.warranty.daysLeft': {
+    tr: '{n} gün kaldı',
+    en: '{n} days left',
+    de: '{n} Tage übrig',
+    ar: 'باقي {n} يوم',
+  },
+  'cs.mp.warranty.meterLeft': {
+    tr: '{n} {unit} kaldı',
+    en: '{n} {unit} left',
+    de: '{n} {unit} übrig',
+    ar: 'باقي {n} {unit}',
+  },
+  'cs.mp.meterPanel.title': {
+    tr: 'Sayaç okuması',
+    en: 'Meter reading',
+    de: 'Zählerstand erfassen',
+    ar: 'قراءة العداد',
+  },
+  'cs.mp.meterPanel.hint': {
+    tr: 'Sayaç geriye gidemez — sessiz düşüş garanti ve bakım hesabını bozar. Sayaç değişiminde "sayaç değişti" işaretleyin ve not yazın. Aynı güne ikinci okuma üzerine yazar.',
+    en: 'The meter cannot roll back — a silent drop corrupts warranty and maintenance math. On a meter change, tick "meter changed" and write a note. A second reading on the same day overwrites.',
+    de: 'Der Zähler kann nicht zurücklaufen — ein stiller Rückgang verfälscht Garantie- und Wartungsrechnung. Bei Zählerwechsel "Zähler gewechselt" ankreuzen und Notiz schreiben. Eine zweite Erfassung am selben Tag überschreibt.',
+    ar: 'العداد لا يرجع — الانخفاض الصامت يفسد حساب الضمان والصيانة. عند تغيير العداد علّم "تغير العداد" واكتب ملاحظة. القراءة الثانية في اليوم نفسه تستبدل.',
+  },
+  'cs.mp.meterPanel.value': {
+    tr: 'Sayaç değeri',
+    en: 'Meter value',
+    de: 'Zählerstand',
+    ar: 'قيمة العداد',
+  },
+  'cs.mp.meterPanel.isReset': {
+    tr: 'Sayaç değişti/sıfırlandı',
+    en: 'Meter changed/reset',
+    de: 'Zähler gewechselt/zurückgesetzt',
+    ar: 'تغير العداد/صُفّر',
+  },
+  'cs.mp.meterPanel.log': {
+    tr: 'Sayaç günlüğü',
+    en: 'Meter log',
+    de: 'Zählerjournal',
+    ar: 'سجل العداد',
+  },
+  'cs.mp.plan.title': {
+    tr: 'Bakım planları',
+    en: 'Maintenance plans',
+    de: 'Wartungspläne',
+    ar: 'خطط الصيانة',
+  },
+  'cs.mp.plan.new': {
+    tr: '+ Bakım planı',
+    en: '+ Maintenance plan',
+    de: '+ Wartungsplan',
+    ar: '+ خطة صيانة',
+  },
+  'cs.mp.plan.name': {
+    tr: 'Plan adı',
+    en: 'Plan name',
+    de: 'Planname',
+    ar: 'اسم الخطة',
+  },
+  'cs.mp.plan.intervalType': {
+    tr: 'Aralık tipi',
+    en: 'Interval type',
+    de: 'Intervalltyp',
+    ar: 'نوع الفترة',
+  },
+  'cs.mp.plan.intervalValue': {
+    tr: 'Aralık',
+    en: 'Interval',
+    de: 'Intervall',
+    ar: 'الفترة',
+  },
+  'cs.mp.plan.it.meter': {
+    tr: 'Sayaç bazlı',
+    en: 'Meter-based',
+    de: 'Zählerbasiert',
+    ar: 'حسب العداد',
+  },
+  'cs.mp.plan.it.days': {
+    tr: 'Gün bazlı',
+    en: 'Day-based',
+    de: 'Tagesbasiert',
+    ar: 'حسب الأيام',
+  },
+  'cs.mp.plan.lastDone': {
+    tr: 'Son yapılan',
+    en: 'Last done',
+    de: 'Zuletzt erledigt',
+    ar: 'آخر تنفيذ',
+  },
+  'cs.mp.plan.nextDue': {
+    tr: 'Sıradaki vade',
+    en: 'Next due',
+    de: 'Nächste Fälligkeit',
+    ar: 'الاستحقاق التالي',
+  },
+  'cs.mp.plan.remaining': {
+    tr: 'Kalan',
+    en: 'Remaining',
+    de: 'Verbleibend',
+    ar: 'المتبقي',
+  },
+  'cs.mp.plan.noBaseline': {
+    tr: 'İlk bakım kaydı bekleniyor — vade hesaplanamıyor',
+    en: 'Waiting for the first maintenance record — due cannot be computed',
+    de: 'Erster Wartungseintrag ausstehend — Fälligkeit nicht berechenbar',
+    ar: 'بانتظار أول سجل صيانة — لا يمكن حساب الاستحقاق',
+  },
+  'cs.mp.plan.baselineHint': {
+    tr: 'Son yapılan bakım izi (sayaç/tarih) girilirse vade hemen hesaplanır; boş bırakılırsa ilk bakım kaydına kadar vade gösterilmez — uydurma vade yazılmaz.',
+    en: 'If the last-done trail (meter/date) is entered the due is computed at once; if left empty no due is shown until the first record — no fabricated due dates.',
+    de: 'Wird die Zuletzt-erledigt-Spur (Zähler/Datum) erfasst, wird die Fälligkeit sofort berechnet; sonst wird bis zum ersten Eintrag keine angezeigt — keine erfundenen Fälligkeiten.',
+    ar: 'إذا أُدخل أثر آخر تنفيذ (عداد/تاريخ) يُحسب الاستحقاق فورًا؛ وإلا فلا يُعرض حتى أول سجل — لا استحقاقات مختلقة.',
+  },
+  'cs.mp.plan.overdue': {
+    tr: 'VADE GEÇMİŞ',
+    en: 'OVERDUE',
+    de: 'ÜBERFÄLLIG',
+    ar: 'متأخر',
+  },
+  'cs.mp.plan.deleteConfirm': {
+    tr: 'Bakım planı kaldırılsın mı? Yapılmış bakım kayıtları denetim izi olarak kalır.',
+    en: 'Remove this maintenance plan? Completed records remain as an audit trail.',
+    de: 'Diesen Wartungsplan entfernen? Erledigte Einträge bleiben als Prüfpfad erhalten.',
+    ar: 'هل تُزال خطة الصيانة؟ تبقى سجلات الصيانة المنجزة كأثر تدقيق.',
+  },
+  'cs.mp.rec.title': {
+    tr: 'Bakım kayıtları',
+    en: 'Maintenance records',
+    de: 'Wartungseinträge',
+    ar: 'سجلات الصيانة',
+  },
+  'cs.mp.rec.new': {
+    tr: '+ Bakım kaydı',
+    en: '+ Maintenance record',
+    de: '+ Wartungseintrag',
+    ar: '+ سجل صيانة',
+  },
+  'cs.mp.rec.plan': {
+    tr: 'Bağlı plan',
+    en: 'Linked plan',
+    de: 'Verknüpfter Plan',
+    ar: 'الخطة المرتبطة',
+  },
+  'cs.mp.rec.planNone': {
+    tr: 'Plansız (arıza/tek seferlik)',
+    en: 'Unplanned (breakdown/one-off)',
+    de: 'Ungeplant (Störung/einmalig)',
+    ar: 'بدون خطة (عطل/مرة واحدة)',
+  },
+  'cs.mp.rec.doneAt': {
+    tr: 'Yapıldığı tarih',
+    en: 'Done on',
+    de: 'Erledigt am',
+    ar: 'تاريخ التنفيذ',
+  },
+  'cs.mp.rec.meterAt': {
+    tr: 'Bakımdaki sayaç',
+    en: 'Meter at service',
+    de: 'Zählerstand bei Wartung',
+    ar: 'العداد عند الصيانة',
+  },
+  'cs.mp.rec.cost': {
+    tr: 'Maliyet',
+    en: 'Cost',
+    de: 'Kosten',
+    ar: 'التكلفة',
+  },
+  'cs.mp.rec.hint': {
+    tr: 'Plana bağlı kayıt planın vadesini ilerletir. Sayaç girilirse aynı işlemde sayaç okuması olarak da işlenir — bakımda sayaç zaten okunur.',
+    en: 'A record linked to a plan advances its due. If a meter is entered it is also processed as a meter reading — the meter is read during maintenance anyway.',
+    de: 'Ein planbezogener Eintrag verschiebt dessen Fälligkeit. Ein erfasster Zählerstand wird zugleich als Zählerablesung verarbeitet — bei der Wartung wird der Zähler ohnehin abgelesen.',
+    ar: 'السجل المرتبط بخطة يقدّم استحقاقها. إذا أُدخل العداد يُعالج كقراءة عداد في العملية نفسها — العداد يُقرأ أثناء الصيانة أصلًا.',
+  },
+  'cs.mp.empty': {
+    tr: 'Bu şirkette makine yok. Makineler İş Gücü & Makine ekranından açılır.',
+    en: 'No machines in this company. Machines are created on the Labour & Machines screen.',
+    de: 'Keine Maschinen in dieser Firma. Maschinen werden im Bildschirm Personal & Maschinen angelegt.',
+    ar: 'لا توجد آلات في هذه الشركة. تُنشأ الآلات من شاشة العمالة والآلات.',
+  },
+  'cs.mp.detailsPanel': {
+    tr: 'Kart detayları',
+    en: 'Card details',
+    de: 'Kartendetails',
+    ar: 'تفاصيل البطاقة',
+  },
 };
 
 /** Şantiye etiketi getir; `vars` ile {placeholder} doldurulur. */
@@ -4949,4 +5406,19 @@ export function commitmentStatusLabel(status: string, lang: string | undefined):
 /** Aktivite tipi etiketi. */
 export function activityKindLabel(kind: string, lang: string | undefined): string {
   return csT(`cs.sch.kind.${kind}` as CsLabelKey, lang);
+}
+
+/** Sayaç tipi etiketi (KM/Saat). */
+export function meterTypeLabel(type: string, lang: string | undefined): string {
+  return csT(`cs.mp.meter.${type}` as CsLabelKey, lang);
+}
+
+/** Sahiplik etiketi (öz mal/kiralık/taşeron). */
+export function machineOwnershipLabel(kind: string, lang: string | undefined): string {
+  return csT(`cs.mp.own.${kind}` as CsLabelKey, lang);
+}
+
+/** Bakım aralık tipi etiketi. */
+export function maintenanceIntervalLabel(type: string, lang: string | undefined): string {
+  return csT(`cs.mp.plan.it.${type}` as CsLabelKey, lang);
 }
