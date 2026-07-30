@@ -135,6 +135,13 @@ import type {
   ProjectScheduleDto,
   ScheduleActivityDto,
   ScheduleCurveDto,
+  MachineMaintenanceDto,
+  MachineParkDto,
+  MaintenanceIntervalType,
+  MaintenancePlanDto,
+  MaintenanceRecordDto,
+  MeterType,
+  RentalPeriod,
 } from '../dto/ConstructionDtos';
 
 export interface CreateProjectBody {
@@ -876,6 +883,76 @@ export interface ConstructionApi {
     id: number,
     companyId: number,
   ): Promise<{ log: ActivityProgressLogRowDto[] }>;
+
+  // FAZ 9 — Makine parkı
+  listMachinePark(
+    companyId: number,
+    includeInactive?: boolean,
+  ): Promise<{ machines: MachineParkDto[] }>;
+  updateMachineParkDetails(id: number, body: UpdateMachineParkBody): Promise<MachineParkDto>;
+  /** Sayaç geriye gidemez; sayaç değişimi isReset=true + notla. */
+  recordMeterReading(
+    id: number,
+    body: {
+      companyId: number;
+      meterValue: number;
+      readAt?: string;
+      isReset?: boolean;
+      note?: string | null;
+    },
+  ): Promise<MachineParkDto>;
+  getMachineMaintenance(id: number, companyId: number): Promise<MachineMaintenanceDto>;
+  createMaintenancePlan(
+    machineId: number,
+    body: CreateMaintenancePlanBody,
+  ): Promise<MaintenancePlanDto>;
+  deactivateMaintenancePlan(planId: number, companyId: number): Promise<{ deleted: boolean }>;
+  /** Plana bağlıysa plan izini günceller; sayaç verilmişse sayaç okuması olarak da işlenir. */
+  addMaintenanceRecord(
+    machineId: number,
+    body: AddMaintenanceRecordBody,
+  ): Promise<MaintenanceRecordDto>;
+}
+
+// ===== FAZ 9 — istek gövdeleri ==============================================
+
+export interface UpdateMachineParkBody {
+  companyId: number;
+  brand?: string | null;
+  model?: string | null;
+  modelYear?: number | null;
+  plateNo?: string | null;
+  chassisNo?: string | null;
+  engineNo?: string | null;
+  meterType?: MeterType;
+  purchaseDate?: string | null;
+  rentalStart?: string | null;
+  rentalEnd?: string | null;
+  rentalCost?: number;
+  rentalPeriod?: RentalPeriod | null;
+  warrantyUntil?: string | null;
+  warrantyMeter?: number | null;
+  parkNote?: string | null;
+}
+
+export interface CreateMaintenancePlanBody {
+  companyId: number;
+  name: string;
+  intervalType: MaintenanceIntervalType;
+  intervalValue: number;
+  lastDoneMeter?: number | null;
+  lastDoneDate?: string | null;
+  note?: string | null;
+}
+
+export interface AddMaintenanceRecordBody {
+  companyId: number;
+  planId?: number | null;
+  doneAt?: string;
+  meterAt?: number | null;
+  cost?: number;
+  description: string;
+  vendorId?: number | null;
 }
 
 // ===== FAZ 8 — istek gövdeleri ==============================================

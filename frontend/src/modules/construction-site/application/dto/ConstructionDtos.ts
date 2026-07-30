@@ -1707,3 +1707,104 @@ export interface ActivityProgressLogRowDto {
   createdBy: number | null;
   createdAt: string;
 }
+
+// ============================================================================
+// FAZ 9 — MAKİNE PARKI (cs_machines genişletilmiş + sayaç + bakım)
+// ============================================================================
+
+export type MeterType = 'km' | 'hour';
+export type MaintenanceIntervalType = 'meter' | 'days';
+export type RentalPeriod = 'daily' | 'monthly';
+
+export interface WarrantyStatusDto {
+  /** true = sürüyor; false = bitti; null = garanti bilgisi girilmemiş. */
+  inWarranty: boolean | null;
+  daysLeft: number | null;
+  meterLeft: number | null;
+}
+
+export interface MachineParkDto {
+  id: number;
+  companyId: number;
+  code: string;
+  name: string;
+  kind: MachineKind;
+  vendorId: number | null;
+  hourlyCost: number;
+  active: boolean;
+  brand: string | null;
+  model: string | null;
+  modelYear: number | null;
+  plateNo: string | null;
+  chassisNo: string | null;
+  engineNo: string | null;
+  meterType: MeterType;
+  /** Sayaç günlüğünden türetilir — doğrudan yazılmaz. */
+  currentMeter: number;
+  purchaseDate: string | null;
+  rentalStart: string | null;
+  rentalEnd: string | null;
+  rentalCost: number;
+  rentalPeriod: RentalPeriod | null;
+  warrantyUntil: string | null;
+  warrantyMeter: number | null;
+  parkNote: string | null;
+  warranty: WarrantyStatusDto;
+  rentalDaysLeft: number | null;
+  /** Vadesi geçmiş aktif bakım planı sayısı. */
+  overduePlanCount: number;
+  /** Hiç bakım görmemiş (vadesi hesaplanamayan) plan sayısı. */
+  plansWithoutBaseline: number;
+}
+
+export interface MaintenanceDueDto {
+  nextDueMeter: number | null;
+  nextDueDate: string | null;
+  /** Kalan (meter: sayaç birimi, days: gün); NEGATİF = vade geçmiş; null = hesaplanamıyor. */
+  remaining: number | null;
+  overdue: boolean | null;
+}
+
+export interface MaintenancePlanDto {
+  id: number;
+  machineId: number;
+  name: string;
+  intervalType: MaintenanceIntervalType;
+  intervalValue: number;
+  lastDoneMeter: number | null;
+  lastDoneDate: string | null;
+  note: string | null;
+  active: boolean;
+  due: MaintenanceDueDto;
+}
+
+export interface MaintenanceRecordDto {
+  id: number;
+  machineId: number;
+  planId: number | null;
+  doneAt: string;
+  meterAt: number | null;
+  cost: number;
+  description: string;
+  vendorId: number | null;
+  createdBy: number | null;
+  createdAt: string;
+}
+
+export interface MachineMeterLogRowDto {
+  id: number;
+  machineId: number;
+  readAt: string;
+  meterValue: number;
+  isReset: boolean;
+  note: string | null;
+  createdBy: number | null;
+  createdAt: string;
+}
+
+export interface MachineMaintenanceDto {
+  machine: MachineParkDto;
+  plans: MaintenancePlanDto[];
+  records: MaintenanceRecordDto[];
+  meterLog: MachineMeterLogRowDto[];
+}

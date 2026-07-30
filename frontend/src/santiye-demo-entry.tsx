@@ -51,6 +51,7 @@ const TABS: ConstructionTab[] = [
   'quality',
   'commitments',
   'schedule',
+  'machinepark',
 ];
 
 const tabParam = params.get('tab');
