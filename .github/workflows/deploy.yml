@@ -82,15 +82,24 @@ jobs:
 
       - name: Migrate DB
         run: |
-          # api saglikli olana kadar bekle, sonra migration'lari calistir (idempotent)
+          # api saglikli olana kadar bekle, sonra migration'lari calistir (idempotent).
+          # Dongu zaman asiminda adimi DUSURUR — 2026-07-30'da saglik dongusu sessiz
+          # devam ettigi icin konteyner dongudeyken deploy yesil raporlanmisti.
+          ok=""
           for i in $(seq 1 30); do
             if docker compose -p api-server -f api-server/docker-compose.yml exec -T api curl -fsS http://localhost:3000/v1/health >/dev/null 2>&1; then
               echo "API hazir."
+              ok=1
               break
             fi
             echo "API bekleniyor ($i/30)..."
             sleep 2
           done
+          if [ -z "$ok" ]; then
+            echo "HATA: API 60 sn icinde ayaga kalkmadi. Son loglar:" >&2
+            docker logs prometa-one-api --tail 40 >&2 || true
+            exit 1
+          fi
           docker compose -p api-server -f api-server/docker-compose.yml exec -T api npm run migrate
 
       # Şantiye mikroservisi (construction-service) — aynı api-server projesi/ağı.
@@ -122,15 +131,23 @@ jobs:
           fi
           # 3) Build + up. Container CMD'i migrate'i kendisi çalıştırır (node scripts/migrate.js && tsx).
           docker compose -p api-server -f api-server/docker-compose.yml up -d --build construction-service
-          # 4) Sağlık kontrolü
+          # 4) Sağlık kontrolü — zaman aşımında adım DÜŞER (sessiz devam, yeniden
+          #    başlama döngüsündeki konteyneri "deploy başarılı" diye maskeliyordu).
+          ok=""
           for i in $(seq 1 30); do
             if curl -fsS http://localhost:3002/v1/health >/dev/null 2>&1; then
               echo "construction-service hazir."
+              ok=1
               break
             fi
             echo "construction-service bekleniyor ($i/30)..."
             sleep 2
           done
+          if [ -z "$ok" ]; then
+            echo "HATA: construction-service 60 sn icinde ayaga kalkmadi. Son loglar:" >&2
+            docker logs prometa-construction --tail 40 >&2 || true
+            exit 1
+          fi
 
       - name: Servis durumu
         run: docker compose -p api-server -f api-server/docker-compose.yml ps
