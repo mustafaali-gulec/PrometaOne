@@ -136,6 +136,12 @@ import type {
   ScheduleActivityDto,
   ScheduleCurveDto,
   MachineMaintenanceDto,
+  MemberRole,
+  PostDetailDto,
+  PostCommentDto,
+  PostDto,
+  ProjectMemberDto,
+  ProjectPhotoDto,
   UnitInventoryDto,
   UnitChangeRequestDto,
   UnitPaymentDto,
@@ -975,6 +981,78 @@ export interface ConstructionApi {
     id: number,
     body: { companyId: number; to: 'approved' | 'rejected' | 'done'; note?: string | null },
   ): Promise<UnitChangeRequestDto>;
+
+  // FAZ 11 — İşbirliği
+  listProjectMembers(
+    projectId: number,
+    companyId: number,
+    includeInactive?: boolean,
+  ): Promise<{ members: ProjectMemberDto[] }>;
+  addProjectMember(projectId: number, body: AddMemberBody): Promise<ProjectMemberDto>;
+  updateProjectMember(
+    memberId: number,
+    body: {
+      companyId: number;
+      memberName?: string;
+      memberRole?: MemberRole;
+      title?: string | null;
+      note?: string | null;
+    },
+  ): Promise<ProjectMemberDto>;
+  /** Soft: geçmiş okuma/yorum izi durur; okuma paydasından düşer. */
+  removeProjectMember(memberId: number, companyId: number): Promise<{ removed: boolean }>;
+
+  listPosts(projectId: number, companyId: number): Promise<{ posts: PostDto[] }>;
+  createPost(projectId: number, body: CreatePostBody): Promise<PostDto>;
+  getPost(postId: number, companyId: number): Promise<PostDetailDto>;
+  updatePost(
+    postId: number,
+    body: { companyId: number; title?: string | null; body?: string; pinned?: boolean },
+  ): Promise<PostDto>;
+  deletePost(postId: number, companyId: number): Promise<{ deleted: boolean }>;
+  /** İdempotent; ilk okuma anı korunur. Gönderi genişletilince çağrılır. */
+  markPostRead(postId: number, companyId: number): Promise<{ read: boolean }>;
+  addPostComment(
+    postId: number,
+    body: { companyId: number; body: string },
+  ): Promise<PostCommentDto>;
+
+  listProjectPhotos(projectId: number, companyId: number): Promise<{ photos: ProjectPhotoDto[] }>;
+  addProjectPhoto(projectId: number, body: AddPhotoBody): Promise<ProjectPhotoDto>;
+  /** Görüntüleme URL'i (Authorization header'sız <img> için kullanılamaz — bayt fetch edilir). */
+  getPhotoContentUrl(photoId: number, companyId: number): string;
+  fetchPhotoBlob(photoId: number, companyId: number): Promise<Blob>;
+  deleteProjectPhoto(photoId: number, companyId: number): Promise<{ deleted: boolean }>;
+}
+
+// ===== FAZ 11 — istek gövdeleri =============================================
+
+export interface AddMemberBody {
+  companyId: number;
+  userId: number;
+  memberName: string;
+  memberRole?: MemberRole;
+  title?: string | null;
+  note?: string | null;
+}
+
+export interface CreatePostBody {
+  companyId: number;
+  title?: string | null;
+  body: string;
+  pinned?: boolean;
+  /** Bilgilendirme listesi; boş/verilmemiş = tüm aktif ekip. */
+  recipients?: { userId: number; userName?: string }[];
+}
+
+export interface AddPhotoBody {
+  companyId: number;
+  locationId?: number | null;
+  title?: string | null;
+  takenAt?: string | null;
+  fileUrl?: string | null;
+  contentBase64?: string | null;
+  mimeType?: string | null;
 }
 
 // ===== FAZ 10 — istek gövdeleri =============================================

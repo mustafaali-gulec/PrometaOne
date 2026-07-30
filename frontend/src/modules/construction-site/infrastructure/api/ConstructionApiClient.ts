@@ -117,6 +117,12 @@ import type {
   ScheduleActivityDto,
   ScheduleCurveDto,
   MachineMaintenanceDto,
+  MemberRole,
+  PostDetailDto,
+  PostCommentDto,
+  PostDto,
+  ProjectMemberDto,
+  ProjectPhotoDto,
   UnitInventoryDto,
   UnitChangeRequestDto,
   UnitPaymentDto,
@@ -203,7 +209,10 @@ import type {
   CreateScheduleActivityBody,
   UpdateScheduleActivityBody,
   AddMaintenanceRecordBody,
+  AddMemberBody,
+  AddPhotoBody,
   AddUnitPaymentBody,
+  CreatePostBody,
   CreateUnitChangeRequestBody,
   CreateUnitSaleBody,
   UpdateUnitSaleBody,
@@ -1668,6 +1677,134 @@ export class ConstructionApiClient implements ConstructionApi {
     return this.request<UnitChangeRequestDto>(
       `/v1/construction/change-requests/${String(id)}/status`,
       { method: 'POST', body },
+    );
+  }
+
+  // ===== FAZ 11 — İŞBİRLİĞİ ================================================
+  listProjectMembers(
+    projectId: number,
+    companyId: number,
+    includeInactive?: boolean,
+  ): Promise<{ members: ProjectMemberDto[] }> {
+    return this.request<{ members: ProjectMemberDto[] }>(
+      `/v1/construction/projects/${String(projectId)}/members?${this.qs(companyId, { includeInactive })}`,
+    );
+  }
+
+  addProjectMember(projectId: number, body: AddMemberBody): Promise<ProjectMemberDto> {
+    return this.request<ProjectMemberDto>(
+      `/v1/construction/projects/${String(projectId)}/members`,
+      { method: 'POST', body },
+    );
+  }
+
+  updateProjectMember(
+    memberId: number,
+    body: {
+      companyId: number;
+      memberName?: string;
+      memberRole?: MemberRole;
+      title?: string | null;
+      note?: string | null;
+    },
+  ): Promise<ProjectMemberDto> {
+    return this.request<ProjectMemberDto>(`/v1/construction/members/${String(memberId)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  removeProjectMember(memberId: number, companyId: number): Promise<{ removed: boolean }> {
+    return this.request<{ removed: boolean }>(
+      `/v1/construction/members/${String(memberId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  listPosts(projectId: number, companyId: number): Promise<{ posts: PostDto[] }> {
+    return this.request<{ posts: PostDto[] }>(
+      `/v1/construction/projects/${String(projectId)}/posts?companyId=${String(companyId)}`,
+    );
+  }
+
+  createPost(projectId: number, body: CreatePostBody): Promise<PostDto> {
+    return this.request<PostDto>(`/v1/construction/projects/${String(projectId)}/posts`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  getPost(postId: number, companyId: number): Promise<PostDetailDto> {
+    return this.request<PostDetailDto>(
+      `/v1/construction/posts/${String(postId)}?companyId=${String(companyId)}`,
+    );
+  }
+
+  updatePost(
+    postId: number,
+    body: { companyId: number; title?: string | null; body?: string; pinned?: boolean },
+  ): Promise<PostDto> {
+    return this.request<PostDto>(`/v1/construction/posts/${String(postId)}`, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  deletePost(postId: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/posts/${String(postId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
+    );
+  }
+
+  markPostRead(postId: number, companyId: number): Promise<{ read: boolean }> {
+    return this.request<{ read: boolean }>(`/v1/construction/posts/${String(postId)}/read`, {
+      method: 'POST',
+      body: { companyId },
+    });
+  }
+
+  addPostComment(
+    postId: number,
+    body: { companyId: number; body: string },
+  ): Promise<PostCommentDto> {
+    return this.request<PostCommentDto>(`/v1/construction/posts/${String(postId)}/comments`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  listProjectPhotos(projectId: number, companyId: number): Promise<{ photos: ProjectPhotoDto[] }> {
+    return this.request<{ photos: ProjectPhotoDto[] }>(
+      `/v1/construction/projects/${String(projectId)}/photos?companyId=${String(companyId)}`,
+    );
+  }
+
+  addProjectPhoto(projectId: number, body: AddPhotoBody): Promise<ProjectPhotoDto> {
+    return this.request<ProjectPhotoDto>(`/v1/construction/projects/${String(projectId)}/photos`, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  getPhotoContentUrl(photoId: number, companyId: number): string {
+    return `${this.baseUrl}/v1/construction/photos/${String(photoId)}/content?companyId=${String(companyId)}`;
+  }
+
+  /** Bayt indirme Authorization ister; <img src> yerine blob URL kurulur. */
+  async fetchPhotoBlob(photoId: number, companyId: number): Promise<Blob> {
+    const token = this.tokens.getAccessToken();
+    const res = await fetch(this.getPhotoContentUrl(photoId, companyId), {
+      headers: { Authorization: `Bearer ${token ?? ''}` },
+    });
+    if (!res.ok) throw new Error(`HTTP ${String(res.status)}`);
+    return res.blob();
+  }
+
+  deleteProjectPhoto(photoId: number, companyId: number): Promise<{ deleted: boolean }> {
+    return this.request<{ deleted: boolean }>(
+      `/v1/construction/photos/${String(photoId)}?companyId=${String(companyId)}`,
+      { method: 'DELETE' },
     );
   }
 
