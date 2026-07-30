@@ -22,6 +22,8 @@ export interface MachineUpdate {
   kind?: MachineKind;
   vendorId?: number | null;
   hourlyCost?: number;
+  /** Pasife çekme / geri alma. Kayıt SİLİNMEZ — log/bakım izi makineyle kalır. */
+  active?: boolean;
 }
 
 export class Machine {
@@ -80,6 +82,7 @@ export class Machine {
       kind: c.kind ?? this.props.kind,
       vendorId: c.vendorId !== undefined ? c.vendorId : this.props.vendorId,
       hourlyCost,
+      active: c.active !== undefined ? c.active : this.props.active,
       updatedAt: now,
     });
   }

@@ -1505,7 +1505,17 @@ async function main() {
       });
     }
   }
-  console.log(`  makine ${mch.code} DB'de kaldi (SF-6'da pasife cekme ucu yok)`);
+  // Makine pasife çekilir (SF-6 açığı kapandı) ve varsayılan listeden düşer
+  const mchOff = (
+    await call('PATCH', `machines/${String(mch.id)}`, { companyId: 1, active: false })
+  ).json;
+  chk('makine pasife çekildi', false, mchOff.active);
+  const parkAfterOff = (await get('machine-park?companyId=1')).json.machines;
+  chk(
+    'pasif makine varsayılan park listesinden düştü',
+    undefined,
+    parkAfterOff.find((m) => m.id === mch.id),
+  );
   await del(`inspection-templates/${String(tpl6.id)}?companyId=1`);
   console.log('  proje pasife çekildi, şablonlar pasifleştirildi');
 
