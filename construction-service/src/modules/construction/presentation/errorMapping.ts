@@ -8,8 +8,11 @@
 import { HTTPException } from 'hono/http-exception';
 
 import {
+  ActivityHasChildrenError,
   AdvanceNotFoundError,
   ApprovalFlowNotFoundError,
+  DuplicateActivityCodeError,
+  ScheduleActivityNotFoundError,
   CommitmentNotFoundError,
   DuplicateCommitmentRefError,
   AssignmentNotFoundError,
@@ -100,7 +103,8 @@ export function mapConstructionError(err: unknown): never {
     err instanceof RfiNotFoundError ||
     err instanceof AssignmentNotFoundError ||
     err instanceof QualityFileNotFoundError ||
-    err instanceof CommitmentNotFoundError
+    err instanceof CommitmentNotFoundError ||
+    err instanceof ScheduleActivityNotFoundError
   ) {
     throw new HTTPException(404, { message: err.message });
   }
@@ -121,14 +125,19 @@ export function mapConstructionError(err: unknown): never {
     err instanceof DuplicateInspectionCodeError ||
     err instanceof DuplicateRfiCodeError ||
     err instanceof DuplicateAssignmentCodeError ||
-    err instanceof DuplicateCommitmentRefError
+    err instanceof DuplicateCommitmentRefError ||
+    err instanceof DuplicateActivityCodeError
   ) {
     throw new HTTPException(409, { message: err.message });
   }
 
   // Bağlı kayıt yüzünden silinemeyen lokasyon bir çatışmadır (409), geçersiz
   // istek değil: istemci önce bağlı kayıtları taşımalı/temizlemeli.
-  if (err instanceof LocationInUseError || err instanceof DailyLogLockedError) {
+  if (
+    err instanceof LocationInUseError ||
+    err instanceof DailyLogLockedError ||
+    err instanceof ActivityHasChildrenError
+  ) {
     throw new HTTPException(409, { message: err.message });
   }
 

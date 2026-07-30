@@ -374,3 +374,24 @@ export class DuplicateCommitmentRefError extends ConstructionError {
     super(`Bu kaynak satırı zaten kayıtlı: ${refNo} / ${refLineNo}`);
   }
 }
+
+// ===== FAZ 8 — İş Programı =================================================
+
+export class ScheduleActivityNotFoundError extends ConstructionError {
+  constructor(id: number) {
+    super(`Aktivite bulunamadı: ${id}`);
+  }
+}
+
+export class DuplicateActivityCodeError extends ConstructionError {
+  constructor(code: string) {
+    super(`Bu aktivite kodu projede zaten kullanılıyor: ${code}`);
+  }
+}
+
+/** Altında aktivite olan satır silinemez — önce çocuklar taşınmalı/silinmeli. */
+export class ActivityHasChildrenError extends ConstructionError {
+  constructor(id: number, count: number) {
+    super(`Aktivitenin altında ${count} satır var, önce onlar taşınmalı/silinmeli: ${id}`);
+  }
+}

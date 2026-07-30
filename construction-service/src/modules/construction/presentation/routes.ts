@@ -190,6 +190,15 @@ import type {
   GetProjectDashboardUseCase,
 } from '../application/useCases/ReportUseCases.js';
 import type {
+  CreateActivityUseCase,
+  DeactivateActivityUseCase,
+  GetActivityProgressLogUseCase,
+  GetProjectScheduleCurveUseCase,
+  GetProjectScheduleUseCase,
+  RecordActivityProgressUseCase,
+  UpdateActivityUseCase,
+} from '../application/useCases/ScheduleUseCases.js';
+import type {
   AddTrackingLocationsUseCase,
   ChangeTrackingStatusUseCase,
   CreateProgressTemplateUseCase,
@@ -387,6 +396,14 @@ export interface ConstructionRouterDeps {
   syncCommitments: SyncCommitmentsUseCase;
   getContractEvm: GetContractEvmUseCase;
   getProjectEvm: GetProjectEvmUseCase;
+  // FAZ 8 — İş programı
+  createActivity: CreateActivityUseCase;
+  updateActivity: UpdateActivityUseCase;
+  deactivateActivity: DeactivateActivityUseCase;
+  recordActivityProgress: RecordActivityProgressUseCase;
+  getProjectSchedule: GetProjectScheduleUseCase;
+  getActivityProgressLog: GetActivityProgressLogUseCase;
+  getProjectScheduleCurve: GetProjectScheduleCurveUseCase;
 }
 
 // --- Schema fragmanları ---------------------------------------------------
@@ -491,6 +508,8 @@ const qualityDocKind = z.enum(['defect', 'inspection', 'rfi', 'assignment']);
 // FAZ 7 fragmanları
 const commitmentSource = z.enum(['purchase_order', 'subcontract', 'manual']);
 const commitmentStatus = z.enum(['open', 'partial', 'closed', 'cancelled']);
+// FAZ 8 fragmanları
+const activityKind = z.enum(['group', 'task', 'milestone']);
 const pct = z.number().min(0).max(100);
 const templateBodySchema = z.object({
   groups: z.array(
@@ -4754,6 +4773,201 @@ export function createConstructionRouter(deps: ConstructionRouterDeps): Hono {
       const q = c.req.valid('query');
       try {
         return c.json(await deps.getProjectEvm.execute({ companyId: q.companyId, projectId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  // ===== FAZ 8 — İŞ PROGRAMI (Gantt + S-eğrisi) =============================
+
+  app.get(
+    '/projects/:id/schedule',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ.extend({ includeInactive: z.coerce.boolean().optional() })),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getProjectSchedule.execute({
+            companyId: q.companyId,
+            projectId: id,
+            ...(q.includeInactive !== undefined ? { includeInactive: q.includeInactive } : {}),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /** Planlanan/fiili S-eğrisi. stepDays=7 varsayılan (haftalık nokta). */
+  app.get(
+    '/projects/:id/schedule-curve',
+    zValidator('param', idParam),
+    zValidator(
+      'query',
+      companyIdQ.extend({ stepDays: z.coerce.number().int().min(1).max(90).optional() }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.getProjectScheduleCurve.execute({
+            companyId: q.companyId,
+            projectId: id,
+            ...(q.stepDays !== undefined ? { stepDays: q.stepDays } : {}),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.post(
+    '/schedule-activities',
+    requireWrite,
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        projectId: z.number().int().positive(),
+        parentId: z.number().int().positive().nullable().optional(),
+        code: z.string().max(40).optional(),
+        name: z.string().min(1).max(300),
+        kind: activityKind.optional(),
+        plannedStart: dateStr,
+        plannedEnd: dateStr.optional(),
+        weightPct: z.number().nonnegative().optional(),
+        trackingId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        locationId: z.number().int().positive().nullable().optional(),
+        dependsOn: z.number().int().positive().nullable().optional(),
+        sortOrder: z.number().int().nonnegative().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.createActivity.execute({ ...b, createdBy: actorId(c) }), 201);
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.patch(
+    '/schedule-activities/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z.object({
+        companyId: z.number().int().positive(),
+        parentId: z.number().int().positive().nullable().optional(),
+        name: z.string().min(1).max(300).optional(),
+        kind: activityKind.optional(),
+        plannedStart: dateStr.optional(),
+        plannedEnd: dateStr.optional(),
+        weightPct: z.number().nonnegative().optional(),
+        trackingId: z.number().int().positive().nullable().optional(),
+        boqLineId: z.number().int().positive().nullable().optional(),
+        locationId: z.number().int().positive().nullable().optional(),
+        dependsOn: z.number().int().positive().nullable().optional(),
+        sortOrder: z.number().int().nonnegative().optional(),
+        note: z.string().max(4000).nullable().optional(),
+      }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(await deps.updateActivity.execute({ ...b, activityId: id }));
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.delete(
+    '/schedule-activities/:id',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json(
+          await deps.deactivateActivity.execute({ activityId: id, companyId: q.companyId }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  /**
+   * İlerleme kaydı: yüzde elle ya da fromTracking=true ile bağlı fiziksel
+   * takipten çekilir. Her kayıt günlüğe düşer — fiili S-eğrisinin kaynağı.
+   */
+  app.post(
+    '/schedule-activities/:id/progress',
+    requireWrite,
+    zValidator('param', idParam),
+    zValidator(
+      'json',
+      z
+        .object({
+          companyId: z.number().int().positive(),
+          progressPct: z.number().min(0).max(100).optional(),
+          fromTracking: z.boolean().optional(),
+          asOf: dateStr.optional(),
+          note: z.string().max(500).nullable().optional(),
+        })
+        .refine((b) => b.progressPct !== undefined || b.fromTracking === true, {
+          message: 'progressPct ya da fromTracking verilmeli',
+        }),
+    ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const b = c.req.valid('json');
+      try {
+        return c.json(
+          await deps.recordActivityProgress.execute({
+            activityId: id,
+            companyId: b.companyId,
+            ...(b.progressPct !== undefined ? { progressPct: b.progressPct } : {}),
+            ...(b.fromTracking !== undefined ? { fromTracking: b.fromTracking } : {}),
+            ...(b.asOf !== undefined ? { asOf: b.asOf } : {}),
+            note: b.note ?? null,
+            actorUserId: actorId(c),
+          }),
+        );
+      } catch (err) {
+        mapConstructionError(err);
+      }
+    },
+  );
+
+  app.get(
+    '/schedule-activities/:id/progress-log',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        return c.json({
+          log: await deps.getActivityProgressLog.execute({
+            activityId: id,
+            companyId: q.companyId,
+          }),
+        });
       } catch (err) {
         mapConstructionError(err);
       }
