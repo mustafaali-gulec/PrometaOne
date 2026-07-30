@@ -1,5 +1,5 @@
 /**
- * Faz 1→2→3→4→5→6→7 uçtan uca duman testi. Tek süreç, fetch tabanlı.
+ * Faz 1→2→3→4→5→6→7→8 uçtan uca duman testi. Tek süreç, fetch tabanlı.
  *
  * Yerel dev sunucusuna (varsayılan :3003) karşı koşar; ürettiği tüm veriyi
  * sonunda temizler. Geçici dosya — depoya girmez.
@@ -941,6 +941,128 @@ async function main() {
   });
   chk('iptal edilen taahhüt düzenlenemez 400', 400, editCancelled.status);
 
+  console.log('=== FAZ 8: iş programı ===');
+
+  // WBS: grup + altında iki iş + kilometre taşı
+  const grp8 = (
+    await post('schedule-activities', {
+      companyId: 1,
+      projectId: PRJ,
+      name: 'Kaba Yapı',
+      kind: 'group',
+      plannedStart: dayShift(-30),
+      plannedEnd: dayShift(30),
+    })
+  ).json;
+  chk('grup kuruldu, kod üretildi', 'AKT-001', grp8.code);
+
+  const t1 = (
+    await post('schedule-activities', {
+      companyId: 1,
+      projectId: PRJ,
+      parentId: grp8.id,
+      name: 'Temel kazısı',
+      plannedStart: dayShift(-30),
+      plannedEnd: dayShift(-10),
+      weightPct: 30,
+    })
+  ).json;
+  const t2 = (
+    await post('schedule-activities', {
+      companyId: 1,
+      projectId: PRJ,
+      parentId: grp8.id,
+      name: 'Temel betonu',
+      plannedStart: dayShift(-10),
+      plannedEnd: dayShift(20),
+      weightPct: 70,
+      dependsOn: t1.id,
+    })
+  ).json;
+  chk('bağımlı aktivite kuruldu', t1.id, t2.dependsOn);
+
+  const ms8 = (
+    await post('schedule-activities', {
+      companyId: 1,
+      projectId: PRJ,
+      name: 'Kaba yapı teslimi',
+      kind: 'milestone',
+      plannedStart: dayShift(30),
+    })
+  ).json;
+  chk('kilometre taşı süresiz', ms8.plannedStart, ms8.plannedEnd);
+
+  // İşin altına iş eklenemez (yalnız grup altına)
+  const badParent = await post('schedule-activities', {
+    companyId: 1,
+    projectId: PRJ,
+    parentId: t1.id,
+    name: 'x',
+    plannedStart: dayShift(0),
+  });
+  chk('iş satırının altına ekleme 400', 400, badParent.status);
+
+  // İlerleme: geçmişe iki kayıt + bugüne bir kayıt (fiili eğri girdisi)
+  await post(`schedule-activities/${String(t1.id)}/progress`, {
+    companyId: 1,
+    progressPct: 50,
+    asOf: dayShift(-20),
+  });
+  const p1 = (
+    await post(`schedule-activities/${String(t1.id)}/progress`, {
+      companyId: 1,
+      progressPct: 100,
+      asOf: dayShift(-8),
+    })
+  ).json;
+  chk('100 fiili bitişi damgaladı', dayShift(-8), p1.actualEnd);
+  chk('ilk ilerleme fiili başlangıcı damgaladı', dayShift(-20), p1.actualStart);
+
+  const futureProg = await post(`schedule-activities/${String(t2.id)}/progress`, {
+    companyId: 1,
+    progressPct: 10,
+    asOf: dayShift(5),
+  });
+  chk('geleceğe ilerleme yazılamaz 400', 400, futureProg.status);
+
+  await post(`schedule-activities/${String(t2.id)}/progress`, {
+    companyId: 1,
+    progressPct: 40,
+    asOf: dayShift(0),
+  });
+
+  // Aynı güne ikinci kayıt üzerine yazar (düzeltme)
+  await post(`schedule-activities/${String(t2.id)}/progress`, {
+    companyId: 1,
+    progressPct: 45,
+    asOf: dayShift(0),
+  });
+  const log8 = (await get(`schedule-activities/${String(t2.id)}/progress-log?companyId=1`)).json
+    .log;
+  chk('aynı güne ikinci kayıt üzerine yazdı (tek satır)', 1, log8.length);
+  chk('günlükte düzeltilmiş değer', 45, log8[0].progressPct);
+
+  // Program listesi + özet
+  const sched = (await get(`projects/${String(PRJ)}/schedule?companyId=1`)).json;
+  chk('program 4 satır (grup+2 iş+taş)', 4, sched.activities.length);
+  chk('özet: yaprak sayısı 3', 3, sched.summary.taskCount);
+  chk('özet: biten 1', 1, sched.summary.doneCount);
+
+  // S-eğrisi: ağırlıklar açık (30+70), taş 0 ağırlık
+  const curve = (await get(`projects/${String(PRJ)}/schedule-curve?companyId=1`)).json;
+  chk('eğri açık ağırlık kipinde', 'explicit', curve.weightMode);
+  chk('eğri noktaları var', true, curve.points.length > 3);
+  const todayPoint = curve.points.filter((p) => p.actualPct !== null).pop();
+  // Bugünkü fiili: 0,3×100 + 0,7×45 = %61,5
+  chk('bugünkü fiili % (ağırlıklı)', 61.5, todayPoint.actualPct);
+  const lastPoint = curve.points[curve.points.length - 1];
+  chk('gelecek noktada fiili null', null, lastPoint.actualPct);
+  chk('plan sonda %100', 100, lastPoint.plannedPct);
+
+  // Altı dolu grup silinemez (409); önce çocuklar
+  const delGrp = await del(`schedule-activities/${String(grp8.id)}?companyId=1`);
+  chk('altı dolu grup silinemez 409', 409, delGrp.status);
+
   console.log('=== TEMİZLİK ===');
   await del(`projects/${PRJ}?companyId=1`);
   await del(`progress-templates/${TPL}?companyId=1`);
@@ -965,6 +1087,9 @@ async function main() {
       },
     ],
   });
+  for (const aid of [t1.id, t2.id, ms8.id, grp8.id]) {
+    await del(`schedule-activities/${String(aid)}?companyId=1`);
+  }
   await del(`inspection-templates/${String(tpl6.id)}?companyId=1`);
   console.log('  proje pasife çekildi, şablonlar pasifleştirildi');
 

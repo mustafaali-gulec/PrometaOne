@@ -191,6 +191,15 @@ import {
   GetProjectDashboardUseCase,
 } from './application/useCases/ReportUseCases.js';
 import {
+  CreateActivityUseCase,
+  DeactivateActivityUseCase,
+  GetActivityProgressLogUseCase,
+  GetProjectScheduleCurveUseCase,
+  GetProjectScheduleUseCase,
+  RecordActivityProgressUseCase,
+  UpdateActivityUseCase,
+} from './application/useCases/ScheduleUseCases.js';
+import {
   AddTrackingLocationsUseCase,
   ChangeTrackingStatusUseCase,
   CreateProgressTemplateUseCase,
@@ -249,6 +258,7 @@ import {
   PgQualityFileRepository,
   PgRfiRepository,
 } from './infrastructure/persistence/PgQualityRepositories.js';
+import { PgScheduleRepository } from './infrastructure/persistence/PgScheduleRepository.js';
 import {
   PgProgressTemplateRepository,
   PgTrackingRepository,
@@ -293,6 +303,7 @@ export function registerConstructionModule(
   const assignments = new PgAssignmentRepository(pool);
   const qualityFiles = new PgQualityFileRepository(pool);
   const commitments = new PgCommitmentRepository(pool);
+  const schedule = new PgScheduleRepository(pool);
 
   const deps: ConstructionRouterDeps = {
     createProject: new CreateProjectUseCase(projects),
@@ -487,6 +498,14 @@ export function registerConstructionModule(
     syncCommitments: new SyncCommitmentsUseCase(commitments, projects, clock),
     getContractEvm: new GetContractEvmUseCase(commitments),
     getProjectEvm: new GetProjectEvmUseCase(commitments),
+    // FAZ 8 — İş programı
+    createActivity: new CreateActivityUseCase(schedule, projects, clock),
+    updateActivity: new UpdateActivityUseCase(schedule, clock),
+    deactivateActivity: new DeactivateActivityUseCase(schedule),
+    recordActivityProgress: new RecordActivityProgressUseCase(schedule, clock),
+    getProjectSchedule: new GetProjectScheduleUseCase(schedule, projects, clock),
+    getActivityProgressLog: new GetActivityProgressLogUseCase(schedule),
+    getProjectScheduleCurve: new GetProjectScheduleCurveUseCase(schedule, projects, clock),
   };
 
   return createConstructionRouter(deps);
