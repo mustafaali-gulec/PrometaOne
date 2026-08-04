@@ -40,9 +40,12 @@ Write-Host '  =====================================================' -Foreground
 Write-Host ''
 
 # --- 1) Sunucu adresi + baglanti testi ---------------------------------------
+# Sunucuya BILGISAYAR ADI (onerilen: IP degisse de calisir) veya IP ile
+# baglanilabilir. Ad girildiyse once DNS/NetBIOS cozumu denenir ve hata
+# durumunda cozulen IP ile devam secenegi sunulur.
 $temelUrl = $null
 while ($true) {
-    $sunucu = Read-Host '  Sunucu adresi veya IP (ornek: 192.168.1.10)'
+    $sunucu = Read-Host '  Sunucu bilgisayar adi veya IP (ornek: sunucu-pc veya 192.168.1.10)'
     if ([string]::IsNullOrWhiteSpace($sunucu)) {
         Write-Hata 'Sunucu adresi bos olamaz.'
         continue
@@ -73,6 +76,23 @@ while ($true) {
     }
 
     Write-Hata 'Sunucuya ulasilamadi.'
+    # Ad girildiyse (IP degilse) ad cozumu tanilamasi yap
+    $ipMi = $sunucu -match '^\d{1,3}(\.\d{1,3}){3}$'
+    if (-not $ipMi) {
+        $cozulenIp = $null
+        try {
+            $adresler = [System.Net.Dns]::GetHostAddresses($sunucu) |
+                Where-Object { $_.AddressFamily -eq 'InterNetwork' }
+            if ($adresler) { $cozulenIp = $adresler[0].IPAddressToString }
+        } catch {}
+        if ($cozulenIp) {
+            Write-Bilgi ("Ad cozuldu ({0} -> {1}) ama sunucu yanit vermedi." -f $sunucu, $cozulenIp)
+            Write-Bilgi 'Sunucudaki kurulumun tamamlandigini ve guvenlik duvari kuralini kontrol edin.'
+        } else {
+            Write-Bilgi ("'{0}' adi bu agda COZULEMEDI. Bilgisayar adi yerine sunucunun" -f $sunucu)
+            Write-Bilgi 'IP adresini deneyin (sunucuda: ipconfig) veya ag yoneticinize danisin.'
+        }
+    }
     Write-Bilgi 'Kontrol edin: (1) Sunucu acik mi ve kurulum tamamlandi mi?'
     Write-Bilgi '(2) Adres/port dogru mu? (3) Ag baglantisi ve guvenlik duvari?'
     $devamEt = Read-EvetHayir 'Yine de bu adresle devam edilsin mi?' 'H'

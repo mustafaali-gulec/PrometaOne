@@ -295,18 +295,49 @@ if ($envYaz) {
     if ([string]::IsNullOrWhiteSpace($jwtSecret))  { $jwtSecret  = New-GucluSifre }
     if ([string]::IsNullOrWhiteSpace($jwtRefresh)) { $jwtRefresh = New-GucluSifre }
 
-    # CORS/APP_URL: localhost + sunucu IP'leri (terminaller IP ile baglanir)
+    # Sunucu adresi: terminaller hem BILGISAYAR ADI hem IP ile baglanabilir.
+    # (DEPLOY_MODE=onprem oldugu icin API, ozel-ag origin'lerini zaten otomatik
+    # kabul eder; CORS_ORIGINS listesi yine de belgeleme/saas-gecisi icin yazilir.)
     $portEki = ''
     if ($httpPort -ne 80) { $portEki = (":{0}" -f $httpPort) }
+
+    $makineAdi = ''
+    try { $makineAdi = ($env:COMPUTERNAME + '').Trim().ToLowerInvariant() } catch {}
+    Write-Host ''
+    if (-not [string]::IsNullOrWhiteSpace($makineAdi)) {
+        Write-Bilgi ("Bu sunucunun bilgisayar adi: {0}" -f $makineAdi)
+        Write-Bilgi 'Terminaller bu ada veya sunucu IP''sine baglanabilir. Bilgisayar adi'
+        Write-Bilgi 'ONERILIR: IP degisse bile (DHCP) terminal kisayollari calismaya devam eder.'
+    }
+    $varsayilanAdres = $makineAdi
+    if ([string]::IsNullOrWhiteSpace($varsayilanAdres)) { $varsayilanAdres = 'localhost' }
+    $kanonik = Read-Host ("  Terminallerin kullanacagi sunucu adresi [{0}]" -f $varsayilanAdres)
+    if ([string]::IsNullOrWhiteSpace($kanonik)) { $kanonik = $varsayilanAdres }
+    $kanonik = ($kanonik.Trim().TrimEnd('/') -replace '^https?://', '').ToLowerInvariant()
+    Write-Ok ("Sunucu adresi (APP_URL / e-posta linkleri): http://{0}{1}" -f $kanonik, $portEki)
+
     $originler = New-Object System.Collections.Generic.List[string]
+    $originler.Add(("http://{0}{1}" -f $kanonik, $portEki))
     $originler.Add(("http://localhost{0}" -f $portEki))
+    if (-not [string]::IsNullOrWhiteSpace($makineAdi)) {
+        $originler.Add(("http://{0}{1}" -f $makineAdi, $portEki))
+        $originler.Add(("http://{0}.local{1}" -f $makineAdi, $portEki))
+    }
+    try {
+        $fqdn = [System.Net.Dns]::GetHostEntry('').HostName
+        if (-not [string]::IsNullOrWhiteSpace($fqdn)) {
+            $originler.Add(("http://{0}{1}" -f $fqdn.Trim().ToLowerInvariant(), $portEki))
+        }
+    } catch {}
     try {
         $ipler = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop |
             Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' }
         foreach ($ip in $ipler) { $originler.Add(("http://{0}{1}" -f $ip.IPAddress, $portEki)) }
     } catch {}
     $corsOrigins = ($originler | Select-Object -Unique) -join ','
-    $appUrl = $originler[0]
+    # APP_URL artik localhost DEGIL: parola sifirlama e-postalarindaki linkler
+    # terminallerden de acilabilsin diye kanonik adres kullanilir.
+    $appUrl = ("http://{0}{1}" -f $kanonik, $portEki)
 
     $envIcerik = @(
         '# =============================================================',
@@ -319,6 +350,8 @@ if ($envYaz) {
         ("JWT_SECRET={0}" -f $jwtSecret),
         ("JWT_REFRESH_SECRET={0}" -f $jwtRefresh),
         ("PROMETA_FINGERPRINT={0}" -f $parmakIzi),
+        '# Dagitim modu: onprem = ozel-ag origin''leri (IP / bilgisayar adi) otomatik kabul',
+        'DEPLOY_MODE=onprem',
         ("CORS_ORIGINS={0}" -f $corsOrigins),
         ("APP_URL={0}" -f $appUrl),
         ("EMAIL_PROVIDER={0}" -f $emailProvider),
@@ -463,7 +496,12 @@ Write-Host '  =====================================================' -Foreground
 Write-Host ("   Donanim Kimligi : {0}" -f $parmakIzi) -ForegroundColor White
 Write-Host ("   Web arayuzu     : http://localhost{0}" -f $portEki2) -ForegroundColor White
 Write-Host ''
-Write-Host '   Bu sunucunun ag adresleri (terminaller icin):' -ForegroundColor White
+Write-Host '   Terminaller su adreslerden HERHANGI biriyle baglanabilir:' -ForegroundColor White
+$ozetMakineAdi = ''
+try { $ozetMakineAdi = ($env:COMPUTERNAME + '').Trim().ToLowerInvariant() } catch {}
+if (-not [string]::IsNullOrWhiteSpace($ozetMakineAdi)) {
+    Write-Host ("     http://{0}{1}   (bilgisayar adi - ONERILEN: IP degisse de calisir)" -f $ozetMakineAdi, $portEki2) -ForegroundColor Cyan
+}
 try {
     $ipListe = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop |
         Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' }
@@ -473,6 +511,9 @@ try {
 } catch {
     Write-Host '     (IP adresleri okunamadi - ipconfig ile kontrol edin)' -ForegroundColor Yellow
 }
+Write-Host ''
+Write-Host '   Mobil cihazlar (telefon/tablet) ayni ag uzerinden yukaridaki' -ForegroundColor Gray
+Write-Host '   adreslerin herhangi biriyle tarayicidan baglanabilir.' -ForegroundColor Gray
 Write-Host ''
 Write-Host '   TERMINAL KURULUMU:' -ForegroundColor White
 Write-Host '   Her terminal bilgisayarda install\Kurulum-Terminal.bat dosyasini' -ForegroundColor Gray

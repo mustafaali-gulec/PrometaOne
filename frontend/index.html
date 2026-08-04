@@ -117,6 +117,9 @@
       <p>Yükleniyor…</p>
     </div>
     <div id="root"></div>
+    <!-- Çalışma zamanı yapılandırması (SaaS/on-prem/mobil — build gerektirmez).
+         Klasik script: module bundle'dan ÖNCE çalışması garantidir. -->
+    <script src="/runtime-config.js"></script>
     <script type="module" src="/src/main.jsx"></script>
     <script>
       // App mount olunca splash kalksın

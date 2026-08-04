@@ -28,6 +28,10 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRES: z.string().default('15m'),
   JWT_REFRESH_EXPIRES: z.string().default('7d'),
 
+  // Dağıtım modu — CORS politikasını belirler (bkz. corsPolicy.ts):
+  //   onprem: CORS_ORIGINS + özel-ağ origin'leri (IP/makine adı) otomatik kabul
+  //   saas  : yalnız CORS_ORIGINS (joker alt alan adı destekli)
+  DEPLOY_MODE: z.enum(['onprem', 'saas']).default('onprem'),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   BCRYPT_ROUNDS: z.coerce.number().min(8).max(15).default(10),
 

@@ -94,7 +94,8 @@ Linux: `sudo bash install/kurulum-sunucu.sh`.
 İkinci makinede: `install\Kurulum-Terminal.bat` (yönetici gerekmez).
 
 - [ ] **6.1** Sunucu IP + port giriliyor → `/v1/health` bağlantı testi geçiyor.
-- [ ] **6.2** Yanlış IP/port girildiğinde anlaşılır hata + tekrar deneme / yine de devam seçeneği.
+- [ ] **6.1b** Sunucu **bilgisayar adı** ile de bağlanılabiliyor (ör. `sunucu-pc`) → bağlantı testi geçiyor, kısayol ada göre oluşuyor; uygulama açılıp giriş yapılabiliyor.
+- [ ] **6.2** Yanlış IP/port girildiğinde anlaşılır hata + tekrar deneme / yine de devam seçeneği; **çözülemeyen ad** girildiğinde "ad çözülemedi, IP deneyin" tanılaması görünüyor.
 - [ ] **6.3** Terminal adı soruluyor (varsayılan: bilgisayar adı).
 - [ ] **6.4** Masaüstü + Başlat Menüsü'ne **"Prometa One"** kısayolu oluşuyor (Edge/Chrome uygulama modu; ikisi de yoksa `.url`).
 - [ ] **6.5** Kısayol açılınca uygulama sunucudan yükleniyor, giriş ekranı geliyor.
@@ -126,6 +127,16 @@ tarayıcılar + gizli sekmeler her biri yeni bir terminal kimliği üretir.)_
 
 - [ ] **9.1** Sunucuda `docker compose -f docker-compose.prod.yml --env-file .env.prod ps` → **yalnız `web`** (nginx) portu dışarı yayınlanmış; postgres/api/ml host portu YOK.
 - [ ] **9.2** Terminal makinesinden `http://<SUNUCU_IP>:5432` / `:3000` / `:8001` **açılMAMALI** (bağlantı reddi/zaman aşımı) — yalnız `http://<SUNUCU_IP>:<port>` çalışmalı.
+- [ ] **9.3** `.env.prod` içinde `DEPLOY_MODE=onprem` var; sunucuya hem IP hem bilgisayar adıyla girildiğinde uygulama sorunsuz (CORS engeli yok).
+
+---
+
+## 9b. Mobil erişim (aynı ağ)
+
+- [ ] **9b.1** Aynı ağdaki bir telefon/tabletten `http://<BILGISAYAR-ADI>:<port>` veya `http://<SUNUCU_IP>:<port>` açılıyor; giriş yapılabiliyor.
+- [ ] **9b.2** Telefonda ekranlar kullanılabilir düzende: çok kolonlu form/kart grid'leri 2 kolona düşüyor, modallar tam genişlik, alt gezinme çubuğu görünüyor.
+- [ ] **9b.3** Mobil cihaz da bir koltuk (terminal) sayılır — Lisans Yönetimi → Terminaller'de kayıt görünüyor.
+- [ ] _(Bilgi)_ PWA kurulumu / push bildirimi HTTPS gerektirir; düz HTTP on-prem kurulumda bu ikisi devre dışıdır (tarayıcı kısıtı).
 
 ---
 

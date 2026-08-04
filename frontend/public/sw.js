@@ -10,7 +10,7 @@
      istemci controllerchange ile sayfayı bir kez kendiliğinden yeniler.
 ============================================================================ */
 
-const SW_VERSION = "1.3.1";
+const SW_VERSION = "1.4.0";
 const APP_NAME = "M Suite";
 const CACHE_VERSION = `msuite-app-v${SW_VERSION}`;
 const RUNTIME_CACHE = `msuite-runtime-v${SW_VERSION}`;
@@ -85,16 +85,17 @@ self.addEventListener("fetch", (event) => {
   // Chrome extension, vs. protokolleri skip
   if (!url.protocol.startsWith("http")) return;
 
-  // API çağrıları (backend ve ML) — Network-first
-  if (
-    url.pathname.startsWith("/v1/") ||
-    url.pathname.startsWith("/api/") ||
-    url.port === "3000" ||
-    url.port === "8001"
-  ) {
+  // API çağrıları (backend ve ML) — Network-first. Path tabanlı sınıflandırma
+  // origin'den bağımsızdır: aynı-origin proxy modunda da, runtime-config.js ile
+  // ayrık API origin'i yapılandırıldığında da doğru çalışır (port sezgisi YOK —
+  // farklı porta taşınan API'nin cache-first'e düşüp bayat JSON sunması önlenir).
+  if (url.pathname.startsWith("/v1/") || url.pathname.startsWith("/api/")) {
     event.respondWith(networkFirstWithFallback(req));
     return;
   }
+
+  // runtime-config.js asla cache'ten sunulmasın (kurulum ayarı anında etkisin)
+  if (url.pathname === "/runtime-config.js") return;
 
   // Görsel/font assets — Stale-while-revalidate
   if (/\.(png|jpg|jpeg|svg|gif|webp|ico|woff|woff2|ttf|eot)$/i.test(url.pathname)) {

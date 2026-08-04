@@ -225,16 +225,41 @@ if [ "$ENV_YAZ" -eq 1 ]; then
   if [ -z "$JWT_S" ]; then JWT_S="$(rastgele_sifre)"; fi
   if [ -z "$JWT_R" ]; then JWT_R="$(rastgele_sifre)"; fi
 
-  # CORS/APP_URL: localhost + sunucu IP'leri
+  # Sunucu adresi: terminaller hem BILGISAYAR ADI hem IP ile baglanabilir.
+  # (DEPLOY_MODE=onprem oldugu icin API ozel-ag origin'lerini otomatik kabul
+  # eder; CORS_ORIGINS listesi belgeleme/saas-gecisi icin yine de yazilir.)
   if [ "$HTTP_PORT" = "80" ]; then PORT_EKI=""; else PORT_EKI=":$HTTP_PORT"; fi
-  CORS="http://localhost$PORT_EKI"
+
+  MAKINE_ADI="$(hostname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+  if [ -n "$MAKINE_ADI" ]; then
+    bilgi "Bu sunucunun bilgisayar adi: $MAKINE_ADI"
+    bilgi "Terminaller bu ada veya sunucu IP'sine baglanabilir. Bilgisayar adi"
+    bilgi "ONERILIR: IP degisse bile (DHCP) terminal kisayollari calismaya devam eder."
+  fi
+  VARSAYILAN_ADRES="${MAKINE_ADI:-localhost}"
+  printf "  Terminallerin kullanacagi sunucu adresi [%s]: " "$VARSAYILAN_ADRES"
+  read -r KANONIK
+  if [ -z "$KANONIK" ]; then KANONIK="$VARSAYILAN_ADRES"; fi
+  KANONIK="$(printf '%s' "$KANONIK" | sed 's|^https\?://||; s|/*$||' | tr '[:upper:]' '[:lower:]')"
+  ok "Sunucu adresi (APP_URL / e-posta linkleri): http://$KANONIK$PORT_EKI"
+
+  CORS="http://$KANONIK$PORT_EKI,http://localhost$PORT_EKI"
+  if [ -n "$MAKINE_ADI" ]; then
+    CORS="$CORS,http://$MAKINE_ADI$PORT_EKI,http://$MAKINE_ADI.local$PORT_EKI"
+  fi
+  FQDN="$(hostname -f 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+  if [ -n "$FQDN" ] && [ "$FQDN" != "$MAKINE_ADI" ]; then
+    CORS="$CORS,http://$FQDN$PORT_EKI"
+  fi
   for IP in $(hostname -I 2>/dev/null); do
     case "$IP" in
       127.*|169.254.*|*:*) ;; # loopback / link-local / IPv6 atla
       *) CORS="$CORS,http://$IP$PORT_EKI" ;;
     esac
   done
-  APP_URL="http://localhost$PORT_EKI"
+  # APP_URL artik localhost DEGIL: parola sifirlama e-postalarindaki linkler
+  # terminallerden de acilabilsin diye kanonik adres kullanilir.
+  APP_URL="http://$KANONIK$PORT_EKI"
 
   {
     echo "# ============================================================="
@@ -247,6 +272,8 @@ if [ "$ENV_YAZ" -eq 1 ]; then
     echo "JWT_SECRET=$JWT_S"
     echo "JWT_REFRESH_SECRET=$JWT_R"
     echo "PROMETA_FINGERPRINT=$FINGERPRINT"
+    echo "# Dagitim modu: onprem = ozel-ag origin'leri (IP / bilgisayar adi) otomatik kabul"
+    echo "DEPLOY_MODE=onprem"
     echo "CORS_ORIGINS=$CORS"
     echo "APP_URL=$APP_URL"
     echo "EMAIL_PROVIDER=$EMAIL_PROVIDER"
@@ -374,13 +401,19 @@ printf "  ${C_GREEN} KURULUM OZETI${C_RESET}\n"
 printf "  ${C_GREEN}=====================================================${C_RESET}\n"
 printf "   Donanim Kimligi : %s\n" "$FINGERPRINT"
 printf "   Web arayuzu     : http://localhost%s\n" "$PORT_EKI2"
-printf "\n   Bu sunucunun ag adresleri (terminaller icin):\n"
+printf "\n   Terminaller su adreslerden HERHANGI biriyle baglanabilir:\n"
+OZET_MAKINE_ADI="$(hostname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+if [ -n "$OZET_MAKINE_ADI" ]; then
+  printf "     ${C_CYAN}http://%s%s${C_RESET}   (bilgisayar adi - ONERILEN: IP degisse de calisir)\n" "$OZET_MAKINE_ADI" "$PORT_EKI2"
+fi
 for IP in $(hostname -I 2>/dev/null); do
   case "$IP" in
     127.*|169.254.*|*:*) ;;
     *) printf "     ${C_CYAN}http://%s%s${C_RESET}\n" "$IP" "$PORT_EKI2" ;;
   esac
 done
+printf "\n   Mobil cihazlar (telefon/tablet) ayni ag uzerinden yukaridaki\n"
+printf "   adreslerin herhangi biriyle tarayicidan baglanabilir.\n"
 printf "\n   TERMINAL KURULUMU:\n"
 printf "   Windows terminallerde install\\\\Kurulum-Terminal.bat calistirin ve\n"
 printf "   yukaridaki adreslerden birini girin. (Docker GEREKMEZ.)\n"

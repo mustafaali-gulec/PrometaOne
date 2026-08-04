@@ -12,6 +12,7 @@ import { HTTPException } from 'hono/http-exception';
 import { logger } from 'hono/logger';
 
 import { config } from './config.js';
+import { makeCorsOriginResolver } from './corsPolicy.js';
 import { closePool, healthCheck, pool } from './db.js';
 import { RefEventConsumer } from './events/consumer.js';
 import { getEventPublisher, KafkaEventPublisher } from './events/kafka.js';
@@ -23,10 +24,17 @@ app.use('*', logger());
 app.use(
   '*',
   cors({
-    origin: config.corsOrigins,
+    // SaaS + on-prem ikili mod: onprem'de özel-ağ origin'leri (IP / bilgisayar
+    // adı) otomatik kabul edilir; saas'ta yalnız açık liste. (corsPolicy.ts —
+    // api-server ile eş politika)
+    origin: makeCorsOriginResolver({
+      deployMode: config.DEPLOY_MODE,
+      allowedOrigins: config.corsOrigins,
+    }),
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
+    // X-Terminal-*: koltuk lisansı başlıkları — çapraz-origin istemciler için.
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Terminal-Id', 'X-Terminal-Name'],
     maxAge: 86400,
   }),
 );

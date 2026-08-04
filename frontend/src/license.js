@@ -355,10 +355,12 @@
     if (url === '/v1' || url.indexOf('/v1/') === 0) return true; // göreli
     try {
       const u = new URL(url, window.location.origin);
-      return (
-        u.origin === window.location.origin &&
-        (u.pathname === '/v1' || u.pathname.indexOf('/v1/') === 0)
-      );
+      if (u.pathname !== '/v1' && u.pathname.indexOf('/v1/') !== 0) return false;
+      if (u.origin === window.location.origin) return true;
+      // Ayrık API origin'i (runtime-config.js) — SaaS/mobil kurulumlarında
+      // API farklı origin'de olabilir; terminal header'ları orada da şart.
+      const cfg = (window.__MSUITE_RUNTIME__ && window.__MSUITE_RUNTIME__.apiOrigin) || '';
+      return !!cfg && u.origin === new URL(cfg, window.location.origin).origin;
     } catch {
       return false;
     }
