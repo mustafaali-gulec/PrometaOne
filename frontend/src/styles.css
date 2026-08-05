@@ -806,6 +806,12 @@ td.cell-edit input:focus {
   .md\:grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .md\:grid-cols-5 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .md\:grid-cols-6 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  /* Responsive öneksiz (çıplak) çok kolonlu grid'ler: ekranların büyük kısmı
+     md: varyantı olmadan grid-cols-3..6 kullanıyor — telefonda N-yanyana
+     sıkışmasın diye 2 kolona düşür (yukarıdaki md: kalıbıyla tutarlı). */
+  .grid-cols-3, .grid-cols-4, .grid-cols-5, .grid-cols-6 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
 
   /* Modal full-screen mobilde */
   .max-w-md, .max-w-lg, .max-w-xl, .max-w-2xl, .max-w-3xl, .max-w-4xl, .max-w-5xl {

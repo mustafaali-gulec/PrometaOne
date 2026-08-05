@@ -18,6 +18,10 @@ const envSchema = z.object({
   // Monolit ile paylaşılan JWT imza anahtarı (stateless doğrulama).
   JWT_SECRET: z.string().min(32, 'JWT_SECRET en az 32 karakter olmalı'),
 
+  // Dağıtım modu — CORS politikasını belirler (bkz. corsPolicy.ts):
+  //   onprem: CORS_ORIGINS + özel-ağ origin'leri (IP/makine adı) otomatik kabul
+  //   saas  : yalnız CORS_ORIGINS (joker alt alan adı destekli)
+  DEPLOY_MODE: z.enum(['onprem', 'saas']).default('onprem'),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
 
   // Kafka — opsiyonel. Tanımsızsa event publisher no-op çalışır (Kafka'sız da ayağa kalkar).

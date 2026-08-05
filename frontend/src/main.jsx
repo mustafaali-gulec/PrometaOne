@@ -1,3 +1,4 @@
+import './runtimeConfig.js'; // API origin yeniden-yazıcısı — EN İÇ fetch katmanı, HER ŞEYDEN önce
 import './license.js'; // lisans denetimi + terminal header fetch patch'i (App'ten ÖNCE kurulmalı)
 import React from 'react';
 import ReactDOM from 'react-dom/client';

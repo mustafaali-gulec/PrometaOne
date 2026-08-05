@@ -13,13 +13,17 @@ bilgisayarlar sunucuya tarayıcıdan bağlanır (terminallerde Docker **gerekmez
 ## 1. Mimari ve paket içeriği
 
 ```
-┌─────────────┐   http://<SUNUCU_IP>:<PORT>   ┌──────────────────────────────┐
-│  Terminal 1 │ ────────────────────────────► │  SUNUCU (Docker)             │
-│  Terminal 2 │ ────────────────────────────► │   web (nginx: SPA + proxy)   │
-│  Terminal N │ ────────────────────────────► │   api (lisans + iş mantığı)  │
-└─────────────┘                               │   postgres  ·  ml-service    │
-                                              └──────────────────────────────┘
+┌─────────────┐  http://<BILGISAYAR-ADI>:<PORT>  ┌──────────────────────────────┐
+│  Terminal 1 │  (veya http://<SUNUCU_IP>:<PORT>)│  SUNUCU (Docker)             │
+│  Terminal 2 │ ────────────────────────────────►│   web (nginx: SPA + proxy)   │
+│  Terminal N │ ────────────────────────────────►│   api (lisans + iş mantığı)  │
+│  Mobil cihaz│ ────────────────────────────────►│   postgres  ·  ml-service    │
+└─────────────┘                                  └──────────────────────────────┘
 ```
+
+Terminaller sunucuya **bilgisayar adıyla** (önerilen — DHCP'de IP değişse bile
+kısayollar çalışmaya devam eder) veya **IP adresiyle** bağlanabilir. Aynı ağdaki
+mobil cihazlar (telefon/tablet) da aynı adreslerle tarayıcıdan bağlanır.
 
 Kurulum paketi (`tools/package-release.ps1` ile üretilir) şu yapıdadır:
 
@@ -42,12 +46,12 @@ image'ları yerelde derler (git deposundan kurulumda kullanılır; internet +
 
 ## 2. Sistem gereksinimleri
 
-| Bileşen | Sunucu                                             | Terminal             |
-| ------- | -------------------------------------------------- | -------------------- |
-| İşletim | Windows 10/11 veya Windows Server / Linux          | Windows 10/11        |
-| Yazılım | Docker Desktop (veya Linux'ta docker + compose v2) | Yalnızca tarayıcı    |
-| Donanım | 4 çekirdek, 8 GB RAM, 20 GB boş disk (öneri)       | —                    |
-| Ağ      | Terminallerin erişebildiği sabit IP önerilir       | Sunucuya LAN erişimi |
+| Bileşen | Sunucu                                                                                    | Terminal             |
+| ------- | ----------------------------------------------------------------------------------------- | -------------------- |
+| İşletim | Windows 10/11 veya Windows Server / Linux                                                 | Windows 10/11        |
+| Yazılım | Docker Desktop (veya Linux'ta docker + compose v2)                                        | Yalnızca tarayıcı    |
+| Donanım | 4 çekirdek, 8 GB RAM, 20 GB boş disk (öneri)                                              | —                    |
+| Ağ      | Terminallerin erişebildiği LAN (bilgisayar adı ile bağlanılıyorsa sabit IP şart değildir) | Sunucuya LAN erişimi |
 
 ## 3. Sunucu kurulumu (Windows)
 
@@ -63,8 +67,10 @@ image'ları yerelde derler (git deposundan kurulumda kullanılır; internet +
    4. **Lisans dosyası** — `license\license.lic` aranır; yoksa dosya yolu
       sorulur. Lisanssız da devam edilebilir (uygulama, lisans yüklenene kadar
       kilitli kalır — bkz. §6).
-   5. **Yapılandırma** — HTTP portu ve opsiyonel SMTP sorulur; güçlü rastgele
-      şifrelerle `.env.prod` üretilir. Tekrar çalıştırmada mevcut dosya
+   5. **Yapılandırma** — HTTP portu, **terminallerin kullanacağı sunucu adresi**
+      (varsayılan: bilgisayar adı; e-posta linkleri de bu adresi kullanır) ve
+      opsiyonel SMTP sorulur; güçlü rastgele şifrelerle `.env.prod` üretilir
+      (`DEPLOY_MODE=onprem` dahil). Tekrar çalıştırmada mevcut dosya
       **korunabilir** (güncelleme modu).
    6. **Kurulum** — `images\prometa-one-images.tar` varsa `docker load`
       (paket modu), yoksa `docker compose build` (kaynak modu); ardından
@@ -81,7 +87,8 @@ Linux sunucuda aynı akış için: `sudo bash install/kurulum-sunucu.sh`
 
 ### Kurulum sonrası doğrulama
 
-- Web arayüzü: `http://localhost:<PORT>` (sunucudan) / `http://<SUNUCU_IP>:<PORT>` (ağdan)
+- Web arayüzü: `http://localhost:<PORT>` (sunucudan) /
+  `http://<BILGISAYAR-ADI>:<PORT>` veya `http://<SUNUCU_IP>:<PORT>` (ağdan)
 - Sağlık: `http://localhost:<PORT>/v1/health`
 - Lisans durumu: `http://localhost:<PORT>/v1/license/status`
 
@@ -90,8 +97,9 @@ Linux sunucuda aynı akış için: `sudo bash install/kurulum-sunucu.sh`
 Her terminal bilgisayarda:
 
 1. `install\Kurulum-Terminal.bat` çalıştırın (yönetici yetkisi gerekmez).
-2. Sunucu adresini/IP'sini ve portu girin — sihirbaz `/v1/health` ile
-   bağlantıyı test eder.
+2. Sunucunun **bilgisayar adını** (önerilen, ör. `sunucu-pc`) veya IP'sini ve
+   portu girin — sihirbaz `/v1/health` ile bağlantıyı test eder; ad
+   çözülemezse tanılama mesajı gösterir ve IP ile denemenizi önerir.
 3. Masaüstü + Başlat Menüsü'ne **"Prometa One"** kısayolu oluşturulur
    (Edge/Chrome uygulama modu; ikisi de yoksa varsayılan tarayıcı `.url`).
 4. İsterseniz Windows oturum açılışında otomatik başlatma etkinleştirilir.
@@ -125,15 +133,16 @@ otomatik üretilir** ve sunucuya kaydedilir; ek bir işlem gerekmez.
 
 ## 6. Sık karşılaşılan sorunlar
 
-| Belirti                                           | Neden / Çözüm                                                                                                                                                     |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Docker daemon calismiyor`                        | Docker Desktop'ı başlatın, "Engine running" olunca sihirbazı tekrar çalıştırın.                                                                                   |
-| Servisler başlamıyor / port hatası                | Seçilen port başka uygulamada olabilir. Sihirbazı tekrar çalıştırıp farklı port seçin. Log: `docker compose -f docker-compose.prod.yml --env-file .env.prod logs` |
-| Terminal sunucuya ulaşamıyor                      | Sunucu açık mı, IP/port doğru mu, güvenlik duvarı kuralı ("Prometa One Web") var mı kontrol edin.                                                                 |
-| `Lisans aktivasyonu basarisiz`                    | Lisans başka makine için kesilmiş (Donanım Kimliği uyuşmuyor), süresi dolmuş veya dosya bozuk. Özet ekranındaki Donanım Kimliği ile Promet Bilişim'e başvurun.    |
-| Uygulama açılıyor ama "Lisans yüklü değil" ekranı | `license.lic` yüklenmemiş — §5'teki iki yoldan biriyle aktive edin.                                                                                               |
-| Migration hatası                                  | API'nin açılması uzun sürmüş olabilir; birkaç dakika sonra elle: `docker compose -f docker-compose.prod.yml --env-file .env.prod exec api npm run migrate`        |
-| DB şifresi değişince bağlantı hatası              | Postgres ilk kurulum şifresini kullanır. Güncellemede "gizli anahtarlar korunsun mu?" sorusuna **Evet** deyin.                                                    |
+| Belirti                                           | Neden / Çözüm                                                                                                                                                                                            |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Docker daemon calismiyor`                        | Docker Desktop'ı başlatın, "Engine running" olunca sihirbazı tekrar çalıştırın.                                                                                                                          |
+| Servisler başlamıyor / port hatası                | Seçilen port başka uygulamada olabilir. Sihirbazı tekrar çalıştırıp farklı port seçin. Log: `docker compose -f docker-compose.prod.yml --env-file .env.prod logs`                                        |
+| Terminal sunucuya ulaşamıyor                      | Sunucu açık mı, adres/port doğru mu, güvenlik duvarı kuralı ("Prometa One Web") var mı kontrol edin.                                                                                                     |
+| Bilgisayar adı çözülemiyor                        | Farklı alt ağ/VLAN'larda NetBIOS/mDNS adı çözülmeyebilir. Sunucu IP'sini kullanın veya ağ yöneticinizden DNS kaydı isteyin; sunucu tarafında ek ayar gerekmez (özel-ağ adresleri otomatik kabul edilir). |
+| `Lisans aktivasyonu basarisiz`                    | Lisans başka makine için kesilmiş (Donanım Kimliği uyuşmuyor), süresi dolmuş veya dosya bozuk. Özet ekranındaki Donanım Kimliği ile Promet Bilişim'e başvurun.                                           |
+| Uygulama açılıyor ama "Lisans yüklü değil" ekranı | `license.lic` yüklenmemiş — §5'teki iki yoldan biriyle aktive edin.                                                                                                                                      |
+| Migration hatası                                  | API'nin açılması uzun sürmüş olabilir; birkaç dakika sonra elle: `docker compose -f docker-compose.prod.yml --env-file .env.prod exec api npm run migrate`                                               |
+| DB şifresi değişince bağlantı hatası              | Postgres ilk kurulum şifresini kullanır. Güncellemede "gizli anahtarlar korunsun mu?" sorusuna **Evet** deyin.                                                                                           |
 
 ## 7. Güncelleme
 
