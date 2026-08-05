@@ -1,8 +1,8 @@
 {
-  "name": "prometa-one",
+  "name": "msuite",
   "version": "2.0.0",
   "private": true,
-  "description": "Prometa One — Finance & HR Platform (monorepo root)",
+  "description": "M Suite — Finance & HR Platform (monorepo root)",
   "type": "module",
   "engines": {
     "node": ">=20.0.0",

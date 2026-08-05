@@ -1,10 +1,11 @@
-# 📱 Prometa One — Mobile Push Bildirimleri
+# 📱 M Suite — Mobile Push Bildirimleri
 
 Bu dokümantasyon, mobil push bildirim sisteminin **frontend hazır** durumunu açıklar ve **backend implementasyon** için yol haritası sunar.
 
 ## 🎯 Şu An Hazır Olanlar
 
 ### ✅ Frontend (App.jsx)
+
 - Web Push API entegrasyonu
 - Service Worker (`/public/sw.js`)
 - Push tercih paneli (Self-Service Profilim'de)
@@ -14,12 +15,15 @@ Bu dokümantasyon, mobil push bildirim sisteminin **frontend hazır** durumunu a
 - Bildirim helper'ları: `subscribeToPush()`, `unsubscribeFromPush()`, `registerPushDevice()`, vb.
 
 ### ✅ Veri Yapısı (createEmptyCompanyData)
+
 ```js
-hrPushDevices: []        // Kayıtlı cihazlar (FCM/APN/Web Push tokens)
-hrPushPreferences: {}    // Kullanıcı bazlı tercihler
+hrPushDevices: []; // Kayıtlı cihazlar (FCM/APN/Web Push tokens)
+hrPushPreferences: {
+} // Kullanıcı bazlı tercihler
 ```
 
 ### ⏳ Backend (Henüz Implement Edilmedi)
+
 - `/v1/push/register-device` endpoint'i
 - `/v1/push/unregister-device` endpoint'i
 - `/v1/push/send` endpoint'i
@@ -37,6 +41,7 @@ npx web-push generate-vapid-keys
 Çıktıdaki **public key**'i `frontend/src/App.jsx` içindeki `VAPID_PUBLIC_KEY` değişkenine yapıştır.
 
 **Private key**'i backend `.env` dosyasına ekle:
+
 ```env
 VAPID_PUBLIC_KEY=...
 VAPID_PRIVATE_KEY=...
@@ -50,6 +55,7 @@ Tarayıcıda `http://localhost:5173/sw.js` aç — Service Worker dosyası gör�
 ### 3. PWA Manifest Bağlantısını HTML'e Ekle
 
 `frontend/index.html` `<head>` içine:
+
 ```html
 <link rel="manifest" href="/manifest.webmanifest" />
 <meta name="theme-color" content="#7c3aed" />
@@ -59,6 +65,7 @@ Tarayıcıda `http://localhost:5173/sw.js` aç — Service Worker dosyası gör�
 ### 4. İkon Dosyaları
 
 `/public/` klasörüne yerleştir:
+
 - `icon-192.png` (192x192, transparent veya beyaz arka plan)
 - `icon-512.png` (512x512)
 - `badge-72.png` (72x72, monochrome — Android için)
@@ -66,6 +73,7 @@ Tarayıcıda `http://localhost:5173/sw.js` aç — Service Worker dosyası gör�
 ## 🧪 Test Etme
 
 ### Frontend Test (Backend olmadan)
+
 1. Tarayıcıda uygulamayı aç (`localhost:5173`)
 2. Self-Service → 👤 Profilim → 📱 **Mobil Push Bildirimleri** kartı
 3. "Etkinleştir" → tarayıcı izin pop-up'ı
@@ -73,6 +81,7 @@ Tarayıcıda `http://localhost:5173/sw.js` aç — Service Worker dosyası gör�
 5. "🧪 Test Et" butonu → bildirim toast'u görünmeli
 
 ### Backend Test (Hazır olduğunda)
+
 1. Yukarıdaki gibi push'u etkinleştir
 2. Admin olarak bir talep onayla
 3. Backend tetiklenir → `web-push` paketi push gönderir
@@ -108,9 +117,10 @@ EOF
 Web Push %100 destekli **değil** (özellikle iOS Safari'de zorlu). Native bir uygulama gerekirse:
 
 ### Seçenek 1: Capacitor (Önerilen — kod tabanı paylaşılır)
+
 ```bash
 npm install @capacitor/core @capacitor/cli
-npx cap init "Prometa One" "tr.com.prometa.app"
+npx cap init "M Suite" "tr.com.prometa.app"
 
 # Push plugin
 npm install @capacitor/push-notifications
@@ -127,8 +137,9 @@ npx cap add android
 ```
 
 ### Seçenek 2: React Native (yeniden yazılır)
+
 ```bash
-npx react-native init PrometaOne
+npx react-native init MSuite
 npm install @react-native-firebase/app @react-native-firebase/messaging
 # iOS pod install, Android google-services.json
 ```
@@ -145,13 +156,13 @@ npm install @react-native-firebase/app @react-native-firebase/messaging
 
 ## 📊 Yaygın Sorunlar
 
-| Sorun | Çözüm |
-|---|---|
-| "Notification permission denied" | Tarayıcı ayarlarından site izinlerini sıfırla |
-| Service Worker register failed | `/sw.js` path'i doğru mu? HTTPS gerekli (localhost hariç) |
-| iOS Safari'de çalışmıyor | Safari Web Push 16.4+ gerektirir, manifest required |
-| Push gelmedi ama subscribe başarılı | Backend tarafı henüz implement edilmedi |
-| 410 Gone hatası | Endpoint expired — cihazı kaldır, kullanıcı yeniden subscribe olsun |
+| Sorun                               | Çözüm                                                               |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| "Notification permission denied"    | Tarayıcı ayarlarından site izinlerini sıfırla                       |
+| Service Worker register failed      | `/sw.js` path'i doğru mu? HTTPS gerekli (localhost hariç)           |
+| iOS Safari'de çalışmıyor            | Safari Web Push 16.4+ gerektirir, manifest required                 |
+| Push gelmedi ama subscribe başarılı | Backend tarafı henüz implement edilmedi                             |
+| 410 Gone hatası                     | Endpoint expired — cihazı kaldır, kullanıcı yeniden subscribe olsun |
 
 ## 🎯 Yol Haritası
 

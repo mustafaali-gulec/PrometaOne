@@ -1,4 +1,4 @@
-# 🏢 Prometa One
+# 🏢 M Suite
 
 **Sürüm:** 5B (Bildirim + Yorum + Push + E-posta entegre)
 **Tarih:** Mayıs 2026
@@ -65,20 +65,24 @@ prometa-one/
 ## ⚡ Hızlı Başlangıç (Windows)
 
 ### Önkoşullar
+
 - **Node.js 20+** — https://nodejs.org
 - **Docker Desktop** — https://docker.com/products/docker-desktop
 - **Git** (opsiyonel) — https://git-scm.com
 
 ### 1. Klasörü Aç
+
 ZIP'i bir yere aç (ör: `C:\prometa-one\`).
 
 ### 2. Backend Başlat
+
 ```bat
 cd C:\prometa-one
 start-backend.bat
 ```
 
 İlk açılışta:
+
 - PostgreSQL Docker container başlar (port 5432)
 - Adminer başlar (port 8080) — http://localhost:8080
 - `api-server` `npm install` yapar
@@ -86,7 +90,9 @@ start-backend.bat
 - Backend `localhost:3000/v1` adresinde hazır
 
 ### 3. Frontend Başlat
+
 **Yeni bir CMD penceresinde:**
+
 ```bat
 cd C:\prometa-one
 start-frontend.bat
@@ -97,6 +103,7 @@ start-frontend.bat
 - http://localhost:5173
 
 ### 4. Login
+
 - **Admin**: `admin` / `admin123`
 - **CFO**: `mustafa` / `promet`
 
@@ -109,6 +116,7 @@ stop-all.bat
 ```
 
 veya manuel:
+
 ```bat
 docker-compose -f C:\prometa-one\api-server\docker-compose.yml down
 taskkill /F /IM node.exe
@@ -119,6 +127,7 @@ taskkill /F /IM node.exe
 ## 🎯 Sistem Özellikleri (Tam Liste)
 
 ### 💰 Finans
+
 - ✓ Bütçe takvimi (12 ay × kategori matrisi)
 - ✓ Kasa & banka yönetimi (TL/USD/EUR multi-currency)
 - ✓ Tahsilat/ödeme cell sistemi (her gün için)
@@ -129,12 +138,14 @@ taskkill /F /IM node.exe
 - ✓ Çoklu şirket desteği
 
 ### 👥 İnsan Kaynakları
+
 - ✓ Çalışan & organizasyon yönetimi (4-tier: şirket → bölüm → departman → birim)
 - ✓ İşe Alım (ATS) — Kanban iş ilanı + CV OCR (Tesseract.js + pdf.js)
 - ✓ Pozisyon kütüphanesi
 - ✓ Performans değerlendirme
 
 ### 💵 Bordro
+
 - ✓ Türkiye mevzuatı uyumlu bordro motoru
   - Asgari ücret, SGK, GV, DV, AR-Ge teşvik
   - Yıllık parametre versiyonlama (2024/2025/2026)
@@ -143,6 +154,7 @@ taskkill /F /IM node.exe
 - ✓ Bordro bileşen kütüphanesi (custom formüller)
 
 ### ⏰ Puantaj & İzin
+
 - ✓ Toplu puantaj (matris view, sticky col)
 - ✓ Takvimli puantaj (31-gün grid)
 - ✓ PDKS CSV import (TC/SGK/Email match)
@@ -150,18 +162,21 @@ taskkill /F /IM node.exe
 - ✓ İzin onayı → takvime otomatik yansıma
 
 ### 📋 Talep Sistemi
+
 - ✓ Avans (bordroya otomatik taksit kesinti)
 - ✓ Masraf (10 kategori, KDV, belge)
 - ✓ Zimmet (14 tip, stok entegrasyonu, teslim/iade)
 - ✓ Unified yönetim, status filtreleri
 
 ### 🌟 Self-Service Portal
+
 - ✓ 8 sekme (Ana sayfa / İzin / Avans / Masraf / Zimmet / Bordro / Puantaj / Profil)
 - ✓ Mor tema, kişisel veri izolasyonu
 - ✓ Tüm taleplerini kendi adına oluşturabilir
 - ✓ Yıllık karne, performans öz-görünüm
 
 ### 🔔 Bildirim Sistemi
+
 - ✓ In-app feed (bell + dropdown + badge)
 - ✓ Yorum thread'leri (chat-tarzı, yönetici/çalışan ayrımı)
 - ✓ Mobile Push (Web Push API + Service Worker)
@@ -172,15 +187,18 @@ taskkill /F /IM node.exe
 - ✓ PWA manifest (Ana Ekrana Ekle desteği)
 
 ### 🤖 AI
+
 - ✓ AI Asistan widget (Anthropic Claude API)
 - ✓ Doğal dil sorgu → finansal analiz
 - ✓ Şirket verisi context
 
 ### 🌍 Çoklu Dil
+
 - ✓ TR (Türkçe), EN (English), DE (Deutsch), AR (العربية)
 - ✓ RTL desteği (Arapça için sağdan-sola)
 
 ### 🔒 Yetkilendirme
+
 - ✓ Rol bazlı (admin, cfo, editor, viewer, employee)
 - ✓ Kaynak bazlı izin (RBAC)
 - ✓ Audit log her aksiyonda
@@ -189,21 +207,22 @@ taskkill /F /IM node.exe
 
 ## 📚 Dokümantasyon
 
-| Dosya | İçerik |
-|-------|--------|
-| `WINDOWS_KURULUM.md` | Adım adım Windows kurulum talimatı |
-| `MOBILE_PUSH_README.md` | Push bildirim kurulumu (VAPID, FCM, APN) |
-| `EMAIL_NOTIFICATIONS_README.md` | E-posta kurulumu (SendGrid/Mailgun/SES/SMTP) |
-| `backend/docs/PUSH_NOTIFICATIONS_API.md` | Push API endpoint kontratı |
-| `backend/docs/EMAIL_NOTIFICATIONS_API.md` | E-posta API endpoint kontratı |
-| `api-server/README.md` | Backend mimarisi ve geliştirme |
-| `api-server/FRONTEND_MIGRATION.md` | Frontend ↔ Backend entegrasyon notları |
+| Dosya                                     | İçerik                                       |
+| ----------------------------------------- | -------------------------------------------- |
+| `WINDOWS_KURULUM.md`                      | Adım adım Windows kurulum talimatı           |
+| `MOBILE_PUSH_README.md`                   | Push bildirim kurulumu (VAPID, FCM, APN)     |
+| `EMAIL_NOTIFICATIONS_README.md`           | E-posta kurulumu (SendGrid/Mailgun/SES/SMTP) |
+| `backend/docs/PUSH_NOTIFICATIONS_API.md`  | Push API endpoint kontratı                   |
+| `backend/docs/EMAIL_NOTIFICATIONS_API.md` | E-posta API endpoint kontratı                |
+| `api-server/README.md`                    | Backend mimarisi ve geliştirme               |
+| `api-server/FRONTEND_MIGRATION.md`        | Frontend ↔ Backend entegrasyon notları       |
 
 ---
 
 ## 🆘 Sorun Giderme
 
 ### Frontend yüklenmiyor
+
 ```bat
 cd C:\prometa-one\frontend
 rmdir /s /q node_modules
@@ -213,6 +232,7 @@ npm run dev
 ```
 
 ### Backend bağlanmıyor
+
 ```bat
 cd C:\prometa-one\api-server
 docker-compose down
@@ -225,21 +245,25 @@ npm run dev
 ```
 
 ### Port çakışması
+
 - Backend port 3000, Frontend port 5173, PostgreSQL port 5432, Adminer port 8080
 - Bunlar kullanımdaysa `.env` ve `docker-compose.yml`'de değiştir
 
 ### Sunucu kapanıyor / "EADDRINUSE"
+
 ```bat
 taskkill /F /IM node.exe
 ```
 
 ### "App.jsx çok büyük" — Vite yavaş
+
 `vite.config.js`'e:
+
 ```js
 export default {
   server: { warmup: { clientFiles: ['./src/App.jsx'] } },
-  esbuild: { logLevel: 'error' }
-}
+  esbuild: { logLevel: 'error' },
+};
 ```
 
 ---

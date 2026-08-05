@@ -1,4 +1,4 @@
-# 🚀 PROMETA ONE — Windows Kurulum Kılavuzu
+# 🚀 M SUITE — Windows Kurulum Kılavuzu
 
 > **Süre:** 60-90 dakika · **Zorluk:** Kolay (kopyala-yapıştır)
 >
@@ -33,6 +33,7 @@ Sırayla şunları indir ve kur:
 6. Kurulum biter → bilgisayarı yeniden başlat (önerilir)
 
 **Test et:** PowerShell aç (Başlat → "PowerShell" yaz):
+
 ```powershell
 node --version
 # Beklenen çıktı: v20.x.x veya v22.x.x
@@ -57,6 +58,7 @@ npm --version
 8. Docker Desktop simgesi sistem tepsisinde yeşilse → hazır 🟢
 
 **Test et:**
+
 ```powershell
 docker --version
 # Beklenen çıktı: Docker version 27.x.x veya benzeri
@@ -75,6 +77,7 @@ docker compose version
 2. Standart kurulum (tüm seçenekleri varsayılan bırak)
 
 **Test et:**
+
 ```powershell
 git --version
 # Beklenen çıktı: git version 2.x.x
@@ -98,6 +101,7 @@ git --version
 ### 2.1 Çalışma klasörü oluştur
 
 PowerShell'de:
+
 ```powershell
 # C:\ altında prometa-one klasörü oluştur
 cd C:\
@@ -135,6 +139,7 @@ C:\prometa-one\
 ```
 
 **Kontrol et** PowerShell'de:
+
 ```powershell
 cd C:\prometa-one
 dir
@@ -172,6 +177,7 @@ CORS_ORIGINS=http://localhost:5173
 ```
 
 > 🎲 **Rastgele JWT secret üretmek için:** PowerShell'de şunu çalıştır:
+>
 > ```powershell
 > -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 48 | ForEach-Object {[char]$_})
 > ```
@@ -188,6 +194,7 @@ docker compose up -d
 ```
 
 **Beklenen çıktı:**
+
 ```
 [+] Running 3/3
  ✔ Container prometa-one-db   Started
@@ -196,6 +203,7 @@ docker compose up -d
 ```
 
 **Container'ları kontrol et:**
+
 ```powershell
 docker compose ps
 
@@ -210,6 +218,7 @@ docker compose ps
 
 > ❌ **Hata:** `api container exits immediately`
 > → Loglara bak:
+>
 > ```powershell
 > docker compose logs api
 > ```
@@ -221,6 +230,7 @@ docker compose logs -f api
 ```
 
 **Beklenen çıktı:**
+
 ```
 Server listening on http://0.0.0.0:3000
 ✓ Database connected
@@ -241,6 +251,7 @@ docker compose exec api npm run migrate
 ```
 
 **Beklenen çıktı:**
+
 ```
 Migrating: 001_initial_users_and_sessions.sql... ✓
 Migrating: 002_companies.sql... ✓
@@ -257,6 +268,7 @@ docker compose exec api npm run seed
 ```
 
 **Beklenen çıktı:**
+
 ```
 Seeding users... ✓ (4 users)
 Seeding companies... ✓ (2 companies)
@@ -274,6 +286,7 @@ docker compose --profile tools up -d
 Tarayıcıda aç: **http://localhost:8080**
 
 Login bilgileri:
+
 - **System:** PostgreSQL
 - **Server:** postgres
 - **Username:** prometa
@@ -296,6 +309,7 @@ npm install
 ```
 
 **Beklenen çıktı:**
+
 ```
 added 350 packages in 2m
 ```
@@ -317,6 +331,7 @@ npm run dev
 ```
 
 **Beklenen çıktı:**
+
 ```
   VITE v5.4.x  ready in XXX ms
 
@@ -328,7 +343,7 @@ npm run dev
 
 **Tarayıcıda git:** http://localhost:5173
 
-Prometa One login ekranını görmelisin! 🎉
+M Suite login ekranını görmelisin! 🎉
 
 ---
 
@@ -337,24 +352,27 @@ Prometa One login ekranını görmelisin! 🎉
 ### Test 1: Backend bağlantısı
 
 Tarayıcıda **F12** ile DevTools aç → Console sekmesine bak. Şunu görmelisin:
+
 ```
 ✓ Backend bağlantısı aktif (/v1)
 ```
 
 Eğer şunu görüyorsan backend erişilemez:
+
 ```
 ⚠️ Backend erişilemez. Demo mod aktif.
 ```
+
 → Backend ayakta mı kontrol et: http://localhost:3000/v1/health
 
 ### Test 2: Demo kullanıcılarla login ol
 
-| Kullanıcı | Şifre | Rol |
-|---|---|---|
-| `admin` | `admin123` | Yönetici |
-| `mustafa` | `promet` | Mali Müdür |
-| `editor` | `editor` | Düzenleyici |
-| `viewer` | `viewer` | Görüntüleyici |
+| Kullanıcı | Şifre      | Rol           |
+| --------- | ---------- | ------------- |
+| `admin`   | `admin123` | Yönetici      |
+| `mustafa` | `promet`   | Mali Müdür    |
+| `editor`  | `editor`   | Düzenleyici   |
+| `viewer`  | `viewer`   | Görüntüleyici |
 
 `admin / admin123` ile giriş yap.
 
@@ -378,17 +396,19 @@ Logout ol → Bilerek **2 kere yanlış şifre** dene → 3. denemede **captcha 
    docker compose logs -f api
    ```
 4. Şunu görmelisin (console modunda):
+
    ```
    ========== EMAIL (CONSOLE MODE) ==========
    TO: admin@prometahr.com
-   SUBJECT: Prometa One — Şifre Sıfırlama
+   SUBJECT: M Suite — Şifre Sıfırlama
    ---
    Merhaba Admin,
-   
+
    Sıfırlama Kodu: 483291
    ...
    ==========================================
    ```
+
 5. Token'i kopyala → frontend'te yapıştır → yeni şifre belirle → giriş yap ✓
 
 ### Test 6: Modülleri gez
@@ -396,13 +416,14 @@ Logout ol → Bilerek **2 kere yanlış şifre** dene → 3. denemede **captcha 
 - 📊 **Genel Bakış** → KPI kartları, grafik
 - 💼 **HR** → Organizasyon yapısı (boş başlar, ekle)
 - 🏦 **Bankalar** → Yeni hesap ekle
-- 🤖 **Prometa AI** (sağ alt köşede) → "Aktif çalışan sayım?" gibi soru
+- 🤖 **M Suite AI** (sağ alt köşede) → "Aktif çalışan sayım?" gibi soru
 
 ---
 
 ## 🛑 Durdurmak / Yeniden Başlatmak
 
 ### Tüm sistemi durdur:
+
 ```powershell
 cd C:\prometa-one\api-server
 docker compose down
@@ -412,9 +433,11 @@ docker compose down -v
 ```
 
 ### Frontend'i durdur:
+
 PowerShell'de **Ctrl+C** bas.
 
 ### Tekrar başlat:
+
 ```powershell
 # Backend
 cd C:\prometa-one\api-server
@@ -444,10 +467,11 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=senin-emailin@gmail.com
 SMTP_PASS=APPS_PASSWORD_BURAYA  # 16 haneli uygulama parolası
-SMTP_FROM="Prometa One <senin-emailin@gmail.com>"
+SMTP_FROM="M Suite <senin-emailin@gmail.com>"
 ```
 
 4. API container'ını yeniden başlat:
+
 ```powershell
 docker compose restart api
 ```
@@ -459,6 +483,7 @@ docker compose restart api
 1. https://signup.sendgrid.com/ → ücretsiz hesap
 2. API Key oluştur
 3. `.env`:
+
 ```env
 EMAIL_PROVIDER=sendgrid
 SENDGRID_API_KEY=SG.xxxxxxxxxxxx
@@ -470,16 +495,19 @@ EMAIL_FROM=noreply@senindomainin.com
 ## 🐛 Yaygın Sorunlar ve Çözümleri
 
 ### Frontend açılmıyor — boş sayfa
+
 1. **F12 → Console** kontrol et — kırmızı hata var mı?
 2. `npm install` tamamlandı mı? — `node_modules` klasörü var mı?
 3. Cache temizle: `Ctrl+Shift+R` (zorla yenile)
 
 ### Backend "Connection refused"
+
 1. Docker Desktop açık mı? Sistem tepsisinde simge yeşil mi?
 2. `docker compose ps` → containerlar `Up` durumda mı?
 3. Loglara bak: `docker compose logs api`
 
 ### Migration hatası
+
 ```powershell
 # Veritabanını sıfırla:
 docker compose down -v
@@ -491,14 +519,17 @@ docker compose exec api npm run seed
 ```
 
 ### Email gelmiyor (Gmail SMTP)
+
 - Uygulama parolasını **doğru kopyaladın mı?** (boşluksuz, 16 hane)
 - Spam klasörünü kontrol et
 - `docker compose logs api` → email hatası var mı?
 
 ### Port çakışması (3000, 5432, 5173)
+
 docker-compose.yml veya vite.config.js içinde portları değiştir.
 
 ### "Module not found: 'lucide-react/icons/...'"
+
 ```powershell
 cd C:\prometa-one\frontend
 rm -rf node_modules
@@ -511,10 +542,13 @@ npm install
 ## 🎯 Geliştirme İçin İpuçları
 
 ### Frontend kodunu değiştirmek
+
 `frontend/src/App.jsx` dosyasını VS Code'da aç. Değişiklik yap → **otomatik olarak tarayıcıda yenilenir** (Hot Reload).
 
 ### Backend kodunu değiştirmek
+
 Docker development mode için:
+
 ```powershell
 docker compose down
 # api-server/Dockerfile'da development modu varsa kullan
@@ -522,9 +556,11 @@ docker compose up -d --build
 ```
 
 ### Database'i kontrol etmek
+
 Adminer: http://localhost:8080
 
 ### AI Asistan testleri
+
 AI Asistan (sağ alt) **claude.ai üzerinden** çalışıyor (artifact ortamında). Local'de yerel olarak çalışmaz — production'da Anthropic API key gerekir.
 
 ---
@@ -555,4 +591,4 @@ Birlikte çözeriz 🚀
 ---
 
 **İyi çalışmalar Mustafa!**  
-*Prometa One — Türk teknolojisinin gücüyle, global standartlarda.*
+_M Suite — Türk teknolojisinin gücüyle, global standartlarda._

@@ -1,6 +1,6 @@
 -- ============================================================================
 -- 039_expense_card_attributes.sql
--- Prometa One — Gider Kartları zenginleştirme: sekmeli kart editörü için ek
+-- M Suite — Gider Kartları zenginleştirme: sekmeli kart editörü için ek
 -- öznitelikler (KDV/tevkifat/kanunen kabul + bütçe/ödeme/varsayılanlar) tek bir
 -- JSONB kolonda tutulur. Mevcut satırlar boş obje ('{}') ile doldurulur.
 --

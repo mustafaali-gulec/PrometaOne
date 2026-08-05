@@ -1,6 +1,6 @@
 -- ============================================================================
 -- 040_hr_performance.sql
--- Prometa One — HR Performans Yönetimi: değerlendirme dönemleri (hr_perf_cycles)
+-- M Suite — HR Performans Yönetimi: değerlendirme dönemleri (hr_perf_cycles)
 -- ve çalışan×dönem değerlendirmeleri (hr_perf_reviews).
 --
 -- Kaynak-of-truth UI tarafında app-state blob'udur (hrPerfCycles/hrPerfReviews);

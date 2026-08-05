@@ -1,4 +1,5 @@
-# Prometa One — Windows Kurulum Kılavuzu
+# M Suite — Windows Kurulum Kılavuzu
+
 **Sürüm:** 18 Mayıs 2026 · App.jsx 81.160 satır
 
 ## 📋 Gereksinimler
@@ -12,6 +13,7 @@
 ## 🚀 Hızlı Kurulum (3 Adım)
 
 ### 1. Dosyaları Çıkar
+
 ZIP'i indirip `C:\prometa-one\` klasörüne çıkarın. Yapı şöyle olmalı:
 
 ```
@@ -38,24 +40,25 @@ docker-compose up -d --build
 
 Tarayıcıda **http://localhost:5173** adresine gidin:
 
-| Kullanıcı | Şifre | Rol |
-|-----------|--------|-----|
-| `admin` | `admin123` | Sistem Yöneticisi |
-| `mustafa` | `promet` | CFO |
-| `viewer` | `viewer` | Salt-Okunur |
+| Kullanıcı | Şifre      | Rol               |
+| --------- | ---------- | ----------------- |
+| `admin`   | `admin123` | Sistem Yöneticisi |
+| `mustafa` | `promet`   | CFO               |
+| `viewer`  | `viewer`   | Salt-Okunur       |
 
 ## 🐳 Çalışan Servisler
 
-| Servis | Port | Açıklama |
-|--------|------|----------|
-| Frontend (Vite) | **5173** | React UI |
-| Backend (Node) | **3000** | API Server + cron + email |
-| ML Service (FastAPI) | **8001** | Python AI/ML |
-| Adminer (DB UI) | **8080** | PostgreSQL yönetim |
+| Servis               | Port     | Açıklama                  |
+| -------------------- | -------- | ------------------------- |
+| Frontend (Vite)      | **5173** | React UI                  |
+| Backend (Node)       | **3000** | API Server + cron + email |
+| ML Service (FastAPI) | **8001** | Python AI/ML              |
+| Adminer (DB UI)      | **8080** | PostgreSQL yönetim        |
 
 ## ✅ Yeni Sürümde Eklenenler
 
 ### 🎨 4 Tema
+
 - **Klasik** (Kurumsal yeşil — varsayılan)
 - **Modern** (Cyan açık)
 - **Karanlık** (Tam dark mode)
@@ -64,6 +67,7 @@ Tarayıcıda **http://localhost:5173** adresine gidin:
 Sağ üstte 🎨 ikonundan değiştirin. Seçim kalıcı (localStorage).
 
 ### 📱 PWA + Mobile
+
 - Telefondan/tabletten erişim
 - "Ana ekrana ekle" → Standalone uygulama gibi
 - Çevrimdışı çalışır (Service Worker cache)
@@ -71,6 +75,7 @@ Sağ üstte 🎨 ikonundan değiştirin. Seçim kalıcı (localStorage).
 - Mobil hamburger drawer + alt navigasyon
 
 ### 🤖 AI Geliştirmeleri
+
 - **Akıllı Fatura→Proje Eşleştirme** (TF-IDF + hibrit skorlama)
 - **AI Feedback Loop** (kullanıcı kabul/reddi öğrenir)
 - **Milestone Tahmini** (geçmiş projelerden örüntü)
@@ -78,6 +83,7 @@ Sağ üstte 🎨 ikonundan değiştirin. Seçim kalıcı (localStorage).
 - **Bütçe Aşım Bildirimi**
 
 ### 📊 Reports v3 + Custom Dashboard
+
 - 8 hazır rapor (Müşteri kar, Proje P&L, Pipeline, Cashflow, vs.)
 - Excel (.xlsx) çoklu sayfa export
 - Email zamanlama (günlük/haftalık/aylık)
@@ -85,6 +91,7 @@ Sağ üstte 🎨 ikonundan değiştirin. Seçim kalıcı (localStorage).
 - Sürükle-bırak yerleştirme
 
 ### 🏗 Proje Yönetimi (Kapsamlı)
+
 - 🗓 **Gantt** çizelgesi + görev bağımlılıkları + kritik yol
 - ⏰ **Zaman takibi** (saat girişi, faturalanabilir)
 - 👥 **Kaynak planlama** (alokasyon %, çakışma uyarısı)
@@ -93,6 +100,7 @@ Sağ üstte 🎨 ikonundan değiştirin. Seçim kalıcı (localStorage).
 - 📚 **Öğrenilen dersler** (lessons learned)
 
 ### 🔍 Backend Servisleri
+
 - `cronDaemon.js` — günlük otomatik bildirim + email scheduled reports
 - `emailService.js` — SMTP/Mailgun/SendGrid
 - `ml-service/main.py` — scikit-learn TF-IDF + feedback endpoint
@@ -176,6 +184,7 @@ docker-compose exec postgres pg_dump -U postgres prometa > backup.sql
 ## ⚠ Migration Notu (Önemli!)
 
 Eski Prometa data.json'ınız varsa, yeni sürüm **otomatik olarak backfill** yapar:
+
 - `crmDeals`, `projects`, `aiFeedback`, `scheduledReports`, `customDashboards` gibi yeni alanlar boş array `[]` olarak eklenir
 - Mevcut verileriniz **kayıp olmaz**
 - İlk açılışta birkaç saniye sürebilir
@@ -191,7 +200,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=mustafa@promet.com.tr
 SMTP_PASS=app-specific-password
-SMTP_FROM=Prometa One <noreply@promet.com.tr>
+SMTP_FROM=M Suite <noreply@promet.com.tr>
 APP_URL=http://localhost:5173
 ```
 
@@ -222,7 +231,9 @@ curl http://localhost:8001/v1/feedback/stats
 ## 🐛 Sorun Giderme
 
 ### "Port 5173 already in use"
+
 Başka bir Vite/uygulama portu kullanıyor:
+
 ```bash
 # Windows'ta portu kullananı bul
 netstat -ano | findstr :5173
@@ -231,9 +242,11 @@ taskkill /F /PID <PID>
 ```
 
 ### "Docker daemon not running"
+
 Docker Desktop'ı manuel başlatın (sistem tepsisinden).
 
 ### Frontend yüklenmiyor (boş ekran)
+
 ```bash
 docker-compose logs frontend
 # Hataya bakın
@@ -244,17 +257,21 @@ docker-compose up -d --build --force-recreate frontend
 ```
 
 ### ML service başlamadı
+
 Python paketlerinin yüklenmesi 2-3 dakika sürer:
+
 ```bash
 docker-compose logs ml-service
 # "Application startup complete" görünene kadar bekle
 ```
 
 ### Tema değişmiyor
+
 1. F12 → Console → `localStorage.removeItem("prometa_theme")`
 2. Ctrl+Shift+R (hard refresh)
 
 ### PWA install butonu gözükmüyor
+
 - HTTPS gerekli (production). Local'de Chrome adres çubuğundaki + ikonuna tıklayın.
 - iOS Safari: Paylaş ↑ → "Ana Ekrana Ekle"
 
@@ -275,9 +292,11 @@ cd frontend && npm run build
 ## 📞 Destek
 
 Sorun olursa:
+
 1. `docker-compose logs` çıktısını kontrol edin
 2. `INTEGRATION_AUDIT.md`'ye bakın (bilinen sorunlar listelidir)
 3. Tarayıcı console (F12) hatasını paylaşın
 
 ---
+
 **İyi çalışmalar!** 🎯

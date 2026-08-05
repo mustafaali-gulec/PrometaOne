@@ -1,4 +1,4 @@
-# Prometa One — PWA Setup
+# M Suite — PWA Setup
 
 ## ✅ Yapılanlar
 
@@ -54,7 +54,7 @@ cd frontend/public/icons
 for size in 72 96 128 144 152 192 384 512; do
   magick convert -size ${size}x${size} xc:'#0891b2' \
     -fill white -gravity center -font "Inter-Bold" -pointsize $((size/3)) \
-    -annotate +0+0 "P1" icon-${size}x${size}.png
+    -annotate +0+0 "M1" icon-${size}x${size}.png
 done
 ```
 
@@ -74,12 +74,14 @@ Service Worker `/sw.js` olarak servis edilmeli — Vite default olarak `public/`
 ## ✅ Test Listesi
 
 ### Browser DevTools'ta
+
 1. **Application → Manifest** — Tüm alanlar doğru görünmeli
 2. **Application → Service Workers** — Aktif olmalı, "Activated and is running"
 3. **Application → Cache Storage** — `prometa-app-v*`, `prometa-runtime-v*`, `prometa-api-v*`
 4. **Lighthouse → PWA** — Skor 90+ olmalı
 
 ### Mobil/Tablet Test
+
 1. **Chrome Mobile**: ⋮ → "Ana ekrana ekle"
 2. **iOS Safari**: Paylaş ↑ → "Ana Ekrana Ekle"
 3. **Standalone modda**:
@@ -89,6 +91,7 @@ Service Worker `/sw.js` olarak servis edilmeli — Vite default olarak `public/`
    - Hamburger menü açılır ✓
 
 ### Offline Test
+
 1. DevTools → Network → "Offline" işaretle
 2. Sayfayı yenile → Cache'ten yüklenir
 3. Bir API çağrısı yap → 503 + offline indicator gözükür
@@ -97,6 +100,7 @@ Service Worker `/sw.js` olarak servis edilmeli — Vite default olarak `public/`
 6. `sync-data` event tetiklenir → Bekleyen değişiklikler senkron olur
 
 ### Install Prompt
+
 1. PWA criteria'yı karşılayan tarayıcıda otomatik banner
 2. "Yükle" tıkla → OS install prompt'u açılır
 3. "Sonra" tıkla → 7 gün gizlenir (localStorage)
@@ -107,6 +111,7 @@ Service Worker `/sw.js` olarak servis edilmeli — Vite default olarak `public/`
 ### Theme Color Değiştirme
 
 `manifest.json` ve `index.html`'de:
+
 ```
 theme_color: "#0891b2"  → istediğin renk
 ```
@@ -114,15 +119,17 @@ theme_color: "#0891b2"  → istediğin renk
 ### Cache Strategileri
 
 `sw.js` içinde:
+
 - **API**: Network-first (3000/8001 portları)
 - **JS/CSS/Images**: Stale-while-revalidate
 - **Navigation**: Network + offline fallback
 - **Default**: Cache-first
 
 Cache'i temizlemek için:
+
 ```javascript
 // Console'dan
-navigator.serviceWorker.controller.postMessage({ type: "CLEAR_CACHE" });
+navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
 ```
 
 ### Push Notifications
@@ -161,13 +168,13 @@ npm run build
 ## 📊 Lighthouse PWA Kriterleri
 
 ✓ Installable
-  ✓ manifest.json valid
-  ✓ Icons 192x192 ve 512x512 var
-  ✓ HTTPS (production'da)
-  ✓ Service Worker register
+✓ manifest.json valid
+✓ Icons 192x192 ve 512x512 var
+✓ HTTPS (production'da)
+✓ Service Worker register
 ✓ PWA Optimized
-  ✓ viewport meta
-  ✓ theme-color meta
-  ✓ Apple touch icon
-  ✓ Maskable icon
-  ✓ Splash screen content
+✓ viewport meta
+✓ theme-color meta
+✓ Apple touch icon
+✓ Maskable icon
+✓ Splash screen content

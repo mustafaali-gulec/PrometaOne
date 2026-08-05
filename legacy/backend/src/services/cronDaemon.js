@@ -1,5 +1,5 @@
 /* =====================================================================
-   PROMETA ONE — CRON DAEMON
+   M SUITE — CRON DAEMON
    ---------------------------------------------------------------------
    Sunucu tarafında periyodik bildirim üretme servisi.
    
@@ -457,7 +457,7 @@ function formatNotificationEmail(notif, user) {
 <body>
   <div class="container">
     <div class="header">
-      <h1>Prometa One</h1>
+      <h1>M Suite</h1>
       <div class="subtitle">Otomatik Bildirim</div>
     </div>
     <div class="body">

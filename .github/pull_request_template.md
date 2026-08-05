@@ -1,5 +1,5 @@
 <!--
-  Prometa One — PR Şablonu
+  M Suite — PR Şablonu
 
   PR başlığını Conventional Commits formatında yaz:
     <type>(<scope>): <subject>
@@ -54,7 +54,7 @@
 
 - [ ] Unit testler güncellendi/eklendi
 - [ ] Manuel olarak test edildim:
-  <!-- Hangi senaryolar denendi? -->
+<!-- Hangi senaryolar denendi? -->
 
 ## Risk
 

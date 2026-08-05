@@ -6,7 +6,7 @@
 
 ## Context
 
-Prometa One şu an üç ayrı kod tabanı içeriyor ama aynı git deposunda yaşıyorlar:
+M Suite şu an üç ayrı kod tabanı içeriyor ama aynı git deposunda yaşıyorlar:
 
 - `frontend/` — React + Vite (JavaScript şu an, TypeScript'e geçilecek)
 - `api-server/` — Hono + TypeScript + PostgreSQL
@@ -38,29 +38,35 @@ Karar Phase 0'da uygulamaya konmaz — sadece **bu yön doğru yön olarak kabul
 ## Consequences
 
 ### Positive
+
 - Paylaşılan kontratlar tek yerde yaşar (tip güvenliği frontend ↔ backend).
 - Atomic PR'lar.
 - Tek `node_modules` (hoisting ile) — disk + install süresi kazanımı.
 - Tek `lint` + `format` komutu kök seviyeden çalışır.
 
 ### Negative
+
 - npm workspaces'ın "phantom dependency" problemi: bir paket başkasının dependency'sini import edebilir. ESLint kuralı ile yakalanmalı.
 - `package-lock.json` çakışmaları olabilir (tek bir tane var artık, kök seviyede).
 - Türkiye'deki bazı kütüphane sürümleri (TCMB SOAP istemcileri vs.) workspaces ile ilk başta sorun çıkarabilir.
 
 ### Neutral
+
 - Kök `package.json` yeni bir dosya olarak eklenmesi gerekir.
 - Mevcut `frontend/package.json` ve `api-server/package.json` korunur.
 
 ## Alternatives Considered
 
 ### Seçenek 1 — Mevcut yapıyı sürdür
+
 Her servis kendi `package.json` ile yaşar, paylaşılan kod yok. **Sebep:** Tip güvenliği imkansız — frontend `Invoice` tipi ile backend'in `Invoice` tipi senkron tutulamaz. Her API değişikliğinde el yordamıyla iki taraf düzeltilir. Bu zaten bizi bugünkü çoğu hataya getiren şey.
 
 ### Seçenek 3 — Polyrepo
+
 Her servis ayrı git deposu, npm registry üzerinden paylaşım. **Sebep:** Tek dev için aşırı yönetim. npm publish döngüsü, sürüm uyumsuzluğu, CI çoklama. Ölçek bunu gerektirmiyor.
 
 ### Seçenek 4 — Nx / Turborepo
+
 Mükemmel araçlar ama **şu an problem değil.** Build süresi sorun değil (tek dev, küçük CI), affected-only test sorun değil. Sonra eklenebilir (additive). Bunu erkenden seçmek, basit `npm workspaces` ile yapılabilecek şeyi karmaşıklaştırır.
 
 ## References

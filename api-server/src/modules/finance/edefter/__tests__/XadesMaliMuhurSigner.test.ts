@@ -55,7 +55,7 @@ before(() => {
       '2',
       '-nodes',
       '-subj',
-      '/C=TR/O=Prometa Test/CN=Test Mali Muhur',
+      '/C=TR/O=M Suite Test/CN=Test Mali Muhur',
     ],
     { stdio: 'pipe' },
   );

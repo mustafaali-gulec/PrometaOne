@@ -1,5 +1,5 @@
 /**
- * Prometa One — Lisans Katmanı (framework'süz vanilla JS)
+ * M Suite — Lisans Katmanı (framework'süz vanilla JS)
  * --------------------------------------------------------
  * 1) Terminal kimliği üretir (localStorage) ve window.fetch'i sararak tüm /v1
  *    isteklerine X-Terminal-Id / X-Terminal-Name header'larını ekler.
@@ -31,7 +31,7 @@
   ===================================================================== */
   const MESSAGES = {
     tr: {
-      brand: 'Prometa One',
+      brand: 'M Suite',
       kicker: 'Lisans Doğrulaması',
       reason_missing_title: 'Lisans yüklü değil',
       reason_missing_desc:
@@ -54,7 +54,7 @@
         'Lisans dosyası farklı bir sunucu için düzenlenmiş. Bu sunucuya ait lisans dosyasını yükleyin.',
       reason_wrong_product_title: 'Lisans farklı bir ürüne ait',
       reason_wrong_product_desc:
-        'Yüklenen lisans Prometa One için düzenlenmemiş. Lütfen doğru ürün lisansını yükleyin.',
+        'Yüklenen lisans M Suite için düzenlenmemiş. Lütfen doğru ürün lisansını yükleyin.',
       reason_seat_limit_title: 'Terminal limiti aşıldı',
       reason_seat_limit_desc: 'Terminal limiti aşıldı — yöneticinizle görüşün.',
       seat_usage: 'Kullanılan terminal: {used}/{max}',
@@ -80,7 +80,7 @@
       banner_close: 'Kapat',
     },
     en: {
-      brand: 'Prometa One',
+      brand: 'M Suite',
       kicker: 'License Verification',
       reason_missing_title: 'No license installed',
       reason_missing_desc:
@@ -104,7 +104,7 @@
         'The license file was issued for a different server. Upload the license file issued for this server.',
       reason_wrong_product_title: 'License belongs to a different product',
       reason_wrong_product_desc:
-        'The installed license was not issued for Prometa One. Please upload the correct product license.',
+        'The installed license was not issued for M Suite. Please upload the correct product license.',
       reason_seat_limit_title: 'Terminal limit exceeded',
       reason_seat_limit_desc:
         'The terminal limit has been exceeded — please contact your administrator.',
@@ -131,7 +131,7 @@
       banner_close: 'Close',
     },
     de: {
-      brand: 'Prometa One',
+      brand: 'M Suite',
       kicker: 'Lizenzprüfung',
       reason_missing_title: 'Keine Lizenz installiert',
       reason_missing_desc:
@@ -155,7 +155,7 @@
         'Die Lizenzdatei wurde für einen anderen Server ausgestellt. Laden Sie die für diesen Server ausgestellte Lizenzdatei hoch.',
       reason_wrong_product_title: 'Lizenz gehört zu einem anderen Produkt',
       reason_wrong_product_desc:
-        'Die installierte Lizenz wurde nicht für Prometa One ausgestellt. Bitte laden Sie die richtige Produktlizenz hoch.',
+        'Die installierte Lizenz wurde nicht für M Suite ausgestellt. Bitte laden Sie die richtige Produktlizenz hoch.',
       reason_seat_limit_title: 'Terminal-Limit überschritten',
       reason_seat_limit_desc:
         'Das Terminal-Limit wurde überschritten — wenden Sie sich bitte an Ihren Administrator.',
@@ -183,7 +183,7 @@
       banner_close: 'Schließen',
     },
     ar: {
-      brand: 'Prometa One',
+      brand: 'M Suite',
       kicker: 'التحقق من الرخصة',
       reason_missing_title: 'لا توجد رخصة مثبّتة',
       reason_missing_desc:
@@ -204,7 +204,7 @@
         'صدر ملف الرخصة لخادم آخر. يرجى تحميل ملف الرخصة الصادر لهذا الخادم.',
       reason_wrong_product_title: 'الرخصة تخص منتجًا آخر',
       reason_wrong_product_desc:
-        'الرخصة المثبّتة لم تصدر لمنتج Prometa One. يرجى تحميل رخصة المنتج الصحيحة.',
+        'الرخصة المثبّتة لم تصدر لمنتج M Suite. يرجى تحميل رخصة المنتج الصحيحة.',
       reason_seat_limit_title: 'تم تجاوز حد الأجهزة الطرفية',
       reason_seat_limit_desc: 'تم تجاوز حد الأجهزة الطرفية — يرجى التواصل مع مسؤول النظام.',
       seat_usage: 'الأجهزة الطرفية المستخدمة: {used}/{max}',
@@ -586,8 +586,8 @@
       },
       { text: '' },
     );
-    const brandPro = el('span', { color: COLORS.text }, { text: 'Prometa ' });
-    const brandOne = el('span', { color: COLORS.accent }, { text: 'One' });
+    const brandPro = el('span', { color: COLORS.text }, { text: 'M ' });
+    const brandOne = el('span', { color: COLORS.accent }, { text: 'Suite' });
     brand.appendChild(brandPro);
     brand.appendChild(brandOne);
     const kicker = el(

@@ -13,7 +13,7 @@ import type {
 } from '../../application/ports/EmailService.js';
 
 export interface NodemailerEmailServiceConfig {
-  /** Gönderici adı + adresi. Örn: "Prometa One <noreply@prometa.local>" */
+  /** Gönderici adı + adresi. Örn: "M Suite <noreply@prometa.local>" */
   from: string;
 }
 

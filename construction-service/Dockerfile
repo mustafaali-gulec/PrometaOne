@@ -1,5 +1,5 @@
 # =============================================================================
-# PROMETA ONE — Construction Service (tsx runtime, no build)
+# M SUITE — Construction Service (tsx runtime, no build)
 # =============================================================================
 FROM node:20-alpine
 

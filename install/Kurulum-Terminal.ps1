@@ -1,5 +1,5 @@
 # =============================================================================
-# PROMETA ONE — TERMINAL KURULUM SIHIRBAZI (istemci bilgisayarlar)
+# M SUITE — TERMINAL KURULUM SIHIRBAZI (istemci bilgisayarlar)
 # =============================================================================
 # Bu sihirbaz TERMINAL (istemci) bilgisayarlarda calistirilir. Docker GEREKMEZ;
 # uygulama sunucuda calisir, terminal yalnizca tarayicidan baglanir.
@@ -34,7 +34,7 @@ function Read-EvetHayir([string]$Soru, [string]$Default) {
 
 Write-Host ''
 Write-Host '  =====================================================' -ForegroundColor Cyan
-Write-Host '   PROMETA ONE - TERMINAL KURULUM SIHIRBAZI' -ForegroundColor Cyan
+Write-Host '   M SUITE - TERMINAL KURULUM SIHIRBAZI' -ForegroundColor Cyan
 Write-Host '   (Istemci bilgisayar - Docker gerekmez)' -ForegroundColor Cyan
 Write-Host '  =====================================================' -ForegroundColor Cyan
 Write-Host ''
@@ -142,18 +142,18 @@ foreach ($klasor in $hedefler) {
     if (-not (Test-Path $klasor)) { continue }
     if ($tarayici) {
         # Uygulama modu (adres cubugu olmadan, tam ekran benzeri pencere)
-        $lnkYolu = Join-Path $klasor 'Prometa One.lnk'
+        $lnkYolu = Join-Path $klasor 'M Suite.lnk'
         $lnk = $shell.CreateShortcut($lnkYolu)
         $lnk.TargetPath = $tarayici
         $lnk.Arguments = ("--app={0}/" -f $temelUrl)
         $lnk.IconLocation = ("{0},0" -f $tarayici)
-        $lnk.Description = ("Prometa One - {0}" -f $terminalAdi)
+        $lnk.Description = ("M Suite - {0}" -f $terminalAdi)
         $lnk.WorkingDirectory = (Split-Path -Parent $tarayici)
         $lnk.Save()
         $olusanlar.Add($lnkYolu)
     } else {
         # Varsayilan tarayici ile URL kisayolu
-        $urlYolu = Join-Path $klasor 'Prometa One.url'
+        $urlYolu = Join-Path $klasor 'M Suite.url'
         $icerik = @('[InternetShortcut]', ("URL={0}/" -f $temelUrl))
         $icerik | Out-File -FilePath $urlYolu -Encoding ascii -Force
         $olusanlar.Add($urlYolu)
@@ -168,7 +168,7 @@ if ($tarayici) {
 foreach ($k in $olusanlar) { Write-Bilgi ("  {0}" -f $k) }
 
 # --- 4) Otomatik baslatma (opsiyonel) --------------------------------------------
-$otoBaslat = Read-EvetHayir 'Windows oturumu acildiginda Prometa One otomatik baslasin mi?' 'H'
+$otoBaslat = Read-EvetHayir 'Windows oturumu acildiginda M Suite otomatik baslasin mi?' 'H'
 if ($otoBaslat) {
     $startup = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup'
     if (-not (Test-Path $startup)) { New-Item -ItemType Directory -Path $startup -Force | Out-Null }
@@ -184,7 +184,7 @@ Write-Host '   TERMINAL KURULUMU TAMAMLANDI' -ForegroundColor Green
 Write-Host '  =====================================================' -ForegroundColor Green
 Write-Host ("   Sunucu        : {0}" -f $temelUrl) -ForegroundColor White
 Write-Host ("   Terminal adi  : {0}" -f $terminalAdi) -ForegroundColor White
-Write-Host '   Baslatma      : Masaustundeki "Prometa One" kisayolu' -ForegroundColor White
+Write-Host '   Baslatma      : Masaustundeki "M Suite" kisayolu' -ForegroundColor White
 Write-Host ''
 Write-Host '   Ilk aciliste kullanici adi/sifrenizle giris yapin.' -ForegroundColor Gray
 Write-Host '   Terminal kimligi ilk aciliste otomatik olusturulur.' -ForegroundColor Gray

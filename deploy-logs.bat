@@ -1,6 +1,6 @@
 @echo off
 REM =============================================================
-REM  Prometa One - Canli Log Izleme
+REM  M Suite - Canli Log Izleme
 REM  Kullanim:
 REM    deploy-logs.bat            -> tum servisler
 REM    deploy-logs.bat backend    -> sadece backend

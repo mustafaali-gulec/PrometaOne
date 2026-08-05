@@ -1,6 +1,6 @@
 -- ============================================================================
 -- 031_app_state.sql
--- Prometa One — Uygulama Durumu (app_state): genel amaçlı key→JSONB deposu.
+-- M Suite — Uygulama Durumu (app_state): genel amaçlı key→JSONB deposu.
 -- Frontend'in localStorage'da tuttuğu (~5MB kotayı aşan) uygulama durumu
 -- blob'unu sunucuya taşır. Anahtar (scope, key) ikilisidir; value JSONB'dir ve
 -- pratikte büyüklük sınırı yoktur (çok-MB blob barındırabilir).

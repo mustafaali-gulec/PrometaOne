@@ -1,5 +1,5 @@
 /**
- * Prometa One API — Hono app entry point.
+ * M Suite API — Hono app entry point.
  *
  * Tum route'lari mount eder, CORS / logger / error handler baglar,
  * cron'u baslatir ve graceful shutdown handle eder.
@@ -330,7 +330,7 @@ app.notFound((c) =>
 // ============================================================================
 console.log(`
 ========================================================================
-                  PROMETA ONE API . v2.0.0
+                  M SUITE API . v2.0.0
               Finance & HR Platform Backend
 ------------------------------------------------------------------------
   Mode      : ${config.NODE_ENV}

@@ -1,10 +1,11 @@
-# 📧 Prometa One — E-posta Bildirimleri
+# 📧 M Suite — E-posta Bildirimleri
 
 Bildirimler artık 3 kanalda gider: **In-app** + **Push** + **E-posta**.
 
 ## ✅ Frontend Hazır
 
 ### Hazır Özellikler (App.jsx)
+
 - **10 E-posta Şablonu** (HTML, responsive, inline CSS):
   - request_pending, request_approved, request_rejected, request_paid, request_delivered, request_returned
   - leave_pending, leave_approved, leave_rejected
@@ -29,13 +30,14 @@ Bildirimler artık 3 kanalda gider: **In-app** + **Push** + **E-posta**.
 - **Otomatik tetikleme** — `createNotification` her çağrıldığında push + e-posta otomatik
 
 ### Veri Yapısı (createEmptyCompanyData)
+
 ```js
 hrEmailPreferences: {}     // { username: { enabled, kinds, digest } }
 hrEmailLog: []             // Gönderim audit + retry
 hrEmailSettings: {         // Şirket bazlı provider config
   provider: "mailto",
   fromAddress: "",
-  fromName: "Prometa One",
+  fromName: "M Suite",
   apiKey: "",              // Backend'de şifreli
   domain: "",              // Mailgun
   smtpHost, smtpPort, smtpUser, smtpPass,
@@ -56,17 +58,20 @@ Tam dokümantasyon: `backend/docs/EMAIL_NOTIFICATIONS_API.md`
 ## 🚀 SendGrid Hızlı Kurulum (Önerilen)
 
 ### 1. SendGrid Hesabı Aç
+
 - https://sendgrid.com → Sign Up (free tier: 100 mail/gün)
 - **Sender Authentication** → Single Sender Verification
   - From email: `noreply@prometa.com.tr`
   - Doğrulama e-postası gelir
 
 ### 2. API Key Üret
+
 - Settings → API Keys → Create API Key
 - Permission: **Full Access** veya en azından **Mail Send**
 - Key'i kopyala (sadece bir kez gösterilir)
 
 ### 3. Frontend'de Provider Seç
+
 1. Admin → Ayarlar → **📧 E-posta Bildirim Ayarları**
 2. Provider: **SendGrid**
 3. From Address: `noreply@prometa.com.tr`
@@ -74,6 +79,7 @@ Tam dokümantasyon: `backend/docs/EMAIL_NOTIFICATIONS_API.md`
 5. Etkinleştir + Kaydet
 
 ### 4. Backend Implementasyonu (Node.js)
+
 ```bash
 cd backend
 npm install @sendgrid/mail html-to-text
@@ -87,6 +93,7 @@ EMAIL_FROM_ADDRESS=noreply@prometa.com.tr
 ```
 
 ### 5. Test Et
+
 - Frontend: Self-Service → Profilim → 📧 E-posta → **🧪 Test**
 - Mailto modunda → tarayıcı mail istemcisi açılır
 - SendGrid modunda → backend gönderir, inbox'a düşer
@@ -94,15 +101,18 @@ EMAIL_FROM_ADDRESS=noreply@prometa.com.tr
 ## 🚀 Mailgun Hızlı Kurulum
 
 ### 1. Domain Doğrula
+
 - https://app.mailgun.com → Sending → Domains
 - Yeni domain ekle: `mg.prometa.com.tr`
 - DNS kayıtlarını ayarla (TXT, MX, CNAME)
 - "Verified" olunca devam et
 
 ### 2. API Key Al
+
 - Settings → API Keys → **Private API key**
 
 ### 3. Frontend + Backend
+
 Admin Settings → Provider: **Mailgun** → Domain + API Key
 
 ```bash
@@ -118,19 +128,23 @@ MAILGUN_REGION=eu                   # EU veya US
 ## 🚀 AWS SES Hızlı Kurulum
 
 ### 1. Domain Doğrula
+
 - AWS Console → SES → Verified identities
 - Domain ekle, DNS TXT kayıtlarını doğrula
 - DKIM keys ayarla
 
 ### 2. Production Access İste (önemli!)
+
 - Default: SES sadece doğrulanmış adreslere yollar (sandbox)
 - Production access için ticket aç (genelde 24 saatte onaylanır)
 
 ### 3. IAM Role
+
 - EC2/Lambda için role oluştur: `AmazonSESFullAccess`
 - Local için access key (önerilmez)
 
 ### 4. Backend
+
 ```bash
 npm install @aws-sdk/client-ses
 ```
@@ -143,6 +157,7 @@ EMAIL_PROVIDER=ses
 ## 🚀 Klasik SMTP (Gmail/Office365/Custom)
 
 ### Gmail için
+
 - Google hesabınız → Security → 2-Step Verification → App passwords
 - "Mail" için app password üret (16 karakter)
 
@@ -155,6 +170,7 @@ SMTP_SECURE=false
 ```
 
 ### Office365 için
+
 ```env
 SMTP_HOST=smtp.office365.com
 SMTP_PORT=587
@@ -167,6 +183,7 @@ SMTP_PASS=...
 ## 🎨 Şablon Önizleme
 
 Admin Settings → E-posta Ayarları → **🎨 Şablon Önizleme**:
+
 - Dropdown'dan bildirim tipi seç
 - "▼ Göster" → iframe içinde canlı HTML preview
 - Tüm responsive özellikler ve renkler görünür
@@ -174,12 +191,14 @@ Admin Settings → E-posta Ayarları → **🎨 Şablon Önizleme**:
 ## 🧪 Test Akışı
 
 ### Mailto Modu (Backend olmadan)
+
 1. Admin Settings → Provider: **Mailto**
 2. Self-Service → Profilim → 📧 E-posta → **🧪 Test**
 3. Tarayıcı mail istemcisi açılır (Outlook, Mail.app, Gmail)
 4. Subject/body önceden doldurulmuş
 
 ### Provider Modu (Backend hazır)
+
 1. Provider seç + API key gir + Etkinleştir
 2. Bir talep oluştur
 3. Çalışanın inbox'ına gelmeli (1-2 dakika)
@@ -188,17 +207,18 @@ Admin Settings → E-posta Ayarları → **🎨 Şablon Önizleme**:
 
 ## 📊 Provider Karşılaştırma
 
-| Provider | Free | $/10K mail | Avantaj | Dezavantaj |
-|----------|------|-----------|---------|-----------|
-| SendGrid | 100/gün | $19.95/ay | Kolay setup, iyi destek | Free tier düşük |
-| Mailgun | 5K/ay | $35/ay | EU bölge, güçlü API | Fiyat |
-| AWS SES | 62K/ay (EC2) | $1/ay | En ucuz, ölçeklenir | Sandbox başlangıç |
-| SMTP | ∞ | ücretsiz | Var olan altyapı | Düşük volume only |
-| Mailto | ∞ | ücretsiz | Backend yok | Manuel tıklama |
+| Provider | Free         | $/10K mail | Avantaj                 | Dezavantaj        |
+| -------- | ------------ | ---------- | ----------------------- | ----------------- |
+| SendGrid | 100/gün      | $19.95/ay  | Kolay setup, iyi destek | Free tier düşük   |
+| Mailgun  | 5K/ay        | $35/ay     | EU bölge, güçlü API     | Fiyat             |
+| AWS SES  | 62K/ay (EC2) | $1/ay      | En ucuz, ölçeklenir     | Sandbox başlangıç |
+| SMTP     | ∞            | ücretsiz   | Var olan altyapı        | Düşük volume only |
+| Mailto   | ∞            | ücretsiz   | Backend yok             | Manuel tıklama    |
 
 ## 🌍 Çoklu Dil
 
 `buildEmailFromNotification()` alıcının diline göre HTML üretir:
+
 - `recipientEmp.preferredLang` → TR/EN/DE/AR
 - Subject ve body otomatik çevirilir
 - RTL desteği (Arapça için `dir="rtl"`)
@@ -216,13 +236,13 @@ Admin Settings → E-posta Ayarları → **🎨 Şablon Önizleme**:
 
 ## 🚨 Yaygın Sorunlar
 
-| Sorun | Çözüm |
-|---|---|
-| Mailler spam'e düşüyor | DKIM/SPF/DMARC ayarla, sender reputation yükselsin |
-| 403 forbidden | API key yanlış veya domain doğrulanmamış |
-| Gmail "via amazonses.com" gösteriyor | DKIM ayarla, custom MAIL FROM domain |
-| HTML render bozuk | Inline CSS kullan, table layout |
-| Bounce yüksek | Validate email addresses, suppress list aktif |
+| Sorun                                | Çözüm                                              |
+| ------------------------------------ | -------------------------------------------------- |
+| Mailler spam'e düşüyor               | DKIM/SPF/DMARC ayarla, sender reputation yükselsin |
+| 403 forbidden                        | API key yanlış veya domain doğrulanmamış           |
+| Gmail "via amazonses.com" gösteriyor | DKIM ayarla, custom MAIL FROM domain               |
+| HTML render bozuk                    | Inline CSS kullan, table layout                    |
+| Bounce yüksek                        | Validate email addresses, suppress list aktif      |
 
 ## 🎯 Yol Haritası
 

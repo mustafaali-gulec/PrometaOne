@@ -1,6 +1,6 @@
-# Prometa One — Kurulum Kılavuzu
+# M Suite — Kurulum Kılavuzu
 
-Bu kılavuz, Prometa One'ın **1 sunucu + N terminal** mimarisiyle müşteri
+Bu kılavuz, M Suite'ın **1 sunucu + N terminal** mimarisiyle müşteri
 ortamına kurulumunu anlatır. Uygulama yalnızca sunucuda çalışır; terminal
 bilgisayarlar sunucuya tarayıcıdan bağlanır (terminallerde Docker **gerekmez**).
 
@@ -55,7 +55,7 @@ image'ları yerelde derler (git deposundan kurulumda kullanılır; internet +
 
 ## 3. Sunucu kurulumu (Windows)
 
-1. Kurulum paketini sunucuya kopyalayın (ör. `C:\PrometaOne`).
+1. Kurulum paketini sunucuya kopyalayın (ör. `C:\MSuite`).
 2. `install\Kurulum-Sunucu.bat` dosyasına **sağ tık → Yönetici olarak
    çalıştır**.
 3. Sihirbaz sırasıyla şunları yapar:
@@ -100,7 +100,7 @@ Her terminal bilgisayarda:
 2. Sunucunun **bilgisayar adını** (önerilen, ör. `sunucu-pc`) veya IP'sini ve
    portu girin — sihirbaz `/v1/health` ile bağlantıyı test eder; ad
    çözülemezse tanılama mesajı gösterir ve IP ile denemenizi önerir.
-3. Masaüstü + Başlat Menüsü'ne **"Prometa One"** kısayolu oluşturulur
+3. Masaüstü + Başlat Menüsü'ne **"M Suite"** kısayolu oluşturulur
    (Edge/Chrome uygulama modu; ikisi de yoksa varsayılan tarayıcı `.url`).
 4. İsterseniz Windows oturum açılışında otomatik başlatma etkinleştirilir.
 
@@ -137,7 +137,7 @@ otomatik üretilir** ve sunucuya kaydedilir; ek bir işlem gerekmez.
 | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Docker daemon calismiyor`                        | Docker Desktop'ı başlatın, "Engine running" olunca sihirbazı tekrar çalıştırın.                                                                                                                          |
 | Servisler başlamıyor / port hatası                | Seçilen port başka uygulamada olabilir. Sihirbazı tekrar çalıştırıp farklı port seçin. Log: `docker compose -f docker-compose.prod.yml --env-file .env.prod logs`                                        |
-| Terminal sunucuya ulaşamıyor                      | Sunucu açık mı, adres/port doğru mu, güvenlik duvarı kuralı ("Prometa One Web") var mı kontrol edin.                                                                                                     |
+| Terminal sunucuya ulaşamıyor                      | Sunucu açık mı, adres/port doğru mu, güvenlik duvarı kuralı ("M Suite Web") var mı kontrol edin.                                                                                                         |
 | Bilgisayar adı çözülemiyor                        | Farklı alt ağ/VLAN'larda NetBIOS/mDNS adı çözülmeyebilir. Sunucu IP'sini kullanın veya ağ yöneticinizden DNS kaydı isteyin; sunucu tarafında ek ayar gerekmez (özel-ağ adresleri otomatik kabul edilir). |
 | `Lisans aktivasyonu basarisiz`                    | Lisans başka makine için kesilmiş (Donanım Kimliği uyuşmuyor), süresi dolmuş veya dosya bozuk. Özet ekranındaki Donanım Kimliği ile Promet Bilişim'e başvurun.                                           |
 | Uygulama açılıyor ama "Lisans yüklü değil" ekranı | `license.lic` yüklenmemiş — §5'teki iki yoldan biriyle aktive edin.                                                                                                                                      |

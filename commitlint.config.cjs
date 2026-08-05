@@ -1,5 +1,5 @@
 /**
- * Prometa One — Conventional Commits enforced via commitlint.
+ * M Suite — Conventional Commits enforced via commitlint.
  *
  * Format: <type>(<scope>)?: <subject>
  *
@@ -37,11 +37,7 @@ module.exports = {
     // Subject zorunlu, lowercase ile başlamalı, nokta ile bitmemeli
     'subject-empty': [2, 'never'],
     'subject-full-stop': [2, 'never', '.'],
-    'subject-case': [
-      2,
-      'never',
-      ['sentence-case', 'start-case', 'pascal-case', 'upper-case'],
-    ],
+    'subject-case': [2, 'never', ['sentence-case', 'start-case', 'pascal-case', 'upper-case']],
 
     // Header uzunluğu — okumayı zorlaştırmasın
     'header-max-length': [2, 'always', 100],

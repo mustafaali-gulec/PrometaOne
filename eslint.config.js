@@ -1,5 +1,5 @@
 // =============================================================================
-// Prometa One — ESLint Flat Config (ESLint 9+)
+// M Suite — ESLint Flat Config (ESLint 9+)
 // =============================================================================
 import js from '@eslint/js';
 import globals from 'globals';

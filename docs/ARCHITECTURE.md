@@ -1,8 +1,8 @@
-# Prometa One — Hedef Mimari
+# M Suite — Hedef Mimari
 
 **Durum:** Bootstrap (Phase 0) · **Son güncelleme:** 2026-05-19
 
-Bu doküman, Prometa One projesinin **yeni mimari** hedefini ve SOLID prensiplerinin nasıl uygulandığını anlatır. Mevcut monolitik durumdan (81K satırlık tek `App.jsx`) hedef duruma **Strangler Fig** yöntemiyle kademeli geçiş yapılacaktır.
+Bu doküman, M Suite projesinin **yeni mimari** hedefini ve SOLID prensiplerinin nasıl uygulandığını anlatır. Mevcut monolitik durumdan (81K satırlık tek `App.jsx`) hedef duruma **Strangler Fig** yöntemiyle kademeli geçiş yapılacaktır.
 
 > Mimari kararlar `docs/adr/` altında ADR'ler (Architectural Decision Records) olarak tutulur. Bu dosyayı okumadan önce sırasıyla `0001`, `0002`, `0003`'ü okumak önerilir.
 
@@ -12,7 +12,7 @@ Bu doküman, Prometa One projesinin **yeni mimari** hedefini ve SOLID prensipler
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  PROMETA ONE — Polyglot Monorepo                                │
+│  M SUITE — Polyglot Monorepo                                │
 │  ─────────────────────────────────────────                      │
 │                                                                 │
 │   frontend/         api-server/         ml-service/   legacy/   │
@@ -166,13 +166,13 @@ api-server/src/
 
 ## 5. SOLID Prensiplerinin Bu Mimaride Karşılığı
 
-| Prensip | Bu projede ne demek |
-|---|---|
-| **S** — Single Responsibility | Her dosya tek bir nedenle değişir. 81K satırlık App.jsx anti-prototip. Bir component sadece UI, bir use-case sadece bir iş akışı, bir repository sadece bir entity'nin CRUD'u. |
-| **O** — Open/Closed | Yeni özellik **var olan kodu değiştirmeden** eklenebilir. Örnek: yeni bir e-fatura sağlayıcısı, `EInvoiceProvider` interface'ini implement eden yeni bir class yazılarak eklenir — mevcut kod açılmaz. |
-| **L** — Liskov Substitution | Interface'i implement eden her sınıf, sözleşmenin tamamını karşılar. `PasswordHasher` interface'ini implement eden `BcryptPasswordHasher` ile `Argon2PasswordHasher` yer değiştirebilir; çağıran kod hiçbir şey bilmez. |
-| **I** — Interface Segregation | Büyük interface yok. `UserRepository` ayrı, `RoleRepository` ayrı. Bir use-case yalnızca ihtiyaç duyduğu interface'i alır. |
-| **D** — Dependency Inversion | Üst katmanlar concrete sınıflara değil **interface'lere** bağlanır. `LoginUseCase`, `PgUserRepository`'i tanımaz — `UserRepository` interface'ini bilir. Concrete implementasyon `app.ts`'de DI container'da inject edilir. |
+| Prensip                       | Bu projede ne demek                                                                                                                                                                                                         |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **S** — Single Responsibility | Her dosya tek bir nedenle değişir. 81K satırlık App.jsx anti-prototip. Bir component sadece UI, bir use-case sadece bir iş akışı, bir repository sadece bir entity'nin CRUD'u.                                              |
+| **O** — Open/Closed           | Yeni özellik **var olan kodu değiştirmeden** eklenebilir. Örnek: yeni bir e-fatura sağlayıcısı, `EInvoiceProvider` interface'ini implement eden yeni bir class yazılarak eklenir — mevcut kod açılmaz.                      |
+| **L** — Liskov Substitution   | Interface'i implement eden her sınıf, sözleşmenin tamamını karşılar. `PasswordHasher` interface'ini implement eden `BcryptPasswordHasher` ile `Argon2PasswordHasher` yer değiştirebilir; çağıran kod hiçbir şey bilmez.     |
+| **I** — Interface Segregation | Büyük interface yok. `UserRepository` ayrı, `RoleRepository` ayrı. Bir use-case yalnızca ihtiyaç duyduğu interface'i alır.                                                                                                  |
+| **D** — Dependency Inversion  | Üst katmanlar concrete sınıflara değil **interface'lere** bağlanır. `LoginUseCase`, `PgUserRepository`'i tanımaz — `UserRepository` interface'ini bilir. Concrete implementasyon `app.ts`'de DI container'da inject edilir. |
 
 ### Dependency Injection Yaklaşımı
 
@@ -183,14 +183,14 @@ api-server/src/
 
 ## 6. Test Stratejisi
 
-| Katman | Test türü | Araç |
-|---|---|---|
-| `domain/` | Unit (saf TS) | Vitest |
-| `application/` | Unit + integration (mock infrastructure) | Vitest |
-| `infrastructure/` | Integration (gerçek DB/HTTP, ama izole) | Vitest + testcontainers |
-| `presentation/` (api-server) | Contract tests (Hono testClient) | Vitest |
-| `presentation/` (frontend) | Component testleri | Vitest + Testing Library |
-| End-to-end | E2E | Playwright |
+| Katman                       | Test türü                                | Araç                     |
+| ---------------------------- | ---------------------------------------- | ------------------------ |
+| `domain/`                    | Unit (saf TS)                            | Vitest                   |
+| `application/`               | Unit + integration (mock infrastructure) | Vitest                   |
+| `infrastructure/`            | Integration (gerçek DB/HTTP, ama izole)  | Vitest + testcontainers  |
+| `presentation/` (api-server) | Contract tests (Hono testClient)         | Vitest                   |
+| `presentation/` (frontend)   | Component testleri                       | Vitest + Testing Library |
+| End-to-end                   | E2E                                      | Playwright               |
 
 Coverage hedefi: domain %95+, application %85+, infrastructure %70+, UI %60+.
 

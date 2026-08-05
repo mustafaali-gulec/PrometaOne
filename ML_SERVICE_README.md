@@ -1,22 +1,22 @@
-# 🌐 Prometa One — ML Service
+# 🌐 M Suite — ML Service
 
 Eğitilebilir Machine Learning Mikroservisi (FastAPI + scikit-learn)
 
 ## Genel Bakış
 
-Bu servis, Prometa One'ın frontend'inde local olarak çalışan AI özelliklerini **gerçek backend ML modelleri** ile güçlendirir.
+Bu servis, M Suite'ın frontend'inde local olarak çalışan AI özelliklerini **gerçek backend ML modelleri** ile güçlendirir.
 
 ### Avantajlar (Backend vs Local)
 
-| Özellik | Local AI (Frontend) | Backend ML (FastAPI) |
-|---------|---------------------|----------------------|
-| Eğitim verisi | Tarayıcıda anlık hesaplama | Persistent pickle modelleri |
-| Algoritma | Basit mode/median istatistikleri | Random Forest, IsolationForest, TF-IDF |
-| Doğruluk | %70-85 | %85-95 |
-| Performans | Anlık | <100ms yanıt |
-| Çoklu kullanıcı | Her tarayıcı kendi hesaplar | Tek model, tüm kullanıcılar paylaşır |
-| Tenant izolasyonu | Yok | Var (`{tenant_id}_*.pkl`) |
-| Veri minimumu | 2-3 kayıt | 5-10 kayıt |
+| Özellik           | Local AI (Frontend)              | Backend ML (FastAPI)                   |
+| ----------------- | -------------------------------- | -------------------------------------- |
+| Eğitim verisi     | Tarayıcıda anlık hesaplama       | Persistent pickle modelleri            |
+| Algoritma         | Basit mode/median istatistikleri | Random Forest, IsolationForest, TF-IDF |
+| Doğruluk          | %70-85                           | %85-95                                 |
+| Performans        | Anlık                            | <100ms yanıt                           |
+| Çoklu kullanıcı   | Her tarayıcı kendi hesaplar      | Tek model, tüm kullanıcılar paylaşır   |
+| Tenant izolasyonu | Yok                              | Var (`{tenant_id}_*.pkl`)              |
+| Veri minimumu     | 2-3 kayıt                        | 5-10 kayıt                             |
 
 ## Mimari
 
@@ -78,11 +78,12 @@ uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 
 ```javascript
 // backend/server.js veya app.js
-const mlRoutes = require("./routes/ml.routes");
-app.use("/api/ml", mlRoutes);
+const mlRoutes = require('./routes/ml.routes');
+app.use('/api/ml', mlRoutes);
 ```
 
 Backend `.env`:
+
 ```
 ML_SERVICE_URL=http://ml-service:8001
 ```
@@ -92,23 +93,27 @@ ML_SERVICE_URL=http://ml-service:8001
 `frontend/src/utils/aiBackend.js` kullanın:
 
 ```javascript
-import { trainCariPattern, predictDueDate, predictAccount } from "./utils/aiBackend";
+import {
+  trainCariPattern,
+  predictDueDate,
+  predictAccount,
+} from './utils/aiBackend';
 
 // Model eğitimi (manuel veya cron ile)
 await trainCariPattern(data.invoices);
 
 // Vade tahmini
 const result = await predictDueDate({
-  partyId: "party_xyz",
-  invoiceType: "out",
-  invoiceDate: "2026-05-16",
+  partyId: 'party_xyz',
+  invoiceType: 'out',
+  invoiceDate: '2026-05-16',
   amount: 12500,
 });
 // → { predicted_days: 32, confidence: "high", method: "random_forest", ... }
 
 // Hesap kodu önerisi
 const accountSugg = await predictAccount({
-  description: "Elektrik faturası ödemesi",
+  description: 'Elektrik faturası ödemesi',
   topK: 3,
 });
 // → { suggestions: [{ account_code: "770", confidence: 95, ... }, ...] }
@@ -116,13 +121,13 @@ const accountSugg = await predictAccount({
 
 ## Eğitim Verisi Minimumları
 
-| Model | Minimum Kayıt | Önerilen |
-|-------|---------------|----------|
-| Cari Pattern | 5 fatura | 50+ |
-| Vade Tahmini | 3 fatura/cari | 10+ |
-| Anomali Tespit | 3 fatura/cari | 10+ (IsoForest için) |
-| Sezonsallık | 4 fatura/cari | 12+ |
-| Yevmiye Sınıflama | 10 satır | 100+ |
+| Model             | Minimum Kayıt | Önerilen             |
+| ----------------- | ------------- | -------------------- |
+| Cari Pattern      | 5 fatura      | 50+                  |
+| Vade Tahmini      | 3 fatura/cari | 10+                  |
+| Anomali Tespit    | 3 fatura/cari | 10+ (IsoForest için) |
+| Sezonsallık       | 4 fatura/cari | 12+                  |
+| Yevmiye Sınıflama | 10 satır      | 100+                 |
 
 ## Endpoint Listesi
 
@@ -152,26 +157,31 @@ const accountSugg = await predictAccount({
 ## Algoritmalar
 
 ### 1. Vade Tahmini — Random Forest Regressor
+
 - **Features**: `[total, month, day_of_week, vat_rate]`
 - **Hyperparameters**: `n_estimators=20, max_depth=5`
 - **Fallback**: Constant veya median değer (yetersiz veri)
 
 ### 2. Anomali Tespit — Isolation Forest
+
 - **Contamination**: 0.1 (toplam verinin %10'u anomali kabul edilir)
 - **Fallback**: Z-score (eşik: 2.5σ)
 - **Severity**: high (z>3) / medium (z>2)
 
 ### 3. Hesap Kodu Sınıflama — TF-IDF + Cosine Similarity
+
 - **Max features**: 500
 - **N-gram**: (1, 2)
 - **Min similarity threshold**: 0.15
 
 ### 4. Sezonsallık — İstatistiksel Mode
+
 - Çeyrek bazlı toplam dağılımı
 - Aylık dağılım
 - Yıllık tekrar tespit (LAG=12 ay)
 
 ### 5. Bordro Anomali — Z-Score + Trend Break
+
 - Brüt/Net maaş Z-score (eşik: 2.0σ)
 - Mesai ratio (3× üstü = anomali)
 - Trend kırılması (%25+ değişim)
@@ -211,7 +221,7 @@ Modelleri belirli aralıklarla yenilemek için:
 async function retrainAll() {
   await trainCariPattern(data.invoices);
   await trainJournalClassifier(data.accJournalEntries);
-  notify("Modeller yeniden eğitildi!");
+  notify('Modeller yeniden eğitildi!');
 }
 ```
 
@@ -225,15 +235,19 @@ Veya backend cron job:
 ## Sorun Giderme
 
 ### "Model not trained yet" hatası
+
 → İlk önce `/train/cari-pattern` çağırın
 
 ### Eğitim "400 Bad Request" dönüyor
+
 → Minimum kayıt sayısını kontrol edin (5 fatura, 10 yevmiye satırı)
 
 ### Tahmin yavaş
+
 → Model cache'i devre dışı olabilir; servisi yeniden başlatın
 
 ### Docker container çalışmıyor
+
 ```bash
 docker-compose logs ml-service
 # Sıkça: bellek yetersizliği veya port çakışması

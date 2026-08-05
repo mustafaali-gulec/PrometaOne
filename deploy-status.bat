@@ -1,13 +1,13 @@
 @echo off
 REM =============================================================
-REM  Prometa One - Deploy Durum Izleme
+REM  M Suite - Deploy Durum Izleme
 REM  Calistiran servislerin durumu + son deploy kayitlari
 REM =============================================================
 cd /d "%~dp0"
 
 echo.
 echo ===============================================================
-echo   PROMETA ONE - SERVIS DURUMU
+echo   M SUITE - SERVIS DURUMU
 echo ===============================================================
 docker compose ps
 echo.

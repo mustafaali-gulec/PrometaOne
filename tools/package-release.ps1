@@ -1,5 +1,5 @@
 # =============================================================================
-# PROMETA ONE — MUSTERI KURULUM PAKETI URETICISI (package-release.ps1)
+# M SUITE — MUSTERI KURULUM PAKETI URETICISI (package-release.ps1)
 # =============================================================================
 # SADECE URETICI FIRMADA (Promet Bilisim) calistirilir. Cikan zip musteriye
 # gonderilir. PAKETE KAYNAK KOD GIRMEZ — yalnizca:
@@ -36,7 +36,7 @@ function Write-Hata([string]$Text) { Write-Host ("  [HATA] {0}" -f $Text) -Foreg
 
 Write-Host ''
 Write-Host '  =====================================================' -ForegroundColor Cyan
-Write-Host '   PROMETA ONE - MUSTERI PAKETI URETICISI' -ForegroundColor Cyan
+Write-Host '   M SUITE - MUSTERI PAKETI URETICISI' -ForegroundColor Cyan
 Write-Host '  =====================================================' -ForegroundColor Cyan
 Write-Host ''
 
@@ -128,7 +128,7 @@ try {
         'Promet Bilisim''e iletin.'
     ) | Out-File -FilePath (Join-Path $paketKlasoru 'license\BENIOKU.txt') -Encoding utf8 -Force
     @(
-        'PROMETA ONE - KURULUM PAKETI',
+        'M SUITE - KURULUM PAKETI',
         '============================',
         '',
         'SUNUCU KURULUMU : install\Kurulum-Sunucu.bat  (sag tik -> Yonetici olarak calistir)',

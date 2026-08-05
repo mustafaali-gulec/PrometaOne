@@ -1,5 +1,5 @@
 # =============================================================================
-# PROMETA ONE API — Development Dockerfile (tsx runtime, no build)
+# M SUITE API — Development Dockerfile (tsx runtime, no build)
 # =============================================================================
 FROM node:20-alpine
 

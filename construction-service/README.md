@@ -1,6 +1,6 @@
 # Construction Service — Şantiye Yönetim Mikroservisi
 
-Prometa One'ın **bağımsız** şantiye/hakediş mikroservisi. Monolitten (`api-server`)
+M Suite'ın **bağımsız** şantiye/hakediş mikroservisi. Monolitten (`api-server`)
 çıkarılmıştır; kendi process'i, kendi veritabanı (DB-per-service) ve Kafka event
 yayını ile çalışır. Diğer modüllere **derleme/çalışma zamanı bağımlılığı yoktur**.
 

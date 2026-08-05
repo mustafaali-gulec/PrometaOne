@@ -118,7 +118,7 @@ export function buildBeratXml(input: BeratInput): string {
     el(
       'gl-bus:sourceApplication',
       ctx,
-      profile.sourceApplication || `${profile.vkn}##Promet Bilisim##Prometa One e-Defter##1.0`,
+      profile.sourceApplication || `${profile.vkn}##Promet Bilisim##M Suite e-Defter##1.0`,
     ) +
     `</gl-cor:documentInfo>`;
 

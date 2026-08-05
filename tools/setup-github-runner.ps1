@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Prometa One - GitHub Actions self-hosted runner kurulumu (Windows).
+  M Suite - GitHub Actions self-hosted runner kurulumu (Windows).
   DevOps ajani tarafindan hazirlandi.
 
 .DESCRIPTION
@@ -44,7 +44,7 @@ param(
 $ErrorActionPreference = "Stop"
 $RunnerDir = "C:\actions-runner-prometa"
 
-Write-Host "=== Prometa One - Self-Hosted Runner Kurulumu ===" -ForegroundColor Cyan
+Write-Host "=== M Suite - Self-Hosted Runner Kurulumu ===" -ForegroundColor Cyan
 
 # 0. On kontroller
 Write-Host "[0/5] On kontroller..." -ForegroundColor Yellow

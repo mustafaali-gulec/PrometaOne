@@ -4,7 +4,7 @@ Bu dosya, Cowork oturumunda yapılan işleri ve kaldığın yeri özetler. Amaç
 ortamında (Claude Code / VS Code) kaldığın yerden sorunsuz devam edebilmen.
 
 Tarih: 2026-06-01 / 2026-06-02 · Repo: `C:\prometa-one` · Branch: `master`
-Remote: `https://github.com/mustafaali-gulec/PrometaOne.git`
+Remote: `https://github.com/mustafaali-gulec/MSuite.git`
 
 ---
 
@@ -48,7 +48,7 @@ Oluşturulan dosyalar:
 
 - Repo GitHub'a push edildi (ilk commit).
 - Runner `C:\actions-runner-prometa`'ya kuruldu, GitHub'a bağlandı, **Windows servisi**
-  olarak çalışıyor (`actions.runner.mustafaali-gulec-PrometaOne.MUSTAFAG`). Reboot'ta otomatik başlar.
+  olarak çalışıyor (`actions.runner.mustafaali-gulec-MSuite.MUSTAFAG`). Reboot'ta otomatik başlar.
 - Etiketler: `self-hosted, Windows, X64`. Workflow `runs-on: [self-hosted]` bununla eşleşir.
 
 ---

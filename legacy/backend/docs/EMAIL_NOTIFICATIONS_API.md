@@ -1,4 +1,4 @@
-# 📧 Prometa One — Email Notifications API Sözleşmesi
+# 📧 M Suite — Email Notifications API Sözleşmesi
 
 Backend tarafından implement edilmesi gereken endpoint'ler ve veri yapıları.
 
@@ -32,7 +32,7 @@ secure-smtplib==0.1.1
 # Genel
 EMAIL_PROVIDER=sendgrid                 # sendgrid | mailgun | ses | smtp | mailto
 EMAIL_FROM_ADDRESS=noreply@prometa.com.tr
-EMAIL_FROM_NAME=Prometa One
+EMAIL_FROM_NAME=M Suite
 EMAIL_REPLY_TO=ik@prometa.com.tr
 
 # SendGrid
@@ -73,7 +73,7 @@ Bildirim e-postası gönderir. Backend bildirim oluşturulduğunda tetikler.
   "subject": "✓ Talebiniz Onaylandı",
   "html": "<!DOCTYPE html>...",
   "text": "Talebiniz onaylandı. Detaylar için portala giriş yapın.",
-  "fromName": "Prometa One",
+  "fromName": "M Suite",
   "replyTo": "ik@prometa.com.tr",
   "meta": {
     "kind": "request_approved",
@@ -232,7 +232,7 @@ const mgClient = mg.client({
 async function sendViaMailgun({ to, subject, html, text, fromName, replyTo }) {
   try {
     const result = await mgClient.messages.create(process.env.MAILGUN_DOMAIN, {
-      from: `${fromName || "Prometa One"} <${process.env.EMAIL_FROM_ADDRESS}>`,
+      from: `${fromName || "M Suite"} <${process.env.EMAIL_FROM_ADDRESS}>`,
       to,
       "h:Reply-To": replyTo || process.env.EMAIL_REPLY_TO,
       subject,
@@ -257,7 +257,7 @@ const ses = new SESClient({ region: process.env.AWS_REGION });
 
 async function sendViaSes({ to, subject, html, text, fromName, replyTo }) {
   const command = new SendEmailCommand({
-    Source: `"${fromName || "Prometa One"}" <${process.env.EMAIL_FROM_ADDRESS}>`,
+    Source: `"${fromName || "M Suite"}" <${process.env.EMAIL_FROM_ADDRESS}>`,
     Destination: { ToAddresses: [to] },
     ReplyToAddresses: [replyTo || process.env.EMAIL_REPLY_TO],
     Message: {
@@ -296,7 +296,7 @@ const transporter = nodemailer.createTransporter({
 async function sendViaSmtp({ to, subject, html, text, fromName, replyTo }) {
   try {
     const info = await transporter.sendMail({
-      from: `"${fromName || 'Prometa One'}" <${process.env.EMAIL_FROM_ADDRESS}>`,
+      from: `"${fromName || 'M Suite'}" <${process.env.EMAIL_FROM_ADDRESS}>`,
       to,
       replyTo: replyTo || process.env.EMAIL_REPLY_TO,
       subject,
@@ -462,7 +462,7 @@ cron.schedule("0 9 * * *", async () => {
     const html = generateDigestHtml(notifs, user, employee);
     await sendEmail({
       to: employee.email,
-      subject: `Prometa One — Günlük Özet (${notifs.length} bildirim)`,
+      subject: `M Suite — Günlük Özet (${notifs.length} bildirim)`,
       html,
       meta: { kind: "digest", recipientUserId: user.username },
     });

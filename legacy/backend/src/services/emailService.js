@@ -1,5 +1,5 @@
 /* =====================================================================
-   PROMETA ONE — EMAIL SERVICE (SMTP)
+   M SUITE — EMAIL SERVICE (SMTP)
    ---------------------------------------------------------------------
    Nodemailer üzerinde SMTP entegrasyonu.
    
@@ -13,7 +13,7 @@
      SMTP_SECURE=false   (true ise 465)
      SMTP_USER=ornek@gmail.com
      SMTP_PASS=app-password
-     SMTP_FROM_NAME=Prometa One
+     SMTP_FROM_NAME=M Suite
      SMTP_FROM_EMAIL=noreply@promet.com.tr
 ===================================================================== */
 
@@ -74,7 +74,7 @@ async function sendEmail({ to, subject, text, html, attachments, cc, bcc, replyT
     return { skipped: true, reason: "SMTP not configured" };
   }
 
-  const fromName = process.env.SMTP_FROM_NAME || "Prometa One";
+  const fromName = process.env.SMTP_FROM_NAME || "M Suite";
   const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
 
   try {
@@ -131,10 +131,10 @@ async function sendBulk(list) {
 async function testEmail(to) {
   return sendEmail({
     to,
-    subject: "Prometa One - SMTP Test",
+    subject: "M Suite - SMTP Test",
     text: "Bu bir test mesajıdır.",
     html: `
-      <h2 style="color:#0f766e;">Prometa One - SMTP Test</h2>
+      <h2 style="color:#0f766e;">M Suite - SMTP Test</h2>
       <p>SMTP yapılandırmanız çalışıyor!</p>
       <p style="color:#6b7280;font-size:11pt;">Bu otomatik bir test e-postasıdır.</p>
     `,
@@ -167,7 +167,7 @@ async function sendNotificationEmail(user, notification) {
 <body>
   <div class="container">
     <div class="header">
-      <h1>Prometa One</h1>
+      <h1>M Suite</h1>
       <div class="subtitle">Bildirim</div>
     </div>
     <div class="body">
