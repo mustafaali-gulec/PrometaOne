@@ -1,14 +1,30 @@
 /**
- * ELogoProvider — Logo eLogo (SOAP) EInvoiceProvider implementasyonu.
+ * ELogoProvider — Logo eLogo (SOAP PostBoxService) EInvoiceProvider implementasyonu.
  *
- * Legacy `src/services/einvoice/elogo.ts`'in strict + port-uyumlu hâli.
- * Akış: Login → GetInbox/OutboxInvoiceList → GetInbox/OutboxInvoice (XML) → Logout.
+ * Gerçek eLogo özel entegratör ucu: https://pb.elogo.com.tr/PostBoxService.svc
+ * (WSDL: ?singleWsdl). Eski varsayılanlar (test.elogo.com.tr, test1.diyalogo.com.tr)
+ * DNS'ten kaldırıldı; test ortamı adresi eLogo'dan alınıp config.wsdlUrl ile girilir.
+ *
+ * WSDL'e göre akış (2026-08-05'te canlı WSDL'den doğrulandı):
+ *  - Login({ login: { userName, passWord, source, appStr, version } })
+ *      → { LoginResult: boolean, sessionID: string }
+ *  - getInvoiceList({ beginDate, endDate, opType: 'SEND'|'RECV', sessionID,
+ *      dateBy: 'byCREATED'|'byISSUEDATE' }) → ArrayOfstring (fatura UUID listesi)
+ *  - getInvoice({ invoiceID, sessionID }) → DocumentType { binaryData: { Value(b64),
+ *      contentType }, fileName } — içerik düz UBL XML, gzip veya zip olabilir
+ *  - Logout({ sessionID })
+ *
+ * Liste çağrısı yalnız UUID döndürdüğünden özet metadata boş bırakılır; sync
+ * akışı zaten her fatura için fetchInvoiceXml + UblInvoiceParser ile gerçek
+ * alanları çıkarır (SyncEInvoicesUseCase özetten uuid/direction/gibStatus kullanır).
  *
  * SOAP client dinamik (`strong-soap`); ambient declaration (src/types/strong-soap.d.ts)
- * yalnızca kullandığımız yüzeyi tipler. SOAP yanıtları `unknown` üzerinden
- * güvenli daraltılır. Bu adapter ağ gerektirdiği için birim testi MockProvider
+ * yalnızca kullandığımız yüzeyi tipler. WSDL ~170KB olduğundan client wsdlUrl
+ * başına cache'lenir. Bu adapter ağ gerektirdiği için birim testi MockProvider
  * ile yapılır; gerçek bağlantı kullanıcı ortamında doğrulanır.
  */
+import { gunzipSync, inflateRawSync } from 'node:zlib';
+
 import type { SoapClient, soap } from 'strong-soap';
 
 type SoapNamespace = typeof soap;
@@ -23,20 +39,26 @@ import type { CredentialConfig } from '../../domain/entities/EInvoiceCredential.
 import { ProviderAuthError, ProviderFetchError } from '../../domain/errors/EInvoiceErrors.js';
 import type { InvoiceDirection } from '../../domain/valueObjects/InvoiceDirection.js';
 
+/** eLogo'nun herkese açık tek PostBox ucu; test hesap adresi eLogo'dan alınır. */
+const DEFAULT_WSDL_URL = 'https://pb.elogo.com.tr/PostBoxService.svc?singleWsdl';
+
+const UUID_RE = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
+
 export class ELogoProvider implements EInvoiceProvider {
   readonly name = 'elogo';
 
+  private readonly clients = new Map<string, Promise<SoapClient>>();
+
   private wsdlUrl(config: CredentialConfig): string {
     if (config.wsdlUrl !== undefined && config.wsdlUrl !== '') return config.wsdlUrl;
-    return config.env === 'prod'
-      ? 'https://earsiv.elogo.com.tr/api/api.svc?singleWsdl'
-      : 'https://test.elogo.com.tr/api/api.svc?singleWsdl';
+    return DEFAULT_WSDL_URL;
   }
 
   async testConnection(config: CredentialConfig): Promise<ProviderTestResult> {
     try {
-      const sessionId = await this.login(config);
-      await this.logout(config, sessionId);
+      const client = await this.createClient(config);
+      const sessionId = await this.login(client, config);
+      await this.logout(client, sessionId);
       return { ok: true, message: 'Bağlantı başarılı. Oturum açılabiliyor.' };
     } catch (err) {
       return { ok: false, message: err instanceof Error ? err.message : String(err) };
@@ -47,59 +69,58 @@ export class ELogoProvider implements EInvoiceProvider {
     config: CredentialConfig,
     params: FetchInvoiceListParams,
   ): Promise<ProviderInvoiceSummary[]> {
-    const sessionId = await this.login(config);
+    const client = await this.createClient(config);
+    const sessionId = await this.login(client, config);
     try {
       const results: ProviderInvoiceSummary[] = [];
       if (params.direction === 'incoming' || params.direction === 'both') {
-        results.push(...(await this.fetchListBySide(config, sessionId, params, 'incoming')));
+        results.push(...(await this.fetchListBySide(client, sessionId, params, 'incoming')));
       }
       if (params.direction === 'outgoing' || params.direction === 'both') {
-        results.push(...(await this.fetchListBySide(config, sessionId, params, 'outgoing')));
+        results.push(...(await this.fetchListBySide(client, sessionId, params, 'outgoing')));
       }
       return results;
     } finally {
-      await this.logout(config, sessionId).catch(() => undefined);
+      await this.logout(client, sessionId).catch(() => undefined);
     }
   }
 
   async fetchInvoiceXml(
     config: CredentialConfig,
     uuid: string,
-    direction: InvoiceDirection,
+    _direction: InvoiceDirection,
   ): Promise<string> {
-    const sessionId = await this.login(config);
+    const client = await this.createClient(config);
+    const sessionId = await this.login(client, config);
     try {
-      const client = await this.createClient(config);
-      const method = direction === 'incoming' ? 'GetInboxInvoice' : 'GetOutboxInvoice';
       const result = asObj(
-        await callSoap(client, method, { SessionID: sessionId, UUID: uuid, Format: 'XML' }),
+        await callSoap(client, 'getInvoice', { invoiceID: uuid, sessionID: sessionId }),
       );
-      const xml = str(result['XmlData'] ?? result['InvoiceData'] ?? result['Xml']);
-      if (xml === '') {
-        throw new ProviderFetchError(`${method} XML döndürmedi`);
+      const doc = asObj(result['getInvoiceResult']);
+      const binary = asObj(doc['binaryData']);
+      const b64 = str(binary['Value'] ?? binary['value']);
+      if (b64 === '') {
+        throw new ProviderFetchError(`getInvoice veri döndürmedi (UUID: ${uuid})`);
       }
-      // Bazı entegratörler base64 gönderir
-      if (xml.length > 100 && /^[A-Za-z0-9+/=\s]+$/.test(xml)) {
-        try {
-          return Buffer.from(xml, 'base64').toString('utf-8');
-        } catch {
-          return xml;
-        }
-      }
-      return xml;
+      const buf = Buffer.from(b64.replace(/\s+/g, ''), 'base64');
+      return payloadToXml(buf);
     } finally {
-      await this.logout(config, sessionId).catch(() => undefined);
+      await this.logout(client, sessionId).catch(() => undefined);
     }
   }
 
   // --- SOAP iç akış --------------------------------------------------------
   private createClient(config: CredentialConfig): Promise<SoapClient> {
     const url = this.wsdlUrl(config);
-    return loadSoap().then(
+    const cached = this.clients.get(url);
+    if (cached !== undefined) return cached;
+    const pending = loadSoap().then(
       (soap) =>
         new Promise<SoapClient>((resolve, reject) => {
           soap.createClient(url, { connection: 'keep-alive' }, (err, client) => {
             if (err) {
+              // Başarısız denemeyi cache'te bırakma — sonraki çağrı yeniden dener.
+              this.clients.delete(url);
               reject(new ProviderFetchError(`WSDL alınamadı (${url}): ${errMsg(err)}`));
               return;
             }
@@ -107,48 +128,81 @@ export class ELogoProvider implements EInvoiceProvider {
           });
         }),
     );
+    this.clients.set(url, pending);
+    pending.catch(() => this.clients.delete(url));
+    return pending;
   }
 
-  private async login(config: CredentialConfig): Promise<string> {
-    const client = await this.createClient(config);
+  private async login(client: SoapClient, config: CredentialConfig): Promise<string> {
     const result = asObj(
       await callSoap(client, 'Login', {
-        UserName: config.username,
-        Password: config.password,
-        VergiTcKimlikNo: config.vergiNo,
+        login: {
+          userName: config.username,
+          passWord: config.password,
+          source: config.extras?.['source'] ?? 'MSUITE',
+          appStr: config.extras?.['appStr'] ?? 'M Suite',
+          version: config.extras?.['version'] ?? '1.0',
+        },
+      }).catch((err: unknown) => {
+        // SOAP fault'un ham JSON detayı yerine servisin insan-okur mesajını göster.
+        const fault = /faultstring:\s*([^\n]*?)\s+detail:/.exec(errMsg(err));
+        if (fault !== null && fault[1] !== '') {
+          throw new ProviderAuthError(`eLogo girişi reddedildi: ${fault[1]}`);
+        }
+        throw err;
       }),
     );
-    const sessionId = str(result['SessionID'] ?? result['sessionId'] ?? result['token']);
-    if (sessionId === '') {
-      throw new ProviderAuthError('SessionID alınamadı (kullanıcı adı/şifre/VKN hatalı olabilir)');
+    const ok = result['LoginResult'] === true || str(result['LoginResult']) === 'true';
+    const sessionId = str(result['sessionID'] ?? result['SessionID']);
+    if (!ok || sessionId === '') {
+      throw new ProviderAuthError(
+        'eLogo oturumu açılamadı (kullanıcı adı/şifre hatalı olabilir ya da hesap bu ortamda tanımlı değil)',
+      );
     }
     return sessionId;
   }
 
-  private async logout(config: CredentialConfig, sessionId: string): Promise<void> {
-    const client = await this.createClient(config);
-    await callSoap(client, 'Logout', { SessionID: sessionId }).catch(() => undefined);
+  private async logout(client: SoapClient, sessionId: string): Promise<void> {
+    await callSoap(client, 'Logout', { sessionID: sessionId }).catch(() => undefined);
   }
 
   private async fetchListBySide(
-    config: CredentialConfig,
+    client: SoapClient,
     sessionId: string,
     params: FetchInvoiceListParams,
     direction: InvoiceDirection,
   ): Promise<ProviderInvoiceSummary[]> {
-    const client = await this.createClient(config);
-    const method = direction === 'incoming' ? 'GetInboxInvoiceList' : 'GetOutboxInvoiceList';
     const result = asObj(
-      await callSoap(client, method, {
-        SessionID: sessionId,
-        StartDate: params.dateFrom,
-        EndDate: params.dateTo,
+      await callSoap(client, 'getInvoiceList', {
+        beginDate: `${params.dateFrom}T00:00:00`,
+        endDate: `${params.dateTo}T23:59:59`,
+        opType: direction === 'incoming' ? 'RECV' : 'SEND',
+        sessionID: sessionId,
+        dateBy: 'byISSUEDATE',
       }),
     );
-    const items = arr(
-      asObj(result['InvoiceList'])['Invoice'] ?? result['Invoices'] ?? result['Items'] ?? [],
-    );
-    return items.map((raw) => mapSummary(asObj(raw), direction)).filter((s) => s.uuid !== '');
+    const items = arr(asObj(result['getInvoiceListResult'])['string']);
+    const summaries: ProviderInvoiceSummary[] = [];
+    for (const raw of items) {
+      const match = UUID_RE.exec(str(raw));
+      if (match === null) continue;
+      // eLogo listesi yalnız UUID döndürür; gerçek alanlar UBL XML'den parse edilir.
+      summaries.push({
+        uuid: match[0].toLowerCase(),
+        invoiceNo: '',
+        direction,
+        invoiceType: null,
+        scenario: null,
+        issueDate: '',
+        dueDate: null,
+        partyVknTckn: '',
+        partyName: '',
+        currency: 'TRY',
+        payableAmount: '0',
+        gibStatus: null,
+      });
+    }
+    return summaries;
   }
 }
 
@@ -178,33 +232,67 @@ function callSoap(client: SoapClient, method: string, args: unknown): Promise<un
   });
 }
 
-function mapSummary(
-  it: Record<string, unknown>,
-  direction: InvoiceDirection,
-): ProviderInvoiceSummary {
-  const partyVkn =
-    direction === 'incoming'
-      ? str(it['SenderVKN'] ?? it['SaticiVKN'] ?? it['SupplierVKN'])
-      : str(it['ReceiverVKN'] ?? it['AliciVKN'] ?? it['CustomerVKN']);
-  const partyName =
-    direction === 'incoming'
-      ? str(it['SenderName'] ?? it['SaticiUnvan'] ?? it['SupplierName'])
-      : str(it['ReceiverName'] ?? it['AliciUnvan'] ?? it['CustomerName']);
-  const dueRaw = str(it['DueDate']);
-  return {
-    uuid: str(it['UUID'] ?? it['Uuid'] ?? it['ETTN']),
-    invoiceNo: str(it['ID'] ?? it['InvoiceNo'] ?? it['FaturaNo']),
-    direction,
-    invoiceType: nullable(str(it['InvoiceTypeCode'] ?? it['FaturaTipi'])),
-    scenario: nullable(str(it['ProfileID'] ?? it['Senaryo'])),
-    issueDate: str(it['IssueDate'] ?? it['FaturaTarihi']).slice(0, 10),
-    dueDate: dueRaw === '' ? null : dueRaw.slice(0, 10),
-    partyVknTckn: partyVkn,
-    partyName,
-    currency: str(it['Currency'] ?? it['DocumentCurrencyCode']) || 'TRY',
-    payableAmount: str(it['PayableAmount'] ?? it['OdenecekTutar'] ?? it['Total']) || '0',
-    gibStatus: nullable(str(it['GibStatus'] ?? it['Durum'])),
-  };
+/** getInvoice binaryData içeriğini UBL XML string'ine çevirir (düz / gzip / zip). */
+function payloadToXml(buf: Buffer): string {
+  if (buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b) {
+    return gunzipSync(buf).toString('utf-8');
+  }
+  if (buf.length >= 4 && buf.readUInt32LE(0) === 0x04034b50) {
+    return unzipXmlEntry(buf).toString('utf-8');
+  }
+  return buf.toString('utf-8');
+}
+
+/** Tek geçişli minimal ZIP okuyucu: central directory'den .xml girdisini çıkarır. */
+function unzipXmlEntry(buf: Buffer): Buffer {
+  const eocd = findEndOfCentralDirectory(buf);
+  const entryCount = buf.readUInt16LE(eocd + 10);
+  let offset = buf.readUInt32LE(eocd + 16);
+  let fallback: Buffer | null = null;
+  for (let i = 0; i < entryCount; i++) {
+    if (offset + 46 > buf.length || buf.readUInt32LE(offset) !== 0x02014b50) break;
+    const method = buf.readUInt16LE(offset + 10);
+    const compressedSize = buf.readUInt32LE(offset + 20);
+    const nameLen = buf.readUInt16LE(offset + 28);
+    const extraLen = buf.readUInt16LE(offset + 30);
+    const commentLen = buf.readUInt16LE(offset + 32);
+    const localHeaderOffset = buf.readUInt32LE(offset + 42);
+    const name = buf.toString('utf-8', offset + 46, offset + 46 + nameLen);
+    const data = readLocalZipEntry(buf, localHeaderOffset, compressedSize, method);
+    if (data !== null) {
+      if (name.toLowerCase().endsWith('.xml')) return data;
+      if (fallback === null) fallback = data;
+    }
+    offset += 46 + nameLen + extraLen + commentLen;
+  }
+  if (fallback !== null) return fallback;
+  throw new ProviderFetchError('eLogo ZIP paketinden XML çıkarılamadı');
+}
+
+function findEndOfCentralDirectory(buf: Buffer): number {
+  const min = Math.max(0, buf.length - 22 - 65535);
+  for (let i = buf.length - 22; i >= min; i--) {
+    if (buf.readUInt32LE(i) === 0x06054b50) return i;
+  }
+  throw new ProviderFetchError('eLogo ZIP paketi okunamadı (EOCD bulunamadı)');
+}
+
+function readLocalZipEntry(
+  buf: Buffer,
+  localHeaderOffset: number,
+  compressedSize: number,
+  method: number,
+): Buffer | null {
+  if (localHeaderOffset + 30 > buf.length) return null;
+  if (buf.readUInt32LE(localHeaderOffset) !== 0x04034b50) return null;
+  const nameLen = buf.readUInt16LE(localHeaderOffset + 26);
+  const extraLen = buf.readUInt16LE(localHeaderOffset + 28);
+  const start = localHeaderOffset + 30 + nameLen + extraLen;
+  if (start + compressedSize > buf.length) return null;
+  const data = buf.subarray(start, start + compressedSize);
+  if (method === 0) return data;
+  if (method === 8) return inflateRawSync(data);
+  return null;
 }
 
 function asObj(v: unknown): Record<string, unknown> {
@@ -221,10 +309,6 @@ function str(v: unknown): string {
   if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
   if (typeof v === 'symbol') return v.toString();
   return '';
-}
-
-function nullable(s: string): string | null {
-  return s === '' ? null : s;
 }
 
 function errMsg(err: unknown): string {
