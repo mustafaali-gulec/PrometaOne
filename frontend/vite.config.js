@@ -1,15 +1,39 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 // Yazılım sürümü tek kaynaktan (package.json) gelir; UI'da sol menünün altında
 // gösterilir. Build zamanında sabite çevrilir, runtime'da package.json okunmaz.
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
 
+// Derleme kimliği (kısa commit SHA). Sürüm yalnızca yayın kesilirken artar
+// (docs/RELEASE.md), oysa master günde birkaç kez deploy olabilir — "şu an hangi
+// kod çalışıyor" sorusunun cevabı bu SHA'dır.
+//   1) VITE_COMMIT_SHA / GITHUB_SHA — .git'e erişimi olmayan ortamlar (yalnızca
+//      frontend/ dizinini bind-mount eden konteyner, CI imaj build'i) için.
+//   2) git — repo içinden çalışan dev/build.
+//   3) boş — rozet yalnızca sürümü gösterir, hata vermez.
+const commitSha = (() => {
+  const fromEnv = process.env.VITE_COMMIT_SHA || process.env.GITHUB_SHA || '';
+  if (fromEnv) return fromEnv.slice(0, 7);
+  try {
+    return execFileSync('git', ['rev-parse', '--short=7', 'HEAD'], {
+      cwd: fileURLToPath(new URL('.', import.meta.url)),
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return '';
+  }
+})();
+
 export default defineConfig({
   plugins: [react()],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+    __APP_COMMIT__: JSON.stringify(commitSha),
   },
   server: {
     port: 5173,

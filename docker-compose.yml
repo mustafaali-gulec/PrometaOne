@@ -100,6 +100,10 @@ services:
       # cozdurdugu icin LAN istemcilerini demo moda dusuruyordu.)
       VITE_API_URL: /v1
       VITE_ML_URL: /api/ml
+      # Sürüm rozetindeki derleme kimliği. Konteynere yalnızca ./frontend bind-mount
+      # edildiği için .git erişilemez → SHA'yı dışarıdan veriyoruz. Boşsa rozet
+      # yalnızca sürümü gösterir. Host'ta: export VITE_COMMIT_SHA=$(git rev-parse --short=7 HEAD)
+      VITE_COMMIT_SHA: ${VITE_COMMIT_SHA:-}
       TZ: Europe/Istanbul
     ports:
       - "5173:5173"
