@@ -145,10 +145,18 @@ export class ELogoProvider implements EInvoiceProvider {
             continue;
           }
           const buf = Buffer.from(b64.replace(/\s+/g, ''), 'base64');
+          const normalized = pdfPayloadToBase64(buf);
+          const finalBytes = Buffer.from(normalized, 'base64');
+          // eLogo'nun contentType'ı güvenilmez (octet-stream/boş gelebiliyor) —
+          // içerik %PDF sihriyle başlıyorsa tipi kesin application/pdf yap,
+          // yoksa tarayıcı PDF'i düz metin olarak açıyor.
+          const isPdf = finalBytes.subarray(0, 5).toString('latin1') === '%PDF-';
           return {
             fileName: str(doc['fileName']) || `${uuid}.pdf`,
-            contentType: str(binary['contentType']) || 'application/pdf',
-            base64Data: pdfPayloadToBase64(buf),
+            contentType: isPdf
+              ? 'application/pdf'
+              : str(binary['contentType']) || 'application/pdf',
+            base64Data: normalized,
           };
         } catch (err) {
           lastErr = err;
