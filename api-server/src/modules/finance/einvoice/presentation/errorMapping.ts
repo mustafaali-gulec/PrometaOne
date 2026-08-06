@@ -13,6 +13,7 @@ import {
 import { mapFinanceError } from '../../presentation/errorMapping.js';
 import {
   CashflowCategoryNotFoundError,
+  CredentialDecryptError,
   EInvoiceAlreadyImportedError,
   EInvoiceCredentialNotFoundError,
   EInvoiceNotFoundError,
@@ -39,6 +40,12 @@ export function mapEInvoiceError(err: unknown): never {
   }
 
   if (err instanceof EInvoiceAlreadyImportedError || err instanceof RevaluationAlreadyPostedError) {
+    throw new HTTPException(409, { message: err.message });
+  }
+
+  // Eski/farklı anahtarla şifrelenmiş kimlik blob'u — 500 yerine eyleme
+  // dönüştürülebilir mesaj: kullanıcı kimliği yeniden kaydederek çözer.
+  if (err instanceof CredentialDecryptError) {
     throw new HTTPException(409, { message: err.message });
   }
 

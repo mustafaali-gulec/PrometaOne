@@ -46,7 +46,9 @@ export class InvalidEInvoiceTypeError extends FinanceError {
 // --- Kimlik bilgisi / şifreleme -------------------------------------------
 export class CredentialDecryptError extends FinanceError {
   constructor(reason: string) {
-    super(`E-fatura kimlik bilgisi çözülemedi: ${reason}`);
+    super(
+      `E-fatura kimlik bilgisi çözülemedi (${reason}) — kayıt eski/farklı bir şifreleme anahtarıyla yapılmış olabilir; entegratör kimliğini ayarlardan yeniden kaydedin`,
+    );
   }
 }
 
