@@ -1,6 +1,6 @@
 {
   "name": "prometa-one",
-  "version": "0.0.0",
+  "version": "2.0.0",
   "private": true,
   "description": "Prometa One — Finance & HR Platform (monorepo root)",
   "type": "module",
@@ -24,6 +24,7 @@
     "build": "npm run build --workspaces --if-present",
     "dev:frontend": "npm run dev -w frontend",
     "dev:api": "npm run dev -w api-server",
+    "release": "node tools/release.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

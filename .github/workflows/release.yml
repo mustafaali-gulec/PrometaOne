@@ -1,0 +1,107 @@
+name: Release (GitHub Release olustur)
+
+# v* tag'i push edilince GitHub Release acar. Tag'i `npm run release -- --yes --push`
+# (tools/release.mjs) olusturur; bu is akisi yalnizca GitHub tarafini yansitir.
+# Deploy'u TETIKLEMEZ — deploy.yml sadece master/main push'unda calisir.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release acilacak tag (orn. v2.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  github-release:
+    name: GitHub Release
+    runs-on: [self-hosted]
+
+    # deploy.yml ile ayni gerekce: runner'in varsayilan bash'i WSL launcher'ina
+    # cozulebiliyor; kabugu acikca Git Bash'e sabitliyoruz (bosluksuz 8.3 yol).
+    defaults:
+      run:
+        shell: 'C:\PROGRA~1\Git\bin\bash.exe --noprofile --norc -eo pipefail "{0}"'
+
+    steps:
+      - name: Checkout (tam gecmis + tag'ler)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Surum dogrula (tag == package.json)
+        id: meta
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#v}"
+          PKG=$(node -p "require('./package.json').version")
+          if [ "$PKG" != "$VERSION" ]; then
+            echo "Tag ($TAG) ile kok package.json surumu ($PKG) uyusmuyor." >&2
+            exit 1
+          fi
+          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Tag ve manifest ayni surumde: $VERSION"
+
+      - name: Release govdesini CHANGELOG'dan cikar
+        run: |
+          node -e "
+            const fs = require('fs');
+            const version = process.argv[1];
+            const text = fs.readFileSync('CHANGELOG.md', 'utf8');
+            const start = text.indexOf('## [' + version + ']');
+            let body;
+            if (start === -1) {
+              body = 'Bu surum icin CHANGELOG bolumu bulunamadi.';
+            } else {
+              const rest = text.slice(start);
+              const nextIdx = rest.indexOf('\n## [', 1);
+              body = (nextIdx === -1 ? rest : rest.slice(0, nextIdx)).trim();
+            }
+            fs.writeFileSync('release-body.md', body);
+          " '${{ steps.meta.outputs.version }}'
+          echo '--- release govdesi ---'
+          cat release-body.md
+
+      - name: Release olustur (veya guncelle)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            fs.writeFileSync('release-payload.json', JSON.stringify({
+              tag_name: process.env.TAG,
+              name: 'M Suite ' + process.env.TAG,
+              body: fs.readFileSync('release-body.md', 'utf8'),
+              draft: false,
+              prerelease: false,
+            }));
+          "
+          API="https://api.github.com/repos/$REPO/releases"
+          EXISTING=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "$API/tags/$TAG" | node -p "try{JSON.parse(require('fs').readFileSync(0,'utf8')).id||''}catch(e){''}")
+          if [ -n "$EXISTING" ]; then
+            echo "Release zaten var (id=$EXISTING) — guncelleniyor."
+            curl -sS -X PATCH -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "$API/$EXISTING" -d @release-payload.json -o release-result.json
+          else
+            curl -sS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "$API" -d @release-payload.json -o release-result.json
+          fi
+          node -e "
+            const r = JSON.parse(require('fs').readFileSync('release-result.json', 'utf8'));
+            if (!r.html_url) { console.error('Release olusturulamadi:', JSON.stringify(r)); process.exit(1); }
+            console.log('Release hazir: ' + r.html_url);
+          "
+
+      - name: Gecici dosyalari temizle
+        if: always()
+        run: rm -f release-body.md release-payload.json release-result.json

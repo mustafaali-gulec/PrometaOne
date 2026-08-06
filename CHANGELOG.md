@@ -1,8 +1,18 @@
 # Changelog
 
 Sürüm tarihçesi. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) + [SemVer](https://semver.org).
+Sürüm kesme akışı ve bump kuralları: [docs/RELEASE.md](docs/RELEASE.md).
 
-## [Unreleased] — Faz 6 sonrası
+## [Unreleased]
+
+<!-- Bir sonraki yayına girecek notlar buraya. `node tools/release.mjs --yes` bu başlığın
+     altına yeni sürüm bölümünü ekler; bu başlık kalıcıdır, silmeyin. -->
+
+## [2.0.0] — 2026-08-06
+
+İlk etiketlenen sürüm. Bu tag'den önce repoda sürüm tag'i yoktu ve manifest'ler tutarsızdı
+(kök `0.0.0`, frontend/api-server `2.0.0`, construction-service `1.0.0`); baseline hepsini
+`2.0.0`'a hizaladı. Aşağıdaki Faz 4–6 notları bu sürümün kapsamıdır.
 
 ### Added — Faz 6 (Finance — E-Fatura & Döviz)
 
@@ -118,7 +128,7 @@ Sürüm tarihçesi. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1
 - `api-server/package.json` scripts: `test:integration` eklendi.
 - `frontend/package.json` scripts: `test`, `test:watch`, `test:ui`, `test:e2e`, `test:e2e:ui` eklendi.
 
-## [Unreleased] — Faz 4 sonrası
+## Faz 4 sonrası
 
 ### Added — Faz 4 (HR Core)
 
