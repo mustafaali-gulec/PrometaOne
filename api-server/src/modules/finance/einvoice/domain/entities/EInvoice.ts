@@ -99,6 +99,9 @@ export class EInvoice {
   get uuid(): string {
     return this.props.uuid;
   }
+  get provider(): ProviderType {
+    return this.props.provider;
+  }
   get direction(): InvoiceDirection {
     return this.props.direction;
   }

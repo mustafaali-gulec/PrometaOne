@@ -37,6 +37,14 @@ export interface ProviderTestResult {
   message: string;
 }
 
+/** Entegratörden çekilen fatura görseli (PDF/HTML). */
+export interface ProviderInvoicePdf {
+  fileName: string;
+  contentType: string;
+  /** Dosya içeriği — base64. */
+  base64Data: string;
+}
+
 export interface EInvoiceProvider {
   readonly name: string;
   testConnection(config: CredentialConfig): Promise<ProviderTestResult>;
@@ -49,4 +57,9 @@ export interface EInvoiceProvider {
     uuid: string,
     direction: InvoiceDirection,
   ): Promise<string>;
+  fetchInvoicePdf(
+    config: CredentialConfig,
+    uuid: string,
+    direction: InvoiceDirection,
+  ): Promise<ProviderInvoicePdf>;
 }

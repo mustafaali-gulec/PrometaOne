@@ -89,4 +89,23 @@ describe('MockProvider', () => {
       ProviderInvoiceNotFoundError,
     );
   });
+
+  it('fetchInvoicePdf: geçerli PDF başlıklı base64 içerik döner', async () => {
+    const pdf = await MockProvider.demo().fetchInvoicePdf(
+      config,
+      '11111111-1111-1111-1111-111111111111',
+      'incoming',
+    );
+    assert.equal(pdf.contentType, 'application/pdf');
+    assert.equal(pdf.fileName, 'GLN2026000001.pdf');
+    const bytes = Buffer.from(pdf.base64Data, 'base64');
+    assert.equal(bytes.subarray(0, 5).toString('latin1'), '%PDF-');
+  });
+
+  it('fetchInvoicePdf: bilinmeyen uuid → ProviderInvoiceNotFoundError', async () => {
+    await assert.rejects(
+      MockProvider.demo().fetchInvoicePdf(config, 'yok', 'incoming'),
+      ProviderInvoiceNotFoundError,
+    );
+  });
 });

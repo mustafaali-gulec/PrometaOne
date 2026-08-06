@@ -26,6 +26,7 @@ import type {
   SaveCredentialUseCase,
   TestConnectionUseCase,
 } from '../application/useCases/CredentialUseCases.js';
+import type { GetEInvoicePdfUseCase } from '../application/useCases/GetEInvoicePdfUseCase.js';
 import type {
   IgnoreEInvoiceUseCase,
   ImportEInvoiceFromFileUseCase,
@@ -47,6 +48,7 @@ export interface EInvoiceRouterDeps {
   importEInvoice: ImportEInvoiceUseCase;
   importEInvoiceFromFile: ImportEInvoiceFromFileUseCase;
   ignoreEInvoice: IgnoreEInvoiceUseCase;
+  getEInvoicePdf: GetEInvoicePdfUseCase;
   saveCredential: SaveCredentialUseCase;
   testConnection: TestConnectionUseCase;
   deleteCredential: DeleteCredentialUseCase;
@@ -181,8 +183,13 @@ export function createEInvoiceRouter(deps: EInvoiceRouterDeps): Hono {
     zValidator(
       'json',
       z.object({
-        companyId: z.number().int().positive(),
-        cashflowCatId: z.number().int().positive().nullable().optional(),
+        companyId: z.coerce.number().int().positive(),
+        // Sunucu sayısal id'si VEYA frontend yerel kategori id'si ("npo_1");
+        // use-case client_id üzerinden geçerli categories.id'ye çözer.
+        cashflowCatId: z
+          .union([z.number().int().positive(), z.string().min(1)])
+          .nullable()
+          .optional(),
       }),
     ),
     async (c) => {
@@ -196,6 +203,33 @@ export function createEInvoiceRouter(deps: EInvoiceRouterDeps): Hono {
           actorUserId: actor(c),
         });
         return c.json(res, 201);
+      } catch (err) {
+        mapEInvoiceError(err);
+      }
+    },
+  );
+
+  // Fatura görseli (PDF) — entegratörden taze çekilir, tarayıcıda inline açılır.
+  app.get(
+    '/einvoice/:id/pdf',
+    zValidator('param', idParam),
+    zValidator('query', companyIdQ),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      const q = c.req.valid('query');
+      try {
+        const pdf = await deps.getEInvoicePdf.execute({
+          companyId: q.companyId,
+          einvoiceId: id,
+        });
+        const bytes = Buffer.from(pdf.base64Data, 'base64');
+        const asciiName = pdf.fileName.replace(/[^\x20-\x7E]/g, '_').replace(/["\\;]/g, '_');
+        c.header('Content-Type', pdf.contentType);
+        c.header(
+          'Content-Disposition',
+          `inline; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(pdf.fileName)}`,
+        );
+        return c.body(new Uint8Array(bytes));
       } catch (err) {
         mapEInvoiceError(err);
       }

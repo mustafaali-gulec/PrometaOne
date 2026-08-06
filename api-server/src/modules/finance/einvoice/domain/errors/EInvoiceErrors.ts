@@ -107,3 +107,12 @@ export class EInvoiceAlreadyImportedError extends FinanceError {
     super(`E-fatura zaten içe aktarılmış: ${id}`);
   }
 }
+
+/** Aktarımda seçilen nakit akış kalemi sunucudaki categories kümesinde çözülemedi. */
+export class CashflowCategoryNotFoundError extends FinanceError {
+  constructor(ref: string) {
+    super(
+      `Nakit akış kalemi bulunamadı: ${ref} (kalem sunucuya henüz eşitlenmemiş olabilir — bütçe ekranını açıp kaydederek eşitleyin)`,
+    );
+  }
+}

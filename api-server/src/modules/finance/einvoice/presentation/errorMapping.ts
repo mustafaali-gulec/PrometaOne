@@ -12,6 +12,7 @@ import {
 } from '../../fx/domain/errors/FxErrors.js';
 import { mapFinanceError } from '../../presentation/errorMapping.js';
 import {
+  CashflowCategoryNotFoundError,
   EInvoiceAlreadyImportedError,
   EInvoiceCredentialNotFoundError,
   EInvoiceNotFoundError,
@@ -48,6 +49,7 @@ export function mapEInvoiceError(err: unknown): never {
     err instanceof UblParseError ||
     err instanceof GibHtmlParseError ||
     err instanceof UnsupportedEInvoiceFileError ||
+    err instanceof CashflowCategoryNotFoundError ||
     err instanceof InvalidExchangeRateError
   ) {
     throw new HTTPException(400, { message: err.message });

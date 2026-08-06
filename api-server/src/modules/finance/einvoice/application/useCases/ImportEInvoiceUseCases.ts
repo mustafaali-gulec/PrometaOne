@@ -8,6 +8,7 @@
 import type { Clock } from '../../../application/ports/Clock.js';
 import { EInvoice } from '../../domain/entities/EInvoice.js';
 import {
+  CashflowCategoryNotFoundError,
   EInvoiceAlreadyImportedError,
   EInvoiceNotFoundError,
   UnsupportedEInvoiceFileError,
@@ -18,7 +19,11 @@ import { GibTextInvoiceParser } from '../../domain/services/GibTextInvoiceParser
 import { InvoiceNoteHints } from '../../domain/services/InvoiceNoteHints.js';
 import { UblInvoiceParser } from '../../domain/services/UblInvoiceParser.js';
 import type { InvoiceDirection } from '../../domain/valueObjects/InvoiceDirection.js';
-import type { EInvoiceRepository, PartyMappingRepository } from '../ports/EInvoiceRepositories.js';
+import type {
+  CashflowCategoryResolver,
+  EInvoiceRepository,
+  PartyMappingRepository,
+} from '../ports/EInvoiceRepositories.js';
 import type { EInvoiceUnitOfWork } from '../ports/EInvoiceUnitOfWork.js';
 import type { PdfTextExtractor } from '../ports/PdfTextExtractor.js';
 
@@ -32,16 +37,31 @@ export class ImportEInvoiceUseCase {
     private readonly uow: EInvoiceUnitOfWork,
     private readonly partyMappings: PartyMappingRepository,
     private readonly clock: Clock,
+    private readonly categories: CashflowCategoryResolver,
   ) {}
 
   async execute(input: {
     companyId: number;
     einvoiceId: number;
-    /** Açıkça verilen kategori; yoksa party mapping'ten çözülür. */
-    cashflowCatId?: number | null;
+    /**
+     * Açıkça verilen kategori; yoksa party mapping'ten çözülür. Frontend yerel
+     * (client) id'si ("npo_1") veya sunucu sayısal id'si olabilir — her ikisi
+     * de resolver'la geçerli categories.id'ye çevrilir.
+     */
+    cashflowCatId?: number | string | null;
     actorUserId: number | null;
   }): Promise<ImportEInvoiceResult> {
     const now = this.clock.now();
+
+    let requestedCatId: number | null = null;
+    if (input.cashflowCatId !== undefined && input.cashflowCatId !== null) {
+      const ref = String(input.cashflowCatId);
+      requestedCatId = await this.categories.resolveRef(input.companyId, ref);
+      if (requestedCatId === null) {
+        throw new CashflowCategoryNotFoundError(ref);
+      }
+    }
+
     return this.uow.withTransaction(async (repos) => {
       const einvoice = await repos.einvoices.findById(input.einvoiceId, input.companyId);
       if (!einvoice) {
@@ -51,7 +71,7 @@ export class ImportEInvoiceUseCase {
         throw new EInvoiceAlreadyImportedError(input.einvoiceId);
       }
 
-      let cashflowCatId = input.cashflowCatId ?? null;
+      let cashflowCatId = requestedCatId;
       if (cashflowCatId === null && einvoice.partyVknTckn !== null) {
         const mapping = await this.partyMappings.findByVkn(input.companyId, einvoice.partyVknTckn);
         cashflowCatId = mapping?.cashflowCatId ?? null;

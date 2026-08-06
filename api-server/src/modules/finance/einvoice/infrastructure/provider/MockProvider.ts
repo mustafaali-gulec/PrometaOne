@@ -8,6 +8,7 @@
 import type {
   EInvoiceProvider,
   FetchInvoiceListParams,
+  ProviderInvoicePdf,
   ProviderInvoiceSummary,
   ProviderTestResult,
 } from '../../application/ports/EInvoiceProvider.js';
@@ -59,6 +60,24 @@ export class MockProvider implements EInvoiceProvider {
       return Promise.reject(new ProviderInvoiceNotFoundError(uuid));
     }
     return Promise.resolve(found.xml);
+  }
+
+  fetchInvoicePdf(
+    _config: CredentialConfig,
+    uuid: string,
+    direction: InvoiceDirection,
+  ): Promise<ProviderInvoicePdf> {
+    const found = this.seeds.find(
+      (s) => s.summary.uuid === uuid && s.summary.direction === direction,
+    );
+    if (!found) {
+      return Promise.reject(new ProviderInvoiceNotFoundError(uuid));
+    }
+    return Promise.resolve({
+      fileName: `${found.summary.invoiceNo || uuid}.pdf`,
+      contentType: 'application/pdf',
+      base64Data: Buffer.from(buildMinimalPdf(found.summary.invoiceNo)).toString('base64'),
+    });
   }
 
   /** Örnek demo verisi — bir gelen + bir giden fatura. */
@@ -136,6 +155,23 @@ interface UblSeedParams {
   lineExtension: string;
   kdv: string;
   payable: string;
+}
+
+/** İçinde fatura no geçen, sözdizimsel olarak geçerli minimal bir PDF üretir. */
+function buildMinimalPdf(invoiceNo: string): string {
+  const stream = `BT /F1 12 Tf 40 150 Td (Mock e-Fatura ${invoiceNo}) Tj ET`;
+  return [
+    '%PDF-1.4',
+    '1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj',
+    '2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj',
+    '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj',
+    `4 0 obj<</Length ${stream.length}>>stream`,
+    stream,
+    'endstream endobj',
+    '5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj',
+    'trailer<</Root 1 0 R>>',
+    '%%EOF',
+  ].join('\n');
 }
 
 /** Minimal ama parser'ın okuyabileceği bir UBL-TR fatura XML'i üretir. */

@@ -9,6 +9,7 @@ import type { InMemoryInvoiceRepository } from '../../__tests__/fakes.js';
 import type { Clock } from '../../application/ports/Clock.js';
 import type { EncryptedCredential } from '../application/ports/CredentialCipher.js';
 import type {
+  CashflowCategoryResolver,
   EInvoiceCredentialRepository,
   EInvoiceRepository,
   PartyMappingRepository,
@@ -30,6 +31,18 @@ export class FixedClock implements Clock {
   constructor(private readonly fixed: Date = new Date('2026-06-01T00:00:00Z')) {}
   now(): Date {
     return this.fixed;
+  }
+}
+
+/**
+ * Kategori çözücü fake'i: verilen haritadaki client id'leri çözer; sayısal
+ * referansları olduğu gibi geçerli sayar (Pg impl'in davranış taklidi).
+ */
+export class FakeCashflowCategoryResolver implements CashflowCategoryResolver {
+  constructor(private readonly byRef: Record<string, number> = {}) {}
+  resolveRef(_companyId: number, ref: string): Promise<number | null> {
+    if (this.byRef[ref] !== undefined) return Promise.resolve(this.byRef[ref]);
+    return Promise.resolve(/^\d+$/.test(ref) ? Number(ref) : null);
   }
 }
 

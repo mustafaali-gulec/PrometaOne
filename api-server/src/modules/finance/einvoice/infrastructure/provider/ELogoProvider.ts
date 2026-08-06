@@ -32,6 +32,7 @@ type SoapNamespace = typeof soap;
 import type {
   EInvoiceProvider,
   FetchInvoiceListParams,
+  ProviderInvoicePdf,
   ProviderInvoiceSummary,
   ProviderTestResult,
 } from '../../application/ports/EInvoiceProvider.js';
@@ -104,6 +105,58 @@ export class ELogoProvider implements EInvoiceProvider {
       }
       const buf = Buffer.from(b64.replace(/\s+/g, ''), 'base64');
       return payloadToXml(buf);
+    } finally {
+      await this.logout(client, sessionId).catch(() => undefined);
+    }
+  }
+
+  /**
+   * Fatura görselini (PDF) çeker — WSDL'deki tipli `getDocumentData` operasyonu
+   * (küçük harfle başlayan; PascalCase `GetDocumentData` paramList'li legacy'dir).
+   * Giden faturalarda e-arşiv olasılığına karşı EINVOICE → EARCHIVE sırayla denenir.
+   */
+  async fetchInvoicePdf(
+    config: CredentialConfig,
+    uuid: string,
+    direction: InvoiceDirection,
+  ): Promise<ProviderInvoicePdf> {
+    const client = await this.createClient(config);
+    const sessionId = await this.login(client, config);
+    try {
+      const docTypes = direction === 'outgoing' ? ['EINVOICE', 'EARCHIVE'] : ['EINVOICE'];
+      let lastErr: unknown = null;
+      for (const docType of docTypes) {
+        try {
+          const result = asObj(
+            await callSoap(client, 'getDocumentData', {
+              sessionID: sessionId,
+              uuid,
+              docType,
+              dataType: 'PDF',
+            }),
+          );
+          const doc = asObj(result['getDocumentDataResult']);
+          const binary = asObj(doc['binaryData']);
+          const b64 = str(binary['Value'] ?? binary['value']);
+          if (b64 === '') {
+            lastErr = new ProviderFetchError(
+              `getDocumentData boş döndü (UUID: ${uuid}, docType: ${docType})`,
+            );
+            continue;
+          }
+          const buf = Buffer.from(b64.replace(/\s+/g, ''), 'base64');
+          return {
+            fileName: str(doc['fileName']) || `${uuid}.pdf`,
+            contentType: str(binary['contentType']) || 'application/pdf',
+            base64Data: pdfPayloadToBase64(buf),
+          };
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      throw lastErr instanceof Error
+        ? lastErr
+        : new ProviderFetchError(`PDF alınamadı (UUID: ${uuid})`);
     } finally {
       await this.logout(client, sessionId).catch(() => undefined);
     }
@@ -238,13 +291,28 @@ function payloadToXml(buf: Buffer): string {
     return gunzipSync(buf).toString('utf-8');
   }
   if (buf.length >= 4 && buf.readUInt32LE(0) === 0x04034b50) {
-    return unzipXmlEntry(buf).toString('utf-8');
+    return unzipEntry(buf, '.xml').toString('utf-8');
   }
   return buf.toString('utf-8');
 }
 
-/** Tek geçişli minimal ZIP okuyucu: central directory'den .xml girdisini çıkarır. */
-function unzipXmlEntry(buf: Buffer): Buffer {
+/** getDocumentData PDF içeriğini base64'e çevirir (düz PDF / gzip / zip toleranslı). */
+function pdfPayloadToBase64(buf: Buffer): string {
+  if (buf.length >= 5 && buf.subarray(0, 5).toString('latin1') === '%PDF-') {
+    return buf.toString('base64');
+  }
+  if (buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b) {
+    return pdfPayloadToBase64(gunzipSync(buf));
+  }
+  if (buf.length >= 4 && buf.readUInt32LE(0) === 0x04034b50) {
+    return pdfPayloadToBase64(unzipEntry(buf, '.pdf'));
+  }
+  // Bilinmeyen tip — olduğu gibi ilet; tarayıcı contentType'a göre karar verir.
+  return buf.toString('base64');
+}
+
+/** Tek geçişli minimal ZIP okuyucu: central directory'den istenen uzantılı girdiyi çıkarır. */
+function unzipEntry(buf: Buffer, preferredExt: string): Buffer {
   const eocd = findEndOfCentralDirectory(buf);
   const entryCount = buf.readUInt16LE(eocd + 10);
   let offset = buf.readUInt32LE(eocd + 16);
@@ -260,13 +328,13 @@ function unzipXmlEntry(buf: Buffer): Buffer {
     const name = buf.toString('utf-8', offset + 46, offset + 46 + nameLen);
     const data = readLocalZipEntry(buf, localHeaderOffset, compressedSize, method);
     if (data !== null) {
-      if (name.toLowerCase().endsWith('.xml')) return data;
+      if (name.toLowerCase().endsWith(preferredExt)) return data;
       if (fallback === null) fallback = data;
     }
     offset += 46 + nameLen + extraLen + commentLen;
   }
   if (fallback !== null) return fallback;
-  throw new ProviderFetchError('eLogo ZIP paketinden XML çıkarılamadı');
+  throw new ProviderFetchError(`eLogo ZIP paketinden ${preferredExt} girdisi çıkarılamadı`);
 }
 
 function findEndOfCentralDirectory(buf: Buffer): number {

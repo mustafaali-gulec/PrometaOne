@@ -16,6 +16,7 @@ import { ImportEInvoiceUseCase } from '../../application/useCases/ImportEInvoice
 import { EInvoice } from '../../domain/entities/EInvoice.js';
 import type { CredentialConfig } from '../../domain/entities/EInvoiceCredential.js';
 import { AesGcmCredentialCipher } from '../../infrastructure/crypto/AesGcmCredentialCipher.js';
+import { PgCashflowCategoryResolver } from '../../infrastructure/persistence/PgCashflowCategoryResolver.js';
 import { PgEInvoiceCredentialRepository } from '../../infrastructure/persistence/PgEInvoiceCredentialRepository.js';
 import { PgEInvoiceRepository } from '../../infrastructure/persistence/PgEInvoiceRepository.js';
 import { PgPartyMappingRepository } from '../../infrastructure/persistence/PgPartyMappingRepository.js';
@@ -122,7 +123,12 @@ describe('E-Fatura + FX Pg integration', () => {
 
     const uow = new PgEInvoiceUnitOfWork(ctx.pool);
     const parties = new PgPartyMappingRepository(ctx.pool);
-    const res = await new ImportEInvoiceUseCase(uow, parties, clock).execute({
+    const res = await new ImportEInvoiceUseCase(
+      uow,
+      parties,
+      clock,
+      new PgCashflowCategoryResolver(ctx.pool),
+    ).execute({
       companyId: 1,
       einvoiceId: persisted.id!,
       actorUserId: null,

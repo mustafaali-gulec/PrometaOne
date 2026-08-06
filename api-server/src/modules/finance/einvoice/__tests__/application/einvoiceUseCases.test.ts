@@ -24,6 +24,7 @@ import { MapPartyUseCase } from '../../application/useCases/PartyMappingUseCases
 import { SyncEInvoicesUseCase } from '../../application/useCases/SyncEInvoicesUseCase.js';
 import type { CredentialConfig } from '../../domain/entities/EInvoiceCredential.js';
 import {
+  CashflowCategoryNotFoundError,
   EInvoiceAlreadyImportedError,
   EInvoiceCredentialNotFoundError,
   EInvoiceNotFoundError,
@@ -31,6 +32,7 @@ import {
 import { AesGcmCredentialCipher } from '../../infrastructure/crypto/AesGcmCredentialCipher.js';
 import { MockProvider } from '../../infrastructure/provider/MockProvider.js';
 import {
+  FakeCashflowCategoryResolver,
   FakeEInvoiceUnitOfWork,
   FixedClock,
   InMemoryEInvoiceCredentialRepository,
@@ -187,7 +189,12 @@ describe('Import / Ignore / List', () => {
   it('Import: invoice oluşur + einvoice imported (atomik)', async () => {
     const pending = await einvoices.listByCompany(100, { pendingOnly: true });
     const target = pending[0]!;
-    const uc = new ImportEInvoiceUseCase(uow, parties, new FixedClock());
+    const uc = new ImportEInvoiceUseCase(
+      uow,
+      parties,
+      new FixedClock(),
+      new FakeCashflowCategoryResolver(),
+    );
     const res = await uc.execute({ companyId: 100, einvoiceId: target.id!, actorUserId: 7 });
 
     assert.ok(res.invoiceId > 0);
@@ -204,7 +211,12 @@ describe('Import / Ignore / List', () => {
       vknTckn: incoming.partyVknTckn!,
       cashflowCatId: 42,
     });
-    const res = await new ImportEInvoiceUseCase(uow, parties, new FixedClock()).execute({
+    const res = await new ImportEInvoiceUseCase(
+      uow,
+      parties,
+      new FixedClock(),
+      new FakeCashflowCategoryResolver(),
+    ).execute({
       companyId: 100,
       einvoiceId: incoming.id!,
       actorUserId: null,
@@ -213,9 +225,49 @@ describe('Import / Ignore / List', () => {
     assert.equal(invoice!.cashflowCatId, 42);
   });
 
+  it("Import: yerel kategori referansı (client id) categories.id'ye çözülür", async () => {
+    const target = (await einvoices.listByCompany(100, { pendingOnly: true }))[0]!;
+    const res = await new ImportEInvoiceUseCase(
+      uow,
+      parties,
+      new FixedClock(),
+      new FakeCashflowCategoryResolver({ npo_1: 55 }),
+    ).execute({
+      companyId: 100,
+      einvoiceId: target.id!,
+      cashflowCatId: 'npo_1',
+      actorUserId: null,
+    });
+    const invoice = await invoices.findById(res.invoiceId, 100);
+    assert.equal(invoice!.cashflowCatId, 55);
+  });
+
+  it('Import: bilinmeyen kategori referansı → CashflowCategoryNotFoundError', async () => {
+    const target = (await einvoices.listByCompany(100, { pendingOnly: true }))[0]!;
+    await assert.rejects(
+      new ImportEInvoiceUseCase(
+        uow,
+        parties,
+        new FixedClock(),
+        new FakeCashflowCategoryResolver(),
+      ).execute({
+        companyId: 100,
+        einvoiceId: target.id!,
+        cashflowCatId: 'tanimsiz_kalem',
+        actorUserId: null,
+      }),
+      CashflowCategoryNotFoundError,
+    );
+  });
+
   it('Import: zaten imported → EInvoiceAlreadyImportedError', async () => {
     const target = (await einvoices.listByCompany(100, { pendingOnly: true }))[0]!;
-    const uc = new ImportEInvoiceUseCase(uow, parties, new FixedClock());
+    const uc = new ImportEInvoiceUseCase(
+      uow,
+      parties,
+      new FixedClock(),
+      new FakeCashflowCategoryResolver(),
+    );
     await uc.execute({ companyId: 100, einvoiceId: target.id!, actorUserId: null });
     await assert.rejects(
       uc.execute({ companyId: 100, einvoiceId: target.id!, actorUserId: null }),
@@ -225,7 +277,12 @@ describe('Import / Ignore / List', () => {
 
   it('Import: olmayan id → EInvoiceNotFoundError', async () => {
     await assert.rejects(
-      new ImportEInvoiceUseCase(uow, parties, new FixedClock()).execute({
+      new ImportEInvoiceUseCase(
+        uow,
+        parties,
+        new FixedClock(),
+        new FakeCashflowCategoryResolver(),
+      ).execute({
         companyId: 100,
         einvoiceId: 9999,
         actorUserId: null,

@@ -67,3 +67,11 @@ export interface PartyMappingRepository {
   upsert(mapping: PartyMapping): Promise<PartyMapping>;
   listByCompany(companyId: number): Promise<ReadonlyArray<PartyMapping>>;
 }
+
+/**
+ * Nakit akış kalemi çözücüsü — frontend'in yerel (client) kategori id'sini
+ * ("npo_1" gibi) veya sunucu sayısal id'sini geçerli categories.id'ye çevirir.
+ */
+export interface CashflowCategoryResolver {
+  resolveRef(companyId: number, ref: string): Promise<number | null>;
+}
