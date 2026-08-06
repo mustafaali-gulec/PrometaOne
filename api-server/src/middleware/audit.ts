@@ -6,6 +6,8 @@ import type { Context } from 'hono';
 
 import { pool } from '../db.js';
 
+import { resolveClientIp } from './clientIp.js';
+
 export function logAudit(
   c: Context,
   action: string,
@@ -16,10 +18,8 @@ export function logAudit(
   const userId = auth?.userId ?? null;
   const username = auth?.username ?? 'unknown';
   const cid = companyId ?? auth?.companyId ?? null;
-  const ip =
-    c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ??
-    c.req.header('x-real-ip') ??
-    'unknown';
+  // ip_address kolonu inet: geçerli IP yoksa null (asla "unknown" string'i)
+  const ip = resolveClientIp(c);
   const ua = c.req.header('user-agent') ?? null;
 
   // Fire-and-forget — audit hatası API'yi durdurmasın
