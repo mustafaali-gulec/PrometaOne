@@ -341,10 +341,10 @@ export const PAYROLL_DOKUM_LABELS = {
   signApprover: { tr: 'Onaylayan', en: 'Approved by', de: 'Genehmigt von', ar: 'اعتمده' },
   pageOf: { tr: 'Sayfa', en: 'Page', de: 'Seite', ar: 'صفحة' },
   footerNote: {
-    tr: 'Prometa One — İK Bordro Dökümü',
-    en: 'Prometa One — HR Payroll Register',
-    de: 'Prometa One — HR-Lohnjournal',
-    ar: 'Prometa One — كشف رواتب الموارد البشرية',
+    tr: 'M Suite — İK Bordro Dökümü',
+    en: 'M Suite — HR Payroll Register',
+    de: 'M Suite — HR-Lohnjournal',
+    ar: 'M Suite — كشف رواتب الموارد البشرية',
   },
 
   // --- Sütun başlıkları (varsayılan 25 sütun kaynak dökümle birebir) ---
