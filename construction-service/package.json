@@ -1,8 +1,8 @@
 {
-  "name": "@prometa/construction-service",
+  "name": "@msuite/construction-service",
   "version": "2.0.0",
   "private": true,
-  "description": "Prometa One — Şantiye Yönetim Mikroservisi (Hono + tsx, DB-per-service, Kafka events)",
+  "description": "M Suite — Şantiye Yönetim Mikroservisi (Hono + tsx, DB-per-service, Kafka events)",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

@@ -1,4 +1,4 @@
-# Prometa One — ML Service (FastAPI + scikit-learn)
+# M Suite — ML Service (FastAPI + scikit-learn)
 # Port: 8001
 # Endpoint'ler: /train/*, /predict/*, /detect/*
 
@@ -22,7 +22,7 @@ from sklearn.preprocessing import StandardScaler
 
 # === Uygulama Ayarları ===
 app = FastAPI(
-    title="Prometa One ML Service",
+    title="M Suite ML Service",
     description="Pattern analizi ve tahmin servisi — Cari, Fatura, Bordro, Yevmiye",
     version="1.0.0",
 )
@@ -186,7 +186,7 @@ def days_between(date1: str, date2: str) -> Optional[int]:
 @app.get("/")
 def root():
     return {
-        "service": "Prometa One ML Service",
+        "service": "M Suite ML Service",
         "version": "1.0.0",
         "endpoints": [
             "POST /train/cari-pattern",
@@ -913,7 +913,7 @@ def suggest_project_for_invoice(req: ProjectSuggestionRequest):
     return {
         "suggestions": suggestions[:5],
         "method": "tfidf_hybrid",
-        "model": "Prometa Project Matcher v1.0",
+        "model": "M Suite Project Matcher v1.0",
     }
 
 

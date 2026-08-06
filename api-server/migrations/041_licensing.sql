@@ -1,6 +1,6 @@
 -- ============================================================================
 -- 041_licensing.sql
--- Prometa One — Ed25519 imzalı lisanslama: aktif lisans deposu (license_store,
+-- M Suite — Ed25519 imzalı lisanslama: aktif lisans deposu (license_store,
 -- tek satır id=1) + kayıtlı terminaller / koltuklar (license_terminals).
 --
 -- Lisans tools/license-generator ile kesilir, POST /v1/license/activate (veya

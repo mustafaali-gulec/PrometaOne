@@ -1,5 +1,5 @@
 # =============================================================================
-# PROMETA ONE — Frontend URETIM (Production) Dockerfile
+# M SUITE — Frontend URETIM (Production) Dockerfile
 #
 # Cok asamali (multi-stage) build:
 #   1. Asama: node:20-alpine — Vite ile statik build (dist/)

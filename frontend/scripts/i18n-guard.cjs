@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Prometa One — i18n Guard (Dil Ajanı koruması)
+ * M Suite — i18n Guard (Dil Ajanı koruması)
  * ------------------------------------------------------------------
  * Pre-commit'te (lint-staged) çalışır. Staged frontend kodunda YENİ EKLENEN
  * satırlarda çok-dilli olmayan kalıpları yakalar ve commit'i durdurur:

@@ -1,6 +1,6 @@
 @echo off
 REM =============================================================
-REM  Prometa One - Self-Hosted Runner Kurulum Launcher
+REM  M Suite - Self-Hosted Runner Kurulum Launcher
 REM  Kullanim:
 REM    setup-runner.bat <REPO_URL> <TOKEN>
 REM  Ornek:

@@ -1,5 +1,5 @@
 # =============================================================================
-# PROMETA ONE — URETIM (PRODUCTION) Docker Compose
+# M SUITE — URETIM (PRODUCTION) Docker Compose
 # Senaryo: 1 SUNUCU + N TERMINAL (terminaller tarayicidan http://<BILGISAYAR-ADI>
 # veya http://<SUNUCU_IP> acar; mobil cihazlar ayni agdan ayni adreslerle baglanir)
 #
@@ -84,7 +84,7 @@ services:
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-Prometa One <noreply@prometahr.com>}
+      SMTP_FROM: ${SMTP_FROM:-M Suite <noreply@prometahr.com>}
       SMTP_SECURE: ${SMTP_SECURE:-false}
       ENABLE_CRON: ${ENABLE_CRON:-true}
       ML_SERVICE_URL: http://ml-service:8001

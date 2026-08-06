@@ -9,7 +9,7 @@ describe('NodemailerEmailService', () => {
   it('send() doğru from + to + subject + html ile çağrılır', async () => {
     const transporter = nodemailer.createTransport({ jsonTransport: true });
     const service = new NodemailerEmailService(transporter, {
-      from: 'Prometa One <noreply@prometa.local>',
+      from: 'M Suite <noreply@prometa.local>',
     });
 
     let captured: unknown;
@@ -27,7 +27,7 @@ describe('NodemailerEmailService', () => {
     });
 
     assert.deepEqual(captured, {
-      from: 'Prometa One <noreply@prometa.local>',
+      from: 'M Suite <noreply@prometa.local>',
       to: 'a@b.com',
       subject: 'Hi',
       text: 'plain text',
@@ -38,7 +38,7 @@ describe('NodemailerEmailService', () => {
   it('fromName görünen adı değiştirir (adres sabit), replyTo geçer, messageId döner', async () => {
     const transporter = nodemailer.createTransport({ jsonTransport: true });
     const service = new NodemailerEmailService(transporter, {
-      from: 'Prometa One <noreply@prometa.local>',
+      from: 'M Suite <noreply@prometa.local>',
     });
 
     let captured: unknown;

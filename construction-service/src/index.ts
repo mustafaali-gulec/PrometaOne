@@ -66,7 +66,7 @@ v1.get('/health', async (c) => {
     dbOk ? 200 : 503,
   );
 });
-v1.get('/', (c) => c.json({ name: 'Prometa One — Construction Service', version: '1.0.0' }));
+v1.get('/', (c) => c.json({ name: 'M Suite — Construction Service', version: '1.0.0' }));
 v1.route('/construction', constructionModule);
 
 app.route('/v1', v1);
@@ -78,7 +78,7 @@ app.notFound((c) =>
 // === Sunucu başlat ===
 const server = serve({ fetch: app.fetch, port: config.PORT, hostname: config.HOST }, (info) => {
   console.log('========================================================================');
-  console.log('         PROMETA ONE — CONSTRUCTION SERVICE v1.0.0');
+  console.log('         M SUITE — CONSTRUCTION SERVICE v1.0.0');
   console.log('------------------------------------------------------------------------');
   console.log(`  Mode   : ${config.NODE_ENV}`);
   console.log(`  Listen : http://${config.HOST}:${String(info.port)}/v1`);

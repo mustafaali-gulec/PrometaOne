@@ -1,4 +1,4 @@
-# Prometa One — Kurulum Kabul Testi (Kontrol Listesi)
+# M Suite — Kurulum Kabul Testi (Kontrol Listesi)
 
 Bu belge, kurulum sihirbazlarının **gerçek bir müşteri makinesinde** doğru
 çalıştığını doğrulamak içindir. Her adımın yanında beklenen sonuç ve
@@ -31,7 +31,7 @@ gerçekçi test edilir.
 - [ ] **1.1** Müşteri paketini üret:
       `powershell -ExecutionPolicy Bypass -File tools\package-release.ps1`
       → Beklenen: `release\prometa-one-<tarih>.zip` oluşur (images tar + compose + install).
-- [ ] **1.2** Zip'i test makinesine kopyala ve bir klasöre aç (örn. `C:\PrometaOne`).
+- [ ] **1.2** Zip'i test makinesine kopyala ve bir klasöre aç (örn. `C:\MSuite`).
 - [ ] **1.3** Lisans üretici anahtarının yerinde olduğunu doğrula:
       `node tools\license-generator\cli.js verify --help` çalışıyor mu; `keys\license-private.pem` mevcut mu.
 
@@ -51,7 +51,7 @@ Linux: `sudo bash install/kurulum-sunucu.sh`.
 - [ ] **2.6 Kurulum modu** — pakette `images\prometa-one-images.tar` olduğu için **paket modu** (`docker load`) çalışıyor (build'e düşmüyor).
 - [ ] **2.7 up -d** — postgres, api, web, ml-service konteynerleri ayağa kalkıyor (`docker compose -f docker-compose.prod.yml --env-file .env.prod ps`).
 - [ ] **2.8 Migration** — `npm run migrate` başarıyla koşuyor; ilk kurulum sorusuna seed dendiyse başlangıç verisi yükleniyor.
-- [ ] **2.9 Güvenlik duvarı** — seçilen port için "Prometa One Web" gelen kuralı ekleniyor.
+- [ ] **2.9 Güvenlik duvarı** — seçilen port için "M Suite Web" gelen kuralı ekleniyor.
 - [ ] **2.10 Sağlık kontrolü** — `http://localhost:<port>/v1/health` 200 dönüyor; özet ekranında sunucunun IP adresleri listeleniyor.
 
 ---
@@ -97,7 +97,7 @@ Linux: `sudo bash install/kurulum-sunucu.sh`.
 - [ ] **6.1b** Sunucu **bilgisayar adı** ile de bağlanılabiliyor (ör. `sunucu-pc`) → bağlantı testi geçiyor, kısayol ada göre oluşuyor; uygulama açılıp giriş yapılabiliyor.
 - [ ] **6.2** Yanlış IP/port girildiğinde anlaşılır hata + tekrar deneme / yine de devam seçeneği; **çözülemeyen ad** girildiğinde "ad çözülemedi, IP deneyin" tanılaması görünüyor.
 - [ ] **6.3** Terminal adı soruluyor (varsayılan: bilgisayar adı).
-- [ ] **6.4** Masaüstü + Başlat Menüsü'ne **"Prometa One"** kısayolu oluşuyor (Edge/Chrome uygulama modu; ikisi de yoksa `.url`).
+- [ ] **6.4** Masaüstü + Başlat Menüsü'ne **"M Suite"** kısayolu oluşuyor (Edge/Chrome uygulama modu; ikisi de yoksa `.url`).
 - [ ] **6.5** Kısayol açılınca uygulama sunucudan yükleniyor, giriş ekranı geliyor.
 - [ ] **6.6** (Opsiyonel) Windows açılışında otomatik başlatma seçildiyse Startup klasörüne kısayol kopyalanıyor.
 

@@ -1,4 +1,4 @@
-# Prometa One — Geliştirme Kılavuzu
+# M Suite — Geliştirme Kılavuzu
 
 Bu doküman projeye katkı (kendinden kendine bile) verirken uyulacak kuralları açıklar.
 
@@ -31,19 +31,19 @@ npm run seed
 
 ## 2. Geliştirme Komutları
 
-| Komut | Ne yapar |
-|---|---|
-| `npm run dev:frontend` | Frontend dev sunucu (port 5173) |
-| `npm run dev:api` | api-server hot reload (port 3000) |
-| `npm run lint` | Tüm projeyi ESLint ile tara |
-| `npm run lint:fix` | Otomatik düzeltilebilir lint hatalarını gider |
-| `npm run format` | Prettier ile tümünü formatla |
-| `npm run format:check` | Format'a uygun mu kontrol et (CI için) |
-| `npm run typecheck` | Tüm workspace'lerde TS strict tip kontrolü |
-| `npm run typecheck:frontend` | Sadece frontend |
-| `npm run typecheck:api` | Sadece api-server |
-| `npm run test` | Tüm workspace'lerde testler |
-| `npm run build` | Tüm workspace'lerde production build |
+| Komut                        | Ne yapar                                      |
+| ---------------------------- | --------------------------------------------- |
+| `npm run dev:frontend`       | Frontend dev sunucu (port 5173)               |
+| `npm run dev:api`            | api-server hot reload (port 3000)             |
+| `npm run lint`               | Tüm projeyi ESLint ile tara                   |
+| `npm run lint:fix`           | Otomatik düzeltilebilir lint hatalarını gider |
+| `npm run format`             | Prettier ile tümünü formatla                  |
+| `npm run format:check`       | Format'a uygun mu kontrol et (CI için)        |
+| `npm run typecheck`          | Tüm workspace'lerde TS strict tip kontrolü    |
+| `npm run typecheck:frontend` | Sadece frontend                               |
+| `npm run typecheck:api`      | Sadece api-server                             |
+| `npm run test`               | Tüm workspace'lerde testler                   |
+| `npm run build`              | Tüm workspace'lerde production build          |
 
 ## 3. Git Workflow
 
@@ -73,19 +73,19 @@ Format:
 
 **Tipler:**
 
-| Tip | Ne için |
-|---|---|
-| `feat` | Yeni özellik |
-| `fix` | Bug fix |
+| Tip        | Ne için                           |
+| ---------- | --------------------------------- |
+| `feat`     | Yeni özellik                      |
+| `fix`      | Bug fix                           |
 | `refactor` | Davranışı değiştirmeyen düzenleme |
-| `perf` | Performans iyileştirmesi |
-| `style` | Sadece format/whitespace |
-| `test` | Test ekleme/düzeltme |
-| `docs` | Dokümantasyon |
-| `build` | Build sistem / bağımlılıklar |
-| `ci` | CI config |
-| `chore` | Bakım |
-| `revert` | Commit geri alma |
+| `perf`     | Performans iyileştirmesi          |
+| `style`    | Sadece format/whitespace          |
+| `test`     | Test ekleme/düzeltme              |
+| `docs`     | Dokümantasyon                     |
+| `build`    | Build sistem / bağımlılıklar      |
+| `ci`       | CI config                         |
+| `chore`    | Bakım                             |
+| `revert`   | Commit geri alma                  |
 
 **Scope** kebab-case ve modül/dizin adıyla eşleşmeli:
 

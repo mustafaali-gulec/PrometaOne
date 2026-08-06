@@ -1,5 +1,5 @@
 # =============================================================================
-# PROMETA ONE — Tam Stack Docker Compose
+# M SUITE — Tam Stack Docker Compose
 # PostgreSQL + API (api-server, Hono/tsx) + Frontend (Vite) + ML (FastAPI) + Adminer
 #
 # Kullanım:

@@ -1,6 +1,6 @@
 -- ============================================================================
 -- 030_expense_cards.sql
--- Prometa One — Gider/Masraf modülü: Gider Kartları (expense_cards) ana verisi.
+-- M Suite — Gider/Masraf modülü: Gider Kartları (expense_cards) ana verisi.
 -- Gider kartı kalıcı bir master kayıttır (kod GKxxxx). Kasa Excel import'undan
 -- ya da elle oluşturulur. flow_direction enum'u (in/out) ve trg_updated_at()
 -- fonksiyonu zaten var (004 / 001) — yeniden oluşturulmaz, tekrar kullanılır.

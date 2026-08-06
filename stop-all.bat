@@ -1,8 +1,8 @@
 @echo off
-REM Prometa One - Tum sistemi durdur
+REM M Suite - Tum sistemi durdur
 echo.
 echo ===============================================
-echo   PROMETA ONE - DURDURULUYOR...
+echo   M SUITE - DURDURULUYOR...
 echo ===============================================
 echo.
 

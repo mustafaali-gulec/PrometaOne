@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# PROMETA ONE — SUNUCU KURULUM SIHIRBAZI (Linux)
+# M SUITE — SUNUCU KURULUM SIHIRBAZI (Linux)
 # =============================================================================
 # Windows esdegerinin (Kurulum-Sunucu.ps1) birebir Linux karsiligi.
 # root olarak calistirin: sudo bash install/kurulum-sunucu.sh
@@ -60,7 +60,7 @@ cd "$ROOT" || exit 1
 
 printf "\n"
 printf "  ${C_CYAN}=====================================================${C_RESET}\n"
-printf "  ${C_CYAN} PROMETA ONE - SUNUCU KURULUM SIHIRBAZI (Linux)${C_RESET}\n"
+printf "  ${C_CYAN} M SUITE - SUNUCU KURULUM SIHIRBAZI (Linux)${C_RESET}\n"
 printf "  ${C_CYAN}=====================================================${C_RESET}\n"
 bilgi "Calisma klasoru: $ROOT"
 
@@ -198,7 +198,7 @@ if [ "$ENV_YAZ" -eq 1 ]; then
   bilgi "E-posta (SMTP) ayarlari opsiyoneldir; bos gecilebilir."
   printf "  SMTP sunucusu (bos = kapali): "
   read -r SMTP_HOST
-  SMTP_PORT=587; SMTP_USER=""; SMTP_PASS=""; SMTP_FROM="Prometa One <noreply@prometahr.com>"; SMTP_SECURE=false
+  SMTP_PORT=587; SMTP_USER=""; SMTP_PASS=""; SMTP_FROM="M Suite <noreply@prometahr.com>"; SMTP_SECURE=false
   EMAIL_PROVIDER=console
   if [ -n "$SMTP_HOST" ]; then
     EMAIL_PROVIDER=smtp
@@ -263,7 +263,7 @@ if [ "$ENV_YAZ" -eq 1 ]; then
 
   {
     echo "# ============================================================="
-    echo "# PROMETA ONE - uretim ortam degiskenleri"
+    echo "# M SUITE - uretim ortam degiskenleri"
     echo "# Kurulum sihirbazi tarafindan uretildi: $(date '+%Y-%m-%d %H:%M')"
     echo "# BU DOSYAYI YEDEKLEYIN ve kimseyle paylasmayin (sifreler icerir)."
     echo "# ============================================================="

@@ -1,4 +1,4 @@
-# Prometa One — Entegrasyon Denetim Raporu
+# M Suite — Entegrasyon Denetim Raporu
 
 **Tarih:** 17 Mayıs 2026
 **Versiyon:** App.jsx 81.160 satır
@@ -6,11 +6,14 @@
 ## ✅ Tespit Edilen ve Düzeltilen Eksikler
 
 ### 1. Duplicate View Routing
+
 **Sorun:** `view === "reports"` iki yerde tanımlı — biri yeni ReportsCenter (12255), diğeri eski legacy `<Reports>` (12322).
 **Çözüm:** Eski legacy view silindi. Tek bir reports view'ı var.
 
 ### 2. PER_COMPANY_FIELDS Eksik Alanlar
+
 **Sorun:** Yeni eklenen şu alanlar PER_COMPANY_FIELDS array'inde yoktu:
+
 - `crmDeals`, `crmActivities`, `crmLostReasons`
 - `purchaseRequests`, `purchaseOrders`
 - `projects`
@@ -24,7 +27,9 @@ Bu eksiklik şirket değiştirildiğinde tüm bu verilerin silinmesine yol açı
 **Çözüm:** PER_COMPANY_FIELDS'a 15 eksik alan eklendi.
 
 ### 3. createEmptyCompanyData Eksiklikler
+
 **Sorun:** Bazı default'lar tanımsızdı:
+
 - `crmActivities`, `crmLostReasons`
 - `approvalRequests`, `approvalChains`
 - `checks`, `checkAccounts`
@@ -33,25 +38,30 @@ Bu eksiklik şirket değiştirildiğinde tüm bu verilerin silinmesine yol açı
 **Çözüm:** Tüm eksik alanlar `createEmptyCompanyData()` içinde default `[]` olarak tanımlandı.
 
 ### 4. Eski Veri Backfill Eksik
-**Sorun:** Daha önce kurulmuş Prometa One veritabanları yeni sürüme geçince eksik alanları görür ve undefined hataları alabilirdi.
+
+**Sorun:** Daha önce kurulmuş M Suite veritabanları yeni sürüme geçince eksik alanları görür ve undefined hataları alabilirdi.
 
 **Çözüm:** Yeni `backfillCompanyData(data)` fonksiyonu eklendi. `migrateLegacyData` otomatik olarak backfill çalıştırıyor. Tüm mevcut şirketlerde eksik alanlar default değerlerle doluyor (mevcut data korunarak).
 
 ### 5. Side Menu Duplicate
+
 **Sorun:** Sol menüde "reports" item'ı iki kez listelenmişti (biri eski `view_reports` permission, biri yeni `view_dashboard`).
 
 **Çözüm:** Eski item silindi. TopBar dropdown'undaki menu listesi de güncellendi.
 
 ### 6. Project Delete Cascade Cleanup
+
 **Sorun:** Proje silindiğinde, ona bağlı invoice/PO/deal/JE kayıtlarındaki `projectId` orphan kalıyordu.
 
 **Çözüm:** `deleteProject` cascade unlink yapacak şekilde güncellendi:
+
 - Bağlı kayıtların `projectId` alanı `null` yapılır (kayıt silinmez)
 - Kaç kayıt etkileneceği önceden kullanıcıya gösterilir
 - Audit log'a unlinked count bilgisi düşülür
 - `_previousProjectId` alanı saklanır (recovery için)
 
 ### 7. Tema Geçiş Performansı
+
 **Sorun:** Universal `* { transition: ... }` her render'da gereksiz GPU compositing tetikliyordu.
 
 **Çözüm:** Tema değişimi sırasında sadece 250ms boyunca `html.theme-transitioning` class aktif edilir. Geri kalan zamanda transition yok → daha akıcı UI.
@@ -59,6 +69,7 @@ Bu eksiklik şirket değiştirildiğinde tüm bu verilerin silinmesine yol açı
 ## 🔍 Doğrulanmış Doğru Çalışan Entegrasyonlar
 
 ### Multi-Company Veri Akışı
+
 ```
 data (global)
   ├── companies: [...]
@@ -76,9 +87,11 @@ data (global)
 
 selectCompanyData(data) → effectiveData → Modules
 ```
+
 ✓ Yeni alanlar bu akışa entegre.
 
 ### navigateToEntity Mapping
+
 ```javascript
 party            → parties
 invoice          → invoices
@@ -97,9 +110,11 @@ purchase_request → purchase_requests
 purchase_order   → purchase_orders
 project          → projects
 ```
+
 ✓ Tüm yeni entity tipleri kapsanmış.
 
 ### View ↔ Component ↔ Permission
+
 ```
 dashboard          → Dashboard          → view_dashboard
 cashflow_dashboard → CashflowDashboard  → view_dashboard
@@ -128,9 +143,11 @@ audit              → AuditLog           → view_audit
 settings           → SettingsView       → system_settings
 self_service       → SelfServicePortal  → (kullanıcı bazlı)
 ```
+
 ✓ 26 view tam route'lanmış.
 
 ### Tema Sistemi
+
 - 4 tema: classic, modern, dark, midnight
 - localStorage persist ✓
 - iOS/Android status bar meta otomatik ✓
@@ -138,6 +155,7 @@ self_service       → SelfServicePortal  → (kullanıcı bazlı)
 - TopBar picker ✓
 
 ### PWA
+
 - manifest.json (8 ikon, 4 shortcut) ✓
 - service worker v1.1.0 ✓
 - Install prompt ✓
@@ -149,6 +167,7 @@ self_service       → SelfServicePortal  → (kullanıcı bazlı)
 - iOS safe-area ✓
 
 ### AI
+
 - Frontend heuristic v2 (TF-IDF benzeri + 8 sinyal) ✓
 - Backend ML /v1/suggest-project (scikit-learn) ✓
 - Backend ML /v1/feedback (POST + GET stats + recent) ✓
@@ -156,6 +175,7 @@ self_service       → SelfServicePortal  → (kullanıcı bazlı)
 - Rapor Merkezi'nde AI Learning Insights kartı ✓
 
 ### Reports v3
+
 - 8 hazır rapor builder ✓
 - Excel export (multi-sheet + özet) ✓
 - CSV export ✓
@@ -212,46 +232,89 @@ docker-compose restart frontend backend ml-service
 ```javascript
 PER_COMPANY_FIELDS = [
   // FİNANS
-  "fiscalYear", "fiscalStartMonth", "openingCash",
-  "inflows", "outflows", "nonPnlOutflows", "cells",
-  "bankAccounts", "bankEntries",
-  "kasaAccounts", "kasaEntries", "kasaCategories",
-  "transfers", "invoices", "revaluations",
-  "loans", "loanTransactions",
+  'fiscalYear',
+  'fiscalStartMonth',
+  'openingCash',
+  'inflows',
+  'outflows',
+  'nonPnlOutflows',
+  'cells',
+  'bankAccounts',
+  'bankEntries',
+  'kasaAccounts',
+  'kasaEntries',
+  'kasaCategories',
+  'transfers',
+  'invoices',
+  'revaluations',
+  'loans',
+  'loanTransactions',
 
   // İK (HR)
-  "hrOrgUnits", "hrDepartments", "hrJobTitles", "hrEmployees",
-  "hrPositions", "hrCandidates", "hrApplications", "hrInterviews",
-  "hrCustomRoles", "hrRoleGrants", "hrPermOverrides",
-  "hrQuestions", "hrInterviewKits", "hrScorecards",
-  "hrJobPostings",
-  "hrCompPolicies", "hrCompRecords",
-  "hrPayrollComponents", "hrPayrollParams", "hrPayrollRuns",
-  "hrAttendanceSheets", "hrAttendanceDays",
-  "hrLeaveBalances", "hrLeaveRequests",
-  "hrBenefitContracts",
-  "hrRequests",
-  "hrAssets",
-  "hrNotifications", "hrComments",
-  "hrPushDevices", "hrPushPreferences",
-  "hrEmailPreferences", "hrEmailLog", "hrEmailSettings",
+  'hrOrgUnits',
+  'hrDepartments',
+  'hrJobTitles',
+  'hrEmployees',
+  'hrPositions',
+  'hrCandidates',
+  'hrApplications',
+  'hrInterviews',
+  'hrCustomRoles',
+  'hrRoleGrants',
+  'hrPermOverrides',
+  'hrQuestions',
+  'hrInterviewKits',
+  'hrScorecards',
+  'hrJobPostings',
+  'hrCompPolicies',
+  'hrCompRecords',
+  'hrPayrollComponents',
+  'hrPayrollParams',
+  'hrPayrollRuns',
+  'hrAttendanceSheets',
+  'hrAttendanceDays',
+  'hrLeaveBalances',
+  'hrLeaveRequests',
+  'hrBenefitContracts',
+  'hrRequests',
+  'hrAssets',
+  'hrNotifications',
+  'hrComments',
+  'hrPushDevices',
+  'hrPushPreferences',
+  'hrEmailPreferences',
+  'hrEmailLog',
+  'hrEmailSettings',
 
   // MUHASEBE
-  "accChartOfAccounts", "accJournalEntries", "accFiscalPeriods",
-  "accBudgets", "accParties", "accCariVouchers", "accSettings",
+  'accChartOfAccounts',
+  'accJournalEntries',
+  'accFiscalPeriods',
+  'accBudgets',
+  'accParties',
+  'accCariVouchers',
+  'accSettings',
 
   // SİSTEM
-  "notificationSettings", "archives",
+  'notificationSettings',
+  'archives',
 
   // YENİ — CRM, Satınalma, Proje, Görev, AI, Rapor
-  "crmDeals", "crmActivities", "crmLostReasons",
-  "purchaseRequests", "purchaseOrders",
-  "projects",
-  "tasks", "taskTemplates",
-  "approvalRequests", "approvalChains",
-  "checks", "checkAccounts",
-  "aiFeedback",
-  "scheduledReports", "customDashboards",
+  'crmDeals',
+  'crmActivities',
+  'crmLostReasons',
+  'purchaseRequests',
+  'purchaseOrders',
+  'projects',
+  'tasks',
+  'taskTemplates',
+  'approvalRequests',
+  'approvalChains',
+  'checks',
+  'checkAccounts',
+  'aiFeedback',
+  'scheduledReports',
+  'customDashboards',
 ];
 // Toplam: 67 alan
 ```

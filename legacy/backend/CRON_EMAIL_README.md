@@ -1,4 +1,4 @@
-# Prometa One — Cron & Email Backend Servisleri
+# M Suite — Cron & Email Backend Servisleri
 
 ## Kurulum
 
@@ -21,7 +21,7 @@ SMTP_PORT=587
 SMTP_SECURE=false                # true ise 465
 SMTP_USER=ornek@gmail.com
 SMTP_PASS=app-password           # Gmail için "App Password"
-SMTP_FROM_NAME="Prometa One"
+SMTP_FROM_NAME="M Suite"
 SMTP_FROM_EMAIL=noreply@promet.com.tr
 
 # App URL (e-posta link'lerinde)
@@ -91,7 +91,7 @@ services:
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASS=${SMTP_PASS}
-      - SMTP_FROM_NAME=Prometa One
+      - SMTP_FROM_NAME=M Suite
       - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL}
       - APP_URL=https://prometa.promet.com.tr
 ```

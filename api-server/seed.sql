@@ -1,5 +1,5 @@
 -- =====================================================================
--- PROMETA ONE — Seed Data
+-- M SUITE — Seed Data
 -- 4 demo kullanıcı (admin, mustafa, editor, viewer) + 1 örnek şirket
 -- =====================================================================
 

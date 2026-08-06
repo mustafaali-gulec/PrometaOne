@@ -1,8 +1,8 @@
 {
-  "name": "@prometa/frontend",
+  "name": "@msuite/frontend",
   "version": "2.0.0",
   "private": true,
-  "description": "Prometa One — Finance & HR Platform · Frontend",
+  "description": "M Suite — Finance & HR Platform · Frontend",
   "type": "module",
   "scripts": {
     "dev": "vite",

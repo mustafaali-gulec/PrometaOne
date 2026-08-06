@@ -1,6 +1,6 @@
 -- ============================================================================
 -- 022_purchasing.sql
--- Prometa One — Satınalma (Purchasing): Tedarikçiler (cari), Talepler (PR),
+-- M Suite — Satınalma (Purchasing): Tedarikçiler (cari), Talepler (PR),
 -- Siparişler (PO). Tedarikçi kalıcı bir cari kaydıdır (kod 320.x) ve PO ona
 -- vendor_id FK ile bağlanır (cari hesap ilişkisi).
 -- ============================================================================

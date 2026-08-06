@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Prometa One — Lisans Üretici CLI (Ed25519).
+ * M Suite — Lisans Üretici CLI (Ed25519).
  *
  * SADECE üretici firmada çalışır — bu klasör ve özellikle keys/ altındaki
  * private key MÜŞTERİYE ASLA GÖNDERİLMEZ. Detay: README.md
@@ -299,7 +299,7 @@ switch (command) {
     cmdVerify(rest);
     break;
   default:
-    console.log(`Prometa One — Lisans Üretici CLI (Ed25519)
+    console.log(`M Suite — Lisans Üretici CLI (Ed25519)
 
 Kullanım:
   node cli.js keygen [--force]

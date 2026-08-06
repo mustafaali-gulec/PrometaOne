@@ -1,4 +1,4 @@
-# 📱 Prometa One — Mobile Push API Sözleşmesi
+# 📱 M Suite — Mobile Push API Sözleşmesi
 
 Backend tarafından implement edilmesi gereken endpoint'ler ve veri yapıları.
 

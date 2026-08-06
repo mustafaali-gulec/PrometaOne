@@ -1,6 +1,6 @@
-# Prometa One — Backend API
+# M Suite — Backend API
 
-Production-ready Node.js + Hono + PostgreSQL backend for **Prometa One** Finance & HR Platform.
+Production-ready Node.js + Hono + PostgreSQL backend for **M Suite** Finance & HR Platform.
 
 > **Stack:** Node.js 20 · TypeScript · Hono · PostgreSQL 16 · bcrypt · JWT · node-cron · nodemailer
 
@@ -17,18 +17,18 @@ Production'da `window.PROMETA_API`'yi şöyle tanımlayın:
 ```javascript
 window.PROMETA_API = {
   sendPasswordResetEmail: async ({ username, email, token }) => {
-    return fetch("/v1/auth/forgot-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ emailOrUsername: email || username, lang: "tr" }),
-    }).then(r => r.json());
+    return fetch('/v1/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emailOrUsername: email || username, lang: 'tr' }),
+    }).then((r) => r.json());
   },
   resetPassword: async ({ token, newPassword }) => {
-    return fetch("/v1/auth/reset-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    return fetch('/v1/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, newPassword }),
-    }).then(r => r.json());
+    }).then((r) => r.json());
   },
 };
 ```
@@ -38,21 +38,24 @@ window.PROMETA_API = {
 `.env` dosyasında 3 provider'dan birini seçin:
 
 **1. Console (development)** — Email gerçek gönderilmez, console'a yazılır:
+
 ```env
 EMAIL_PROVIDER=console
 ```
 
 **2. SMTP (Gmail/Outlook/custom)**:
+
 ```env
 EMAIL_PROVIDER=smtp
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=noreply@prometahr.com
 SMTP_PASS=your-app-password  # Gmail için: https://myaccount.google.com/apppasswords
-SMTP_FROM="Prometa One <noreply@prometahr.com>"
+SMTP_FROM="M Suite <noreply@prometahr.com>"
 ```
 
 **3. SendGrid (production önerilen)**:
+
 ```env
 EMAIL_PROVIDER=sendgrid
 SENDGRID_API_KEY=SG.xxx
@@ -65,11 +68,11 @@ Email şablonu **4 dili** destekler (tr/en/de/ar) ve `lang` parametresine göre 
 
 ### API Endpoints
 
-| Method | Endpoint | Açıklama |
-|---|---|---|
-| POST | `/v1/auth/forgot-password` | Token iste + email gönder. Body: `{emailOrUsername, lang?}` |
-| GET  | `/v1/auth/verify-reset-token?token=xxx` | Token geçerli mi kontrol et |
-| POST | `/v1/auth/reset-password` | Yeni şifre belirle. Body: `{token, newPassword}` |
+| Method | Endpoint                                | Açıklama                                                    |
+| ------ | --------------------------------------- | ----------------------------------------------------------- |
+| POST   | `/v1/auth/forgot-password`              | Token iste + email gönder. Body: `{emailOrUsername, lang?}` |
+| GET    | `/v1/auth/verify-reset-token?token=xxx` | Token geçerli mi kontrol et                                 |
+| POST   | `/v1/auth/reset-password`               | Yeni şifre belirle. Body: `{token, newPassword}`            |
 
 ### Güvenlik Özellikleri
 
@@ -143,12 +146,12 @@ npm start
 
 ## Demo Kullanıcılar (seed sonrası)
 
-| Kullanıcı | Şifre | Rol |
-|---|---|---|
-| `admin` | `admin123` | admin |
-| `mustafa` | `promet` | cfo |
-| `editor` | `editor123` | editor |
-| `viewer` | `viewer123` | viewer |
+| Kullanıcı | Şifre       | Rol    |
+| --------- | ----------- | ------ |
+| `admin`   | `admin123`  | admin  |
+| `mustafa` | `promet`    | cfo    |
+| `editor`  | `editor123` | editor |
+| `viewer`  | `viewer123` | viewer |
 
 ⚠️ Bu şifreleri **production'da hemen değiştirin**: `POST /v1/auth/change-password`
 
@@ -210,6 +213,7 @@ Her şirket-scoped endpoint `requireCompanyAccess(minRole)` middleware'i ile kor
 ### Bootstrap: `/companies/:cid/state`
 
 Frontend'in tek seferde tüm şirket verisini alabilmesi için tasarlandı. 11 paralel query ile:
+
 - Şirket, kategoriler, hücreler, banka hesapları (bakiyeli), kasa, hareketler
 - Transferler, faturalar (ödemelerle birlikte), revaluations
 - Bildirim ayarları, arşiv metadata
@@ -226,6 +230,7 @@ Frontend'in tek seferde tüm şirket verisini alabilmesi için tasarlandı. 11 p
 ### AI Tahmin Algoritması
 
 `predictForCompany()` 3 yöntem birleşimi:
+
 - Linear regression (trend)
 - 3-month moving average
 - Exponential smoothing (α=0.4)
@@ -235,6 +240,7 @@ Ağırlıklar R²'ye göre dinamik: yüksek R² → linear daha baskın. Çoklu 
 ### Cron
 
 Tek-instance deployment için in-process `node-cron`. 3 görev:
+
 - **09:30 hafta içi**: TCMB kurları çek + DB cache
 - **Her saat başı**: aktif `notification_settings.cron_schedule`'a göre bildirim gönder
 - **Gece yarısı**: eski session'ları temizle
@@ -247,36 +253,36 @@ Multi-instance için `ENABLE_CRON=false` ile kapatıp ayrı worker çalıştır�
 
 Tam spesifikasyon için `openapi.yaml` dosyasına bakın. Özet:
 
-| Group | Endpoint örnekleri |
-|---|---|
-| Auth | `POST /v1/auth/login`, `/refresh`, `/logout`, `GET /auth/me` |
-| Companies | `GET /v1/companies`, `POST /v1/companies`, `GET /v1/companies/:cid/state` |
-| Cells | `GET/PUT /v1/companies/:cid/cells`, `PUT /v1/companies/:cid/cells/:catId/:monthIdx` |
-| Invoices | `POST /v1/companies/:cid/invoices`, `POST /v1/companies/:cid/invoices/bulk-commit` |
-| FX | `GET /v1/exchange-rates`, `POST /v1/exchange-rates/fetch-tcmb`, `POST /v1/companies/:cid/revaluations` |
-| Archives | `POST /v1/companies/:cid/archives/close-year`, `GET /v1/companies/:cid/archives/:year` |
-| AI | `GET /v1/companies/:cid/ai/predictions?horizon=3` |
-| Audit | `GET /v1/audit-logs?from=&to=&action=&companyId=` |
+| Group     | Endpoint örnekleri                                                                                     |
+| --------- | ------------------------------------------------------------------------------------------------------ |
+| Auth      | `POST /v1/auth/login`, `/refresh`, `/logout`, `GET /auth/me`                                           |
+| Companies | `GET /v1/companies`, `POST /v1/companies`, `GET /v1/companies/:cid/state`                              |
+| Cells     | `GET/PUT /v1/companies/:cid/cells`, `PUT /v1/companies/:cid/cells/:catId/:monthIdx`                    |
+| Invoices  | `POST /v1/companies/:cid/invoices`, `POST /v1/companies/:cid/invoices/bulk-commit`                     |
+| FX        | `GET /v1/exchange-rates`, `POST /v1/exchange-rates/fetch-tcmb`, `POST /v1/companies/:cid/revaluations` |
+| Archives  | `POST /v1/companies/:cid/archives/close-year`, `GET /v1/companies/:cid/archives/:year`                 |
+| AI        | `GET /v1/companies/:cid/ai/predictions?horizon=3`                                                      |
+| Audit     | `GET /v1/audit-logs?from=&to=&action=&companyId=`                                                      |
 
 ---
 
 ## Environment Variables
 
-| Variable | Default | Açıklama |
-|---|---|---|
-| `NODE_ENV` | `development` | `production`, `development`, `test` |
-| `PORT` | `3000` | HTTP port |
-| `DATABASE_URL` | — | `postgres://user:pass@host:5432/db` |
-| `JWT_SECRET` | — | **Zorunlu**, min 32 karakter |
-| `JWT_REFRESH_SECRET` | — | **Zorunlu**, JWT_SECRET'tan farklı |
-| `JWT_ACCESS_EXPIRES` | `15m` | Access token TTL |
-| `JWT_REFRESH_EXPIRES` | `7d` | Refresh token TTL |
-| `CORS_ORIGINS` | `http://localhost:5173` | Virgülle ayrılmış origin'ler |
-| `BCRYPT_ROUNDS` | `10` | Cost factor (10-14 önerilir) |
-| `TCMB_API_KEY` | (opsiyonel) | Yoksa public endpoint |
-| `SMTP_HOST` | (opsiyonel) | E-mail gönderimi için |
-| `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `SMTP_SECURE` | | |
-| `ENABLE_CRON` | `true` | Cron jobs in-process çalışsın mı |
+| Variable                                                          | Default                 | Açıklama                            |
+| ----------------------------------------------------------------- | ----------------------- | ----------------------------------- |
+| `NODE_ENV`                                                        | `development`           | `production`, `development`, `test` |
+| `PORT`                                                            | `3000`                  | HTTP port                           |
+| `DATABASE_URL`                                                    | —                       | `postgres://user:pass@host:5432/db` |
+| `JWT_SECRET`                                                      | —                       | **Zorunlu**, min 32 karakter        |
+| `JWT_REFRESH_SECRET`                                              | —                       | **Zorunlu**, JWT_SECRET'tan farklı  |
+| `JWT_ACCESS_EXPIRES`                                              | `15m`                   | Access token TTL                    |
+| `JWT_REFRESH_EXPIRES`                                             | `7d`                    | Refresh token TTL                   |
+| `CORS_ORIGINS`                                                    | `http://localhost:5173` | Virgülle ayrılmış origin'ler        |
+| `BCRYPT_ROUNDS`                                                   | `10`                    | Cost factor (10-14 önerilir)        |
+| `TCMB_API_KEY`                                                    | (opsiyonel)             | Yoksa public endpoint               |
+| `SMTP_HOST`                                                       | (opsiyonel)             | E-mail gönderimi için               |
+| `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `SMTP_SECURE` |                         |                                     |
+| `ENABLE_CRON`                                                     | `true`                  | Cron jobs in-process çalışsın mı    |
 
 ---
 

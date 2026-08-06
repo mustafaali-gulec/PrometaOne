@@ -1,4 +1,4 @@
-# Prometa One — ML Service Dockerfile
+# M Suite — ML Service Dockerfile
 FROM python:3.11-slim
 
 WORKDIR /app

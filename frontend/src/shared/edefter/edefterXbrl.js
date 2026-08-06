@@ -148,7 +148,7 @@ function documentInfoXml(ctx, kind, profile, year, month, part) {
       'gl-bus:sourceApplication',
       ctx,
       profile.sourceApplication ||
-        `${profile.softwareProducerVkn || profile.vkn}##${profile.softwareProducer || 'Prometa One'}##${profile.softwareName || 'Prometa One e-Defter'}##${profile.softwareVersion || '1.0'}`,
+        `${profile.softwareProducerVkn || profile.vkn}##${profile.softwareProducer || 'M Suite'}##${profile.softwareName || 'M Suite e-Defter'}##${profile.softwareVersion || '1.0'}`,
     ) +
     `</gl-cor:documentInfo>`
   );

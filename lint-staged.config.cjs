@@ -1,5 +1,5 @@
 /**
- * Prometa One — lint-staged
+ * M Suite — lint-staged
  *
  * Pre-commit hook'unda sadece staged dosyalara format + lint çalıştırır.
  * Tüm projeyi her commit'te değil — sadece dokunulanları tarar.

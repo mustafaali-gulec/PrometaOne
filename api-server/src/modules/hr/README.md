@@ -1,6 +1,6 @@
 # HR Modülü (Faz 4)
 
-Prometa One — İnsan Kaynakları modülü. Organizasyon ağacı, çalışan sicili, pozisyon kütüphanesi ve işe alım pipeline'ı.
+M Suite — İnsan Kaynakları modülü. Organizasyon ağacı, çalışan sicili, pozisyon kütüphanesi ve işe alım pipeline'ı.
 
 > Plan dökümanı: `docs/MIGRATION_ROADMAP.md` § "Faz 4 — HR Core (DETAYLI PLAN)"
 > Karar dökümanı: `docs/adr/0005-hr-manager-role-and-employee-user-link.md`

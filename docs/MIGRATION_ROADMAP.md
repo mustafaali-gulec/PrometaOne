@@ -1,4 +1,4 @@
-# Prometa One — Migration Yol Haritası
+# M Suite — Migration Yol Haritası
 
 **Son güncelleme:** 2026-06-01 · **Faz:** 6 (Finance: E-Fatura & Döviz) tamamlandı (8/8 PR + ADR-0004 kapanışı + ADR-0008) — Faz 7 (Payroll) sıradaki
 

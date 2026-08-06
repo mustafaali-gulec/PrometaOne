@@ -136,7 +136,7 @@ export interface NotificationsModuleConfig {
   smtpSecure: boolean;
   smtpUser: string | undefined;
   smtpPass: string | undefined;
-  /** Gönderici. Örn: "Prometa One <noreply@prometa.local>" */
+  /** Gönderici. Örn: "M Suite <noreply@prometa.local>" */
   emailFrom: string;
   /** Cron etkin mi? */
   enableCron: boolean;

@@ -1,8 +1,8 @@
 @echo off
-REM Prometa One Frontend - Hizli baslatma
+REM M Suite Frontend - Hizli baslatma
 echo.
 echo ===============================================
-echo   PROMETA ONE - FRONTEND BASLATILIYOR...
+echo   M SUITE - FRONTEND BASLATILIYOR...
 echo ===============================================
 echo.
 

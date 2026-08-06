@@ -1,5 +1,5 @@
 # =====================================================================
-# PROMETA ONE — DOCKER-COMPOSE'A EKLENECEK ML SERVİS BLOĞU
+# M SUITE — DOCKER-COMPOSE'A EKLENECEK ML SERVİS BLOĞU
 # ---------------------------------------------------------------------
 # Mevcut docker-compose.yml dosyanıza aşağıdaki "ml-service" bloğunu
 # `services:` altına ekleyin. Ek olarak, eğer backend (Node.js) ML'e

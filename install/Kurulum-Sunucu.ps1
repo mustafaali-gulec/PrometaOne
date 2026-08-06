@@ -1,7 +1,7 @@
 # =============================================================================
-# PROMETA ONE — SUNUCU KURULUM SIHIRBAZI (Windows)
+# M SUITE — SUNUCU KURULUM SIHIRBAZI (Windows)
 # =============================================================================
-# Bu sihirbaz Prometa One'i tek bir SUNUCU bilgisayara kurar. Terminal
+# Bu sihirbaz M Suite'i tek bir SUNUCU bilgisayara kurar. Terminal
 # bilgisayarlar sunucuya tarayicidan baglanir (install/Kurulum-Terminal.ps1).
 #
 # Adimlar:
@@ -32,7 +32,7 @@ $ErrorActionPreference = 'Stop'
 # --- Sabitler ----------------------------------------------------------------
 $script:ComposeFile = 'docker-compose.prod.yml'
 $script:EnvFile     = '.env.prod'
-$script:FirewallRuleName = 'Prometa One Web'
+$script:FirewallRuleName = 'M Suite Web'
 $script:DockerDesktopUrl = 'https://www.docker.com/products/docker-desktop/'
 
 # Proje koku = bu script'in bulundugu klasorun ustu (install/ -> paket koku)
@@ -51,7 +51,7 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 function Write-Banner {
     Write-Host ''
     Write-Host '  =====================================================' -ForegroundColor Cyan
-    Write-Host '   PROMETA ONE - SUNUCU KURULUM SIHIRBAZI' -ForegroundColor Cyan
+    Write-Host '   M SUITE - SUNUCU KURULUM SIHIRBAZI' -ForegroundColor Cyan
     Write-Host '   Finans / IK / AI Platformu - Uretim Kurulumu' -ForegroundColor Cyan
     Write-Host '  =====================================================' -ForegroundColor Cyan
     Write-Host ''
@@ -263,7 +263,7 @@ if ($envYaz) {
     # SMTP (opsiyonel)
     Write-Bilgi 'E-posta (SMTP) ayarlari opsiyoneldir; bos birakirsaniz e-posta gonderimi kapali kalir.'
     $smtpHost = Read-Host '  SMTP sunucusu (bos = kapali)'
-    $smtpPort = '587'; $smtpUser = ''; $smtpPass = ''; $smtpFrom = 'Prometa One <noreply@prometahr.com>'; $smtpSecure = 'false'
+    $smtpPort = '587'; $smtpUser = ''; $smtpPass = ''; $smtpFrom = 'M Suite <noreply@prometahr.com>'; $smtpSecure = 'false'
     $emailProvider = 'console'
     if (-not [string]::IsNullOrWhiteSpace($smtpHost)) {
         $emailProvider = 'smtp'
@@ -341,7 +341,7 @@ if ($envYaz) {
 
     $envIcerik = @(
         '# =============================================================',
-        '# PROMETA ONE - uretim ortam degiskenleri',
+        '# M SUITE - uretim ortam degiskenleri',
         ("# Kurulum sihirbazi tarafindan uretildi: {0}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm')),
         '# BU DOSYAYI YEDEKLEYIN ve kimseyle paylasmayin (sifreler icerir).',
         '# =============================================================',

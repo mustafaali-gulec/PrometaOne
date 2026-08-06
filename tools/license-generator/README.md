@@ -1,4 +1,4 @@
-# Prometa One — Lisans Üretici (license-generator)
+# M Suite — Lisans Üretici (license-generator)
 
 Ed25519 imzalı `license.lic` dosyaları üreten, bağımlılıksız (saf `node:crypto`)
 CLI aracı.
