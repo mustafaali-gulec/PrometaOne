@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Prometa One / M Suite — surum kesme araci.
+ * M Suite / M Suite — surum kesme araci.
  *
  * POLITIKA (docs/RELEASE.md):
  *   • Tek urun surumu. Kok package.json kaynak-of-truth; frontend, api-server ve
