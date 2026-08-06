@@ -238,7 +238,11 @@ if (!APPLY) {
 const branch = git('rev-parse', '--abbrev-ref', 'HEAD');
 if (branch !== 'master' && branch !== 'main')
   die(`Surum yalnizca master'dan kesilir (su an: ${branch}).`);
-if (git('status', '--porcelain')) die('Calisma agaci temiz degil — once commit/stash edin.');
+// Temiz agac yalnizca commit atan yol icin sart. --baseline hicbir dosyaya
+// dokunmaz, sadece HEAD'i etiketler; ayni agacta calisan diger ajanlarin
+// kaydedilmemis degisiklikleri bu tag'e sizmaz, dolayisiyla engel degil.
+if (!BASELINE && git('status', '--porcelain'))
+  die('Calisma agaci temiz degil — once commit/stash edin.');
 
 if (BASELINE) {
   git('tag', '-a', tag, '-m', `${tag} — baseline`);
