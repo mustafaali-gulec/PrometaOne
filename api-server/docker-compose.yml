@@ -63,6 +63,11 @@ services:
       BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
       TCMB_API_KEY: ${TCMB_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # E-fatura + e-Beyan kimlik şifreleme anahtarları (32 byte base64) — host
+      # .env'den geçer. BOŞ KALIRSA efemeral anahtar kullanılır ve kayıtlı
+      # entegratör kimlikleri HER deploy'da çözülemez hale gelir.
+      EINVOICE_MASTER_KEY: ${EINVOICE_MASTER_KEY:-}
+      EBEYAN_MASTER_KEY: ${EBEYAN_MASTER_KEY:-}
       ML_SERVICE_URL: ${ML_SERVICE_URL:-http://host.docker.internal:8001}
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
       SMTP_HOST: ${SMTP_HOST:-}
