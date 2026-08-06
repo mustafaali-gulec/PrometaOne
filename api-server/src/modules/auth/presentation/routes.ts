@@ -15,6 +15,7 @@ import { z } from 'zod';
 
 import { logAudit } from '../../../middleware/audit.js';
 import { authMiddleware } from '../../../middleware/auth.js';
+import { resolveClientIp } from '../../../middleware/clientIp.js';
 import {
   AccountInactiveError,
   CurrentPasswordMismatchError,
@@ -50,10 +51,11 @@ export interface AuthRouterDeps {
  * olmasi icin alanlar conditional spread'le eklenir.
  */
 function getClientMeta(c: Context): { ip?: string; userAgent?: string } {
-  const ipHeader = c.req.header('x-forwarded-for')?.split(',')[0]?.trim();
+  // resolveClientIp geçersiz adayları ("unknown" vb.) eler — sessions.ip_address inet
+  const ip = resolveClientIp(c);
   const ua = c.req.header('user-agent');
   const out: { ip?: string; userAgent?: string } = {};
-  if (ipHeader !== undefined && ipHeader !== '') out.ip = ipHeader;
+  if (ip !== null) out.ip = ip;
   if (ua !== undefined && ua !== '') out.userAgent = ua;
   return out;
 }
