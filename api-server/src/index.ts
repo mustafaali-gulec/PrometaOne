@@ -249,6 +249,10 @@ v1.route('/auth', authModule.router);
 // Lisanslama — durum (public) + aktivasyon/terminal yönetimi (admin)
 v1.route('/license', licensingModule.router);
 v1.route('/hr', hrModule.router);
+// İşe alım · LinkedIn public uçları (053): XML iş ilanı beslemesi + OAuth dönüşü.
+// authMiddleware YOK — crawler ve OAuth yönlendirmesi JWT taşıyamaz; yetki
+// sırasıyla feed_token ve HMAC imzalı `state` ile sağlanır.
+v1.route('/hr-jobs', hrModule.jobFeedRouter);
 v1.route('/access', accessModule.router);
 v1.route('/finance', financeModule);
 v1.route('/finance', einvoiceModule); // e-fatura + fx (Faz 6) — aynı prefix, /einvoice/* ve /fx/* yolları

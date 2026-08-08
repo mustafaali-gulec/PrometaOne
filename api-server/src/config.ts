@@ -46,6 +46,16 @@ const envSchema = z.object({
   EBEYAN_MASTER_KEY: z.string().optional(),
   EINVOICE_MASTER_KEY: z.string().optional(),
 
+  // İşe Alım · LinkedIn otomatik ilan entegrasyonu (053).
+  // OAuth kimliği şifreleme anahtarı — yoksa EINVOICE_MASTER_KEY'e düşer.
+  HR_LINKEDIN_MASTER_KEY: z.string().optional(),
+  // Dışarıdan erişilebilir kök adres — public XML iş ilanı beslemesinin ve
+  // OAuth dönüş adresinin kurulduğu taban. Tanımsızsa istekten türetilir.
+  PUBLIC_BASE_URL: z.string().optional(),
+  // OAuth dönüş adresi override'ı (LinkedIn uygulamasındaki kayıtla BİREBİR
+  // aynı olmalı). Tanımsızsa `${PUBLIC_BASE_URL}/v1/hr/linkedin/oauth/callback`.
+  LINKEDIN_REDIRECT_URI: z.string().optional(),
+
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),

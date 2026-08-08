@@ -515,6 +515,7 @@ import { PgPayrollRepository as _PgPayrollRepository } from './infrastructure/pe
 import { PgPositionRepository as _PgPositionRepository } from './infrastructure/persistence/PgPositionRepository.js';
 import { PgEmployeeNumberGenerator as _PgEmployeeNumberGenerator } from './infrastructure/sequences/PgEmployeeNumberGenerator.js';
 import { PgUnitOfWork as _PgUnitOfWork } from './infrastructure/unitOfWork/PgUnitOfWork.js';
+import { registerHrLinkedInModule as _registerHrLinkedInModule } from './linkedin/index.js';
 import { createHrDocumentsRouter as _createHrDocumentsRouter } from './presentation/documentRoutes.js';
 import { createHrRouter as _createHrRouter } from './presentation/routes.js';
 
@@ -526,6 +527,12 @@ export interface HrModuleDeps {
 
 export interface RegisteredHrModule {
   router: Hono;
+  /**
+   * Public LinkedIn uçları — /v1/hr-jobs altına AYRI mount edilir.
+   * HR router'ının içine konamaz: o router `authMiddleware` altında, bu uçlar
+   * ise crawler/OAuth yönlendirmesiyle çerezsiz gelir.
+   */
+  jobFeedRouter: Hono;
 }
 
 /**
@@ -707,6 +714,10 @@ export function registerHrModule(deps: HrModuleDeps): RegisteredHrModule {
   // Özlük belge yönetimi — /v1/hr/documents (BYTEA saklama, soft-ref employee_ref).
   router.route('/documents', _createHrDocumentsRouter(employeeDocuments));
 
+  // İşe alım · LinkedIn otomatik ilan (053) — /v1/hr/linkedin + public /v1/hr-jobs.
+  const linkedin = _registerHrLinkedInModule(deps.pool);
+  router.route('/linkedin', linkedin.router);
+
   void stageHistory;
-  return { router };
+  return { router, jobFeedRouter: linkedin.feedRouter };
 }

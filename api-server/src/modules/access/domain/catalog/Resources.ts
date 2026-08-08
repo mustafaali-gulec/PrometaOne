@@ -58,7 +58,7 @@ export const RESOURCES: Readonly<Record<string, ResourceDef>> = {
   },
   'finance.transfers': {
     module: 'Finans',
-    label: 'Transferler',
+    label: 'Virman & Transfer',
     actions: ['view', 'create', 'update', 'delete'],
   },
   'finance.fx': {
@@ -113,6 +113,12 @@ export const RESOURCES: Readonly<Record<string, ResourceDef>> = {
     actions: ['view', 'create', 'update', 'delete', 'export'],
   },
   'hr.recruitment': { module: 'HR', label: 'İşe Alım Süreci', actions: ['view', 'update'] },
+  // 053 — ilan yayınlanınca LinkedIn'e otomatik gönderim + bağlantı ayarları
+  'hr.linkedin': {
+    module: 'HR',
+    label: 'LinkedIn İlan Entegrasyonu',
+    actions: ['view', 'create', 'update', 'delete'],
+  },
   'hr.positions': {
     module: 'HR',
     label: 'Açık Pozisyonlar',
